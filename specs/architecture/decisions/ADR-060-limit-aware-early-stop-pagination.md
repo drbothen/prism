@@ -4,8 +4,8 @@ adr_id: "ADR-060"
 title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tables"
 status: ACCEPTED
 date: "2026-08-26"
-modified: "2026-08-29"
-version: "1.16"
+modified: "2026-08-30"
+version: "1.17"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.16 (2026-08-29) — F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `_ => 0` catch-all in `execute_impl` captures None same as CursorToken; exact-LIMIT corner (`row_count == LIMIT` → `is_truncated: true`) documented as accepted safe over-report; §D8.2 NOTE updated to cite None alongside CursorToken; zero v1 exposure; no code change; feature HEAD 62e50205b frozen unchanged. v1.15 (2026-08-29) — F-P2-LENSC2-001: §D8.4 Dim-3 discharge note stale version pin removed (STORY-INDEX reference now cites draft status without version number; POL-39 compliant); F-P2-LENSC2-002: §Status banner POL-39 sweep count corrected from ~14 to 20 (matches §Changelog enumeration of 20 items; banner and changelog now self-consistent). v1.14 (2026-08-29) — F-P1B-LENSC2-001/002: §D8.4 TD-VSDD-097 Dim-3 note updated (S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now registered in STORY-INDEX, deferral anchored to existing story, prohibitive MUST active); §D8.7 heading volatile version stamp removed; POL-39 sweep: 20 normative in-body version pins anchor-ized across §D8.7/§D8.9; ~6 decision-history version refs preserved as intentional with convention note added to §D8.7. v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.17 (2026-08-30) — F-B1-001 (MEDIUM): §D8.2 discriminator formula extended with intra-pipeline step fan-out term (`early_stopped = (page_record_count >= active_page_size) || !is_last_batch`); §D8.3 worked example (d) added (non-final batch → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation, §D8.9/§D8.10) in §D8.2 and §D8.3; documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. v1.16 (2026-08-29) — F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `_ => 0` catch-all in `execute_impl` captures None same as CursorToken; exact-LIMIT corner (`row_count == LIMIT` → `is_truncated: true`) documented as accepted safe over-report; §D8.2 NOTE updated to cite None alongside CursorToken; zero v1 exposure; no code change; feature HEAD 62e50205b frozen unchanged. v1.15 (2026-08-29) — F-P2-LENSC2-001: §D8.4 Dim-3 discharge note stale version pin removed (STORY-INDEX reference now cites draft status without version number; POL-39 compliant); F-P2-LENSC2-002: §Status banner POL-39 sweep count corrected from ~14 to 20 (matches §Changelog enumeration of 20 items; banner and changelog now self-consistent). v1.14 (2026-08-29) — F-P1B-LENSC2-001/002: §D8.4 TD-VSDD-097 Dim-3 note updated (S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now registered in STORY-INDEX, deferral anchored to existing story, prohibitive MUST active); §D8.7 heading volatile version stamp removed; POL-39 sweep: 20 normative in-body version pins anchor-ized across §D8.7/§D8.9; ~6 decision-history version refs preserved as intentional with convention note added to §D8.7. v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -157,7 +157,7 @@ pagination loop adds:
 ```rust
 if let Some(limit) = context.early_stop_limit {
     if all_records.len() >= limit {
-        // Partial-final-page discriminator (§D8.3):
+        // Discriminator formula (§D8.3):
         // page_record_count = records returned by this page (pre-OCSF count, i.e. raw page len).
         // active_page_size  = mode's declared maximum records per page:
         //   OffsetLimit { page_size }  => page_size as usize
@@ -166,11 +166,24 @@ if let Some(limit) = context.early_stop_limit {
         //                                    PaginationConfig::None — see §D8.4 for rationale;
         //                                    precise cursor detection deferred to
         //                                    S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001)
-        // Full page (page_record_count >= active_page_size): source may have more pages → early_stopped = true.
-        // Partial page (page_record_count < active_page_size): source is exhausted → early_stopped = false.
+        // is_last_batch = (batch_idx + 1 == batch_count) — INTRA-PIPELINE step fan-out only
+        //   (iterates fan_out_batches / fan_out_batch_size within this sensor's pipeline;
+        //    evaluated inside batch-loop → step-loop of execute_impl; DISTINCT from
+        //    multi-sensor fan-out at the FanOutResult layer — see §D8.9/§D8.10 and §D8.3
+        //    disambiguation note).
+        //
+        // early_stopped = (page_record_count >= active_page_size) || !is_last_batch
+        //
+        // Non-final batch (!is_last_batch = true): break 'steps abandons remaining step-fan-out
+        //   batches → data genuinely incomplete → early_stopped = true (page fill irrelevant).
+        // Final batch (is_last_batch = true): falls back to page-fill discriminator.
+        //   Full page  (page_record_count >= active_page_size): source may have more pages → true.
+        //   Partial page (page_record_count < active_page_size): source exhausted → false.
+        // Common no-fan-out case (batch_count == 1): is_last_batch always true →
+        //   formula reduces to page_record_count >= active_page_size (unchanged from prior behavior).
         // NOTE: For CursorToken and PaginationConfig::None, active_page_size = 0 always →
-        //       0 ≥ 0 = true → early_stopped = true (conservative over-report; see §D8.4).
-        early_stopped = page_record_count >= active_page_size;
+        //       page-fill arm: 0 >= 0 = true → early_stopped = true (conservative; see §D8.4).
+        early_stopped = (page_record_count >= active_page_size) || !is_last_batch;
         break 'steps;
     }
 }
@@ -179,21 +192,18 @@ if let Some(limit) = context.early_stop_limit {
 This check fires only after a COMPLETE page has been received and its records appended to
 `all_records`. It does NOT fire mid-page. The page atomicity guarantee is preserved: either
 the entire page arrives (and is accumulated), or a fetch error discards everything.
-The `early_stopped` local variable records the partial-final-page discriminator result so that
+The `early_stopped` local variable records the discriminator formula result so that
 `PipelineResult::early_stopped` is set correctly per §D8.3.
 
 ### D8.3 — Post-break semantics
 
 When early-stop fires (not DI-019 cap), the `truncated` flag is NOT set. `PipelineResult.early_stopped`
-is set using the **partial-final-page discriminator** captured at break time (§D8.2):
+is set using the **discriminator formula** captured at break time (§D8.2):
+`early_stopped = (page_record_count >= active_page_size) || !is_last_batch`.
 
-- **Full final page** (`page_record_count >= page_size`): the source may have more pages —
-  `early_stopped = true`. This includes the exact-full-page-boundary corner (a full final page is
-  treated conservatively as "more may exist" because exhaustion was not confirmed without fetching
-  the next page).
-- **Partial final page** (`page_record_count < page_size`): the source is exhausted (no more pages
-  remain); the returned data IS the complete dataset — `early_stopped = false` (does NOT contribute
-  to `is_truncated`).
+- **Non-final intra-pipeline step fan-out batch** (`!is_last_batch = true`, where `is_last_batch = (batch_idx + 1 == batch_count)` inside `execute_impl` batch-loop): `break 'steps` abandons the remaining step-fan-out batches — data is genuinely incomplete — `early_stopped = true` regardless of page fill. (See disambiguation note below for the distinction between intra-pipeline and multi-sensor fan-out.)
+- **Final batch, full page** (`is_last_batch = true`, `page_record_count >= active_page_size`): the source may have more pages — `early_stopped = true`. This includes the exact-full-page-boundary corner (a full final page is treated conservatively as "more may exist" because exhaustion was not confirmed without fetching the next page).
+- **Final batch, partial page** (`is_last_batch = true`, `page_record_count < active_page_size`): the source is exhausted (no more pages remain); the returned data IS the complete dataset — `early_stopped = false` (does NOT contribute to `is_truncated`).
 
 The pipeline returns a valid `PipelineResult` with `truncated: false` and `early_stopped` per the
 discriminator, containing at most `limit + (page_size - 1)` records. DataFusion applies the precise
@@ -201,13 +211,14 @@ LIMIT on this result. The implementer MUST NOT set `truncated: true` for LIMIT e
 is semantically reserved for capacity-exceeded conditions (DI-019), not for query-driven early stops.
 (Anchor: S-ENGINE-LIMIT-EARLY-STOP-001 AC-014 + RG-PSG-039 `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped` + RG-PSG-040 `test_psg_rg040_partial_final_page_is_truncated_false_wire`, GREEN.)
 
-**Worked examples (partial-final-page discriminator):**
+**Worked examples (discriminator formula):**
 
-| Scenario | page_size | Tenant rows | LIMIT | Final page shape | early_stopped | total_rows > limit | is_truncated | Correctness |
-|----------|-----------|-------------|-------|------------------|---------------|--------------------|--------------|-------------|
-| (a) Exact-limit on exhausted tenant: `LIMIT 5`, tenant has 5 rows | 1000 | 5 | 5 | Partial (5 < 1000) | false | false | false | Correct: complete dataset returned |
-| (b) Normal early-stop: `LIMIT 5`, tenant has 1000+ rows | 1000 | 1000+ | 5 | Full (1000 >= 1000) | true | false | true | Correct: more data exists |
-| (c) Exact-full-page corner: `LIMIT 1000`, tenant has exactly 1000 rows | 1000 | 1000 | 1000 | Full (1000 >= 1000) | true | false | true | Conservative: exhaustion unconfirmed without fetching next page (accepted corner) |
+| Scenario | page_size | Tenant rows | LIMIT | Final page shape / fan-out context | early_stopped | total_rows > limit | is_truncated | Correctness |
+|----------|-----------|-------------|-------|-------------------------------------|---------------|--------------------|--------------|-------------|
+| (a) Exact-limit on exhausted tenant: `LIMIT 5`, tenant has 5 rows | 1000 | 5 | 5 | Partial (5 < 1000), is_last_batch=true | false | false | false | Correct: complete dataset returned |
+| (b) Normal early-stop: `LIMIT 5`, tenant has 1000+ rows | 1000 | 1000+ | 5 | Full (1000 >= 1000), is_last_batch=true | true | false | true | Correct: more data exists |
+| (c) Exact-full-page corner: `LIMIT 1000`, tenant has exactly 1000 rows | 1000 | 1000 | 1000 | Full (1000 >= 1000), is_last_batch=true | true | false | true | Conservative: exhaustion unconfirmed without fetching next page (accepted corner) |
+| (d) Non-final intra-pipeline fan-out batch: `LIMIT 5`, 2 step-fan-out batches, early-stop fires on batch 1 of 2, batch-1 final page partial (3 < 1000) | 1000 | 1000+ | 5 | Partial (3 < 1000), is_last_batch=false | true (`!is_last_batch`) | false | true | Correct: remaining batches abandoned; data genuinely incomplete |
 
 Example (c) is an accepted conservative corner: `is_truncated = true` even though the dataset may be
 complete. An analyst who receives `is_truncated: true` with `total_available == returned_results`
@@ -216,6 +227,8 @@ rows with `is_truncated: false`.
 
 The `early_stopped` signal propagates to engine Step 6 where it contributes to the `is_truncated`
 formula (§D8.9).
+
+**Fan-out disambiguation — intra-pipeline step fan-out vs multi-sensor fan-out:** The `is_last_batch` term (`batch_idx + 1 == batch_count`) in the discriminator formula refers exclusively to **intra-pipeline step fan-out** within a single sensor's pipeline: `batch_idx` and `batch_count` are local to `execute_impl`'s batch-loop, which iterates over the step-level `fan_out_batches` / `fan_out_batch_size` mechanism for that one sensor. When `break 'steps` fires on a non-final batch, the remaining step-fan-out batches for that sensor are abandoned, so the sensor's accumulated data is genuinely incomplete — `early_stopped = true` is the correct truncation signal. This is DISTINCT from **multi-sensor fan-out** — the `FanOutResult.any_early_stopped` OR-aggregation that combines `PipelineResult.early_stopped` signals from independent sensor pipelines running in parallel across a multi-sensor query (§D8.9/§D8.10). The `is_last_batch` guard is purely intra-pipeline scope; it has no counterpart at the `FanOutResult` layer.
 
 ### D8.4 — Applicable pagination modes
 
@@ -1127,6 +1140,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.17 | 2026-08-30 | architect | F-B1-001 (MEDIUM): §D8.2 discriminator formula extended — `early_stopped = (page_record_count >= active_page_size) \|\| !is_last_batch`; `is_last_batch = (batch_idx + 1 == batch_count)` refers to intra-pipeline step fan-out batches within `execute_impl` batch-loop (over `fan_out_batches`/`fan_out_batch_size`), DISTINCT from multi-sensor fan-out at the `FanOutResult` layer (§D8.9/§D8.10). Non-final batch (`!is_last_batch = true`): `break 'steps` abandons remaining step-fan-out batches → data genuinely incomplete → `early_stopped = true` regardless of page fill. Final batch: falls back to page-fill discriminator. Common no-fan-out case (`batch_count == 1`): reduces exactly to `page_record_count >= active_page_size`. §D8.3 updated: description cites full discriminator formula; bullet list extended (non-final-batch case added); worked example (d) added (batch 1 of 2, partial page → `early_stopped = true`); disambiguation note added (intra-pipeline step fan-out vs multi-sensor `FanOutResult.any_early_stopped` OR-aggregation). Documents implemented+verified behavior (code @704aac24a; `test_early_stop_multi_batch_partial_page_is_truncated`, GREEN). Closes F-B1-001. |
 | 1.16 | 2026-08-29 | architect | F-P9-LENSA-001 DECISION (A): §D8.4 spec-reconcile — `PaginationConfig::None` moved from contradictory "does NOT apply to None" exclusion to explicit conservative-bucket documentation; `active_page_size = 0` (via `_ => 0` catch-all) → `early_stopped = true` at exact-LIMIT corner (safe over-report, narrow, latent for v1); accepted conservative corner consistent with CursorToken treatment; §D8.2 comment updated to note `_` captures None; §D8.2 NOTE updated to cite None alongside CursorToken. No code change; feature HEAD 62e50205b frozen unchanged. |
 | 1.15 | 2026-08-29 | architect | F-P2-LENSC2-001: §D8.4 TD-VSDD-097 Dim-3 discharge note — stale STORY-INDEX version pin removed; "(v1.0 draft" → "(draft"; POL-39 compliant and decay-proof. F-P2-LENSC2-002: §Status banner POL-39 sweep count corrected from ~14 to 20 to match §Changelog 1.14 row enumeration (20 items verified); banner and changelog now self-consistent. |
 | 1.14 | 2026-08-29 | architect | F-P1B-LENSC2-001: §D8.4 TD-VSDD-097 Dim-3 note updated — S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now exists and is registered in STORY-INDEX (v1.0 draft, blocked_by S-OCSF-FIDELITY-CYBERINT-001); prohibitive MUST anchored to registered story; "does not yet exist / MUST create" language removed; Dim-3 status: DISCHARGED. F-P1B-LENSC2-002: (1) §D8.7 heading volatile stamp `(v1.3 — Comprehensive Audit)` removed; (2) POL-39 in-body sweep — 20 normative version pins anchor-ized: `#### Gate Function Signature (v1.3)`, `where_filters present in v1.2 is REMOVED`, `(v1.5 unconditional suppression)`, Pipe-arm `removed from PERMIT allow-list in v1.5`, SqlPipe-arm `unconditionally suppressed in v1.5`, `Two-step check (v1.7 — replaces single-step all() of v1.5/v1.6)`, Condition A `(revised from v1.2)`, Conditions B/C/D/E/F `(unchanged from v1.2)` labels (×5), Condition G `(revised from v1.2)`, shape-table Condition K `(v1.8)`, Condition K header `(v1.8)`, `#### Conservative Default Posture (new in v1.3)`, `#### Gate Application (v1.3)`, `**Construction rules (v1.8)**`, `**OCSF-name gap (preserved from v1.7)**`, canonical-PERMIT `(unchanged from v1.5)`; ~6 decision-history version refs preserved as intentional; §D8.7 POL-39 convention note added. |
