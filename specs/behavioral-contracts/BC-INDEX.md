@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.83"
+version: "9.84"
 status: draft
 producer: state-manager
 timestamp: 2026-08-30T00:00:00Z
+# NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
 # NOTE: D-2372 — BC-INDEX v9.82→v9.83: F-B1-001 substantively closed; BC-2.16.002 pin v2.52→v2.53 (EC-01-041 FINAL-batch qualified; EC-01-042 NEW non-final fan-out batch discriminator); BC-2.11.001 UNCHANGED v1.31 (transitive coverage verified). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2366 NOTE archived.
 # NOTE: D-2366 — BC-INDEX v9.81→v9.82: LOCAL cascade pass-2 spec-only fix-burst (F-P3-LENSC2-001 MED TD-VSDD-097 Dim-2) — BC-2.16.002 pin v2.51→v2.52 (§Postconditions PaginationConfig::None conservative-bucket + EC-01-041 mode scope); BC-2.11.001 pin v1.30→v1.31 (EC-11-094 mode scope). Feature HEAD 1c1159c68 FROZEN (no code change). BC-5.39.001 LOCAL streak RESET 1/3→0/3 (spec perimeter changed; frozen-HEAD rule). draft/active/total UNCHANGED (11/253/277). D-2358 NOTE archived.
 # NOTE: D-2358 — BC-INDEX v9.80→v9.81: FRESH-cascade pass-1 4-lens fix-burst — cursor arm REVERT (ADR-060 v1.13 §D8.4 OffsetLimit-only; pipeline.rs conservative early_stopped=true; precise detection deferred to NEW S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001); BC-2.16.002 pin v2.50→v2.51; BC-2.11.001 pin v1.29→v1.30. F-FP1-LENSC1-001: v9.80 (D-2356) changelog BACKFILL + v9.81 entry. just check @30e794b2c 5880 exit 0. draft/active/total UNCHANGED (11/253/277). D-2354 NOTE archived.
@@ -351,7 +352,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 current) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.53 current) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.54 current) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -526,6 +527,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v9.84 (2026-08-30, D-2373):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1V-001 (MED contract-traceability) + F-B1V-002 (MED spec-accuracy) CLOSED. BC-2.16.002 v2.53→v2.54: EC-01-042 concrete AC-015/RG-PSG-044 anchors added (symmetric with EC-01-041 which carries AC-015/RG-PSG-044 FINAL-batch scope); §D8.3 worked-example numbers aligned to reachable test-matched scenario (page_size=10/LIMIT=5/partial-page=5/2 batches); volatile code-pin removed per TD-VSDD-091. BC-2.11.001 UNCHANGED (v1.31). No BC lifecycle/status/count changes: active_contracts 253 / draft_contracts 11 / total_contracts 277 ALL UNCHANGED. BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN; CI green). TD-VSDD-097 Dim-1 CLEAR (BC-2.16.002 v2.54 — EC-01-041/EC-01-042 sibling pair; no additional twin). Dim-2 CLEAR (EC-01-042 anchor + example numbers swept ADR-060 §D8.3 + story AC-015 in same burst). Dim-3 CLEAR (no new MUSTs; EC-01-042 anchor is AC-015/RG-PSG-044 — unchanged from v2.53). records-lint exit 0. BC-INDEX v9.83→v9.84.
 
 **v9.83 (2026-08-30, D-2372):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1-001 (MED) substantively closed. BC-2.16.002 v2.52→v2.53: EC-01-041 qualified to FINAL-batch only; EC-01-042 NEW non-final fan-out batch → `early_stopped=true`→`is_truncated=true`; `|| !is_last_batch` discriminator formula + full propagation chain swept. BC-2.11.001 UNCHANGED (v1.31; transitive coverage verified). No BC lifecycle/status/count changes: active_contracts 253 / draft_contracts 11 / total_contracts 277 ALL UNCHANGED. BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). TD-VSDD-097 Dim-1 CLEAR (BC-2.11.001 transitive coverage UNCHANGED). Dim-2 CLEAR (EC-01-042 formula swept STORY-INDEX LIMIT row in same burst). Dim-3 CLEAR (EC-01-042 anchored to AC-015/RG-PSG-044/test_early_stop_multi_batch_partial_page_is_truncated). records-lint exit 0. BC-INDEX v9.82→v9.83.
 
