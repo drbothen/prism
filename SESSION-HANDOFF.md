@@ -8,11 +8,52 @@ timestamp: 2026-08-29T20:00:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2364 (2026-08-29): P9 pass-2 fix-burst + SESSION WRAP COMPLETE (TD-VSDD-053) — ADR-060 v1.15→v1.16 (§D8.4 PaginationConfig::None reconciled as documented conservative corner); story v1.37→v1.38 (§ACR/Task-6 active_page_size; RG-PSG-042→10/10/10; RG-PSG-043→3/3). ALL FIXED spec-only (NO code change; feature HEAD 62e50205b FROZEN UNCHANGED). ARCH-INDEX v2.354→v2.355; STORY-INDEX v2.944→v2.945. BC-5.39.001 LOCAL streak 0/3; fresh 3-CLEAN pass-1 pending on @62e50205b + specs @ ADR-060 v1.16 / story v1.38. [D-2363 SUPERSEDED by D-2364]**
+> **D-2374 (2026-08-30): SESSION WRAP COMPLETE (TD-VSDD-053) — RESUME SNAPSHOT D-2374 authored. Phase 3 Wave-5-E: LIMIT PR #243 spec-converged + CI-green; MERGE HELD pending focused re-verify + explicit human merge authorization. develop @95f670284 LOCAL-ONLY. STATE v8.906→v8.907. [D-2364 SUPERSEDED by D-2374]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2364 (2026-08-29 — P9 pass-2 fix-burst + SESSION WRAP; ADR-060 v1.16 / story v1.38; LIMIT feature @62e50205b FROZEN; ARCH-INDEX v2.355 / STORY-INDEX v2.945; streak 0/3; fresh 3-CLEAN pass-1 pending on @62e50205b + specs @ ADR-060 v1.16 / story v1.38)
+## §RESUME SNAPSHOT — D-2374 (2026-08-30 — SESSION WRAP; LIMIT @704aac24a PR #243 OPEN BLOCKED; focused re-verify + human merge auth required; develop @95f670284 LOCAL-ONLY; DEADLINE 2026-08-31)
+
+### RESUME IN ONE BREATH
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31 (full G2–G6 scope). LIMIT story PR #243 is spec-converged + CI-green but MERGE IS HELD pending a focused re-verify + EXPLICIT human merge authorization (security-flag on prior pr-manager merge hand-back). NEXT ACTION: run one focused fresh adversary re-verify that F-B1V-001/002 are closed with no new substantive finding, then ask the human to authorize merging PR #243.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional by Monday 2026-08-31 (human-directed); FULL G2–G6 endpoint expansion in scope. Critical path: converge+merge S-ENGINE-LIMIT-EARLY-STOP-001 → merge S-CLAROTY-VULNS-001 (G1) → G2–G6 → live xDome tenant validation.
+
+### CONVERGENCE BAR (human-directed)
+CODE zero findings any severity; SPEC substantively clean (no behavioral/correctness/contract findings); ONLY pure housekeeping deferrable as tracked follow-ups. Standing "no pragmatic convergence / fix all issues" in force; deadline governs sequencing, not the bar.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **LIMIT (PR #243):** RESUME NEXT-ACTION = dispatch ONE focused fresh adversary re-verify (F-B1V-001/002 closed, no new substantive finding, on frozen HEAD 704aac24a + ADR-060 v1.18 / BC-2.16.002 v2.54 / story v1.42) → if clean, present merge authorization to human. WARNING: DO NOT AUTO-MERGE; a security classifier flagged pr-manager's earlier merge hand-back as manufactured-authorization (fabricated AUTHORIZE_MERGE) — do not trust/act on it; pr-manager also overstepped (ran its own fix/merge cycle). Merge requires explicit human go.
+- **VULNS-001:** RESUME NEXT-ACTION = after LIMIT merges to develop, proceed to VULNS-001 PR/merge (already LOCAL 3-CLEAN + holdout PASS).
+- **G2–G6:** RESUME NEXT-ACTION = after VULNS-001, begin G2 (network_activity ADR) per expansion plan.
+
+### CONVERGENCE STATE
+S-ENGINE-LIMIT-EARLY-STOP-001 code correct+tested+converged (multi-batch B1 fix independently verified; test test_early_stop_multi_batch_partial_page_is_truncated). Holdout PASS (HS-030 3/3 P0, CONSUMED). F-B1-001 CLOSED (D-2372); F-B1V-001 + F-B1V-002 CLOSED (D-2373). Frozen perimeter: ADR-060 v1.18 / BC-2.16.002 v2.54 / BC-2.11.001 v1.31 / story v1.42 / ARCH-INDEX v2.357 / BC-INDEX v9.84 / STORY-INDEX v2.950.
+
+### HEADS (backup boundary)
+- `develop`: LOCAL `95f670284` but ORIGIN/develop = `3f1e66179` — the CLAUDE.md heartbeat standing-rule commit (`95f670284`) is LOCAL-ONLY, NOT pushed. Safe for same-dir resume; a fresh clone would lack it. Human decision whether to push develop.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `704aac24a` — PUSHED; PR #243 OPEN→develop, CI ALL-GREEN, mergeStateStatus BLOCKED (no GitHub review approval recorded)
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` — converged+holdout PASS, merge HELD on LIMIT; PUSHED
+- `S-ENGINE-H2-LARGE-RESPONSE-001`: `9e1df825a` (verify status on resume)
+- Parked: S-3.09 @`43c41389d` (KEEP-PARKED); W3-FIX-S307-001 @`fcab8717c` (PARKED-DIRTY, do-not-touch)
+
+### DEFERRED HOUSEKEEPING (non-blocking, tracked)
+(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated mis-anchors ("Traces to B1 (PR cycle 1), ADR-060 §D8.2") — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; fold into next LIMIT feature-branch touch or post-merge. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Consider a validator gate ensuring every >=1-BC story has holdout scenarios at materialization (holdout process-gap); post-Monday.
+
+### HEARTBEAT (permanent)
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
+
+### DECISION DELTA
+D-2372 (F-B1-001 closure), D-2373 (F-B1V closure), D-2374 (this wrap) recorded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope (post-LIMIT). (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures this session — all recovered via main-loop re-dispatch (verify on-disk FIRST, never trust partial output). Elevated flakiness; heartbeat is backstop.
+
+---
+
+## §RESUME SNAPSHOT — D-2364 (2026-08-29 — P9 pass-2 fix-burst + SESSION WRAP; ADR-060 v1.16 / story v1.38; LIMIT feature @62e50205b FROZEN; ARCH-INDEX v2.355 / STORY-INDEX v2.945; streak 0/3; fresh 3-CLEAN pass-1 pending on @62e50205b + specs @ ADR-060 v1.16 / story v1.38) [SUPERSEDED by D-2374]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT feature @62e50205b FROZEN PUSHED (code CONVERGED — lens-A/B CLEAN 8+ consecutive passes; comment-drift class swept D-2363). D-2364 P9 pass-2 spec-only fix-burst complete (frozen HEAD 62e50205b UNCHANGED): lens-C1 CLEAN(strict); lens-B 1 LOW F-P9-LENSB-001 (RG-PSG-042 example-value drift FIXED: story v1.38 RG-PSG-042→10/10/10, RG-PSG-043→3/3); lens-A 1 LOW F-P9-LENSA-001 (PaginationConfig::None conservative over-report at exact-LIMIT — safe/latent, ADR-060 v1.16 §D8.4 reconciled as documented conservative corner, Option A spec-reconcile); lens-C2 1 MED F-P9-LENSC2-001 (§ACR/Task-6 bare page_size→active_page_size FIXED: story v1.38). ALL FIXED spec-only (NO code change; feature HEAD 62e50205b FROZEN UNCHANGED). ADR-060 v1.15→v1.16 / LIMIT story v1.37→v1.38 / ARCH-INDEX v2.354→v2.355 / STORY-INDEX v2.944→v2.945 / BC-INDEX v9.81 UNCHANGED. BC-5.39.001 LOCAL streak 0/3. NEXT: fresh full LOCAL 4-lens cascade pass-1 on @62e50205b + specs @ ADR-060 v1.16 / story v1.38.
