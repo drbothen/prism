@@ -19,6 +19,7 @@
 //! | PSG-041 | cursor_token_partial_page_conservative_early_stopped             | GREEN (guard)  | ADR-060 §D8.4 conservative-cursor |
 //! | PSG-042 | cursor_token_full_final_page_is_early_stopped                    | GREEN (guard)  | AC-014 / ADR-060 §D8.4         |
 //! | PSG-043 | cursor_token_no_page_size_conservative                           | GREEN (guard)  | ADR-060 §D8.4 conservative     |
+//! | B1-MULTI | multi_batch_partial_page_is_early_stopped                       | GREEN (guard)  | B1 PR cycle 1 multi-batch guard |
 //!
 //! RG-001 gates `FetchContext::new`: stub added @9530f3478 carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
@@ -1500,6 +1501,200 @@ async fn test_cursor_token_no_page_size_conservative() {
     assert!(
         !result.truncated,
         "RG-PSG-043 secondary: `truncated` must be false (reserved for DI-019 per \
+         ADR-060 §D8.3). Got truncated=true."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// B1-MULTI — multi-batch early-stop: partial page on non-final batch must be truncated
+// ---------------------------------------------------------------------------
+
+/// B1-MULTI — PR cycle 1 finding B1: multi-batch early-stop discriminator.
+///
+/// When early-stop fires mid-fan-out (before the last batch), unprocessed batches 2..N
+/// are silently abandoned by `break 'steps`. The discriminator must force
+/// `early_stopped = true` so callers are notified that data from those batches is absent.
+///
+/// ## Bug (pre-fix)
+///
+/// The discriminator only checked page fill:
+/// ```text
+/// early_stopped = page_record_count >= active_page_size;
+/// ```
+/// In the multi-batch scenario:
+/// - Batch 1, page 1: 5 records returned (PARTIAL: 5 < page_size=10)
+/// - `early_stopped = (5 >= 10) = false`
+/// - `break 'steps` abandons batch 2 silently
+/// - Net: `early_stopped = false` despite missing data from batch 2
+///
+/// ## Fix (B1 guard)
+///
+/// ```text
+/// let is_last_batch = batch_idx + 1 == batch_count;
+/// early_stopped = (page_record_count >= active_page_size) || !is_last_batch;
+/// ```
+/// - `is_last_batch = (0 + 1 == 2) = false`
+/// - `early_stopped = false || true = true` ← correctly signals truncation
+///
+/// ## Setup
+///
+/// Two-step pipeline:
+/// - Step 1 (`step1`): GET `/source-ids` → `{"ids": [1, 2, 3, 4]}`, response_path `$.ids`
+///   Stores `step1.ids = [1, 2, 3, 4]` in step_vars. NOT the final step; no records to all_records.
+/// - Step 2 (`step2`, final): GET `/batch-items?ids=${step1.ids}`, response_path `$.items`,
+///   `fan_out_batch_size = 2`, OffsetLimit `page_size = 10`.
+///   - 4 IDs / batch_size=2 = 2 batches: batch 0 and batch 1.
+///   - `early_stop_limit = Some(5)`.
+///   - Batch 0 page 1: 5 records returned (PARTIAL: 5 < 10).
+///     accumulated(5) >= limit(5) → early-stop fires.
+///   - Batch 1 is never executed (break 'steps after batch 0).
+///
+/// ## Why this is RED before the fix
+///
+/// `early_stopped = (5 >= 10) = false` → `assert!(result.early_stopped)` FAILS.
+///
+/// ## Why this is GREEN after the fix
+///
+/// `is_last_batch = false` (batch 0 of 2) → `early_stopped = false || true = true`
+/// → `assert!(result.early_stopped)` PASSES.
+///
+/// Traces to B1 (PR cycle 1), ADR-060 §D8.2.
+#[tokio::test]
+async fn test_early_stop_multi_batch_partial_page_is_truncated() {
+    let mock_server = MockServer::start().await;
+
+    // Step 1: return 4 IDs → triggers fan-out with batch_size=2 → 2 batches.
+    let ids: Vec<serde_json::Value> = (1u32..=4).map(|i| serde_json::json!(i)).collect();
+    Mock::given(method("GET"))
+        .and(path("/source-ids"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ids": ids })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Step 2, batch 0: 5 records — PARTIAL page (5 < page_size=10).
+    // accumulated(5) >= early_stop_limit(5) → early-stop fires; batch 1 never reached.
+    let partial_page: Vec<serde_json::Value> = (0u32..5)
+        .map(|i| serde_json::json!({"id": i.to_string()}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path("/batch-items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": partial_page })),
+        )
+        .up_to_n_times(1) // only batch 0 should hit this; batch 1 must not be executed
+        .mount(&mock_server)
+        .await;
+
+    // Fallback for step 2 — must NOT be reached (batch 1 skipped by break 'steps).
+    Mock::given(method("GET"))
+        .and(path("/batch-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec::new(
+        "b1-multi-batch-sensor",
+        "B1-MULTI Multi-Batch Early-Stop Sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "batch_items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![
+                // Step 1: fetch source IDs, store as step1.ids
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/source-ids",
+                    None,
+                    "$.ids",
+                    None,
+                    vec!["ids".to_string()],
+                    None,
+                    None,
+                ),
+                // Step 2 (final): fan-out over step1.ids with batch_size=2 → 2 batches.
+                // OffsetLimit page_size=10: partial page (5 < 10) → would say "source exhausted"
+                // without the B1 multi-batch guard.
+                FetchStep::new(
+                    "step2",
+                    "GET",
+                    "/batch-items?ids=${step1.ids}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    Some(2), // fan_out_batch_size: 4 IDs / 2 = 2 batches
+                    Some(PaginationConfig::OffsetLimit { page_size: 10 }),
+                ),
+            ],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(5): fires when accumulated(5) >= 5 after batch 0, page 1.
+    let context = FetchContext::new(OrgSlug::new("b1-multi-org"), HashMap::new(), Some(5));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("B1-MULTI: pipeline execute must return Ok (no HTTP error expected)");
+
+    // Precondition: exactly 5 records from batch 0's partial page.
+    assert_eq!(
+        result.records.len(),
+        5,
+        "B1-MULTI precondition: must fetch exactly 5 records (partial page from batch 0). \
+         Got {} records.",
+        result.records.len()
+    );
+
+    // Precondition: exactly 2 HTTP requests — 1 to /source-ids (step 1) + 1 to /batch-items
+    // (batch 0 of step 2 only; batch 1 must not execute due to break 'steps).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        2,
+        "B1-MULTI precondition: exactly 2 HTTP requests expected \
+         (1 to /source-ids + 1 to /batch-items). Got {} requests.",
+        received.len()
+    );
+
+    // PRIMARY ASSERTION (B1 multi-batch guard):
+    //
+    // RED  (pre-fix, discriminator only checks page fill):
+    //   `early_stopped = (5 >= 10) = false`
+    //   → assertion FAILS (data from batch 1 is missing but not signalled).
+    //
+    // GREEN (post-fix, B1 guard):
+    //   `is_last_batch = (0 + 1 == 2) = false`
+    //   `early_stopped = (5 >= 10) || !false = false || true = true`
+    //   → assertion PASSES.
+    assert!(
+        result.early_stopped,
+        "B1-MULTI (B1 multi-batch guard — PR cycle 1): `early_stopped` must be TRUE \
+         when early-stop fires on a non-final batch (batch 0 of 2). \
+         Batch 0 page is PARTIAL (5 records < page_size=10), so the page-fill discriminator \
+         alone returns false. The B1 guard (!is_last_batch) must override it to true, \
+         signalling that data from batch 1 is absent. \
+         Pre-fix: early_stopped=false (silent truncation). \
+         Post-fix: is_last_batch=(0+1==2)=false → early_stopped=false||true=true. \
+         Got early_stopped=false."
+    );
+
+    // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).
+    assert!(
+        !result.truncated,
+        "B1-MULTI secondary: `truncated` must be false (reserved for DI-019 per \
          ADR-060 §D8.3). Got truncated=true."
     );
 }

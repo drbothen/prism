@@ -385,7 +385,8 @@ impl PipelineExecutor {
                     vec![None]
                 };
 
-            for batch in batches {
+            let batch_count = batches.len();
+            for (batch_idx, batch) in batches.into_iter().enumerate() {
                 // Build per-batch step_vars: override the source array key with the
                 // current batch slice so that template interpolation receives only the
                 // batch items, not the full prior-step array.
@@ -608,11 +609,20 @@ impl PipelineExecutor {
                     //              → early_stopped = false (complete dataset retrieved)
                     // For non-OffsetLimit steps active_page_size=0 → page_record_count >= 0
                     // is always true (conservative: treat as full page, same as before).
+                    //
+                    // Multi-batch guard (B1 — PR cycle 1): when early-stop fires before the
+                    // last fan-out batch (!is_last_batch), batches 2..N are abandoned by the
+                    // break 'steps. Force early_stopped=true so callers are notified that
+                    // data from unprocessed batches is absent — regardless of page fill.
                     if let Some(limit) = context.early_stop_limit
                         && all_records.len() >= limit
                     {
                         // ADR-060 §D8.2 partial-final-page discriminator — set BEFORE break.
-                        early_stopped = page_record_count >= active_page_size as usize;
+                        // B1 multi-batch guard: OR with !is_last_batch ensures early_stopped=true
+                        // when unprocessed fan-out batches remain.
+                        let is_last_batch = batch_idx + 1 == batch_count;
+                        early_stopped =
+                            (page_record_count >= active_page_size as usize) || !is_last_batch;
                         break 'steps;
                     }
 
