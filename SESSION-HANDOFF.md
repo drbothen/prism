@@ -1,18 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.021"
+version: "8.022"
 status: current
-timestamp: 2026-08-29T20:00:00Z
+timestamp: 2026-08-30T21:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2374 (2026-08-30): SESSION WRAP COMPLETE (TD-VSDD-053) — RESUME SNAPSHOT D-2374 authored. Phase 3 Wave-5-E: LIMIT PR #243 spec-converged + CI-green; MERGE HELD pending focused re-verify + explicit human merge authorization. develop @95f670284 LOCAL-ONLY. STATE v8.906→v8.907. [D-2364 SUPERSEDED by D-2374]**
+> **D-2375 (2026-08-30): POST-MERGE BURST (TD-VSDD-053) — S-ENGINE-LIMIT-EARLY-STOP-001 MERGED (PR #243 @c5be059fe human-authorized). STORY-INDEX v2.950→v2.951. NEXT: S-CLAROTY-VULNS-001 rebase+re-gate. STATE v8.907→v8.908. [D-2374 SUPERSEDED by D-2375]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2374 (2026-08-30 — SESSION WRAP; LIMIT @704aac24a PR #243 OPEN BLOCKED; focused re-verify + human merge auth required; develop @95f670284 LOCAL-ONLY; DEADLINE 2026-08-31)
+## §RESUME SNAPSHOT — D-2375 (2026-08-30 — POST-MERGE BURST; LIMIT MERGED @c5be059fe; VULNS-001 needs rebase+re-gate; LOCAL develop diverged; DEADLINE 2026-08-31)
+
+### RESUME IN ONE BREATH
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. S-ENGINE-LIMIT-EARLY-STOP-001 MERGED — PR #243 squash-merged to origin/develop @c5be059fe (human-authorized; focused adversary re-verify CLEAN strict=yes, zero findings). NEXT: rebase S-CLAROTY-VULNS-001 @5aae6f0b3 onto c5be059fe → re-run PR-LEVEL 3-CLEAN cascade (DRIFT-ORCH-PRLEVEL-PUSH-001 streak resets on rebase push) → merge → G2 network_activity.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional by Monday 2026-08-31 (human-directed); FULL G2–G6 endpoint expansion in scope. Critical path: (DONE) S-ENGINE-LIMIT-EARLY-STOP-001 merged → rebase+merge S-CLAROTY-VULNS-001 (G1) → G2–G6 → live xDome tenant validation.
+
+### CONVERGENCE BAR (human-directed)
+CODE zero findings any severity; SPEC substantively clean (no behavioral/correctness/contract findings); ONLY pure housekeeping deferrable as tracked follow-ups. Standing "no pragmatic convergence / fix all issues" in force; deadline governs sequencing, not the bar.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **LIMIT (MERGED):** PR #243 squash-merged @c5be059fe (D-2375). DONE. Local worktree .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001 pending devops cleanup. Remote branch deleted.
+- **VULNS-001:** RESUME NEXT-ACTION = devops-engineer rebase @5aae6f0b3 onto c5be059fe → adversary re-run PR-LEVEL cascade (streak reset per DRIFT-ORCH-PRLEVEL-PUSH-001) → 3-CLEAN CONVERGED → merge. After merge: POL-14 (BC-2.16.015 draft→active; BC-2.16.002 already active from LIMIT merge).
+- **G2–G6:** RESUME NEXT-ACTION = after VULNS-001 merged, begin G2 (network_activity ADR) per expansion plan D-2357.
+
+### CONVERGENCE STATE
+S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED round-5 3/3 @5aae6f0b3 + HOLDOUT HS-024 PASS; rebase + PR-LEVEL re-gate required.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = `c5be059fe` (PR #243 squash-merge D-2375). LOCAL develop = `95f670284` DIVERGED/not-pushed (human decision pending).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED; remote branch deleted; local worktree pending devops cleanup
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` — LOCAL 3-CLEAN CONVERGED; HOLDOUT HS-024 PASS; NEEDS REBASE onto c5be059fe + PR-LEVEL re-gate; PUSHED
+- S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (verify status on resume)
+- Parked: S-3.09 @`43c41389d` (KEEP-PARKED); W3-FIX-S307-001 @`fcab8717c` (PARKED-DIRTY, do-not-touch)
+
+### DEFERRED HOUSEKEEPING (non-blocking, tracked)
+(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated mis-anchors ("Traces to B1 (PR cycle 1), ADR-060 §D8.2") — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; fold into next LIMIT follow-on or post-merge work. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Consider a validator gate ensuring every >=1-BC story has holdout scenarios at materialization (holdout process-gap); post-Monday. (4) Local develop reconciliation: LOCAL 95f670284 diverged from origin/develop c5be059fe — pending human decision whether to push or reset.
+
+### HEARTBEAT (permanent)
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
+
+### DECISION DELTA
+D-2375 (this post-merge burst) recorded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures in prior session — all recovered; heartbeat is backstop.
+
+---
+
+## §RESUME SNAPSHOT — D-2374 (2026-08-30 — SESSION WRAP; LIMIT @704aac24a PR #243 OPEN BLOCKED; focused re-verify + human merge auth required; develop @95f670284 LOCAL-ONLY; DEADLINE 2026-08-31) [SUPERSEDED by D-2375]
 
 ### RESUME IN ONE BREATH
 Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31 (full G2–G6 scope). LIMIT story PR #243 is spec-converged + CI-green but MERGE IS HELD pending a focused re-verify + EXPLICIT human merge authorization (security-flag on prior pr-manager merge hand-back). NEXT ACTION: run one focused fresh adversary re-verify that F-B1V-001/002 are closed with no new substantive finding, then ask the human to authorize merging PR #243.
