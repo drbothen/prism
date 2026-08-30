@@ -43,6 +43,19 @@ Per-story Phase 3 sub-workflow: stubs → failing tests → TDD green → LOCAL 
 
 ---
 
+## Orchestrator Auto-Recovery Heartbeat (Standing Operating Procedure)
+
+A durable scheduled heartbeat keeps autonomous runs self-healing — it auto-recovers from hard stalls, API errors, and dead background agents so a run never sits stuck. Background agents already auto-notify the orchestrator on completion **and** failure (per-agent failures are recoverable while the main loop is alive); the heartbeat covers the **hard-stall** case (main loop dead, or idle with no pending notification) that only an external durable scheduler can revive. Standing rule (human-directed 2026-08-30):
+
+1. **Every session, as the FIRST orchestrator action on startup/resume** — before reading STATE.md for pipeline work — verify the heartbeat exists: call `CronList`. If it is **absent or expired**, RE-ARM immediately via `CronCreate` (`durable: true`, `recurring: true`) per the runbook `.factory/ops/vsdd-heartbeat-autorecovery.md`. This makes re-establishment automatic on every resume, independent of whether `.claude/scheduled_tasks.json` survived.
+2. **Mechanism:** durable recurring cron (schedule `8,23,38,53 * * * *` — every 15 min, deliberately off the `:00`/`:30` fleet-collision marks), persisted to `.claude/scheduled_tasks.json`, fires only while the REPL is idle. Recurring crons auto-expire after 7 days; the heartbeat's own routine self-re-arms before expiry, and this resume-time check is the backstop. Use `CronCreate durable:true` (NOT `ScheduleWakeup`, which is in-session only and dies with the process).
+3. **What each tick does (idempotent — never duplicate in-flight work):** orient (git rev-parse + `verify-sha-currency.sh` + STATE.md) → `TaskList` and re-dispatch any failed/stalled agent after re-verifying on-disk state → resume the next critical-path step if idle → no-op if healthy/in-flight → self-perpetuate → checkpoint STATE.md via state-manager if stale.
+4. **Homes (one source of truth per layer):** this CLAUDE.md rule is the authoritative, permanent standing rule; the full reproducible/portable procedure (parameterized prompt template + per-project install steps) lives in `.factory/ops/vsdd-heartbeat-autorecovery.md`; STATE.md / SESSION-HANDOFF carry only a short resume *pointer* (STATE.md is compacted and is NOT a home for permanent procedure). Portable across projects; intended for eventual promotion into the vsdd-factory engine `HEARTBEAT.md`.
+
+The heartbeat is a safety net, not a substitute for the orchestrator's normal completion-notification-driven loop.
+
+---
+
 ## CANONICAL PRINCIPLE — Production-Grade Default
 
 This principle binds every AI agent operating on this project. It overrides any default behavior in agent prompts, skills, or templates that conflicts with it. Mirrors the user's persistent directive recorded in `.factory/STATE.md` frontmatter (`user_directive_persistent: "No pragmatic convergence. Fix all issues before build."`) and Standing Orchestrator Rule 3 in `.factory/SESSION-HANDOFF.md`.
