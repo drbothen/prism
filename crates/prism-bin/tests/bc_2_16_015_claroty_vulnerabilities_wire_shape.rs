@@ -254,12 +254,12 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
 
     let batches = result.unwrap();
     assert!(
-        !batches.is_empty(),
+        !batches.batches.is_empty(),
         "fetch() must return at least one RecordBatch for a non-empty response. \
          BC-2.16.015 AC-004."
     );
 
-    let first_batch = &batches[0];
+    let first_batch = &batches.batches[0];
     assert!(
         first_batch.num_rows() > 0,
         "RecordBatch must contain at least one row. BC-2.16.015 AC-004."
@@ -492,7 +492,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
         .expect("fetch() must succeed for a valid two-record mock response. BC-2.16.015 AC-004.");
 
     assert!(
-        !batches.is_empty(),
+        !batches.batches.is_empty(),
         "fetch() must return at least one RecordBatch for a non-empty response. \
          BC-2.16.015 AC-004."
     );
@@ -510,7 +510,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
     let mut writer = arrow_json::writer::WriterBuilder::new()
         .with_explicit_nulls(true)
         .build::<_, arrow_json::writer::JsonArray>(&mut buf);
-    for batch in &batches {
+    for batch in &batches.batches {
         writer.write(batch).expect(
             "F-VULNS-P1-001: arrow_json write must not fail for claroty_vulnerabilities RecordBatch",
         );
@@ -1087,7 +1087,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_seria
         );
 
     assert!(
-        !batches.is_empty(),
+        !batches.batches.is_empty(),
         "F-L2-001: fetch() must return at least one RecordBatch. BC-2.16.015 §EC-016-015-005."
     );
 
@@ -1096,7 +1096,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_seria
     let mut writer = arrow_json::writer::WriterBuilder::new()
         .with_explicit_nulls(true)
         .build::<_, arrow_json::writer::JsonArray>(&mut buf);
-    for batch in &batches {
+    for batch in &batches.batches {
         writer
             .write(batch)
             .expect("F-L2-001: arrow_json write must not fail for cve_ids=[] RecordBatch");
@@ -1241,7 +1241,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_verbatim_
         );
 
     assert!(
-        !batches.is_empty(),
+        !batches.batches.is_empty(),
         "F-L2-003: fetch() must return at least one RecordBatch. BC-2.16.015 §EC-016-015-004."
     );
 
@@ -1250,7 +1250,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_verbatim_
     let mut writer = arrow_json::writer::WriterBuilder::new()
         .with_explicit_nulls(true)
         .build::<_, arrow_json::writer::JsonArray>(&mut buf);
-    for batch in &batches {
+    for batch in &batches.batches {
         writer
             .write(batch)
             .expect("F-L2-003: arrow_json write must not fail for advisory-title RecordBatch");

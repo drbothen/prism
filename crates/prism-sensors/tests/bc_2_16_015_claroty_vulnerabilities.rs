@@ -285,7 +285,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -434,7 +434,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_t
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -582,7 +582,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -724,7 +724,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_nonempty_first_
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -893,7 +893,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_thro
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1001,7 +1001,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1143,7 +1143,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_di
         .find(|t| t.table_name == "vulnerabilities")
         .expect("vulnerabilities table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
