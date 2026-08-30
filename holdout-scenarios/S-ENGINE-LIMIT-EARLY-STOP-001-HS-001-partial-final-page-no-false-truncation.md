@@ -10,7 +10,9 @@ epic_id: "E-XDOME-EXPANSION"
 story_source: "S-ENGINE-LIMIT-EARLY-STOP-001"
 version: "1.0"
 status: active
-used: false
+used: true
+last_evaluated: "2026-08-30"
+last_eval_satisfaction: 1.0
 single_use: true
 producer: product-owner
 timestamp: "2026-08-30T00:00:00Z"
