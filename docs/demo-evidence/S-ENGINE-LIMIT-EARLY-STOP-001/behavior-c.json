@@ -1,0 +1,58 @@
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-08-30T08:11:22.821607+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":1,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"1 result found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT COUNT(*) FROM claroty_alerts\",\"returned_results\":1,\"rows\":[{\"count(*)\":5}],\"total_available\":1},\"structuredContent\":{\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT COUNT(*) FROM claroty_alerts\",\"returned_results\":1,\"rows\":[{\"count(*)\":5}],\"total_available\":1}}}"
+      }
+    ],
+    "structuredContent": {
+      "_meta": {
+        "data_source": [
+          "claroty"
+        ],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-08-30T08:11:22.821607+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 1,
+        "trust_level": "untrusted_external"
+      },
+      "content": [
+        {
+          "text": "1 result found",
+          "type": "text"
+        }
+      ],
+      "results": {
+        "is_truncated": false,
+        "normalized_pql": "SELECT COUNT(*) FROM claroty_alerts",
+        "returned_results": 1,
+        "rows": [
+          {
+            "count(*)": 5
+          }
+        ],
+        "total_available": 1
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": false,
+          "normalized_pql": "SELECT COUNT(*) FROM claroty_alerts",
+          "returned_results": 1,
+          "rows": [
+            {
+              "count(*)": 5
+            }
+          ],
+          "total_available": 1
+        }
+      }
+    },
+    "isError": false
+  }
+}
