@@ -1,23 +1,23 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.26"
+version: "1.27"
 status: draft
 producer: product-owner
-timestamp: 2026-08-24T00:00:00Z
+timestamp: 2026-08-30T00:00:00Z
 phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 115
+total_scenarios: 118
 ---
 
 # Holdout Scenario Index -- Prism
 
-**Date:** 2026-08-24 (updated)
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001) / Phase 3 Wave C xDome Expansion (S-CLAROTY-SERVERS-001 + S-CLAROTY-ORGPOLICY-001)
-**Total Scenarios:** 115 (112 prior + 3 new HS-029 for S-CLAROTY-ACLPOLICY-001)
-**Total Groups:** 23
+**Date:** 2026-08-30 (updated)
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001) / Phase 3 Wave C xDome Expansion (S-CLAROTY-SERVERS-001 + S-CLAROTY-ORGPOLICY-001) / Phase 3 S-ENGINE-LIMIT-EARLY-STOP-001 holdout backfill
+**Total Scenarios:** 118 (115 prior + 3 new HS-030 for S-ENGINE-LIMIT-EARLY-STOP-001)
+**Total Groups:** 24
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
@@ -55,6 +55,7 @@ total_scenarios: 115
 | HS-027 | [S-CLAROTY-SERVERS-001-HS-001-servers-wire-shape-class-uid-5001.md](S-CLAROTY-SERVERS-001-HS-001-servers-wire-shape-class-uid-5001.md), [S-CLAROTY-SERVERS-001-HS-002-servers-tier1-device-name-rename.md](S-CLAROTY-SERVERS-001-HS-002-servers-tier1-device-name-rename.md), [S-CLAROTY-SERVERS-001-HS-003-server-interfaces-separate-endpoint-tier2-plan-gate.md](S-CLAROTY-SERVERS-001-HS-003-server-interfaces-separate-endpoint-tier2-plan-gate.md) | Claroty xDome Servers + Server Interfaces Tables — Single Story (S-CLAROTY-SERVERS-001) — HIDDEN, SINGLE-USE, NO DTU | 3 | P0 | claroty_servers SELECT * wire shape: class_uid=5001 + device_name Tier-1 REQUIRED + raw_extensions with inventory keys (BC-2.16.018 §PC1/2); claroty_servers Tier-1 rename: server_name rejected E-QUERY-038 + device_name and status_code accepted (BC-2.16.018 §PC2 + §Invariants); claroty_server_interfaces: separate /api/v1/server_interfaces/ endpoint queryable + class_uid=5001 + interface_status rejected E-QUERY-038 + raw_extensions with interface keys (BC-2.16.019 §PC1/2/3) |
 | HS-028 | [S-CLAROTY-ORGPOLICY-001-HS-001-zone-wire-shape-class-uid-3004.md](S-CLAROTY-ORGPOLICY-001-HS-001-zone-wire-shape-class-uid-3004.md), [S-CLAROTY-ORGPOLICY-001-HS-002-zone-policy-json-columns-raw-extensions.md](S-CLAROTY-ORGPOLICY-001-HS-002-zone-policy-json-columns-raw-extensions.md), [S-CLAROTY-ORGPOLICY-001-HS-003-firewall-group-wire-shape-class-uid-3004.md](S-CLAROTY-ORGPOLICY-001-HS-003-firewall-group-wire-shape-class-uid-3004.md), [S-CLAROTY-ORGPOLICY-001-HS-004-firewall-policy-json-tier2-plan-gate.md](S-CLAROTY-ORGPOLICY-001-HS-004-firewall-policy-json-tier2-plan-gate.md) | Claroty xDome Organization Policy Tables — Single Story (S-CLAROTY-ORGPOLICY-001) — HIDDEN, SINGLE-USE, NO DTU | 4 | P0 | claroty_organization_zones SELECT *: class_uid=3004 + name Tier-1 REQUIRED (zone_name→entity_management name) + raw_extensions with zone Tier-2 keys; zone_name NOT standalone (BC-2.16.020 §PC1/3); zone_policies Json columns in raw_extensions: communication_conditions/related_alerts_ids/applied_zone_pairs as JSON array values (not quoted strings); SELECT communication_conditions → E-QUERY-038 (BC-2.16.020 §PC4 + §Invariants); firewall_groups SELECT *: class_uid=3004 + name Tier-1 REQUIRED + URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry verified via non-empty result (BC-2.16.021 §PC1/3); firewall_policies: applied_group_pairs (not applied_zone_pairs) in raw_extensions as JSON array + Tier-2 plan-gate E-QUERY-038 + activity_name (policy_action→activity_name) Tier-1 accepted (BC-2.16.021 §PC3/4 + §Invariants) |
 | HS-029 | [S-CLAROTY-ACLPOLICY-001-HS-001-acl-wire-shape-class-uid-3004-metadata-uid.md](S-CLAROTY-ACLPOLICY-001-HS-001-acl-wire-shape-class-uid-3004-metadata-uid.md), [S-CLAROTY-ACLPOLICY-001-HS-002-acl-applied-models-json-in-raw-extensions.md](S-CLAROTY-ACLPOLICY-001-HS-002-acl-applied-models-json-in-raw-extensions.md), [S-CLAROTY-ACLPOLICY-001-HS-003-acl-pagination-none-single-page-no-offset-injection.md](S-CLAROTY-ACLPOLICY-001-HS-003-acl-pagination-none-single-page-no-offset-injection.md) | Claroty xDome Organization ACL Policies Table — Single Story (S-CLAROTY-ACLPOLICY-001) — HIDDEN, SINGLE-USE, NO DTU | 3 | P0 | claroty_organization_acl_policies SELECT *: class_uid=3004 + metadata_uid Tier-1 REQUIRED (policy_id→metadata.uid via ocsf_field_to_arrow_name) + name Tier-1 (policy_name→entity_management name) + raw_extensions with ACL Tier-2 keys; policy_id NOT standalone (BC-2.16.022 §PC1/2); applied_models Json column in raw_extensions: JSON array value (not quoted string); SELECT applied_models → E-QUERY-038 (BC-2.16.022 §PC5 + §Invariants); KEY NOVELTY: PaginationConfig::None single-page fetch — unbounded SELECT succeeds without 422 (no offset/limit injection); no count column in wire output; SELECT policy_id → E-QUERY-038 with metadata_uid in available_columns; SELECT metadata_uid → success (BC-2.16.022 §PC4 + §Invariants EC-016-022-004/007) |
+| HS-030 | [S-ENGINE-LIMIT-EARLY-STOP-001-HS-001-partial-final-page-no-false-truncation.md](S-ENGINE-LIMIT-EARLY-STOP-001-HS-001-partial-final-page-no-false-truncation.md), [S-ENGINE-LIMIT-EARLY-STOP-001-HS-002-limit-1-early-stop-end-to-end.md](S-ENGINE-LIMIT-EARLY-STOP-001-HS-002-limit-1-early-stop-end-to-end.md), [S-ENGINE-LIMIT-EARLY-STOP-001-HS-003-count-star-aggregate-plan-gate.md](S-ENGINE-LIMIT-EARLY-STOP-001-HS-003-count-star-aggregate-plan-gate.md) | LIMIT-Aware Early-Stop Pagination — Single Story (S-ENGINE-LIMIT-EARLY-STOP-001) — HIDDEN, SINGLE-USE | 3 | P0 | HS-001 partial-final-page discriminator: LIMIT=dataset_size on Claroty DTU (10 alerts, page_size=1000) → is_truncated=false (broken discriminator gives is_truncated=true; catches EC-11-094 violation F-P31-LENSA-OBS-001); HS-002 LIMIT 1 end-to-end wiring: SQL LIMIT 1 → FetchContext.early_stop_limit=Some(1) → execute_impl check → DataFusion LIMIT 1 → 1 row returned, is_truncated=false (partial page); HS-003 plan-shape gate: SELECT COUNT(*) on claroty.alerts returns count=10 (full aggregate, no early-stop interference); ADR-060 §D8.2/§D8.3 discriminator + §D8.7 Condition A gate + BC-2.11.001 EC-11-094 |
 
 ---
 
@@ -345,6 +346,16 @@ Story-level holdout gate for S-CLAROTY-ACLPOLICY-001 (Wave C G6 — claroty_orga
 | HS-ACLPOLICY-001-002 | claroty_organization_acl_policies applied_models Json column in raw_extensions: value is a JSON array (either [] or ["model_a", ...]) NOT a quoted string; SELECT applied_models raises E-QUERY-038 confirming Tier-2 plan-gate active; policy_acl String Tier-2 column also present as string key in raw_extensions (BC-2.16.022 §Postconditions 5 + §Invariants) | prism-bin, prism-spec-engine, claroty-live |
 | HS-ACLPOLICY-001-003 | KEY NOVELTY: PaginationConfig::None contract — unbounded SELECT * succeeds without 422 (no offset/limit injection in HTTP POST body); no count column in wire schema; SELECT policy_id (raw TOML col.name) raises E-QUERY-038 with metadata_uid listed in available_columns; SELECT metadata_uid (Arrow field name from ocsf_field_to_arrow_name) returns non-error result (BC-2.16.022 §Postconditions 4 + §Invariants EC-016-022-004/007) | prism-bin, prism-spec-engine, claroty-live |
 
+### HS-030: LIMIT-Aware Early-Stop Pagination (P0) — S-ENGINE-LIMIT-EARLY-STOP-001
+
+Story-level holdout gate for S-ENGINE-LIMIT-EARLY-STOP-001 (Wave A xDome Expansion — LIMIT-Aware Early-Stop Pagination; ADR-060 §D8; adds `FetchContext.early_stop_limit: Option<usize>` and partial-final-page discriminator). HIDDEN from test-writer and implementer. SINGLE-USE. All scenarios use Claroty DTU (prism-dtu-claroty alerts fixture: 10 records, page_size=1000 — all pages are PARTIAL because fixture count < page_size).
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-EARLY-STOP-001-001 | Partial-final-page discriminator: SQL `LIMIT 10` on claroty.alerts (DTU has exactly 10 records, page_size=1000 → PARTIAL page, early_stopped=false) → 10 rows returned, `is_truncated: false`; broken discriminator (unconditional `early_stopped=true`) would yield `is_truncated: true` — catches EC-11-094 violation from F-P31-LENSA-OBS-001 (ADR-060 §D8.2/§D8.3; BC-2.11.001 EC-11-094) | prism-bin, prism-spec-engine, prism-sensors, prism-dtu-claroty |
+| HS-EARLY-STOP-001-002 | LIMIT 1 end-to-end wiring: SQL `LIMIT 1` on claroty.alerts → 1 row returned, `is_truncated: false`; verifies full chain: SQL LIMIT → params.limit → FetchContext.early_stop_limit=Some(1) → execute_impl early-stop check → FetchOutput.any_early_stopped propagation → engine Step 6 is_truncated formula; completes in ≤5s (ADR-060 §D8.1; BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop) | prism-bin, prism-spec-engine, prism-sensors, prism-dtu-claroty |
+| HS-EARLY-STOP-001-003 | Plan-Shape Gate Condition A: `SELECT COUNT(*) FROM claroty.alerts` (no SQL LIMIT; Part B adds `LIMIT 1`) → 1 row, count field = 10, `is_truncated: false` in both parts; verifies `ast_is_reducing_plan()` gate in materialization.rs suppresses early-stop for aggregate queries so full dataset is fetched (ADR-060 §D8.7 Condition A; BC-2.16.002 §Postconditions Plan-Shape Gate) | prism-bin, prism-spec-engine, prism-sensors, prism-dtu-claroty |
+
 ### ~~HS-020~~: ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ — RETIRED before shipping
 
 **RETIRED 2026-08-15:** Single-story design rework collapsed Story B into Story A. HS-020 scenarios HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 and moved to HS-019. HS-020 ID reserved per append_only_numbering (DF-030).
@@ -412,12 +423,12 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ```yaml
 document: holdout-index
-phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome_and_wave_c_xdome
-step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026_and_hs027_and_hs028_and_hs029
+phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome_and_wave_c_xdome_and_engine_limit_backfill
+step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026_and_hs027_and_hs028_and_hs029_and_hs030
 status: complete
-total_scenarios: 115
-total_groups: 23
-p0_scenarios: 99
+total_scenarios: 118
+total_groups: 24
+p0_scenarios: 102
 p1_scenarios: 16
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
@@ -443,6 +454,8 @@ wave_c_xdome_g5_groups_added: 1
 wave_c_xdome_g5_scenarios_added: 4
 wave_c_xdome_g6_groups_added: 1
 wave_c_xdome_g6_scenarios_added: 3
+engine_limit_backfill_groups_added: 1
+engine_limit_backfill_scenarios_added: 3
 wave4_must_pass_groups: 3
 wave4_conditional_pass_groups: 1
 d216_closure: true
@@ -455,13 +468,15 @@ hs026_claroty_devvulnrel_001: true
 hs027_claroty_servers_001: true
 hs028_claroty_orgpolicy_001: true
 hs029_claroty_aclpolicy_001: true
-timestamp: 2026-08-24T00:00:00Z
+hs030_engine_limit_early_stop_001: true
+timestamp: 2026-08-30T00:00:00Z
 ```
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.27 | S-ENGINE-LIMIT-EARLY-STOP-001-holdout-backfill | 2026-08-30 | product-owner | Registered HS-030 (3 scenarios for S-ENGINE-LIMIT-EARLY-STOP-001 holdout backfill: HS-EARLY-STOP-001-001 partial-final-page discriminator [SQL LIMIT=10 on claroty.alerts DTU 10-record fixture, page_size=1000 → PARTIAL page, early_stopped=false → is_truncated=false; broken discriminator gives is_truncated=true; catches EC-11-094 violation from F-P31-LENSA-OBS-001; ADR-060 §D8.2/§D8.3; BC-2.11.001 EC-11-094], HS-EARLY-STOP-001-002 LIMIT 1 end-to-end wiring [SQL LIMIT 1 → params.limit → FetchContext.early_stop_limit=Some(1) → execute_impl check → FetchOutput propagation → engine Step 6; 1 row returned, is_truncated=false; ADR-060 §D8.1; BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop], HS-EARLY-STOP-001-003 plan-shape gate Condition A [SELECT COUNT(*) → count=10, is_truncated=false; SELECT COUNT(*) LIMIT 1 also count=10; ast_is_reducing_plan() gate in materialization.rs suppresses early-stop; ADR-060 §D8.7 Condition A]). All 3 P0 against Claroty DTU (10-record alerts fixture). Story materialized after last holdout-authoring burst — process-gap backfill per story-level holdout gate protocol. total_scenarios 115→118; total_groups 23→24; p0_scenarios 99→102. |
 | 1.26 | xdome-wave-c-f2-spec-evolution-g6 | 2026-08-24 | product-owner | Registered HS-029 (3 scenarios for S-CLAROTY-ACLPOLICY-001: HS-ACLPOLICY-001-001 claroty_organization_acl_policies SELECT * wire shape [class_uid=3004; metadata_uid Tier-1 REQUIRED from policy_id→metadata.uid via ocsf_field_to_arrow_name; name Tier-1 from policy_name; raw_extensions with ACL Tier-2 keys; policy_id NOT standalone], HS-ACLPOLICY-001-002 applied_models Json column enforcement [raw_extensions.applied_models is JSON array not quoted string; SELECT applied_models → E-QUERY-038; policy_acl String Tier-2 also in raw_extensions], HS-ACLPOLICY-001-003 KEY NOVELTY PaginationConfig::None single-page fetch [unbounded SELECT succeeds without 422 — no offset/limit injection; no count column in wire output; SELECT policy_id raw name → E-QUERY-038 with metadata_uid in available_columns; SELECT metadata_uid accepted]). All 3 P0 against live monroe sensor (no DTU per D-2200; SAP-2 N/A). BC-2.16.022 Wave C G6. total_scenarios 112→115; total_groups 22→23; p0_scenarios 96→99. |
 | 1.25 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Registered HS-028 (4 scenarios for S-CLAROTY-ORGPOLICY-001: HS-ORGPOL-001-001 claroty_organization_zones SELECT * wire shape [class_uid=3004, name Tier-1 REQUIRED from zone_name→entity_management name, raw_extensions with zone Tier-2 keys; zone_name NOT standalone], HS-ORGPOL-001-002 claroty_organization_zone_policies Json columns in raw_extensions [communication_conditions/related_alerts_ids/applied_zone_pairs as JSON arrays not quoted strings; SELECT communication_conditions → E-QUERY-038], HS-ORGPOL-001-003 claroty_organization_firewall_groups SELECT * [class_uid=3004, name Tier-1 REQUIRED, URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry verified via non-empty result], HS-ORGPOL-001-004 claroty_organization_firewall_policies [applied_group_pairs Json in raw_extensions; SELECT communication_conditions → E-QUERY-038; SELECT activity_name policy_action→activity_name Tier-1 accepted]). All 4 against live monroe sensor (no DTU per D-2200). BC-2.16.020 Wave C G5 (zones+zone_policies domain pair) + BC-2.16.021 Wave C G5 (firewall_groups+firewall_policies domain pair). total_scenarios 108→112; total_groups 21→22; p0_scenarios 92→96. |
 | 1.24 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Registered HS-027 (3 scenarios for S-CLAROTY-SERVERS-001: HS-SERVERS-001-001 claroty_servers SELECT * wire shape [class_uid=5001, device_name Tier-1 REQUIRED from server_name→device.name, raw_extensions with inventory keys], HS-SERVERS-001-002 claroty_servers Tier-1 rename enforcement [SELECT server_name→E-QUERY-038 with device_name in available_columns; SELECT device_name and status_code accepted], HS-SERVERS-001-003 claroty_server_interfaces separate /api/v1/server_interfaces/ endpoint [class_uid=5001; SELECT interface_status→E-QUERY-038 with status_code in available_columns; SELECT raw_extensions with interface Tier-2 keys]). All 3 against live monroe sensor (no DTU per D-2200). BC-2.16.018 Wave C G4 (17-field Servers, POST /api/v1/servers/) + BC-2.16.019 Wave C G4 (10-field ServerInterfaces, SEPARATE endpoint POST /api/v1/server_interfaces/, composite PK server_name+interface_name). total_scenarios 105→108; total_groups 20→21; p0_scenarios 89→92. |
