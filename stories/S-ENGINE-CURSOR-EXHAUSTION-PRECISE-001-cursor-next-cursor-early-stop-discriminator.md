@@ -12,14 +12,14 @@ status: draft
 # BC-\d+\.\d{2}\.\d{3}. No BC covers next-cursor-presence-based exhaustion detection at this time.
 producer: story-writer
 timestamp: "2026-08-29T00:00:00Z"
-version: "1.1"
+version: "1.2"
 modified: "2026-08-29"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
-input-hash: "63caee0"
-# input-hash: 63caee0 — computed from ADR-060 v1.14 (ADR-060 §D8.4 cursor conservative ruling + POL-39 sweep)
+input-hash: "f6cae28"
+# input-hash: f6cae28 — computed from ADR-060 v1.16 (ADR-060 §D8.4 cursor conservative ruling + POL-39 sweep)
 traces_to: ["BC-2.16.002", "BC-2.11.001"]
 # traces_to: BC-2.16.002 + BC-2.11.001 govern the early-stop signal and truncation surface
 # that this story extends. Precise BCs pending PO authorship.
@@ -122,7 +122,7 @@ sensors when the final page is a partial page (the common "small final page" cas
 | BC | Title | Version | Role |
 |----|-------|---------|------|
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | pending | Parent contract — §Postconditions LIMIT-Aware Early-Stop §D8.4 mode-scope to be amended when PO authors precise cursor-exhaustion BC. |
-| BC-2.11.001 | MCP Query Tool Response — Pagination Signals | pending | Parent trace — EC-11-094 partial-final-page discriminator scope to be extended to CursorToken when PO authors precise BC. |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | pending | Parent trace — EC-11-094 partial-final-page discriminator scope to be extended to CursorToken when PO authors precise BC. |
 
 *No BCs are in `behavioral_contracts:` frontmatter (stub; PO authorship required per S-7.01).*
 
@@ -241,5 +241,6 @@ Expected files to modify:
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 1.1 | 2026-08-29 | story-writer | F-P1B-LENSC2-003: §Authority quote-fidelity fix — changed "specifies:" to "Summarized:" and removed enclosing quotation marks from block quote. Content was a paraphrase, not verbatim ADR text; presenting a paraphrase inside quotation marks was misleading. Input-hash refreshed to 63caee0 (ADR-060 v1.14). |
+| 1.2 | 2026-08-29 | story-writer | F-P4-LENSC1-001 (verbatim-title): BC-2.11.001 Title cell corrected from "MCP Query Tool Response — Pagination Signals" to verbatim H1 `` `query` MCP Tool Accepts Scoping + PrismQL Query String `` (POL-7 D-571). ADR-060 version cite refreshed v1.14 → v1.16 in frontmatter provenance comment and v1.1 changelog row (OBS records-tier fix). Input-hash recomputed from ADR-060 v1.16 on-disk. |
+| 1.1 | 2026-08-29 | story-writer | F-P1B-LENSC2-003: §Authority quote-fidelity fix — changed "specifies:" to "Summarized:" and removed enclosing quotation marks from block quote. Content was a paraphrase, not verbatim ADR text; presenting a paraphrase inside quotation marks was misleading. Input-hash at time of authorship: computed from ADR-060 v1.16 (on-disk at time of authorship; v1.14 cite in original v1.1 row was stale — corrected at v1.2). |
 | 1.0 | 2026-08-29 | story-writer | Initial draft stub. Discharges ADR-060 §D8.4 TD-VSDD-097 Dim-3 mandate anchor obligation: the `MUST remain draft` note in S-ENGINE-LIMIT-EARLY-STOP-001 §D8.4 is now anchored to this concrete story ID. `behavioral_contracts: []` per S-7.01 (pending PO authorship). `depends_on: [S-ENGINE-LIMIT-EARLY-STOP-001, S-OCSF-FIDELITY-CYBERINT-001]` per ADR-060 §D8.4 deferral rationale. |
