@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.022"
+version: "8.023"
 status: current
-timestamp: 2026-08-30T21:00:00Z
+timestamp: 2026-08-30T21:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2375 (2026-08-30): POST-MERGE BURST (TD-VSDD-053) — S-ENGINE-LIMIT-EARLY-STOP-001 MERGED (PR #243 @c5be059fe human-authorized). STORY-INDEX v2.950→v2.951. NEXT: S-CLAROTY-VULNS-001 rebase+re-gate. STATE v8.907→v8.908. [D-2374 SUPERSEDED by D-2375]**
+> **D-2376 (2026-08-30): SHA-RECONCILIATION MICRO-BURST (TD-VSDD-053) — develop_head cite corrected c5be059fe→194a77665 (local develop rebased onto LIMIT base; verify-sha-currency restored). STATE v8.908→v8.909. [D-2375 historical]**
 
 ---
 
@@ -32,7 +32,7 @@ CODE zero findings any severity; SPEC substantively clean (no behavioral/correct
 S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED round-5 3/3 @5aae6f0b3 + HOLDOUT HS-024 PASS; rebase + PR-LEVEL re-gate required.
 
 ### HEADS (backup boundary)
-- `develop`: origin/develop = `c5be059fe` (PR #243 squash-merge D-2375). LOCAL develop = `95f670284` DIVERGED/not-pushed (human decision pending).
+- `develop`: origin/develop = `c5be059fe` (PR #243 squash-merge D-2375). LOCAL develop = `194a77665` (heartbeat commit rebased onto c5be059fe; 1 ahead of origin/develop; LOCAL-ONLY / not pushed — D-2376 SHA reconciliation; pushing develop pending human decision).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
 - `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED; remote branch deleted; local worktree pending devops cleanup
 - `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` — LOCAL 3-CLEAN CONVERGED; HOLDOUT HS-024 PASS; NEEDS REBASE onto c5be059fe + PR-LEVEL re-gate; PUSHED
@@ -40,13 +40,13 @@ S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 LOCAL 3-CLE
 - Parked: S-3.09 @`43c41389d` (KEEP-PARKED); W3-FIX-S307-001 @`fcab8717c` (PARKED-DIRTY, do-not-touch)
 
 ### DEFERRED HOUSEKEEPING (non-blocking, tracked)
-(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated mis-anchors ("Traces to B1 (PR cycle 1), ADR-060 §D8.2") — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; fold into next LIMIT follow-on or post-merge work. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Consider a validator gate ensuring every >=1-BC story has holdout scenarios at materialization (holdout process-gap); post-Monday. (4) Local develop reconciliation: LOCAL 95f670284 diverged from origin/develop c5be059fe — pending human decision whether to push or reset.
+(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated mis-anchors ("Traces to B1 (PR cycle 1), ADR-060 §D8.2") — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; fold into next LIMIT follow-on or post-merge work. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Consider a validator gate ensuring every >=1-BC story has holdout scenarios at materialization (holdout process-gap); post-Monday. (4) Local develop push/reset pending human decision (D-2376 corrected STATE develop_head cite to 194a77665; actual push of heartbeat commit to origin/develop remains human-decided).
 
 ### HEARTBEAT (permanent)
 Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
 
 ### DECISION DELTA
-D-2375 (this post-merge burst) recorded.
+D-2375 (post-merge burst) recorded. D-2376 (SHA-reconciliation micro-burst — develop_head cite corrected c5be059fe→194a77665; HEADS block updated) recorded.
 
 ### STANDING DECISIONS (carry forward)
 (a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures in prior session — all recovered; heartbeat is backstop.
