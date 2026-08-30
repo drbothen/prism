@@ -1,0 +1,136 @@
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":true,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-08-30T08:11:22.827080+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":3,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"3 results found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":true,\"normalized_pql\":\"SELECT * FROM claroty_alerts\",\"returned_results\":3,\"rows\":[{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-20T17:25:14Z\",\"finding_info_title\":\"Alert-0\",\"finding_info_uid\":\"200\",\"message\":\"Alert 0 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-18T12:27:14Z\"},{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-21T17:50:14Z\",\"finding_info_title\":\"Alert-1\",\"finding_info_uid\":\"201\",\"message\":\"Alert 1 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-21T16:56:14Z\"},{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-21T03:19:14Z\",\"finding_info_title\":\"Alert-2\",\"finding_info_uid\":\"202\",\"message\":\"Alert 2 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-17T21:25:14Z\"}],\"total_available\":20},\"structuredContent\":{\"results\":{\"is_truncated\":true,\"normalized_pql\":\"SELECT * FROM claroty_alerts\",\"returned_results\":3,\"rows\":[{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-20T17:25:14Z\",\"finding_info_title\":\"Alert-0\",\"finding_info_uid\":\"200\",\"message\":\"Alert 0 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-18T12:27:14Z\"},{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-21T17:50:14Z\",\"finding_info_title\":\"Alert-1\",\"finding_info_uid\":\"201\",\"message\":\"Alert 1 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-21T16:56:14Z\"},{\"_client\":\"org-c\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2026-06-21T03:19:14Z\",\"finding_info_title\":\"Alert-2\",\"finding_info_uid\":\"202\",\"message\":\"Alert 2 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2026-06-17T21:25:14Z\"}],\"total_available\":20}}}"
+      }
+    ],
+    "structuredContent": {
+      "_meta": {
+        "data_source": [
+          "claroty"
+        ],
+        "has_more": true,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-08-30T08:11:22.827080+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 3,
+        "trust_level": "untrusted_external"
+      },
+      "content": [
+        {
+          "text": "3 results found",
+          "type": "text"
+        }
+      ],
+      "results": {
+        "is_truncated": true,
+        "normalized_pql": "SELECT * FROM claroty_alerts",
+        "returned_results": 3,
+        "rows": [
+          {
+            "_client": "org-c",
+            "_sensor": "claroty",
+            "_source_table": "claroty_alerts",
+            "_source_type": "live",
+            "class_uid": 2004,
+            "finding_info_modified_time": "2026-06-20T17:25:14Z",
+            "finding_info_title": "Alert-0",
+            "finding_info_uid": "200",
+            "message": "Alert 0 detected by fixture generator",
+            "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+            "status": "Unresolved",
+            "time": "2026-06-18T12:27:14Z"
+          },
+          {
+            "_client": "org-c",
+            "_sensor": "claroty",
+            "_source_table": "claroty_alerts",
+            "_source_type": "live",
+            "class_uid": 2004,
+            "finding_info_modified_time": "2026-06-21T17:50:14Z",
+            "finding_info_title": "Alert-1",
+            "finding_info_uid": "201",
+            "message": "Alert 1 detected by fixture generator",
+            "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+            "status": "Unresolved",
+            "time": "2026-06-21T16:56:14Z"
+          },
+          {
+            "_client": "org-c",
+            "_sensor": "claroty",
+            "_source_table": "claroty_alerts",
+            "_source_type": "live",
+            "class_uid": 2004,
+            "finding_info_modified_time": "2026-06-21T03:19:14Z",
+            "finding_info_title": "Alert-2",
+            "finding_info_uid": "202",
+            "message": "Alert 2 detected by fixture generator",
+            "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+            "status": "Unresolved",
+            "time": "2026-06-17T21:25:14Z"
+          }
+        ],
+        "total_available": 20
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": true,
+          "normalized_pql": "SELECT * FROM claroty_alerts",
+          "returned_results": 3,
+          "rows": [
+            {
+              "_client": "org-c",
+              "_sensor": "claroty",
+              "_source_table": "claroty_alerts",
+              "_source_type": "live",
+              "class_uid": 2004,
+              "finding_info_modified_time": "2026-06-20T17:25:14Z",
+              "finding_info_title": "Alert-0",
+              "finding_info_uid": "200",
+              "message": "Alert 0 detected by fixture generator",
+              "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+              "status": "Unresolved",
+              "time": "2026-06-18T12:27:14Z"
+            },
+            {
+              "_client": "org-c",
+              "_sensor": "claroty",
+              "_source_table": "claroty_alerts",
+              "_source_type": "live",
+              "class_uid": 2004,
+              "finding_info_modified_time": "2026-06-21T17:50:14Z",
+              "finding_info_title": "Alert-1",
+              "finding_info_uid": "201",
+              "message": "Alert 1 detected by fixture generator",
+              "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+              "status": "Unresolved",
+              "time": "2026-06-21T16:56:14Z"
+            },
+            {
+              "_client": "org-c",
+              "_sensor": "claroty",
+              "_source_table": "claroty_alerts",
+              "_source_type": "live",
+              "class_uid": 2004,
+              "finding_info_modified_time": "2026-06-21T03:19:14Z",
+              "finding_info_title": "Alert-2",
+              "finding_info_uid": "202",
+              "message": "Alert 2 detected by fixture generator",
+              "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+              "status": "Unresolved",
+              "time": "2026-06-17T21:25:14Z"
+            }
+          ],
+          "total_available": 20
+        }
+      }
+    },
+    "isError": false
+  }
+}

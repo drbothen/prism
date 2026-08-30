@@ -67,6 +67,15 @@ pub struct FetchContext {
     pub client_id: OrgSlug,
     /// Push-down filter values from the query planner (${query.filter.*}).
     pub query_filters: std::collections::HashMap<String, String>,
+    /// ADR-060 §D8.1: LIMIT-aware early-stop pagination threshold.
+    ///
+    /// When `Some(n)`, `PipelineExecutor::execute_impl` stops fetching pages once
+    /// `all_records.len() >= n` (checked at complete page boundaries, immediately
+    /// after the DI-019 truncation check). `None` = unchanged full pagination.
+    ///
+    /// Wired by `SpecDrivenSensorAdapter::fetch` via `params.limit` mapping
+    /// (S-ENGINE-LIMIT-EARLY-STOP-001 AC-005). Test callers pass `None`.
+    pub early_stop_limit: Option<usize>,
 }
 
 impl FetchContext {
@@ -77,10 +86,12 @@ impl FetchContext {
     pub fn new(
         client_id: OrgSlug,
         query_filters: std::collections::HashMap<String, String>,
+        early_stop_limit: Option<usize>,
     ) -> Self {
         Self {
             client_id,
             query_filters,
+            early_stop_limit,
         }
     }
 }
@@ -100,6 +111,13 @@ pub struct PipelineResult {
     pub request_count: u32,
     /// True if `records` was truncated at the 10K DI-019 limit (AC-8).
     pub truncated: bool,
+    /// True when `execute_impl` fired the ADR-060 §D8.2 early-stop `break 'steps`
+    /// because `all_records.len() >= early_stop_limit`. False when the pipeline
+    /// completed normally (pagination exhausted, DI-019 cap, or `early_stop_limit = None`).
+    /// Propagates to `FetchOutput.any_early_stopped` → `FanOutResult.any_early_stopped`
+    /// → `MaterializationOutput.any_early_stopped` → engine Step 6 `is_truncated` formula
+    /// (ADR-060 §D8.3; S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a)).
+    pub early_stopped: bool,
 }
 
 impl PipelineResult {
@@ -122,6 +140,7 @@ impl PipelineResult {
             table_name: table_name.into(),
             request_count,
             truncated,
+            early_stopped: false,
         }
     }
 }
@@ -215,6 +234,9 @@ impl PipelineExecutor {
         // step_vars: keyed as "step_name.field" -> JSON value
         let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
         let mut truncated = false;
+        // ADR-060 §D8.3: tracks whether §D8.2 early-stop fired (early_stop_limit reached).
+        // Set to true BEFORE break 'steps in the early-stop block; false for all other exits.
+        let mut early_stopped = false;
 
         // AC-7 (F-LP1-HIGH-002): rate-limit flag is pipeline-scoped, not step-scoped.
         // Hoisted OUTSIDE the steps loop so the delay applies between ALL API calls
@@ -363,7 +385,8 @@ impl PipelineExecutor {
                     vec![None]
                 };
 
-            for batch in batches {
+            let batch_count = batches.len();
+            for (batch_idx, batch) in batches.into_iter().enumerate() {
                 // Build per-batch step_vars: override the source array key with the
                 // current batch slice so that template interpolation receives only the
                 // batch items, not the full prior-step array.
@@ -461,6 +484,11 @@ impl PipelineExecutor {
                     // (BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
                     // POST-body vs GET-URL"). Non-OffsetLimit steps pass page_size=0 to
                     // indicate no body injection is needed.
+                    //
+                    // ADR-060 §D8.4: CursorToken page-fill is not a valid cursor-exhaustion
+                    // signal. All CursorToken sub-cases (page_size Some/None) and None fall
+                    // through to 0 → conservative early_stopped=true. Precise
+                    // cursor-exhaustion detection is deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
                     let active_page_size: u32 = match &step.pagination {
                         Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
                         _ => 0,
@@ -564,6 +592,40 @@ impl PipelineExecutor {
                         break 'steps;
                     }
 
+                    // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary,
+                    // immediately after DI-019. truncated is NOT set — this is a success-path
+                    // query-driven early exit, not a capacity overflow (ADR-060 §D8.3).
+                    // CRITICAL: early_stopped MUST be set BEFORE break 'steps so that
+                    // PipelineResult.early_stopped is readable by the caller. This is
+                    // the root of the ADR-060 §D8.3 propagation chain:
+                    // PipelineResult.early_stopped → FetchOutput.any_early_stopped
+                    // → FanOutResult.any_early_stopped → MaterializationOutput.any_early_stopped
+                    // → engine Step 6 is_truncated formula (EC-11-092 / RG-PSG-025/028).
+                    //
+                    // ADR-060 §D8.2 discriminator (AC-014 / RG-PSG-039):
+                    //   FULL page  (page_record_count >= active_page_size): more pages may exist
+                    //              → early_stopped = true
+                    //   PARTIAL page (page_record_count < active_page_size): source exhausted
+                    //              → early_stopped = false (complete dataset retrieved)
+                    // For non-OffsetLimit steps active_page_size=0 → page_record_count >= 0
+                    // is always true (conservative: treat as full page, same as before).
+                    //
+                    // Multi-batch guard (B1 — PR cycle 1): when early-stop fires before the
+                    // last fan-out batch (!is_last_batch), batches 2..N are abandoned by the
+                    // break 'steps. Force early_stopped=true so callers are notified that
+                    // data from unprocessed batches is absent — regardless of page fill.
+                    if let Some(limit) = context.early_stop_limit
+                        && all_records.len() >= limit
+                    {
+                        // ADR-060 §D8.2 partial-final-page discriminator — set BEFORE break.
+                        // B1 multi-batch guard: OR with !is_last_batch ensures early_stopped=true
+                        // when unprocessed fan-out batches remain.
+                        let is_last_batch = batch_idx + 1 == batch_count;
+                        early_stopped =
+                            (page_record_count >= active_page_size as usize) || !is_last_batch;
+                        break 'steps;
+                    }
+
                     // Advance pagination or break.
                     // Cursor read from raw body (before encoding); stored raw for
                     // next iteration where it will be encoded by build_paged_url.
@@ -619,6 +681,7 @@ impl PipelineExecutor {
             table_name: table.table_name.clone(),
             request_count,
             truncated,
+            early_stopped,
         })
     }
 
@@ -2199,7 +2262,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("real-token");
 
@@ -2268,7 +2331,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = NullAuthProvider;
 
@@ -2334,7 +2397,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = FailingAuthProvider::new();
 
@@ -2461,7 +2524,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = FailingAuthProvider::new();
 
@@ -2529,7 +2592,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // MockAuthProvider: Ok on every call (both initial acquire and refresh).
         let auth_provider = MockAuthProvider::new("token1");
@@ -2594,7 +2657,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("token1");
 
@@ -2651,7 +2714,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // Call 0: initial acquire → Ok. Call 1: refresh → Err.
         let auth_provider = ChainAuthProvider::new(vec![
@@ -2717,7 +2780,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // MockAuthProvider: Ok on both calls (acquire + refresh succeed; double-401 is the
         // server side, not the auth provider side).
@@ -3664,7 +3727,7 @@ mod pagination_post_body_tests {
     }
 
     fn default_context() -> FetchContext {
-        FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
+        FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None)
     }
 
     // -----------------------------------------------------------------------
@@ -4573,7 +4636,7 @@ mod pagination_post_body_tests {
             .expect("claroty sensor spec must have an 'alerts' table")
             .clone();
 
-        let context = FetchContext::new(OrgSlug::new("demo-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("demo-org"), HashMap::new(), None);
         let http_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
@@ -4842,7 +4905,7 @@ mod non_2xx_body_snippet_tests {
 
         let spec = single_step_spec(&mock_server.uri(), "/api/v1/devices");
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::builder()
             .build()
             .expect("RG-003: reqwest::Client build must succeed");
@@ -5143,7 +5206,7 @@ mod rg004_pipeline_json_filter_tests {
             "_fql_filter".to_string(),
             "created_timestamp:>2026-01-01".to_string(),
         );
-        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters, None);
 
         let http_client = reqwest::Client::new(); // in-process test client
         let auth_provider = MockAuthProvider::new("claroty-rg004-test-token");
@@ -5351,7 +5414,7 @@ mod rg004_pipeline_json_filter_tests {
             "bad_json_filter".to_string(),
             "{not-valid-json".to_string(), // starts with `{` but not parseable
         );
-        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters, None);
 
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("ec005-warn-test-token");
@@ -5478,7 +5541,7 @@ mod rg004_pipeline_json_filter_tests {
             r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
                 .to_string(),
         );
-        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters, None);
 
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("claroty-no-warn-token");

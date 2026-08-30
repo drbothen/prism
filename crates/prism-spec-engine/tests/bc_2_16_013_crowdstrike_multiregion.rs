@@ -469,7 +469,7 @@ async fn test_BC_2_16_013_crowdstrike_base_url_dtu_pipeline_connection_succeeds(
         .find(|t| t.table_name == "detections")
         .expect("crowdstrike spec must declare a 'detections' table (AC-004 DTU)");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()

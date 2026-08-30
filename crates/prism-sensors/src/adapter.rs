@@ -86,6 +86,68 @@ pub struct QueryParams {
 }
 
 // ---------------------------------------------------------------------------
+// FetchOutput
+// ---------------------------------------------------------------------------
+
+/// The output of a single `SensorAdapter::fetch()` call.
+///
+/// Wraps the fetched record batches, the early-stop signal (ADR-060 §D8.2), and the
+/// DI-019 pipeline-truncation signal (ADR-060 §D8.10) from `PipelineExecutor::execute`.
+/// Fan-out aggregates both signals across sensors via OR to populate
+/// `FanOutResult.any_early_stopped` / `FanOutResult.any_pipeline_truncated`, which
+/// propagate to `MaterializationOutput` and engine.rs Step 6 for the `is_truncated`
+/// formula.
+///
+/// # Non-exhaustive
+/// New fields may be added in future stories without a breaking API change.
+///
+/// Story: S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a)
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct FetchOutput {
+    /// Record batches returned by the fetch pipeline; one batch per API page.
+    pub batches: Vec<RecordBatch>,
+    /// `true` when `PipelineExecutor::execute` fired the §D8.2 early-stop
+    /// `break 'steps` because `all_records.len() >= early_stop_limit`. `false`
+    /// when the pipeline completed normally (pagination exhausted, DI-019 cap,
+    /// or `early_stop_limit = None`).
+    pub any_early_stopped: bool,
+    /// `true` when `PipelineExecutor::execute` set `PipelineResult.truncated = true`
+    /// (DI-019: spec-engine pipeline capped records at `MAX_PIPELINE_RECORDS = 10_000`).
+    /// `false` when the pipeline completed without hitting the DI-019 record-count cap.
+    ///
+    /// Propagates through `FanOutResult.any_pipeline_truncated` →
+    /// `MaterializationOutput.any_pipeline_truncated` → engine Step 6 `is_truncated`
+    /// formula and the cross-query response-cache completeness gate (ADR-060 §D8.10;
+    /// S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001/OBS-001).
+    pub pipeline_truncated: bool,
+}
+
+impl FetchOutput {
+    /// Canonical constructor — required by `#[non_exhaustive]` for callers
+    /// outside the `prism-sensors` crate (ADR-060 §D8.3 / §D8.10 signal propagation).
+    ///
+    /// `any_early_stopped` MUST be `true` only when `PipelineExecutor` fired
+    /// the §D8.2 early-stop `break 'steps`. Test stubs that never early-stop
+    /// MUST pass `false`.
+    ///
+    /// `pipeline_truncated` MUST be `true` only when the pipeline set
+    /// `PipelineResult.truncated = true` (DI-019 cap). Test stubs that do not
+    /// simulate DI-019 truncation MUST pass `false`.
+    pub fn new(
+        batches: Vec<RecordBatch>,
+        any_early_stopped: bool,
+        pipeline_truncated: bool,
+    ) -> Self {
+        Self {
+            batches,
+            any_early_stopped,
+            pipeline_truncated,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SensorError
 // ---------------------------------------------------------------------------
 
@@ -325,14 +387,16 @@ pub trait SensorAdapter: Send + Sync + 'static {
     /// - `auth` — sealed auth credential for this sensor; MUST NOT be logged.
     ///
     /// # Returns
-    /// `Ok(Vec<RecordBatch>)` on success; one `RecordBatch` per API page
-    /// fetched within this invocation. Empty vec indicates no more pages.
+    /// `Ok(FetchOutput)` on success: `.batches` holds one `RecordBatch` per
+    /// API page; `.any_early_stopped` is `true` when the pipeline stopped early
+    /// due to `early_stop_limit` (ADR-060 §D8.2/§D8.3). Empty `.batches`
+    /// indicates no more pages.
     async fn fetch(
         &self,
         spec: &SensorSpec,
         params: &QueryParams,
         auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError>;
+    ) -> Result<FetchOutput, SensorError>;
 
     /// Returns a human-readable sensor name for use in tracing spans and error
     /// messages (e.g., `"crowdstrike"`, `"armis"`).

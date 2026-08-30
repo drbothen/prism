@@ -390,49 +390,26 @@ pub fn extract_time_window_from_ast(
     ocsf_naming_map: Option<&std::collections::HashMap<String, bool>>,
 ) -> (Option<String>, Option<String>) {
     // ADR-033 §Consequences — safe default: None spec_map → no push-down, no panic.
-    let spec_map = match resolved_spec_map {
-        Some(m) => m,
-        None => return (None, None),
-    };
-
-    // Collect all ColumnSpec entries for the given source_names, looking up datetime INDEX cols.
-    // ADR-033 T1: match lhs column names against columns with column_type=datetime + options=[INDEX].
-    // AC-014 (OQ-001): when ocsf_field is present, also insert the OCSF-flattened Arrow name
-    // so that LLM agents can filter on the flattened name (e.g. `WHERE time > '...'` for
-    // claroty.audit_logs.timestamp which has ocsf_field="time"). Without this, a filter on the
-    // OCSF Arrow name would fall through to full scan. RG-PD-001.
-    let mut datetime_index_cols: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    for source_name in source_names {
-        if let Some(cols) = spec_map.get(*source_name) {
-            for col in cols {
-                if col.column_type == prism_core::ColumnType::Datetime
-                    && col.options.contains(&ColumnOptions::Index)
-                {
-                    datetime_index_cols.insert(col.name.clone());
-                    // AC-014 (OQ-001 / ADR-058 §I6): insert the OCSF-flattened Arrow name
-                    // only when this source's sensor has ocsf_column_naming = true.
-                    // For flag=false sensors the Arrow field names use col.name, so
-                    // registering the flattened name would be a latent collision risk:
-                    // a real column named after another column's flattened OCSF path
-                    // would receive an incorrect push-down bound → silent under-fetch.
-                    if let Some(ref ocsf_field) = col.ocsf_field {
-                        let sensor_has_ocsf_naming = ocsf_naming_map
-                            .and_then(|m| m.get(*source_name))
-                            .copied()
-                            .unwrap_or(false);
-                        if sensor_has_ocsf_naming {
-                            let arrow_name =
-                                prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
-                                    ocsf_field,
-                                );
-                            datetime_index_cols.insert(arrow_name);
-                        }
-                    }
-                }
-            }
-        }
+    if resolved_spec_map.is_none() {
+        return (None, None);
     }
+
+    // ADR-060 v1.8 structural reuse: delegate datetime INDEX col collection to the shared
+    // `collect_datetime_index_cols` helper (materialization.rs). This ensures the gate
+    // (plan-shape gate, Change 2) and the extractor (this function, Change 4) derive the
+    // INDEX set from identical logic — source-scoped, OCSF-flattened, Condition-K aware.
+    // The suppress_multi_index flag is discarded here: the extractor is a time-window
+    // extraction utility, not a gate; suppression is the gate's responsibility.
+    //
+    // AC-014 (OQ-001 / ADR-058 §I6): OCSF-flattened Arrow names are registered when
+    // ocsf_column_naming=true for the source (via ocsf_naming_map), same as before.
+    let (datetime_index_vec, _suppress) = crate::materialization::collect_datetime_index_cols(
+        resolved_spec_map,
+        source_names,
+        ocsf_naming_map,
+    );
+    let datetime_index_cols: std::collections::HashSet<String> =
+        datetime_index_vec.into_iter().collect();
 
     let mut start_time: Option<String> = None;
     let mut end_time: Option<String> = None;

@@ -155,7 +155,7 @@ async fn test_BC_2_16_013_dtu_parity_armis() {
         "aql".to_string(),
         "in:devices timeFrame:\"Last 3 Hours\"".to_string(),
     );
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     // Step 5: HTTP client with 30-second timeout.
     let http_client = reqwest::Client::builder()
@@ -230,7 +230,7 @@ async fn test_BC_2_16_013_dtu_parity_armis_timestamp_fallback_pass_by_convention
         .find(|t| t.table_name == "devices")
         .expect("devices table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -384,7 +384,7 @@ async fn test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline() {
     let aql_value = "in:devices timeFrame:\"Last 3 Hours\"";
     let mut filters = HashMap::new();
     filters.insert("aql".to_string(), aql_value.to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     // Step 5: HTTP client with 30-second timeout per CLAUDE.md conventions.
     let http_client = reqwest::Client::builder()
@@ -516,7 +516,7 @@ async fn test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline() {
     let aql_value = "in:alerts status:Open";
     let mut filters = HashMap::new();
     filters.insert("aql".to_string(), aql_value.to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     // Step 5: HTTP client.
     let http_client = reqwest::Client::builder()
@@ -703,7 +703,7 @@ async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
     // Step 3: Execute UNFILTERED query (no time clause) to get baseline count.
     let mut unfiltered_filters = HashMap::new();
     unfiltered_filters.insert("aql".to_string(), "in:devices".to_string());
-    let unfiltered_ctx = FetchContext::new(OrgSlug::new("test-org"), unfiltered_filters);
+    let unfiltered_ctx = FetchContext::new(OrgSlug::new("test-org"), unfiltered_filters, None);
     let unfiltered_result =
         PipelineExecutor::execute(&spec, &table, &unfiltered_ctx, &http_client, &auth_provider)
             .await
@@ -725,7 +725,7 @@ async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
     let aql_with_time = format!("in:devices after:{}", time_threshold);
     let mut filtered_filters = HashMap::new();
     filtered_filters.insert("aql".to_string(), aql_with_time.clone());
-    let filtered_ctx = FetchContext::new(OrgSlug::new("test-org"), filtered_filters);
+    let filtered_ctx = FetchContext::new(OrgSlug::new("test-org"), filtered_filters, None);
     let filtered_result =
         PipelineExecutor::execute(&spec, &table, &filtered_ctx, &http_client, &auth_provider)
             .await
@@ -837,7 +837,7 @@ async fn test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter() {
     let aql_with_time = format!("in:devices after:{}", time_threshold);
     let mut filters_a = HashMap::new();
     filters_a.insert("aql".to_string(), aql_with_time);
-    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a);
+    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a, None);
     let result_a = PipelineExecutor::execute(&spec, &table, &ctx_a, &http_client, &auth_provider)
         .await
         .expect("AC-ARMIS-TW-004: execution A (with push-down) must succeed");
@@ -853,7 +853,7 @@ async fn test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter() {
     // at the pipeline level (PipelineExecutor only), the full dataset is returned.
     let mut filters_b = HashMap::new();
     filters_b.insert("aql".to_string(), "in:devices".to_string());
-    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), filters_b);
+    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), filters_b, None);
     let result_b = PipelineExecutor::execute(&spec, &table, &ctx_b, &http_client, &auth_provider)
         .await
         .expect("AC-ARMIS-TW-004: execution B (without push-down) must succeed");

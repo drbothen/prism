@@ -163,6 +163,21 @@ pub struct MaterializationOutput {
     /// Used to populate `QueryResultContext.sensors_queried` (BC-2.11.001).
     /// (ADV-W3MT-P58-HIGH-005)
     pub sensors_queried: Vec<String>,
+    /// `true` when the sensor fan-out stopped early because the total rows returned
+    /// by live fan-out calls reached the pushed `fetch_limit` (ADR-060 §D8.3).
+    ///
+    /// This propagates to engine Step 6 to compute the correct `is_truncated` signal
+    /// for the boundary case where `total_rows == limit` (and more pages exist but
+    /// were never fetched). See AC-009 / RG-PSG-025/026.
+    pub any_early_stopped: bool,
+    /// `true` when at least one sensor's spec-engine pipeline set
+    /// `PipelineResult.truncated = true` (DI-019: records capped at `MAX_PIPELINE_RECORDS = 10_000`).
+    /// OR-aggregated across all successful live fan-out calls.
+    ///
+    /// Propagates to engine Step 6 `is_truncated` formula and the cross-query response-cache
+    /// completeness gate: a DI-019-truncated partial must NOT be cached as complete
+    /// (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001/OBS-001).
+    pub any_pipeline_truncated: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -785,13 +800,45 @@ pub async fn run_materialization_pipeline(
         && !mat_ctx.adapter_registry.is_empty()
     {
         // Enumerate all (OrgId, SensorId) pairs registered in the adapter registry.
-        // For each pair, synthesize a FanOutTarget using sensor_id as source_table.
-        // client_id uses the same synthetic-slug fallback as resolve_source_refs lines
-        // 1284-1311 (no OrgRegistry available in bare-filter test path).
+        // For each pair, derive the client_id via ADR-061 D1/D2/D3 authoritative
+        // OrgSlug resolution — the previous comment claiming "no OrgRegistry available
+        // in bare-filter test path" was WRONG: mat_ctx.org_registry IS present and
+        // populated in production (ADR-061 D4).
         for sensor_id in mat_ctx.adapter_registry.registered_sensor_ids() {
             let adapters = mat_ctx.adapter_registry.get_all_for_sensor(&sensor_id);
             for (org_id, _adapter) in adapters {
-                let client_id = OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]));
+                // ADR-061 D4 (Site 1 fix): consult org_registry for authoritative slug.
+                // D1: client_id MUST come from OrgRegistry when registry is present.
+                // D2: registry present + slug missing → SKIP + warn (fail-closed).
+                // D3: registry absent → synthetic slug acceptable (test/MVP mode).
+                let client_id = match mat_ctx
+                    .org_registry
+                    .as_ref()
+                    .and_then(|reg| reg.slug_for(&org_id))
+                {
+                    Some(slug) => slug,
+                    None if mat_ctx.org_registry.is_some() => {
+                        // D2: registry IS present but no slug for this OrgId.
+                        // Skip this target — do NOT synthesize a slug.
+                        tracing::warn!(
+                            org_id = %org_id,
+                            event_type = "query.org_slug_resolution_failure",
+                            "OrgId has no slug mapping in OrgRegistry; skipping bare-filter \
+                             fan-out target (ADR-061 D2 fail-closed: no data served under \
+                             synthetic identity)"
+                        );
+                        continue; // skip this OrgId — do NOT push to targets
+                    }
+                    None => {
+                        // D3: registry absent — test/MVP mode, synthetic slug acceptable.
+                        // "org-" followed by the first 8 hex chars of the UUID is always
+                        // valid against ORG_SLUG_PATTERN (^[a-zA-Z0-9_-]{1,64}$): the
+                        // "org-" prefix guarantees all characters are in-charset and the
+                        // 12-char result is well within the 64-char limit. No fallback
+                        // branch is needed — unreachable-by-construction.
+                        OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))
+                    }
+                };
                 let source_table = sensor_id.as_ref().to_string();
                 targets.push(FanOutTarget {
                     sensor_id: sensor_id.clone(),
@@ -831,13 +878,62 @@ pub async fn run_materialization_pipeline(
     // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
     // sentinel (EC-008).
     //
-    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 §Invariants, architect
-    // adjudication D1): this binding feeds BOTH the response-cache key
-    // derivation AND the fan-out target construction below. Do NOT introduce a
-    // second derivation of the pushed limit — the limit hashed into
-    // `push_down_hash` must always be the limit actually fetched, including
-    // under any future pushdown-suppression logic.
-    let fetch_limit: u64 = options.limit.map(|l| l as u64).unwrap_or(0);
+    // PLAN-SHAPE GATE (ADR-060 §D8.7 v1.5): `ast_is_reducing_plan_with_index_cols` returns
+    // `true` when the query plan would produce incorrect results under early-stop.
+    // Conditions A–J + conservative default (see `ast_is_reducing_plan` doc).
+    // Note: `where_filters` is NOT passed — the gate performs its own AST walk
+    // via `has_client_side_where` (ADR-060 §D8.7 v1.3 signature change).
+    // `where_filters` continues to be used for push-down and cache key derivation.
+    //
+    // SINGLE-BINDING COHERENCE (ADR-060 §D8.8): this binding feeds BOTH the
+    // response-cache key derivation AND the fan-out target construction below.
+    // Do NOT introduce a second derivation of the pushed limit — the limit
+    // hashed into `push_down_hash` must always be the limit actually fetched.
+    // Reducing plans hash `0` as `fetch_limit`, so they share a full-dataset
+    // cache entry (ADR-060 §D8.8 cache-key coherence).
+    //
+    // ADR-060 v1.8 §D8.7: derive source-scoped INDEX-designated datetime column names for the
+    // temporal-exemption soundness check (F-R16-P16-LENSA-HIGH-001).
+    //
+    // v1.8 changes vs v1.7:
+    //   HIGH-001 (source-scope): only columns from the QUERIED source sensors are included.
+    //     v1.7 iterated resolved_spec_map.values() (ALL sensors), causing INDEX designations
+    //     from unqueried sensors (e.g. armis's last_seen INDEX) to bleed into other sensors'
+    //     gate decisions (e.g. crowdstrike's last_seen, which has no INDEX designation).
+    //     Fix: use collect_datetime_index_cols on the source-scoped resolved_col_map.
+    //   Condition K (ADR-060 §D8.7 v1.8): suppress when any queried table has ≥2 Datetime+INDEX
+    //     cols — push-down coverage is ambiguous for multi-index tables.
+    //   OCSF-flattened names (ADR-060 §D8.9 MED-001, unchanged): still registered via
+    //     collect_datetime_index_cols when ocsf_column_naming=true for the source.
+    //
+    // Conservative default: resolved_col_map = None (no spec wired) → collect_datetime_index_cols
+    // returns ([], false) → ALL temporal comparisons treated as client-side → early-stop suppressed.
+    let source_name_refs: Vec<&str> = source_names.iter().map(String::as_str).collect();
+    let (datetime_index_cols, suppress_multi_index) = collect_datetime_index_cols(
+        resolved_col_map.as_ref(),
+        &source_name_refs,
+        ocsf_naming_map.as_ref(),
+    );
+    let datetime_index_refs: Vec<&str> = datetime_index_cols.iter().map(|s| s.as_str()).collect();
+
+    let fetch_limit: u64 = if suppress_multi_index
+        || ast_is_reducing_plan_with_index_cols(&ast, &datetime_index_refs)
+    {
+        0
+    } else {
+        options.limit.map(|l| l as u64).unwrap_or(0)
+    };
+
+    // ADR-060 §D8.3: accumulate the real early-stop signal across live fan-out calls.
+    // This is set only by live fetches — cache-hit paths are complete prior responses
+    // and do not constitute an early-stop. Engine Step 6 uses this signal to compute
+    // is_truncated = (total_rows > limit) || any_early_stopped.
+    let mut any_early_stopped = false;
+    // ADR-060 §D8.10: accumulate the DI-019 pipeline-truncation signal across live fan-out calls.
+    // True when any sensor's spec-engine pipeline hit MAX_PIPELINE_RECORDS (10K).
+    // Prevents DI-019-truncated partials from being cached as complete responses and
+    // contributes to the engine Step 6 `is_truncated` formula.
+    let mut any_pipeline_truncated = false;
 
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
@@ -1009,7 +1105,15 @@ pub async fn run_materialization_pipeline(
                 // asymmetry). TTL selection by source data type happens inside
                 // `put` (60s alerts / 300s devices / health not cached).
                 if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
-                    let complete = fan_result.errors.is_empty();
+                    // EC-01-039 / BC-2.07.003: an early-stopped or DI-019-truncated partial
+                    // is never cached as complete — the next identical query must re-fetch
+                    // and recompute the truncation signal from live data.
+                    // ADR-060 §D8.10: `any_pipeline_truncated` extends the guard so DI-019
+                    // partials (PipelineResult.truncated=true, early_stopped=false) are also
+                    // excluded from the cache (S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
+                    let complete = fan_result.errors.is_empty()
+                        && !fan_result.any_early_stopped
+                        && !fan_result.any_pipeline_truncated;
                     store_or_invalidate_response_cache(
                         cache,
                         key,
@@ -1017,6 +1121,12 @@ pub async fn run_materialization_pipeline(
                         complete.then(|| fan_result.successes.clone()),
                     )?;
                 }
+
+                // ADR-060 §D8.3: capture the real early-stop signal before consuming batches.
+                // This must precede the `for batch in fan_result.successes` move.
+                any_early_stopped |= fan_result.any_early_stopped;
+                // ADR-060 §D8.10: capture the DI-019 pipeline-truncation signal.
+                any_pipeline_truncated |= fan_result.any_pipeline_truncated;
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -1147,6 +1257,12 @@ pub async fn run_materialization_pipeline(
         }
     }
 
+    // ADR-060 §D8.3: `any_early_stopped` was accumulated per-target above by
+    // OR-ing fan_result.any_early_stopped — the real signal propagated from
+    // PipelineResult.early_stopped → FetchOutput.any_early_stopped → FanOutResult.
+    // No heuristic needed: only a true PipelineResult §D8.2 early-stop sets this.
+    // Engine Step 6: is_truncated = (total_rows > limit) || any_early_stopped.
+
     // Step 5: Register each source as a DataFusion MemTable.
     // Track how many external tables were successfully registered with data.
     let mut any_external_table_registered = false;
@@ -1211,6 +1327,9 @@ pub async fn run_materialization_pipeline(
             sensor_errors,
             registered_tables,
             sensors_queried: sensors_queried.into_iter().collect(),
+            // No fan-out data was registered → early-stop and DI-019 cannot have fired.
+            any_early_stopped: false,
+            any_pipeline_truncated: false,
         });
     }
 
@@ -1226,11 +1345,25 @@ pub async fn run_materialization_pipeline(
     )
     .await?;
 
+    // Materialization returns the FULL filtered/aggregated result set.
+    //
+    // The tool-level row cap (`options.limit`) and truncation-signal computation
+    // (`is_truncated`, `total_available`) are EXCLUSIVELY owned by engine.rs Step 6
+    // (`truncate_batches_to_limit` + `total_rows > limit` guard).  A pre-cap here
+    // would cause engine.rs Step 6 to see ≤ limit rows, compute `total_rows ≤ limit`,
+    // and emit `is_truncated = false` with an understated `total_available` — silently
+    // under-reporting truncation to the MCP caller (F-R13-CRIT-001).
+    //
+    // ADR-060 §D8.7 specifies only the `fetch_limit` fan-out gate; it does NOT
+    // authorize a materialization-layer result cap.
+
     Ok(MaterializationOutput {
         batches: collected,
         sensor_errors,
         registered_tables,
         sensors_queried: sensors_queried.into_iter().collect(),
+        any_early_stopped,
+        any_pipeline_truncated,
     })
 }
 
@@ -1883,48 +2016,38 @@ pub(crate) async fn resolve_source_refs(
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
                 // BC-2.11.011 EC-005: orgs with no configured sensors are skipped silently.
                 // Using a sentinel `_all` value would expose implementation details in result rows.
-                let Some(client_slug) = org_registry.as_ref().and_then(|reg| reg.slug_for(&org_id))
-                else {
-                    // OrgRegistry absent (test/MVP mode) — fall back to test slug if available,
-                    // or skip. In production (OrgRegistry present), this path means the adapter
-                    // is registered for an OrgId not in the registry (configuration inconsistency).
-                    // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
-                    tracing::warn!(
-                        org_id = %org_id,
-                        source_table = %sanitize_for_log(source_name),
-                        "resolve_source_refs: OrgId has no slug mapping in OrgRegistry; \
-                         skipping target (BC-2.11.011 EC-005)"
-                    );
-                    // When OrgRegistry is absent (test mode), fall back to a synthetic slug
-                    // derived from the org_id hex rather than `_all` sentinel.
-                    // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated constructor)
-                    // instead of new_unchecked(). The 8-char prefix of a UUID v7 is always
-                    // valid for OrgSlug ([a-zA-Z0-9_-]{1,64}), but using the validated path
-                    // removes the silent dependency on OrgId::Display format.
-                    let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
-                    let synthetic_slug_candidate = OrgSlug::new(&synthetic_candidate);
-                    let synthetic_slug = if synthetic_slug_candidate.is_ok() {
-                        synthetic_slug_candidate
-                    } else {
-                        // Fallback: if somehow the UUID prefix produces an invalid slug,
-                        // use a hardcoded sentinel rather than crashing or corrupting state.
-                        OrgSlug::new("synthetic-unmapped")
-                    };
-                    targets.push(FanOutTarget {
-                        sensor_id: sensor_id.clone(),
-                        client_id: synthetic_slug.clone(),
-                        org_id,
-                        sensor_spec: SensorSpec {
-                            source_table: source_name.clone(),
-                            #[allow(deprecated)]
-                            client_id: synthetic_slug.as_str().to_string(),
-                            org_id,
-                            sensor_config: serde_json::Value::Null,
-                        },
-                        source_table: source_name.clone(),
-                        push_down_plan: PushDownPlan::default(),
-                    });
-                    continue;
+                // ADR-061 D1/D2/D3: authoritative OrgSlug resolution.
+                // D1: client_id MUST come from OrgRegistry when registry is present.
+                // D2: registry present + slug missing → SKIP this target (fail-closed).
+                // D3: registry absent (test/MVP mode) → synthetic slug is acceptable.
+                let client_slug = match org_registry.as_ref().and_then(|reg| reg.slug_for(&org_id))
+                {
+                    Some(slug) => slug,
+                    None if org_registry.is_some() => {
+                        // D2: registry IS present but slug_for returned None.
+                        // Configuration inconsistency — skip this org's target entirely.
+                        // Do NOT synthesize; do NOT push a FanOutTarget.
+                        // (ADR-061 D2 fail-closed: no data served under synthetic identity)
+                        tracing::warn!(
+                            org_id = %org_id,
+                            event_type = "query.org_slug_resolution_failure",
+                            "OrgId has no slug mapping in OrgRegistry; skipping fan-out \
+                             target (ADR-061 D2 fail-closed: no data served under \
+                             synthetic identity)"
+                        );
+                        continue; // skip this OrgId — do NOT push to targets
+                    }
+                    None => {
+                        // D3: registry absent — test/MVP mode, synthetic slug is acceptable.
+                        // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated
+                        // constructor). "org-" followed by the first 8 hex chars of the
+                        // UUID is always valid against ORG_SLUG_PATTERN
+                        // (^[a-zA-Z0-9_-]{1,64}$): the "org-" prefix guarantees all
+                        // characters are in-charset and the 12-char result is well within
+                        // the 64-char limit. No fallback branch is needed —
+                        // unreachable-by-construction (ADR-061 D3).
+                        OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))
+                    }
                 };
 
                 targets.push(FanOutTarget {
@@ -2170,15 +2293,25 @@ fn build_source_column_map(
             let dot_key = format!("{sensor_id}.{}", table.table_name);
             let underscore_key = format!("{sensor_id}_{}", table.table_name);
             // Only include if referenced by the query (avoids unnecessary work).
-            let is_referenced = source_names
-                .iter()
-                .any(|s| *s == dot_key || *s == underscore_key);
+            // Three key forms:
+            // 1. dot form: "{sensor_id}.{table_name}" (e.g. "armis.devices")
+            // 2. underscore form: "{sensor_id}_{table_name}" (e.g. "armis_devices")
+            // 3. direct form: "{table_name}" — backward-compat for test fixtures where
+            //    table_name is already compound (e.g. "armis_devices"). Real sensor TOMLs
+            //    use short table names ("devices") so dot/underscore forms cover them.
+            let is_referenced = source_names.iter().any(|s| {
+                *s == dot_key || *s == underscore_key || s.as_str() == table.table_name.as_str()
+            });
             if is_referenced {
                 result
                     .entry(dot_key.clone())
                     .or_insert_with(|| table.columns.clone());
                 result
                     .entry(underscore_key)
+                    .or_insert_with(|| table.columns.clone());
+                // Direct key for test fixtures and any caller using table_name as source.
+                result
+                    .entry(table.table_name.clone())
                     .or_insert_with(|| table.columns.clone());
             }
         }
@@ -2210,17 +2343,107 @@ fn build_source_ocsf_naming_map(
         for table in &resolved.spec.tables {
             let dot_key = format!("{sensor_id}.{}", table.table_name);
             let underscore_key = format!("{sensor_id}_{}", table.table_name);
-            let is_referenced = source_names
-                .iter()
-                .any(|s| *s == dot_key || *s == underscore_key);
+            let is_referenced = source_names.iter().any(|s| {
+                *s == dot_key || *s == underscore_key || s.as_str() == table.table_name.as_str()
+            });
             if is_referenced {
                 result.entry(dot_key).or_insert(flag);
                 result.entry(underscore_key).or_insert(flag);
+                // Direct key for test fixtures and callers using table_name as source.
+                result.entry(table.table_name.clone()).or_insert(flag);
             }
         }
     }
 
     result
+}
+
+/// Collect Datetime+INDEX column names for the query-scoped source column map.
+///
+/// SOURCE-SCOPED: only columns visible in `source_names` are included — no global
+/// cross-sensor bleed (F-R16-P16-LENSA-HIGH-001, ADR-060 v1.8 §D8.7).
+///
+/// Also registers the OCSF-flattened Arrow name (ADR-060 §D8.9) when `ocsf_column_naming=true`
+/// for the source, mirroring the logic in `extract_time_window_from_ast` (pushdown.rs).
+///
+/// ## Condition K (ADR-060 v1.8 §D8.7)
+///
+/// Returns `suppress_multi_index = true` when any queried source table has ≥2 Datetime+INDEX
+/// columns. Such tables have ambiguous push-down coverage — a temporal predicate targeting
+/// only one INDEX column does not guarantee the server filters on the other, so early-stop
+/// (LIMIT push-down) can yield incorrect results.
+///
+/// ## Safe default
+///
+/// `resolved_col_map = None` → returns `(Vec::new(), false)` (conservative: empty index set
+/// causes all predicates to be treated as client-side, suppressing early-stop).
+///
+/// # ADR-060 v1.8 anchors: F-R16-P16-LENSA-HIGH-001 (HIGH-001, source-scope),
+/// F-R16-P16-LENSB-LOW-001 (Condition K). Shared by gate (Change 2) and
+/// `pushdown::extract_time_window_from_ast` (Change 4).
+pub(crate) fn collect_datetime_index_cols(
+    resolved_col_map: Option<
+        &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
+    >,
+    source_names: &[&str],
+    ocsf_naming_map: Option<&std::collections::HashMap<String, bool>>,
+) -> (Vec<String>, bool) {
+    let Some(col_map) = resolved_col_map else {
+        return (Vec::new(), false);
+    };
+
+    let mut cols: Vec<String> = Vec::new();
+    let mut suppress_multi_index = false;
+
+    for source_name in source_names {
+        let Some(columns) = col_map.get(*source_name) else {
+            continue;
+        };
+
+        // Condition K (ADR-060 v1.8 §D8.7): suppress early-stop when a queried table
+        // has ≥2 Datetime+INDEX columns. first-wins semantics in extract_time_bounds_from_predicate
+        // can only capture one bound per direction; with multiple INDEX datetime cols the
+        // unselected column has no server-side constraint, making early-stop incorrect.
+        let dt_idx_count = columns
+            .iter()
+            .filter(|col| {
+                col.column_type == prism_core::column::ColumnType::Datetime
+                    && col
+                        .options
+                        .contains(&prism_core::column::ColumnOptions::Index)
+            })
+            .count();
+        if dt_idx_count >= 2 {
+            suppress_multi_index = true;
+        }
+
+        let ocsf_naming = ocsf_naming_map
+            .and_then(|m| m.get(*source_name))
+            .copied()
+            .unwrap_or(false);
+
+        for col in columns {
+            if col.column_type == prism_core::column::ColumnType::Datetime
+                && col
+                    .options
+                    .contains(&prism_core::column::ColumnOptions::Index)
+            {
+                cols.push(col.name.clone());
+                // ADR-060 §D8.9: register the OCSF-flattened Arrow name when the sensor uses
+                // ocsf_column_naming=true so predicates on the flattened name are push-eligible.
+                // Guard: only when ocsf_naming=true to avoid silent collision on non-OCSF sensors.
+                if ocsf_naming {
+                    if let Some(ref ocsf_field) = col.ocsf_field {
+                        cols.push(prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
+                            ocsf_field,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    (cols, suppress_multi_index)
 }
 
 /// Wrapper that extracts time-window bounds from the PrismQL AST by delegating
@@ -2299,6 +2522,437 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
     };
 
     crate::pushdown::predicate_tree_to_filter_map(pred)
+}
+
+// ---------------------------------------------------------------------------
+// ast_is_reducing_plan (ADR-060 §D8.7 v1.3 — Comprehensive Plan-Shape Gate)
+// ---------------------------------------------------------------------------
+
+/// Returns `true` when the query plan would produce incorrect results if sensor
+/// fan-out stops early (i.e., early-stop must be SUPPRESSED — `fetch_limit = 0`).
+///
+/// This gate drives `fetch_limit` in `run_materialization_pipeline`: a `true`
+/// return forces `fetch_limit = 0` (no-limit sentinel), suppressing early-stop.
+/// A `false` return allows the caller-supplied `options.limit` to propagate as
+/// `fetch_limit`, enabling early-stop for bare projections (ADR-060 §D8.5).
+///
+/// # Conditions (ADR-060 §D8.7 v1.3)
+///
+/// - **A** — Aggregate/window function in SELECT items OR in ORDER BY expressions.
+///   Closes F-R12-CRIT-001: recurses into `FuncCall::Scalar::args` for nested aggs.
+/// - **B** — Non-empty `GROUP BY` clause
+/// - **C** — `SELECT DISTINCT`
+/// - **D** — `HAVING` clause present
+/// - **E** — Any `PipeStage::Stats` in pipe stages
+/// - **F** — Any `PipeStage::Dedup` in pipe stages
+/// - **G** — `has_client_side_where`: any non-temporal WHERE predicate in ANY AST mode.
+///   Replaces v1.2 `where_filters` check (which was empty for Filter/Pipe modes and
+///   missed non-equality SQL predicates). `where_filters` param removed (ADR-060 §D8.7).
+/// - **H** — SQL JOIN present (`sql.joins` non-empty). Closes F-R12-HIGH-001.
+/// - **I** — Any `PipeStage::Tail` in pipe stages (last-N requires full dataset).
+/// - **J** — Any `PipeStage::Join` in pipe stages (defensive; closes F-R12-HIGH-001).
+///
+/// Conservative default: `_ => true` for unknown/future `Ast` variants.
+/// Pipe-stage scan uses a PERMIT allow-list; unlisted stages suppress.
+///
+/// ORDER BY alone (without aggregate in the ORDER BY expression) does NOT
+/// trigger suppression (ADR-060 §D8.5).
+/// Single-arg public wrapper for `ast_is_reducing_plan_with_index_cols`.
+///
+/// Passes an empty `datetime_index_cols` slice → conservative suppress for
+/// all temporal predicates. Used EXCLUSIVELY by in-crate unit tests (PSG-009,
+/// PSG-012, PSG-019) that compile-gate against this exact
+/// `fn ast_is_reducing_plan(&Ast) -> bool` signature — do NOT change the
+/// signature or remove this function.
+///
+/// Production callers use `ast_is_reducing_plan_with_index_cols` directly
+/// (via `run_materialization_pipeline`) to pass the real INDEX column list.
+/// The `#[cfg(test)]` annotation keeps this from appearing in release builds;
+/// the compile-gate tests live in `#[cfg(test)] mod plan_shape_gate_unit_tests`
+/// which can access this via `use super::ast_is_reducing_plan`.
+#[cfg(test)]
+fn ast_is_reducing_plan(ast: &crate::ast::Ast) -> bool {
+    ast_is_reducing_plan_with_index_cols(ast, &[])
+}
+
+/// Returns `true` when the query plan would produce incorrect results if sensor
+/// fan-out stops early (i.e., early-stop must be SUPPRESSED — `fetch_limit = 0`).
+///
+/// See `ast_is_reducing_plan` for the full condition list (A–J + Condition G v1.5).
+/// `datetime_index_cols`: names of INDEX-designated Datetime columns; passed to
+/// `has_client_side_where` for the temporal-exemption soundness check (§D8.7 v1.5).
+fn ast_is_reducing_plan_with_index_cols(
+    ast: &crate::ast::Ast,
+    datetime_index_cols: &[&str],
+) -> bool {
+    use crate::ast::{Ast, PipeStage, SelectItem, SqlStatement};
+
+    // Condition G (v1.5): client-side WHERE predicate in any AST mode.
+    if has_client_side_where(ast, datetime_index_cols) {
+        return true;
+    }
+
+    match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => {
+            // Condition A: aggregate/window in SELECT items.
+            let has_agg_in_select = sql.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate_or_window(expr),
+                _ => false,
+            });
+            // Condition A (revised): aggregate/window in ORDER BY expressions.
+            let has_agg_in_order_by = sql
+                .order_by
+                .iter()
+                .any(|oe| expr_contains_aggregate_or_window(&oe.expr));
+            // Condition B: non-empty GROUP BY.
+            let has_group_by = !sql.group_by.is_empty();
+            // Condition C: SELECT DISTINCT.
+            let has_distinct = sql.select.distinct;
+            // Condition D: HAVING clause present.
+            let has_having = sql.having.is_some();
+            // Condition H: SQL JOIN present (closes F-R12-HIGH-001).
+            let has_join = !sql.joins.is_empty();
+            has_agg_in_select
+                || has_agg_in_order_by
+                || has_group_by
+                || has_distinct
+                || has_having
+                || has_join
+        }
+        Ast::SqlPipe(spq) => {
+            let head = &spq.head;
+            // Condition A: aggregate/window in SELECT items.
+            let has_agg_in_select = head.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate_or_window(expr),
+                _ => false,
+            });
+            // Condition A (revised): aggregate/window in ORDER BY expressions.
+            let has_agg_in_order_by = head
+                .order_by
+                .iter()
+                .any(|oe| expr_contains_aggregate_or_window(&oe.expr));
+            // Condition B, C, D, H on the SQL head.
+            let has_group_by = !head.group_by.is_empty();
+            let has_distinct = head.select.distinct;
+            let has_having = head.having.is_some();
+            let has_join = !head.joins.is_empty();
+            // Pipe stage conditions (E, F, I, J) on trailing stages.
+            // PERMIT allow-list: Where (temporal already handled by G), Sort, Limit,
+            // Fields, Enrich. All other/unknown stages SUPPRESS (conservative default).
+            let has_reducing_stage = spq.stages.iter().any(|s| match s {
+                PipeStage::Stats(_) => true, // Condition E
+                PipeStage::Dedup(_) => true, // Condition F
+                PipeStage::Tail(_) => true,  // Condition I
+                PipeStage::Join(_) => true,  // Condition J (defensive)
+                PipeStage::Where(_)
+                | PipeStage::Sort(_)
+                | PipeStage::Limit(_)
+                | PipeStage::Fields(_)
+                | PipeStage::Enrich(_) => false,
+                // PipeStage is #[non_exhaustive]; future variants SUPPRESS conservatively.
+                #[allow(unreachable_patterns)]
+                _ => true,
+            });
+            has_agg_in_select
+                || has_agg_in_order_by
+                || has_group_by
+                || has_distinct
+                || has_having
+                || has_join
+                || has_reducing_stage
+        }
+        Ast::Pipe(pipe) => {
+            // PERMIT allow-list for pipe stages (same as SqlPipe arm above).
+            pipe.stages.iter().any(|s| match s {
+                PipeStage::Stats(_) => true, // Condition E
+                PipeStage::Dedup(_) => true, // Condition F
+                PipeStage::Tail(_) => true,  // Condition I
+                PipeStage::Join(_) => true,  // Condition J (defensive)
+                PipeStage::Where(_)
+                | PipeStage::Sort(_)
+                | PipeStage::Limit(_)
+                | PipeStage::Fields(_)
+                | PipeStage::Enrich(_) => false,
+                // PipeStage is #[non_exhaustive]; future variants SUPPRESS conservatively.
+                #[allow(unreachable_patterns)]
+                _ => true,
+            })
+        }
+        // Filter mode: no aggregates or other reducing ops.
+        // has_client_side_where already handled non-temporal predicates above.
+        // A temporal-only Filter predicate is fully server-side → early-stop safe.
+        Ast::Filter(_) => false,
+        // Conservative default (ADR-060 §D8.7 v1.3): unknown/future Ast variants
+        // SUPPRESS early-stop. Incorrect SUPPRESS degrades performance; incorrect
+        // PERMIT causes silent data-correctness regression.
+        // Ast is #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
+        _ => true,
+    }
+}
+
+/// Returns `true` iff the AST contains any WHERE-position predicate that will be
+/// applied client-side by DataFusion after fetching (i.e., is NOT guaranteed to
+/// be fully resolved server-side via ADR-033 T1 push-down).
+///
+/// **ADR-060 §D8.7 v1.5 soundness fix**: the v1.4 temporal exemption was unsound for
+/// three modes:
+/// 1. `Ast::Filter` — ALL predicates are DataFusion client-side in Filter mode.
+///    ADR-033 T1 server-side temporal push-down does NOT apply to Filter mode.
+/// 2. `PipeStage::Where` — pipe-WHERE stages execute after the fetch; they are
+///    always DataFusion client-side regardless of predicate type.
+/// 3. SQL `Eq` on a datetime field — point-equality is NOT a range push-down
+///    candidate (ADR-033 T1 pushes only Gt/Ge/Lt/Le range windows).
+/// 4. Non-INDEX datetime columns — ADR-033 T1 push-down requires INDEX designation.
+///    Columns not in `datetime_index_cols` must be treated as client-side.
+///
+/// The exemption is preserved ONLY for SQL/SqlPipe HEAD WHERE predicates that are
+/// verified range comparisons (Gt/Ge/Lt/Le) on INDEX-designated datetime columns
+/// with a timestamp-literal RHS — checked via `is_pushed_temporal_predicate`.
+///
+/// `datetime_index_cols`: names of columns that are `column_type = Datetime` AND
+/// have `ColumnOptions::Index`. Pass `&[]` to conservatively suppress (no exemptions).
+fn has_client_side_where(ast: &crate::ast::Ast, datetime_index_cols: &[&str]) -> bool {
+    use crate::ast::{Ast, PipeStage, SqlStatement};
+    match ast {
+        // Filter mode: ALL predicates are DataFusion client-side in Filter mode.
+        // ADR-033 T1 server-side temporal push-down does NOT apply to Ast::Filter.
+        // Remove v1.4 temporal exemption → unconditionally suppress (ADR-060 §D8.7 v1.5).
+        Ast::Filter(_) => true,
+        // SQL SELECT mode: inspect the WHERE clause predicate.
+        // Temporal exemption applies ONLY when the predicate is fully pushed server-side:
+        // range op (Gt/Ge/Lt/Le) on an INDEX-designated Datetime column with Timestamp RHS.
+        Ast::Sql(SqlStatement::Select(sql)) => sql
+            .where_
+            .as_ref()
+            .map(|p| !is_pushed_temporal_predicate(p, datetime_index_cols))
+            .unwrap_or(false),
+        // Pipe mode: ANY PipeStage::Where stage makes this client-side.
+        // PipeStage::Where executes after the server fetch — it is always DataFusion
+        // client-side. Remove v1.4 temporal exemption → unconditionally suppress
+        // when any Where stage is present (ADR-060 §D8.7 v1.5).
+        Ast::Pipe(pipe) => pipe.stages.iter().any(|s| matches!(s, PipeStage::Where(_))),
+        // SqlPipe mode: check both the SQL head WHERE and pipe Where stages.
+        // Head WHERE may be pushed (same rule as SQL mode).
+        // Pipe-WHERE stages are ALWAYS client-side (same rule as Pipe mode).
+        Ast::SqlPipe(spq) => {
+            let head_client_side = spq
+                .head
+                .where_
+                .as_ref()
+                .map(|p| !is_pushed_temporal_predicate(p, datetime_index_cols))
+                .unwrap_or(false);
+            let stages_client_side = spq.stages.iter().any(|s| matches!(s, PipeStage::Where(_)));
+            head_client_side || stages_client_side
+        }
+        // DML and unknown Ast variants: no WHERE to inspect here; the outer
+        // `ast_is_reducing_plan` catch-all handles unknown variants.
+        _ => false,
+    }
+}
+
+/// Returns `true` iff the predicate is a pushed server-side temporal predicate —
+/// i.e., a range comparison that `extract_time_window_from_ast_from_query` (ADR-033 T1)
+/// will fully consume server-side, introducing no client-side filtering.
+///
+/// A predicate is a pushed temporal predicate iff every leaf is a `Predicate::Compare`
+/// where:
+/// - the operator is a range op (Gt, Gte, Lt, Lte) — NOT Eq, which is client-side only
+/// - one side is `Expr::Field(col_name)` where `col_name` is in `datetime_index_cols`
+///   (INDEX-designated Datetime column per ADR-033 T1 requirements)
+/// - the other side is **`Expr::Literal(Literal::Timestamp(_))` only** — a concrete
+///   absolute ISO-8601 timestamp. Relative expressions (`Expr::Now`, `Expr::Interval`,
+///   `Expr::TimestampArithmetic`) are evaluated post-fetch by DataFusion and must NOT
+///   be treated as server-side pushable (ADR-060 §D8.7 v1.5, §D8.9). `inject_now`
+///   folds all relative temporal expressions to `Literal::Timestamp` before this gate
+///   is reached, so the relative-expression arms are unreachable in production; they
+///   are excluded here to guarantee correct conservative behavior if an unfolded
+///   expression ever reached this gate.
+///
+/// and the only logical combinator is AND. All other predicate variants (OR, NOT, IN,
+/// BETWEEN, CIDR, StringOp, Eq on datetime, non-INDEX columns) return `false`.
+///
+/// **Conservative defaults (ADR-060 §D8.7 v1.5):**
+/// - Eq on a datetime field → `false` (not a range push-down candidate)
+/// - Any datetime field NOT in `datetime_index_cols` → `false` (no INDEX designation)
+/// - Empty `datetime_index_cols` → `false` for all Compare arms (no push-down possible)
+/// - `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic` → `false` (relative;
+///   evaluated post-fetch by DataFusion — ADR-060 §D8.9 requirement)
+fn is_pushed_temporal_predicate(
+    pred: &crate::ast::Predicate,
+    datetime_index_cols: &[&str],
+) -> bool {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
+
+    /// Returns `true` iff `expr` is a concrete absolute timestamp literal (right-hand side
+    /// of a temporal range comparison that is pushed server-side by ADR-033 T1).
+    ///
+    /// Only `Expr::Literal(Literal::Timestamp(_))` qualifies — `inject_now` must have
+    /// already folded any relative temporal expression to this form. Relative expressions
+    /// (`Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`) are evaluated
+    /// post-fetch by DataFusion and return `false` here (ADR-060 §D8.9).
+    fn is_temporal_expr(expr: &Expr) -> bool {
+        matches!(expr, Expr::Literal(Literal::Timestamp(_)))
+    }
+
+    match pred {
+        // A pushed temporal comparison: range-op AND INDEX-datetime-field AND temporal RHS.
+        // Eq is explicitly excluded — point-equality on datetime is client-side only.
+        // `case_insensitive` is ignored (not relevant to push-down eligibility).
+        Predicate::Compare { op, lhs, rhs, .. } => {
+            // Only range operators qualify for server-side push-down (ADR-033 T1).
+            // AST uses Ge/Le (not Gte/Lte) per crate::ast::CompareOp.
+            let is_range_op = matches!(
+                op,
+                CompareOp::Gt | CompareOp::Ge | CompareOp::Lt | CompareOp::Le
+            );
+            if !is_range_op {
+                return false;
+            }
+            // Check field ∈ datetime_index_cols AND temporal RHS.
+            // FieldPath.segments.join(".") gives the dot-notation column name
+            // (e.g. "timestamp", "created_at"); sensor spec columns are simple
+            // single-segment names in practice.
+            // ADR-060 v1.8 F-R16-P16-LENSB: only `Field OP Literal` (lhs=Field, rhs=Timestamp)
+            // qualifies for server-side push-down. The reversed `Literal OP Field` form
+            // (rhs=Field, lhs=Timestamp) is NOT push-down-eligible: ADR-033 T1 guarantees
+            // server-side filtering only for the canonical Field-first ordering. The reversed
+            // form is grammar-unreachable from normal PQL queries (the parser always emits
+            // `Field OP Literal` for temporal comparisons), but must return false defensively.
+            // v1.7 `rhs_pushed` branch incorrectly returned true for reversed operands —
+            // removed in v1.8 (RG-PSG-030c).
+            let lhs_pushed = if let Expr::Field(fp) = lhs.as_ref() {
+                let col_name = fp.segments.join(".");
+                datetime_index_cols.contains(&col_name.as_str()) && is_temporal_expr(rhs)
+            } else {
+                false
+            };
+            lhs_pushed
+        }
+        // AND-combined pushed temporal comparisons: all branches must be pushed.
+        // OR-combined predicates are NOT pushed (OR requires a full scan).
+        Predicate::Logical {
+            op: LogicalOp::And,
+            predicates,
+        } => {
+            // Step 1: every leaf must individually be a pushed temporal predicate.
+            if !predicates
+                .iter()
+                .all(|p| is_pushed_temporal_predicate(p, datetime_index_cols))
+            {
+                return false;
+            }
+            // Step 2 (ADR-060 §D8.7 v1.7 HIGH-001): mirror first-wins semantics of
+            // extract_time_bounds_from_predicate (pushdown.rs). That function takes
+            // the first Gt/Ge as start_time and first Lt/Le as end_time, silently
+            // dropping any additional same-direction bound to DataFusion client-side.
+            // If two same-direction bounds are present, the dropped bound is evaluated
+            // post-fetch — early-stop with a server-side LIMIT could yield incorrect
+            // results. Suppress (return false) when lower > 1 or upper > 1.
+            let (lower, upper) = count_temporal_bound_directions(pred);
+            lower <= 1 && upper <= 1
+        }
+        // All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp,
+        // InSubquery, Regex, Has, Missing, IsNull, Wildcard, RecoveryError)
+        // are treated as client-side.
+        _ => false,
+    }
+}
+
+/// Count lower-direction (Gt/Ge) and upper-direction (Lt/Le) bound leaves in a
+/// flattened AND-predicate tree.
+///
+/// Recurses only into AND nodes; ignores non-Compare/non-AND nodes. Does NOT check
+/// whether Compare fields are in `datetime_index_cols` — that precondition is already
+/// verified by Step 1 (`is_pushed_temporal_predicate` `.all()`) before this is called.
+///
+/// Returns `(lower_count, upper_count)`.
+///
+/// Used by the AND arm of `is_pushed_temporal_predicate` to detect redundant same-direction
+/// bounds. `extract_time_bounds_from_predicate` (pushdown.rs) is first-wins: it takes the
+/// first Gt/Ge as `start_time` and the first Lt/Le as `end_time`, silently dropping any
+/// additional same-direction bound to DataFusion client-side. When `lower > 1` or
+/// `upper > 1`, the dropped bound will be evaluated post-fetch, making early-stop
+/// incorrect (ADR-060 §D8.7 v1.7 HIGH-001).
+fn count_temporal_bound_directions(pred: &crate::ast::Predicate) -> (usize, usize) {
+    use crate::ast::{CompareOp, LogicalOp, Predicate};
+    match pred {
+        Predicate::Compare { op, .. } => match op {
+            CompareOp::Gt | CompareOp::Ge => (1, 0),
+            CompareOp::Lt | CompareOp::Le => (0, 1),
+            _ => (0, 0),
+        },
+        Predicate::Logical {
+            op: LogicalOp::And,
+            predicates,
+        } => {
+            let mut lower = 0usize;
+            let mut upper = 0usize;
+            for p in predicates {
+                let (l, u) = count_temporal_bound_directions(p);
+                lower += l;
+                upper += u;
+            }
+            (lower, upper)
+        }
+        _ => (0, 0),
+    }
+}
+
+/// Returns `true` when `expr` contains (or is) an `FuncCall::Aggregate` or
+/// `FuncCall::Window` node, including when nested inside `FuncCall::Scalar` args.
+///
+/// Used by `ast_is_reducing_plan` (Condition A) to detect aggregate/window functions
+/// in SELECT items and ORDER BY expressions (ADR-060 §D8.7 v1.3).
+///
+/// Closes F-R12-CRIT-001: v1.2's `expr_contains_aggregate` did not recurse into
+/// `FuncCall::Scalar::args`, allowing `severity_label(max(x))` to escape detection.
+fn expr_contains_aggregate_or_window(expr: &crate::ast::Expr) -> bool {
+    use crate::ast::{Expr, FuncCall};
+    match expr {
+        // Direct aggregate call (e.g. `COUNT(*)`, `SUM(x)`).
+        Expr::FuncCall(FuncCall::Aggregate { .. }) => true,
+        // Window function stub (S-3.06) — full frame required regardless of stub state.
+        Expr::FuncCall(FuncCall::Window { .. }) => true,
+        // Scalar UDF — recurse into args to detect nested aggregates (F-R12-CRIT-001).
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            args.iter().any(expr_contains_aggregate_or_window)
+        }
+        // Unknown FuncCall variants — conservatively treat as potential aggregate.
+        // FuncCall is #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
+        Expr::FuncCall(_) => true,
+        // Recursive cases: binary comparison, logical combinations, negation.
+        Expr::Compare { lhs, rhs, .. } => {
+            expr_contains_aggregate_or_window(lhs) || expr_contains_aggregate_or_window(rhs)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            expr_contains_aggregate_or_window(lhs) || expr_contains_aggregate_or_window(rhs)
+        }
+        Expr::Not(inner) => expr_contains_aggregate_or_window(inner),
+        Expr::TimestampArithmetic { base, .. } => expr_contains_aggregate_or_window(base),
+        // InSubquery: the subquery's SELECT is a separate SqlQuery; the outer Expr
+        // does not contain the subquery's aggregate. The IN predicate itself is
+        // caught by has_client_side_where via Condition G (ADR-060 §D8.7 v1.3).
+        Expr::InSubquery { .. } => false,
+        // Leaf nodes — none of these contain aggregate or window functions.
+        // Enumerated explicitly so that any future #[non_exhaustive] Expr variant
+        // (e.g. Expr::Case { ... then: max(x) ... }) falls through to the conservative
+        // default below rather than being silently absorbed as a non-aggregate.
+        Expr::Literal(_)
+        | Expr::Field(_)
+        | Expr::VirtualField(_)
+        | Expr::In { .. }
+        | Expr::Star
+        | Expr::Now
+        | Expr::Interval(_) => false,
+        // Conservative default — an unknown/future #[non_exhaustive] Expr variant is
+        // treated as potentially containing an aggregate → suppress early-stop.
+        // Prevents silent Condition-A escape; mirrors the Ast/PipeStage/FuncCall
+        // conservative defaults; ADR-060 §D8.7 conservative-default philosophy.
+        #[allow(unreachable_patterns)]
+        _ => true,
+    }
 }
 
 /// Extract all source table names from a PrismQL AST (shallow — top-level only).
@@ -5416,7 +6070,7 @@ mod cross_org_isolation_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, OrgRegistry, OrgSlug, PrismError, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
     };
 
@@ -5443,7 +6097,7 @@ mod cross_org_isolation_tests {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Never called in this test — the path under test returns early with E-QUERY-032.
             unreachable!("MinimalStubAdapter::fetch must not be called in the isolation test")
         }
@@ -5648,7 +6302,7 @@ mod unknown_source_table_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, PrismError, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
     };
 
@@ -5671,7 +6325,7 @@ mod unknown_source_table_tests {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Never called — the path under test returns UnknownSourceTable before adapter dispatch.
             unreachable!("StubAdapterForUnknownTest::fetch must not be called in E-QUERY-036 test")
         }
@@ -5997,7 +6651,7 @@ mod armis_discriminator_wiring_seam_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, BearerStaticSensorAuth, CredentialResolver, SensorAdapter, SensorAuth,
         SensorError,
     };
@@ -6039,14 +6693,14 @@ mod armis_discriminator_wiring_seam_tests {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Record the filters map received from the pipeline.
             self.captured_filters
                 .lock()
                 .expect("RecordingAdapter: captured_filters lock must not be poisoned")
                 .push(params.filters.clone());
             // Return zero rows — we only care about the captured filters, not the result.
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 
@@ -7102,6 +7756,278 @@ mod temporal_walker_unit_tests {
 }
 
 // ---------------------------------------------------------------------------
+// In-crate unit tests — PSG-009, PSG-012, PSG-019 (plan-shape gate unit tests)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod plan_shape_gate_unit_tests {
+    //! In-crate unit tests for plan-shape gate conditions that are NOT isolatable
+    //! via E2E tests through `run_materialization_pipeline`:
+    //!
+    //! - PSG-009 (Condition D — HAVING in isolation): Condition D already exists
+    //!   in v1.2, so any isolated HAVING-only E2E test passes against v1.2
+    //!   (vacuously true). The in-crate test uses the v1.3 signature change as
+    //!   the Red Gate.
+    //! - PSG-012 (Condition A revised — FuncCall::Window): `FuncCall::Window` is
+    //!   not producible from the PrismQL grammar (no OVER clause syntax, S-3.06
+    //!   stub). Requires a manually constructed AST. SAP-3 rule 3 defense-in-depth.
+    //! - PSG-019 (conservative default — PERMIT allow-list): The `_ => true`
+    //!   catch-all for unknown/future PipeStage variants cannot be exercised from
+    //!   a grammar query string. Tests the PERMIT boundary instead. SAP-3 rule 3.
+    //!
+    //! # Red Gate Mechanism
+    //!
+    //! These tests call `ast_is_reducing_plan(&ast)` using the v1.3 signature
+    //! (single `&Ast` argument, no `where_filters` parameter). Against v1.2 (which
+    //! requires `&Ast, &FilterMap`), this call FAILS TO COMPILE. Compilation failure
+    //! is the Red Gate for PSG-009, PSG-012, and PSG-019.
+    //!
+    //! After the implementer changes the function signature to v1.3 and updates
+    //! the gate logic, compilation succeeds and the assertions drive behavior.
+
+    use crate::ast::{
+        Ast, Expr, FromClause, FuncCall, PipeQuery, PipeStage, SelectClause, SelectItem, SourceRef,
+        SqlQuery, SqlStatement,
+    };
+
+    use super::ast_is_reducing_plan;
+
+    // -----------------------------------------------------------------------
+    // PSG-009 — Condition D: HAVING clause in isolation
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-009 — AC-007 Condition D: `having.is_some()` in isolation
+    ///
+    /// `SELECT * FROM t HAVING status = 'page2'`
+    ///
+    /// A=false (no SELECT-item aggregate), B=false (no GROUP BY), C=false
+    /// (no DISTINCT) — HAVING is the ONLY reducing condition present.
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3: HAVING is grammar-reachable from the SQL parser (standard SQL).
+    /// However, isolated E2E testing of Condition D is impossible: v1.2 already
+    /// implements `having.is_some()` as Condition D. Any isolated HAVING-only E2E
+    /// test that doesn't fire A/B/C would PASS against v1.2 (not RED). The
+    /// v1.3 SIGNATURE CHANGE is the only reliable Red Gate for this isolated test.
+    ///
+    /// F-LENSB-MED-001 fix: the prior PSG-009 E2E test used COUNT(*) + GROUP BY
+    /// which fired Conditions A and B, masking the isolation of Condition D.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop() {
+        // POSITIVE: HAVING present, no aggregate or GROUP BY in SELECT.
+        let ast = crate::parse_and_plan("SELECT * FROM t HAVING status = 'page2'")
+            .expect("PSG-009: HAVING-without-GROUP-BY query must parse successfully");
+
+        assert!(
+            ast_is_reducing_plan(&ast), // v1.3 signature — compile fails against v1.2
+            "PSG-009 (Condition D — HAVING isolated): `having.is_some()` must suppress \
+             early-stop even with no SELECT-item aggregate (A=false) and no GROUP BY \
+             (B=false). Gate must detect HAVING alone as Condition D."
+        );
+
+        // NEGATIVE control: bare SELECT without HAVING must NOT suppress.
+        let ast_bare = crate::parse_and_plan("SELECT * FROM t LIMIT 25")
+            .expect("PSG-009 negative: bare SELECT must parse");
+        assert!(
+            !ast_is_reducing_plan(&ast_bare),
+            "PSG-009 negative: bare SELECT without any reducing condition must NOT \
+             suppress early-stop."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // PSG-012 — Condition A revised: FuncCall::Window in SELECT items
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-012 — AC-007 Condition A revised: `FuncCall::Window` in SELECT
+    ///
+    /// `SELECT WINDOW() FROM t` (manually constructed AST — not grammar-producible).
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3 rule 3 — defense-in-depth, NOT grammar-reachable:
+    /// `FuncCall::Window` is an S-3.06 stub with no fields. The PrismQL grammar has
+    /// no OVER clause syntax to produce it from a query string. This test constructs
+    /// a synthetic AST to verify that `expr_contains_aggregate_or_window` (v1.3)
+    /// detects `FuncCall::Window` in SELECT items.
+    ///
+    /// Additionally: v1.2's `expr_contains_aggregate` has `Expr::FuncCall(_) => false`
+    /// as the non-aggregate FuncCall catch-all, so it would miss Window even if
+    /// the grammar did produce it.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_window_function_suppresses_early_stop() {
+        // Manually construct: SELECT WINDOW() FROM t
+        // `FuncCall::Window {}` is an S-3.06 stub — not parseable from the grammar.
+        let from = FromClause::new(SourceRef::from_raw("t"));
+        let select = SelectClause::new(vec![SelectItem::Expr {
+            expr: Expr::FuncCall(FuncCall::Window {}),
+            alias: None,
+        }]);
+        let ast = Ast::Sql(SqlStatement::Select(SqlQuery::new(select, from)));
+
+        assert!(
+            ast_is_reducing_plan(&ast), // v1.3 signature — compile fails against v1.2
+            "PSG-012 (Condition A revised — FuncCall::Window): Window function stub in \
+             SELECT must suppress early-stop. `expr_contains_aggregate_or_window` (v1.3) \
+             must detect `FuncCall::Window`. v1.2's `expr_contains_aggregate` uses \
+             `Expr::FuncCall(_) => false` and would miss it."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // PSG-019 — Conservative default: PERMIT allow-list boundary verification
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-019 — AC-007 conservative default: PERMIT allow-list posture
+    ///
+    /// EC-016-002-018 (ADR-060 §D8.7 conservative default posture).
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3 rule 3 — the `_ => true` catch-all for unknown/future PipeStage
+    /// variants is NOT grammar-testable: the PrismQL grammar only produces
+    /// variants in the current `PipeStage` enum, and every current variant is
+    /// explicitly PERMIT or SUPPRESS per ADR-060 §D8.7. No grammar query string
+    /// can produce a future unknown variant to exercise the catch-all directly.
+    ///
+    /// This test instead verifies the PERMIT/SUPPRESS boundary is correctly drawn:
+    /// - PERMIT stages (Sort, Limit) must NOT suppress early-stop.
+    /// - SUPPRESS stages (Stats) must suppress.
+    ///
+    /// The conservative default `_ => true` is structurally proven by:
+    /// (a) `PipeStage` is `#[non_exhaustive]` — any external match arm MUST have
+    ///     `_ =>` to compile, making ADR-060's `_ => true` a load-bearing arm;
+    /// (b) the PERMIT allow-list is exhaustively enumerated and verified here.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop() {
+        // --- PERMIT stages: must NOT suppress early-stop ---
+
+        // PERMIT: PipeStage::Sort — sorting does not change set membership.
+        let ast_sort = Ast::Pipe(PipeQuery::new(
+            SourceRef::from_raw("t"),
+            vec![PipeStage::Sort(vec![])], // empty sort; type is Vec<SortExpr>
+        ));
+        assert!(
+            !ast_is_reducing_plan(&ast_sort), // v1.3 signature — compile fails against v1.2
+            "PSG-019 (PERMIT: PipeStage::Sort): Sort must NOT suppress early-stop. \
+             ADR-060 §D8.7 PERMIT allow-list."
+        );
+
+        // PERMIT: PipeStage::Limit — a LIMIT N does not change relative ordering
+        // or set membership; early-stop is still safe.
+        let ast_limit = Ast::Pipe(PipeQuery::new(
+            SourceRef::from_raw("t"),
+            vec![PipeStage::Limit(100)],
+        ));
+        assert!(
+            !ast_is_reducing_plan(&ast_limit),
+            "PSG-019 (PERMIT: PipeStage::Limit): Limit must NOT suppress early-stop. \
+             ADR-060 §D8.7 PERMIT allow-list."
+        );
+
+        // --- SUPPRESS stage: must suppress early-stop ---
+
+        // SUPPRESS: PipeStage::Stats (Condition E — already in v1.2, included here
+        // to verify the PERMIT/SUPPRESS boundary is intact in v1.3).
+        let ast_stats = crate::parse_and_plan("t | stats count(*)")
+            .expect("PSG-019: pipe stats query must parse successfully");
+        assert!(
+            ast_is_reducing_plan(&ast_stats),
+            "PSG-019 (SUPPRESS: PipeStage::Stats / Condition E): Stats must suppress \
+             early-stop. ADR-060 §D8.7 Condition E."
+        );
+    }
+
+    // =======================================================================
+    // PSG-030c — reversed-operand `Literal > Field` predicate SUPPRESSES
+    // (TRUE RED GATE — F-R16-P16-LENSB)
+    // =======================================================================
+
+    /// RG-PSG-030c — Reversed-operand `Literal > Field` predicate SUPPRESSES
+    ///
+    /// SAP-3 Rule 3 — Defense-in-depth: grammar-unreachable AST form.
+    ///
+    /// The PQL parser always emits `Field OP Literal` comparisons (temporal comparisons
+    /// are `field > 'timestamp'`). The reversed `Literal OP Field` form
+    /// (`'2026-01-01' > field`) cannot be produced by the grammar. This test exercises
+    /// the `rhs_pushed` branch of `is_pushed_temporal_predicate` directly with a
+    /// synthetic AST predicate.
+    ///
+    /// Defect under test (ADR-060 v1.8, F-R16-P16-LENSB): the `rhs_pushed` branch
+    /// checks `field ∈ datetime_index_cols && is_temporal_expr(lhs)`. For a reversed
+    /// `Literal Gt Field` predicate, `lhs` = `Literal::Timestamp` and `rhs` =
+    /// `Field("last_seen")`. The current v1.7 `rhs_pushed` path returns `true` for this
+    /// — classifying the reversed-operand form as push-down-safe.
+    ///
+    /// ADR-033 T1 push-down guarantee requires `Field OP Literal`, not `Literal OP Field`.
+    /// A reversed comparison is semantically ambiguous (Op semantics may differ by
+    /// direction), and the server API contract only guarantees ordered field-first form.
+    ///
+    /// ## RED / GREEN mechanics
+    ///
+    /// RED (current v1.7 — `rhs_pushed` PERMITs reversed operand):
+    ///   `rhs_pushed` finds Field on rhs, Timestamp on lhs → returns `true` →
+    ///   `is_pushed_temporal_predicate` returns `true`.
+    ///   Assertion `!result` FAILS.
+    ///
+    /// GREEN (v1.8 fix — `rhs_pushed` branch removed or suppressed):
+    ///   No branch matches reversed-operand → `is_pushed_temporal_predicate` returns
+    ///   `false`. Assertion passes.
+    ///
+    /// SAP-3 Rule 3: this test exercises a grammar-unreachable AST form (parser cannot
+    /// emit `Literal OP Field`). It is defense-in-depth, not a full-surface E2E path.
+    /// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030c, ADR-060 v1.8 F-R16-P16-LENSB.
+    #[test]
+    fn test_psg_rg030c_reversed_operand_suppresses() {
+        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate, TimestampLiteral};
+
+        // SAP-3 Rule 3 — Defense-in-depth for grammar-unreachable AST form:
+        // The PQL grammar always emits `Field OP Literal` for temporal comparisons.
+        // `Literal OP Field` (reversed operand) is syntactically impossible from normal
+        // query paths. This test exercises `is_pushed_temporal_predicate`'s `rhs_pushed`
+        // branch directly to verify it does NOT classify the reversed form as
+        // push-down-eligible (ADR-033 T1 requires Field-first ordering).
+        let ts_lit = TimestampLiteral::new("2026-01-01T00:00:00Z")
+            .expect("PSG-030c: fixed ISO-8601 string must parse");
+
+        // Reversed operand: `Literal::Timestamp Gt Field("last_seen")`.
+        // lhs = Timestamp literal, rhs = Field("last_seen").
+        // This is the form the `rhs_pushed` branch matches.
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Field(FieldPath::new(["last_seen"]))),
+            case_insensitive: false,
+        };
+
+        // "last_seen" is in datetime_index_cols — if rhs_pushed is active, returns true.
+        let result = super::is_pushed_temporal_predicate(&pred, &["last_seen"]);
+
+        // PRIMARY assertion: reversed-operand predicate must NOT be push-down-eligible.
+        //
+        // RED (v1.7 — rhs_pushed PERMITs):
+        //   rhs_pushed: rhs = Field("last_seen") ∈ ["last_seen"] AND lhs = Timestamp →
+        //   true → is_pushed_temporal_predicate returns true.
+        //   Assertion `!result` FAILS.
+        //
+        // GREEN (v1.8 — rhs_pushed removed/suppressed):
+        //   No branch matches reversed-operand → false. Assertion passes.
+        assert!(
+            !result,
+            "PSG-030c (ADR-060 v1.8 F-R16-P16-LENSB — reversed-operand SUPPRESS): \
+             is_pushed_temporal_predicate must return false for reversed Literal > Field \
+             predicates; got true. The rhs_pushed branch incorrectly classifies \
+             reversed-operand predicates as push-down-eligible. ADR-033 T1 guarantees \
+             server-side push-down only for Field-first `Field OP Literal` form. \
+             Fix: remove or gate the rhs_pushed branch in is_pushed_temporal_predicate. \
+             Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030c, \
+             ADR-060 v1.8 F-R16-P16-LENSB."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Unit tests — check_ci_column_types guard tests (F-P16-OBS-002)
 // ---------------------------------------------------------------------------
 
@@ -7239,3 +8165,7 @@ mod check_ci_column_types_guard_tests {
         );
     }
 }
+
+// RG-SLUG-006: test relocated to tests/slug_isolation_tests.rs to break the
+// self-reference that prevented the in-file include_str! from working correctly.
+// See: crates/prism-query/tests/slug_isolation_tests.rs::test_rg_slug_006_*

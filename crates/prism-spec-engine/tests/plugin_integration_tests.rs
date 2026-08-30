@@ -654,7 +654,7 @@ async fn test_TD_S_PLUGIN_PREREQ_B_011_execute_step_eager_token_calls_auth_once(
         None,
     );
 
-    let context = FetchContext::new(org_slug, HashMap::new());
+    let context = FetchContext::new(org_slug, HashMap::new(), None);
 
     let mock_auth = Arc::new(MockAuthProvider::new("test-token"));
     let http_client = reqwest::Client::builder()

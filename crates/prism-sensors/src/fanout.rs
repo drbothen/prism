@@ -29,7 +29,7 @@ use tokio::sync::Semaphore;
 use tracing::instrument;
 
 use crate::{
-    adapter::{QueryParams, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorError, SensorSpec},
     auth::SensorAuth,
     registry::AdapterRegistry,
 };
@@ -140,12 +140,33 @@ impl std::fmt::Display for FanOutError {
 /// `successes` holds all `RecordBatch`es from targets that completed without
 /// error. `errors` holds one `FanOutError` per failed target. The result is
 /// "partial" when both `successes` and `errors` are non-empty (AC-2).
+///
+/// `any_early_stopped` is OR-aggregated across all successful sensor calls —
+/// `true` when at least one sensor's `FetchOutput.any_early_stopped` was true
+/// (ADR-060 §D8.3; S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a)).
+///
+/// `any_pipeline_truncated` is OR-aggregated across all successful sensor calls —
+/// `true` when at least one sensor's `FetchOutput.pipeline_truncated` was true,
+/// meaning the spec-engine pipeline hit the DI-019 `MAX_PIPELINE_RECORDS = 10_000`
+/// cap (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
 #[derive(Debug, Default)]
 pub struct FanOutResult {
     /// All `RecordBatch`es returned by successful targets.
     pub successes: Vec<RecordBatch>,
     /// Per-target error records for all failed targets.
     pub errors: Vec<FanOutError>,
+    /// `true` when at least one sensor's pipeline fired the §D8.2 early-stop
+    /// `break 'steps`. OR-aggregated across all successful fetch calls.
+    /// Engine Step 6 uses this to compute the correct `is_truncated` signal
+    /// for the multi-sensor fan-out exact-limit boundary (EC-11-092 / RG-PSG-027/028).
+    pub any_early_stopped: bool,
+    /// `true` when at least one sensor's spec-engine pipeline set
+    /// `PipelineResult.truncated = true` (DI-019: records capped at 10K).
+    /// OR-aggregated across all successful fetch calls.
+    /// Propagates to `MaterializationOutput.any_pipeline_truncated` → cache-completeness
+    /// gate → engine Step 6 `is_truncated` formula (ADR-060 §D8.10;
+    /// S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001/OBS-001).
+    pub any_pipeline_truncated: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -375,7 +396,7 @@ pub async fn fan_out(
                     .fetch(&target.spec, &target.params, auth.as_ref())
                     .await
                 {
-                    Ok(batches) => Ok(batches),
+                    Ok(fetch_output) => Ok(fetch_output),
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
                         #[allow(deprecated)]
@@ -400,7 +421,15 @@ pub async fn fan_out(
 
     for outcome in outcomes {
         match outcome {
-            Ok(Ok(batches)) => result.successes.extend(batches),
+            Ok(Ok(fetch_output)) => {
+                // ADR-060 §D8.3: OR-aggregate early-stop signal across all sensors.
+                // If ANY sensor's pipeline fired the §D8.2 early-stop, propagate true.
+                result.any_early_stopped |= fetch_output.any_early_stopped;
+                // ADR-060 §D8.10: OR-aggregate DI-019 truncation signal across all sensors.
+                // If ANY sensor's pipeline hit the 10K record cap, propagate true.
+                result.any_pipeline_truncated |= fetch_output.pipeline_truncated;
+                result.successes.extend(fetch_output.batches);
+            }
             Ok(Err(fan_err)) => result.errors.push(fan_err),
             Err(join_err) => {
                 // Task panicked — treat as internal error
@@ -464,7 +493,7 @@ pub async fn fan_out(
 /// Executes a single fan-out task: resolves credentials, acquires the HTTP
 /// permit, and calls the appropriate `SensorAdapter::fetch()`.
 ///
-/// Returns `Ok(Vec<RecordBatch>)` on success or `Err(FanOutError)` on failure.
+/// Returns `Ok(FetchOutput)` on success or `Err(FanOutError)` on failure.
 /// The fan-out semaphore permit is passed in by the caller (already held);
 /// the HTTP permit is acquired inside this function (to keep the two distinct).
 ///
@@ -478,7 +507,7 @@ async fn execute_target(
     credentials: Arc<dyn CredentialResolver>,
     _fanout_permit: tokio::sync::SemaphorePermit<'_>,
     _http_semaphore: Arc<Semaphore>,
-) -> Result<Vec<RecordBatch>, Box<FanOutError>> {
+) -> Result<FetchOutput, Box<FanOutError>> {
     // Acquire global HTTP permit (held until function returns)
     let _http_permit = match crate::http::acquire_http_permit().await {
         Ok(p) => p,
@@ -933,7 +962,7 @@ base_url = "{overlay_base_url}"
             spec: &crate::adapter::SensorSpec,
             _params: &crate::adapter::QueryParams,
             _auth: &dyn crate::auth::SensorAuth,
-        ) -> Result<Vec<RecordBatch>, crate::adapter::SensorError> {
+        ) -> Result<FetchOutput, crate::adapter::SensorError> {
             // Capture the base_url from sensor_config for assertion in the test body.
             let base_url = spec
                 .sensor_config
@@ -942,7 +971,11 @@ base_url = "{overlay_base_url}"
                 .map(str::to_string);
             *self.captured_base_url.lock().expect("lock") = base_url;
             // Return empty success — we only care that the dispatch reached this adapter.
-            Ok(vec![])
+            Ok(FetchOutput {
+                batches: vec![],
+                any_early_stopped: false,
+                pipeline_truncated: false,
+            })
         }
     }
 
@@ -1204,7 +1237,7 @@ mod fan_out_target_failed_warn_tests {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             Err(SensorError::Internal {
                 detail: "RG-004: AlwaysFailAdapter deliberately fails every fetch".into(),
             })

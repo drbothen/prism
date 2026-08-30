@@ -264,7 +264,7 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-client"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-client"), HashMap::new(), None);
 
     let http_client = ReqwestClient::new();
     let auth_provider = NullAuthProvider;

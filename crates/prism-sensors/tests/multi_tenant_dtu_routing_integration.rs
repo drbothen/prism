@@ -50,7 +50,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     fanout::{fan_out_with_overlay_map, CredentialResolver, FanOutTarget},
     AdapterRegistry,
@@ -147,7 +147,7 @@ impl SensorAdapter for RealHttpDispatchAdapter {
         spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Read the base_url that fan_out_with_overlay_map injected into sensor_config.
         // This is the REAL overlay base_url pointing to the per-org DTU instance socket.
         // If the overlay injection is broken, this will be the TYPE spec URL
@@ -194,7 +194,7 @@ impl SensorAdapter for RealHttpDispatchAdapter {
         }
 
         // Return empty success — the routing proof is in the server-side counter, not data.
-        Ok(vec![])
+        Ok(FetchOutput::new(vec![], false, false))
     }
 }
 

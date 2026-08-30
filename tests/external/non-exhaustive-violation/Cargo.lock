@@ -3513,6 +3513,7 @@ dependencies = [
  "prism-mcp",
  "prism-query",
  "prism-security",
+ "prism-sensors",
  "prism-spec-engine",
  "serde_json",
 ]
