@@ -1,12 +1,16 @@
 ---
 document_type: ops-runbook
 title: VSDD Orchestrator Heartbeat Auto-Recovery
-version: "1.0"
+version: "1.1"
 producer: devops-engineer
 created: 2026-08-29
 status: active
 portability: project-agnostic — parameterized by {PLACEHOLDERS}
 changelog:
+  - version: "1.1"
+    date: 2026-08-30
+    author: devops-engineer
+    summary: "§5.4 promoted from optional to REQUIRED. Adds explicit home-hierarchy table (CLAUDE.md authoritative, SESSION-HANDOFF pointer only, STATE.md never holds permanent procedure), verbatim copy-ready CLAUDE.md standing-rule block parameterized with {PROJECT_PATH}/{OBJECTIVE}/{CONVERGENCE_BAR}, and one-line STATE.md/SESSION-HANDOFF pointer template. Updates §6.2 to reflect §5.4 is a required install step."
   - version: "1.0"
     date: 2026-08-29
     author: devops-engineer
@@ -199,18 +203,50 @@ After creation, the orchestrator records the cron ID in the project's `SESSION-H
 - Re-arm instruction: see .factory/ops/vsdd-heartbeat-autorecovery.md §5
 ```
 
-### 5.4 Add a standing rule to CLAUDE.md (optional but recommended)
+### 5.4 Add the standing rule to the new project's CLAUDE.md (REQUIRED)
 
-Add a project-level note to the project's `CLAUDE.md` or the standing-rules section of `SESSION-HANDOFF.md`:
+This step is **not optional**. Without the CLAUDE.md standing rule, heartbeat re-arming depends on an agent's session memory — a mechanism that fails after crashes, context clears, and long hiatuses. The CLAUDE.md standing rule makes re-arming **automatic on every session resume**, independent of whether `.claude/scheduled_tasks.json` survived.
+
+#### Home hierarchy — one source of truth per layer
+
+| Layer | Home | Authority | Notes |
+|-------|------|-----------|-------|
+| Standing rule | Project **`CLAUDE.md`** | Authoritative, permanent | Auto-loaded every session; version-controlled; never compacted. This is where the rule lives. |
+| Full procedure + prompt template | **`.factory/ops/vsdd-heartbeat-autorecovery.md`** | Canonical reference | Parameterized, portable, reproducible. Loaded on demand. |
+| Short resume pointer | **`SESSION-HANDOFF.md`** (and optionally `STATE.md`) | Transient reference only | A pointer to CLAUDE.md + runbook; never holds the procedure itself. STATE.md is compacted — it is NOT a home for permanent procedure. |
+
+**CLAUDE.md is the authoritative, permanent home.** It is auto-loaded by Claude Code on every session start, is version-controlled alongside the project, and is never compacted. SESSION-HANDOFF.md and STATE.md may carry a short pointer for convenience but are NOT the source of truth — if STATE.md is compacted, the standing rule in CLAUDE.md must survive unchanged.
+
+#### Copy-ready CLAUDE.md block
+
+Fill in the three parameters and paste verbatim into the project's `CLAUDE.md` under a clearly named heading:
+
+- `{PROJECT_PATH}` — absolute filesystem path to the project root (e.g., `/Users/dev/my-project`)
+- `{OBJECTIVE}` — one-sentence description of what the pipeline is delivering (e.g., "deliver Wave 1 stories through Phase 3 TDD implementation to develop")
+- `{CONVERGENCE_BAR}` — pipeline-complete condition (e.g., "all Wave 1 stories merged to develop and STATE.md phase = 3/complete")
+
+````markdown
+## Orchestrator Auto-Recovery Heartbeat (Standing Operating Procedure)
+
+A durable scheduled heartbeat keeps autonomous runs self-healing — it auto-recovers from hard stalls, API errors, and dead background agents so a run never sits stuck. Background agents already auto-notify the orchestrator on completion **and** failure (per-agent failures are recoverable while the main loop is alive); the heartbeat covers the **hard-stall** case (main loop dead, or idle with no pending notification) that only an external durable scheduler can revive. Standing rule:
+
+1. **Every session, as the FIRST orchestrator action on startup/resume** — before reading STATE.md for pipeline work — verify the heartbeat exists: call `CronList`. If it is **absent or expired**, RE-ARM immediately via `CronCreate` (`durable: true`, `recurring: true`) per the runbook `.factory/ops/vsdd-heartbeat-autorecovery.md`. This makes re-establishment automatic on every resume, independent of whether `.claude/scheduled_tasks.json` survived.
+2. **Mechanism:** durable recurring cron (schedule `8,23,38,53 * * * *` — every 15 min, deliberately off the `:00`/`:30` fleet-collision marks), persisted to `.claude/scheduled_tasks.json`, fires only while the REPL is idle. Recurring crons auto-expire after 7 days; the heartbeat's own routine self-re-arms before expiry, and this resume-time check is the backstop. Use `CronCreate durable:true` (NOT `ScheduleWakeup`, which is in-session only and dies with the process).
+3. **What each tick does (idempotent — never duplicate in-flight work):** orient (git rev-parse + SHA currency check + STATE.md read) → `TaskList` and re-dispatch any failed/stalled agent after re-verifying on-disk state → resume the next critical-path step if idle → no-op if healthy/in-flight → self-perpetuate → checkpoint STATE.md via state-manager if stale.
+4. **Homes (one source of truth per layer):** this CLAUDE.md rule is the authoritative, permanent standing rule; the full reproducible/portable procedure (parameterized prompt template + per-project install steps) lives in `.factory/ops/vsdd-heartbeat-autorecovery.md`; STATE.md / SESSION-HANDOFF carry only a short resume *pointer* (STATE.md is compacted and is NOT a home for permanent procedure). Portable across projects; intended for eventual promotion into the vsdd-factory engine `HEARTBEAT.md`.
+
+The heartbeat is a safety net, not a substitute for the orchestrator's normal completion-notification-driven loop.
+````
+
+#### One-line pointer template for SESSION-HANDOFF.md and STATE.md
+
+After adding the CLAUDE.md block above, add this pointer in `SESSION-HANDOFF.md` under the `## Heartbeat` section (from §5.3):
 
 ```
-Standing rule: at every session startup, verify the VSDD heartbeat cron
-(see .factory/ops/vsdd-heartbeat-autorecovery.md) is present via CronList.
-If absent (expired or never installed), re-arm immediately using the install
-procedure in §5 of that runbook before beginning any pipeline work.
+**Heartbeat standing rule:** see CLAUDE.md §"Orchestrator Auto-Recovery Heartbeat". Cron ID: <id> | Schedule: 8,23,38,53 * * * * | Expires: {DATE+7d} | Full procedure: .factory/ops/vsdd-heartbeat-autorecovery.md §5
 ```
 
-This ensures that even after a long hiatus (cron expired), the first action of any new session is to restore the safety net before dispatching agents.
+STATE.md may carry a brief decision-log entry referencing the heartbeat install but MUST NOT contain the full procedure — STATE.md is compacted and procedure text does not survive compaction.
 
 ## 6. Standing Procedure Integration and Limitations
 
@@ -238,7 +274,7 @@ The heartbeat does **not** recover from:
 
 ### 6.2 Key operational constraints
 
-**7-day expiry.** Claude Code recurring crons expire after 7 days automatically. The heartbeat self-re-arms in Step 5, but only when the REPL is idle and the cron actually fires. If a project is dormant for more than 7 days with no Claude Code session at all, the cron expires silently. The standing rule in §5.4 ensures session startup checks for expiry.
+**7-day expiry.** Claude Code recurring crons expire after 7 days automatically. The heartbeat self-re-arms in Step 5, but only when the REPL is idle and the cron actually fires. If a project is dormant for more than 7 days with no Claude Code session at all, the cron expires silently. The **required** standing rule in §5.4 (CLAUDE.md entry) ensures every session startup checks for expiry regardless of `.claude/scheduled_tasks.json` state — making re-arm automatic rather than memory-dependent.
 
 **Idle-only firing.** The cron does not interrupt an active agent run or conversation. If the REPL is busy, the tick is skipped and the next one is attempted. This means recovery latency can exceed 15 minutes if the session is continuously active (a good problem — it means the pipeline is running normally).
 
