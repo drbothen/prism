@@ -15,8 +15,8 @@
 //! | EC-003 | early_stop_limit_equals_page_size_boundary                       | GREEN (cov)    | EC-003                 |
 //! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
 //! | MULTI-PAGE | early_stop_multi_page_stops_after_second_page                | GREEN (cov)    | AC-003 ceil(N/page_size) |
-//! | PSG-039 | early_stop_partial_final_page_not_early_stopped                  | RED            | AC-014 / BC-2.16.002 EC-01-041 |
-//! | PSG-041 | cursor_token_partial_page_conservative_early_stopped             | RED            | ADR-060 §D8.4 conservative-cursor |
+//! | PSG-039 | early_stop_partial_final_page_not_early_stopped                  | GREEN (impl)   | AC-014 / BC-2.16.002 EC-01-041 |
+//! | PSG-041 | cursor_token_partial_page_conservative_early_stopped             | GREEN (guard)  | ADR-060 §D8.4 conservative-cursor |
 //! | PSG-042 | cursor_token_full_final_page_is_early_stopped                    | GREEN (guard)  | AC-014 / ADR-060 §D8.4         |
 //! | PSG-043 | cursor_token_no_page_size_conservative                           | GREEN (guard)  | ADR-060 §D8.4 conservative     |
 //!
@@ -1248,14 +1248,14 @@ async fn test_cursor_token_partial_page_conservative_early_stopped() {
 ///   After page 1: accumulated(10) >= limit(10) → early-stop fires.
 /// - Page 2 fallback: unreachable — early-stop fires before pagination advance.
 ///
-/// ## Both pre-fix and post-fix
+/// ## Current behavior (conservative CursorToken, `_ => 0` arm)
 ///
-/// Pre-fix:  active_page_size=0 → early_stopped = (10 >= 0) = true → assertion PASSES.
-/// Post-fix: active_page_size=10 → early_stopped = (10 >= 10) = true → assertion PASSES.
+/// Conservative rule: all CursorToken sub-cases fall through to `active_page_size = 0`.
+/// `active_page_size=0 → early_stopped = (10 >= 0) = true` → assertion PASSES.
 ///
-/// This test ALREADY PASSES before the fix (it does not detect the bug). It is included
-/// as a regression guard: after the fix the correct true value is still returned for a
-/// full page, and this test confirms the fix did not accidentally invert full-page behavior.
+/// This test is included as a regression guard: the conservative `_ => 0` arm correctly
+/// returns true for a full page, and this test confirms the arm does not accidentally
+/// invert full-page behavior.
 ///
 /// Traces to AC-014 (S-ENGINE-LIMIT-EARLY-STOP-001), ADR-060 §D8.2/§D8.4.
 #[tokio::test]
@@ -1350,16 +1350,15 @@ async fn test_cursor_token_full_final_page_is_early_stopped() {
     );
 
     // PRIMARY ASSERTION: full page (page_record_count == page_size) must set early_stopped=true.
-    // Both pre-fix (active_page_size=0, 10>=0=true) and post-fix (active_page_size=10,
-    // 10>=10=true) return true. This is the regression guard for the fix: the fix must not
-    // invert the correct true result for full pages.
+    // Conservative CursorToken rule (`_ => 0` arm): active_page_size=0 → 10 >= 0 = true.
+    // This is the regression guard: the `_ => 0` arm must not accidentally invert full-page behavior.
     assert!(
         result.early_stopped,
         "RG-PSG-042 (regression guard — ADR-060 §D8.2/§D8.4): \
          `early_stopped` must be true for a FULL CursorToken page \
-         (page_record_count=10 == page_size=10). \
-         Post-fix: active_page_size=10 → (10 >= 10) = true. \
-         Got early_stopped=false — the fix incorrectly inverted full-page behavior."
+         (page_record_count=10, page_size=10). \
+         Conservative CursorToken rule: active_page_size=0 → (10 >= 0) = true. \
+         Got early_stopped=false — the conservative arm incorrectly returned false."
     );
 
     // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).

@@ -485,8 +485,8 @@ impl PipelineExecutor {
                     // indicate no body injection is needed.
                     //
                     // ADR-060 §D8.4: CursorToken page-fill is not a valid cursor-exhaustion
-                    // signal. All CursorToken sub-cases (page_size Some/None), PageNumber,
-                    // and None fall through to 0 → conservative early_stopped=true. Precise
+                    // signal. All CursorToken sub-cases (page_size Some/None) and None fall
+                    // through to 0 → conservative early_stopped=true. Precise
                     // cursor-exhaustion detection is deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
                     let active_page_size: u32 = match &step.pagination {
                         Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
