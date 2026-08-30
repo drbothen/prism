@@ -1248,6 +1248,62 @@ fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied
     );
 }
 
+// ── F-VULNS-IDNULL-LOW-001: present-null id arm ───────────────────────────────
+/// BC-2.16.015 §Invariants — three-state `id` contract: absent → column skipped;
+/// present-with-value → extracted; present-null (`{"id": null}`) → stored as
+/// `Value::Null` in `raw_extensions["id"]`.
+///
+/// This test covers the **present-null** arm — the only arm of the three-state
+/// contract that had no test.  The other two arms are covered by:
+///   - absent: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing` (RG-008)
+///   - present-with-value: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied` (RG-009)
+///
+/// Closes the sibling-symmetry gap: the Tier-2 `published_date` column already has a
+/// present-null test (`test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes`
+/// asserting `raw_extensions["published_date"] == Value::Null`); `id` had no equivalent.
+///
+/// Code path: `extract_with_tokens` → `Value::pointer("$.id")` returns `Some(Value::Null)`
+/// for a present-null field → `map_record` `Ok(v) => v` arm → `raw_extensions.insert("id", Value::Null)`.
+/// This path was already correct; this test is a **regression guard** only — it MUST PASS
+/// immediately without any production code change.
+///
+/// AC anchor: BC-2.16.015 AC-008 / EC-002 (same AC as RG-008 and RG-009).
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-IDNULL-LOW-001.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_explicit_null() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Explicit present-null: the `id` key is present in the JSON object, but its value
+    // is JSON null.  This is DISTINCT from the absent case (RG-008) where the key does
+    // not appear at all.  source_path = "$.id" resolves to Some(Value::Null) via
+    // Value::pointer, and map_record must store that null in raw_extensions.
+    let record_with_null_id = serde_json::json!({ "id": null });
+
+    let row = ColumnMapper::map_record(&record_with_null_id, table).expect(
+        "F-VULNS-IDNULL-LOW-001: map_record must not error when 'id' is present with JSON null. \
+         BC-2.16.015 §Invariants present-null arm; AC-008 / EC-002.",
+    );
+
+    // LOAD-BEARING present-null arm assertion: 'id' MUST be present in raw_extensions as
+    // Value::Null (not absent, not any other value).  Regression guard — the extract_with_tokens
+    // Ok(v) arm stores the raw Value::Null returned by Value::pointer for a present-null field.
+    assert_eq!(
+        row.raw_extensions.get("id"),
+        Some(&serde_json::Value::Null),
+        "F-VULNS-IDNULL-LOW-001 LOAD-BEARING: 'id' present-null MUST store Value::Null in \
+         raw_extensions (NOT absent, NOT an error). \
+         BC-2.16.015 §Invariants three-state id contract; AC-008 / EC-002. \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
 // ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
 /// BC-2.16.015 §EC-016-015-004: A vulnerability row whose `name` is an advisory-title
 /// format (e.g., "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)") — NOT a CVE-YYYY-NNNNN
