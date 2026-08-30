@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.37"
+version: "1.38"
 modified: "2026-08-29"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,7 +21,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
   - ".factory/specs/architecture/decisions/ADR-061-multi-tenant-cache-key-isolation-authoritative-slug-resolution.md"
-input-hash: "556c347"
+input-hash: "019d29c"
 # input-hash: refreshed 2026-08-29 (v1.37); ADR-060 bumped v1.14→v1.15 (§D8.4 Dim-3 discharge note stale version pin removed; §Status banner POL-39 sweep); hash recomputed (stored 6619823 → 556c347)
 traces_to: ["BC-2.16.002", "BC-2.16.015", "BC-2.11.001"]
 points: 8
@@ -82,8 +82,8 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query, prism-sensors, prism
 #       (b) Add `early_stop_limit: Option<usize>` parameter to `FetchContext::new`
 #       (c) Add `pub early_stopped: bool` field to `PipelineResult`
 #       (d) Add early-stop check in `PipelineExecutor::execute_impl` loop (after DI-019 check)
-#       (e) SET `early_stopped = (page_record_count >= page_size)` BEFORE `break 'steps` in the §D8.2/§D8.3 early-stop block
-#           (ADR-060 §D8.2 partial-final-page discriminator: FULL page → early_stopped=true; PARTIAL page, source exhausted → early_stopped=false → is_truncated=false)
+#       (e) SET `early_stopped = (page_record_count >= active_page_size)` BEFORE `break 'steps` in the §D8.2/§D8.4 early-stop block
+#           (ADR-060 §D8.2/§D8.4 partial-final-page discriminator: `active_page_size` match: OffsetLimit { page_size } => page_size as usize; CursorToken { .. } | _ => 0 (conservative; `_` also captures PaginationConfig::None per ADR-060 §D8.4). FULL page → early_stopped=true; PARTIAL page, source exhausted → early_stopped=false → is_truncated=false)
 #     Callers inside pipeline.rs #[cfg(test)] blocks: ~15 in-file test sites — all pass `None`
 #   prism-bin:
 #     MODIFY src/spec_driven_adapter.rs:
@@ -584,8 +584,8 @@ Without the discriminator (unconditional `early_stopped = true`), this case woul
 | RG-PSG-039 | `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped` | Unit — prism-spec-engine, pipeline internal; `early_stop_limit=Some(5)`, wiremock mock returns exactly 5 records on the first page (page_size=1000) → PARTIAL final page | AC-014 PARTIAL arm (EC-11-094, EC-01-041): early-stop check fires (`all_records.len()=5 >= limit=5`) but `page_record_count=5 < page_size=1000` → `PipelineResult.early_stopped = false` (PARTIAL final page discriminator, ADR-060 §D8.3 worked example (a)). MUST FAIL before discriminator is implemented (without discriminator, `early_stopped = true` unconditionally → false-positive is_truncated). |
 | RG-PSG-040 | `test_psg_rg040_partial_final_page_is_truncated_false_wire` | MCP integration — `crates/prism-bin/tests/mcp_integration_tests.rs` (or equivalent MCP stdio test file); issues `prism_query` MCP call with `LIMIT 5` against a 5-row mock tenant (page_size=1000) | AC-014 wire assertion: serialized `CallToolResult.content[0].text` JSON asserts `"is_truncated": false`. Without discriminator, the MCP surface would return `"is_truncated": true` — false positive misleading the LLM agent. Wire-shape discipline (CLAUDE.md 2026-07-13): MCP-visible surfaces MUST be asserted at the serialized JSON level. MUST FAIL before discriminator is implemented. Anchor BC-2.11.001 EC-11-094, BC-2.16.002 EC-01-041, ADR-060 §D8.3 worked example (a). |
 | RG-PSG-041 | `test_cursor_token_partial_page_conservative_early_stopped` | Unit — prism-spec-engine, pipeline internal (`crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`); CursorToken with declared page_size=Some(1000), `early_stop_limit=Some(5)`, mock returns exactly 5 records (partial page, source exhausted) | AC-014 conservative cursor policy (ADR-060 §D8.4): CursorToken (all sub-cases, incl `Some(ps)`) → `active_page_size = 0` → discriminator `page_record_count >= 0` always true → conservative `PipelineResult.early_stopped = true`. Regression sentinel (F-FP1-LENSA-001): prevents reintroduction of the unsound `CursorToken Some(ps) => ps` arm in `active_page_size` match — page-fill is not a valid cursor exhaustion signal per ADR-060 §D8.4. PASSES in correct implementation (`_ => 0` catch-all). |
-| RG-PSG-042 | `test_cursor_token_full_final_page_is_early_stopped` | Unit — prism-spec-engine, pipeline internal (`crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`); CursorToken pagination with declared page_size=1000, `early_stop_limit=Some(1000)`, mock returns exactly 1000 records on the first page — FULL final page (1000 >= 1000) | AC-014 CursorToken FULL arm: `active_page_size = 0` (conservative; `_ => 0` catch-all); `page_record_count=1000 >= 0` → `early_stopped = true`; `is_truncated = true`. Regression guard — confirms CursorToken FULL page still yields `early_stopped = true` under the conservative `_ => 0` policy (ADR-060 §D8.4). PASSES in correct implementation. |
-| RG-PSG-043 | `test_cursor_token_no_page_size_conservative` | Unit — prism-spec-engine, pipeline internal (`crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`); CursorToken with no declared page_size (`cursor_page_size=None`), `early_stop_limit=Some(5)`, mock returns 5 records | AC-014 CursorToken `None` conservative fallback (ADR-060 §D8.4): `active_page_size = 0` → discriminator `page_record_count >= 0` always true → conservative `early_stopped = true`. Regression guard — confirms CursorToken `None` (and all CursorToken sub-cases per ADR-060 §D8.4) does NOT yield `early_stopped = false`. PASSES in correct implementation. |
+| RG-PSG-042 | `test_cursor_token_full_final_page_is_early_stopped` | Unit — prism-spec-engine, pipeline internal (`crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`); CursorToken pagination with declared page_size=10, `early_stop_limit=Some(10)`, mock returns exactly 10 records on the first page — FULL final page (10 >= 10) | AC-014 CursorToken FULL arm: `active_page_size = 0` (conservative; `_ => 0` catch-all); `page_record_count=10 >= 0` → `early_stopped = true`; `is_truncated = true`. Regression guard — confirms CursorToken FULL page still yields `early_stopped = true` under the conservative `_ => 0` policy (ADR-060 §D8.4). PASSES in correct implementation. |
+| RG-PSG-043 | `test_cursor_token_no_page_size_conservative` | Unit — prism-spec-engine, pipeline internal (`crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`); CursorToken with no declared page_size (`cursor_page_size=None`), `early_stop_limit=Some(3)`, mock returns 3 records | AC-014 CursorToken `None` conservative fallback (ADR-060 §D8.4): `active_page_size = 0` → discriminator `page_record_count >= 0` always true → conservative `early_stopped = true`. Regression guard — confirms CursorToken `None` (and all CursorToken sub-cases per ADR-060 §D8.4) does NOT yield `early_stopped = false`. PASSES in correct implementation. |
 
 | RG-SLUG-001 | `test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn` | Unit — prism-query, `resolve_source_refs` with `org_registry: Some(reg)` populated but no slug for test org_id (`crates/prism-query/tests/slug_isolation_tests.rs` or in-crate unit test) | AC-010 D2 path: after `resolve_source_refs` executes, the target list does NOT contain a `FanOutTarget` for the unmapped org_id; a `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` and `org_id = %unmapped_org_id` was captured. MUST FAIL before Task 18 (D5 fix not applied — unified `else` branch still synthesizes a slug and pushes the target). |
 | RG-SLUG-002 | `test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_included` | Unit — prism-query, `resolve_source_refs` with `org_registry: None` (no registry injected — D3 test mode) | AC-010 D3 path: synthetic slug is generated from org_id prefix; `FanOutTarget` IS included in the result list. Regression sentinel — PASSES both before and after Task 18 (D3 preservation must not be broken). |
@@ -759,14 +759,17 @@ pattern) to minimize context consumption.
   // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary, after DI-019.
   // truncated is NOT set — this is a success-path query-driven early exit, not a capacity overflow.
   // CRITICAL: early_stopped discriminator MUST be computed BEFORE break 'steps.
-  // ADR-060 §D8.2 partial-final-page discriminator:
-  //   FULL page (page_record_count >= page_size) → early_stopped=true (data may be truncated).
-  //   PARTIAL page (page_record_count < page_size, source exhausted) → early_stopped=false
+  // ADR-060 §D8.2/§D8.4 partial-final-page discriminator:
+  //   active_page_size match: OffsetLimit { page_size } => page_size as usize; CursorToken { .. } | _ => 0
+  //   (conservative; `_` also captures PaginationConfig::None per ADR-060 §D8.4).
+  //   FULL page (page_record_count >= active_page_size) → early_stopped=true (data may be truncated).
+  //   PARTIAL page (page_record_count < active_page_size, source exhausted) → early_stopped=false
   //   (complete dataset within the LIMIT; is_truncated=false). Worked example (a): LIMIT 5 on
-  //   5-row tenant, page_size=1000 → page_record_count=5 < 1000 → early_stopped=false.
+  //   5-row tenant, page_size=1000 → active_page_size=1000 → page_record_count=5 < 1000 → early_stopped=false.
+  //   CursorToken/None: active_page_size=0 → page_record_count>=0 always true → conservative early_stopped=true.
   if let Some(limit) = context.early_stop_limit {
       if all_records.len() >= limit {
-          early_stopped = page_record_count >= page_size;  // ADR-060 §D8.2 partial-final-page discriminator
+          early_stopped = page_record_count >= active_page_size;  // ADR-060 §D8.2/§D8.4 partial-final-page discriminator
           break 'steps;
       }
   }
@@ -793,14 +796,14 @@ pattern) to minimize context consumption.
   cursor exhaustion signal (ADR-060 §D8.4). PASSES in correct implementation.
 
   Write RG-PSG-042: `test_cursor_token_full_final_page_is_early_stopped`
-  in the same file. CursorToken with `cursor_page_size = Some(1000)`, `early_stop_limit = Some(1000)`,
-  mock returns exactly 1000 records (FULL final page). Assert `PipelineResult.early_stopped == true`.
+  in the same file. CursorToken with `cursor_page_size = Some(10)`, `early_stop_limit = Some(10)`,
+  mock returns exactly 10 records (FULL final page). Assert `PipelineResult.early_stopped == true`.
   Regression guard — PASSES in correct implementation.
 
   Write RG-PSG-043: `test_cursor_token_no_page_size_conservative`
-  in the same file. CursorToken with `cursor_page_size = None`, `early_stop_limit = Some(5)`,
-  mock returns 5 records. Assert `PipelineResult.early_stopped == true` (conservative fallback:
-  `active_page_size = 0` → `5 >= 0` → true). Regression guard — PASSES in correct implementation.
+  in the same file. CursorToken with `cursor_page_size = None`, `early_stop_limit = Some(3)`,
+  mock returns 3 records. Assert `PipelineResult.early_stopped == true` (conservative fallback:
+  `active_page_size = 0` → `3 >= 0` → true). Regression guard — PASSES in correct implementation.
 
   **Verify `active_page_size` uses `_ => 0` for all non-OffsetLimit modes (ADR-060 §D8.4):**
   In `execute_impl`, confirm the `active_page_size` derivation uses `OffsetLimit { page_size: ps, .. } => *ps`
@@ -813,7 +816,7 @@ pattern) to minimize context consumption.
 - [ ] **Task 8 (Red Gate — test first):** Write RG-005:
   `test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit`
   in `crates/prism-bin/tests/` or adjacent integration test file. Use wiremock mock with
-  page_size=1000, 2 pages, `params.limit=1`. Assert mock received exactly 1 request.
+  page_size=10, 2 pages, `params.limit=1`. Assert mock received exactly 1 request.
   Assert `truncated=false`. Also test `params.limit=0 → None` (3 pages all fetched).
   MUST FAIL before Task 9 (spec_driven_adapter wiring not yet in place).
 
@@ -1435,11 +1438,14 @@ From ADR-060 §D8.2/§D8.3/§D8.9 (`any_early_stopped` propagation chain + parti
 - `PipelineResult.early_stopped: bool` MUST be set via the partial-final-page discriminator on
   the §D8.2 `break 'steps` exit (DISTINCT from `truncated`: `truncated` = DI-019 capacity exceeded;
   `early_stopped` = query-driven early exit).
-  **ADR-060 §D8.2 partial-final-page discriminator:** `early_stopped = page_record_count >= page_size`.
-  FULL page (`page_record_count >= page_size`) → `early_stopped = true` (data may be truncated).
-  PARTIAL page (`page_record_count < page_size`, source exhausted) → `early_stopped = false`
-  (complete dataset; `is_truncated = false`). Worked example (a): LIMIT 5 on 5-row tenant,
-  page_size=1000 → `page_record_count=5 < 1000` → `early_stopped=false` → `is_truncated=false`.
+  **ADR-060 §D8.2/§D8.4 partial-final-page discriminator:** `early_stopped = page_record_count >= active_page_size`.
+  The `active_page_size` match in `execute_impl` uses three arms: `OffsetLimit { page_size } => page_size as usize`;
+  `CursorToken { .. } | _ => 0` (conservative — the `_` arm also captures `PaginationConfig::None`; see ADR-060 §D8.4).
+  For CursorToken and None, `active_page_size = 0` → `early_stopped = true` always when early-stop fires (conservative over-report).
+  FULL page (`page_record_count >= active_page_size`) → `early_stopped = true` (data may be truncated).
+  PARTIAL page (`page_record_count < active_page_size`, source exhausted) → `early_stopped = false`
+  (complete dataset; `is_truncated = false`). Worked example (a): LIMIT 5 on 5-row OffsetLimit tenant,
+  page_size=1000 → `active_page_size=1000` → `page_record_count=5 < 1000` → `early_stopped=false` → `is_truncated=false`.
   **CRITICAL ORDER:** the discriminator assignment MUST be executed BEFORE `break 'steps`. Assigning
   it after the break (or omitting it) silently zeros the signal on every pipeline exit.
   (Anchored: RG-PSG-025 `test_psg_exact_limit_is_truncated_true`; RG-PSG-039 `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped`; RG-PSG-040 `test_psg_rg040_partial_final_page_is_truncated_false_wire`; BC-2.11.001 EC-11-094; BC-2.16.002 EC-01-041)
@@ -1549,6 +1555,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.38 | 2026-08-29 | story-writer | **F-P9-LENSC2-001 (MED) found-already-done + F-P9-LENSB-001 (LOW) RG-PSG-042 values corrected + RG-table reconciliation (RG-PSG-043 corrected).** (1) **F-P9-LENSC2-001 — all three `active_page_size` sites verified already correct:** Task-6 summary crates_touched item (e) (`active_page_size` + CursorToken conservative caveat), Task-6 code snippet (L760-L775; `early_stopped = page_record_count >= active_page_size;`), and §Architecture Compliance Rules discriminator rule — all three already cite `active_page_size` with the `CursorToken { .. } | _ => 0` conservative caveat. No changes required. (2) **F-P9-LENSB-001 (LOW) — RG-PSG-042 row corrected:** "declared page_size=1000, `early_stop_limit=Some(1000)`, mock returns exactly 1000 records, FULL final page (1000 >= 1000), `page_record_count=1000 >= 0`" corrected to "page_size=10, `early_stop_limit=Some(10)`, mock returns exactly 10 records, FULL final page (10 >= 10), `page_record_count=10 >= 0`" — verified against on-disk test `test_cursor_token_full_final_page_is_early_stopped` in `.worktrees/S-ENGINE-LIMIT-EARLY-STOP-001/crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs` (`page_size: Some(10)`, `FetchContext::new(..., Some(10))`, `(0u32..10)` records). (3) **RG-PSG-043 row corrected:** "`early_stop_limit=Some(5)`, mock returns 5 records" corrected to "`early_stop_limit=Some(3)`, mock returns 3 records" — verified against on-disk test `test_cursor_token_no_page_size_conservative` (`FetchContext::new(..., Some(3))`, `(0u32..3)` records). (4) **Comprehensive RG-table reconciliation:** RG-001 (Some(5) stores correctly; matches test), RG-002 (page_size=10, Some(1); matches), RG-003 (3 pages×10=30, None; matches), RG-004 (10001 records, Some(5); matches), RG-PSG-039 (page_size=1000, Some(5), 5 records; matches), RG-PSG-041 (page_size=Some(1000), Some(5), 5 records; matches) — all other rows with concrete values confirmed correct against worktree tests. Two drifts found and fixed: RG-PSG-042 and RG-PSG-043. No AC, RG count (58), density (4.14), or behavioral changes. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — RG-PSG-042 and RG-PSG-043 table rows are not transcribed verbatim into downstream artifacts; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.37 | 2026-08-29 | story-writer | **F-P6-LENSC2-001 (LOW) — RG-PSG-039 §D8.2→§D8.3 semantic-anchor fix + proactive §-anchor sweep + input-hash refresh.** (1) **F-P6-LENSC2-001 — RG-PSG-039 "What it gates" cell:** `ADR-060 §D8.2 worked example (a)` corrected to `ADR-060 §D8.3 worked example (a)`. The worked-examples table (rows (a)/(b)/(c)) lives under ADR-060 §D8.3 Post-break semantics; §D8.2 contains only the discriminator formula + a code comment pointing forward to §D8.3. The four sibling citations were already correct: AC-014 (`§D8.3 worked example (a)`), RG-PSG-040 (`§D8.3 worked example (a)`), BC-2.11.001 EC-11-092/094, BC-2.16.002 EC-01-041. (2) **Proactive §-anchor sweep (POL-4/POL-21):** Grepped entire story for every `§`-anchor citation; verified each on-disk: ADR-060 §D8.1–§D8.10 all map to content-bearing sections (confirmed); ADR-061 §D1/D2/D4/D5/D7/D9 present and content-bearing (confirmed); ADR-028 §D1 present (confirmed); BC-2.07.003 §Postconditions present (confirmed); BC-2.16.015 §Edge Cases + §Canonical Test Vectors present with EC-016-015-007/008 + TV-BC-2.16.015-006 (confirmed). No other mis-anchors found. (3) **input-hash refreshed** 6619823→556c347 (ADR-060 v1.14→v1.15 input drift; §D8.4 Dim-3 stale version pin removed + §Status POL-39 sweep). No AC, RG count (58), or behavioral changes. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; RG-PSG-039 and its four sibling citations (AC-014, RG-PSG-040, BC-2.11.001 EC-11-092/094, BC-2.16.002 EC-01-041) swept; all four already correct; CLEAR. Dim-2 — RG-PSG-039 "What it gates" cell is not a section transcribed verbatim into a downstream artifact; no downstream copy-target; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.36 | 2026-08-29 | story-writer | **ADR-060 §D8.4 cursor revert (F-FP1-LENSA-001) + phantom-PageNumber removal + BC-2.16.002 v2.51 / BC-2.11.001 v1.30 sync.** (1) **AC-014 mode-scope narrowed to OffsetLimit only:** per ADR-060 §D8.4 architect ruling, `CursorToken Some(ps)` precise sub-bullet removed; `PageNumber` phantom removed from conservative-fallback enumeration; all CursorToken sub-cases (incl `Some(ps)` and `None`) → `active_page_size = 0` → conservative `early_stopped=true` (page-fill not valid cursor exhaustion signal; precise detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001). (2) **RG-PSG-041 renamed** from `test_cursor_token_partial_final_page_not_early_stopped` to `test_cursor_token_partial_page_conservative_early_stopped`; role changed from driving RED test to regression sentinel (F-FP1-LENSA-001); expected `early_stopped==true` (conservative). (3) **RG-PSG-042 updated:** "before and after CursorToken extension" phrasing replaced with "PASSES in correct implementation". (4) **RG-PSG-043 updated:** "PASSES both before and after extension" replaced with "PASSES in correct implementation". (5) **BC-5.38.001 density check** updated: RG-PSG-041 added to regression-sentinel list; description changed from "driving RED" to "regression sentinel (F-FP1-LENSA-001; ADR-060 §D8.4 conservative cursor policy)". (6) **Task 7 CursorToken sub-section** replaced: removed "write RG-PSG-041 as RED gate + extend CursorToken match arm" framing; replaced with "write RG-PSG-041/042/043 as regression sentinels + verify `_ => 0` catch-all stays". (7) **BC-2.16.002 Version cell** v2.50→v2.51 (structured pin, POL-39-exempt); **BC-2.11.001 trace note** EC-11-094 mode-scope updated (OffsetLimit only; CursorToken all sub-cases conservative; S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001). (8) **input-hash** updated 4d4c809→6619823. red_gate_tests UNCHANGED at 58; acceptance_criteria_count UNCHANGED at 14; BC-5.38.001 density 58/14≈4.14 PASS. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — BC-2.16.002 Version cell (v2.51), BC-2.11.001 trace note, AC-014 mode-scope, AC-014 test-ref for RG-PSG-041, RG-PSG-041 row, RG-PSG-042 row, RG-PSG-043 row, BC-5.38.001 density paragraph, Task 7 sub-section all consistently reflect OffsetLimit-only precise + CursorToken conservative policy; FULL. Dim-3 — no new MUSTs introduced; no unanchored MUSTs; CLEAR. |
 | 1.35 | 2026-08-29 | story-writer | **Pass-1 findings closure (F-P1-LENSC2-004) + CursorToken mode-extension (RG-PSG-041/042/043) + BC v2.50/v1.29 sync.** (1) **F-P1-LENSC2-004 (LOW) — FULL-arm operator fixed:** AC-014 FULL-arm bullet `page_record_count == page_size` corrected to `>= page_size` (formula and ADR-060 §D8.3/§D8.3 all use `>=`; the `==` was an artifact of the initial draft). (2) **AC-014 extended to mode-general (ADR-060 §D8.4):** AC-014 title updated to reflect OffsetLimit + CursorToken `Some(ps)` coverage; mode-scope paragraph added (`active_page_size` resolution: OffsetLimit → declared page_size; CursorToken `Some(ps)` → ps; CursorToken `None`/PageNumber/None → 0 conservative fallback `early_stopped=true`); cites ADR-060 §D8.2/§D8.3/§D8.4. Extension preferred over new AC (same discriminator behavior across modes). (3) **RG-PSG-041 added** (`test_cursor_token_partial_final_page_not_early_stopped`, driving RED test for CursorToken PARTIAL arm, prism-spec-engine, AC-014); **RG-PSG-042 added** (`test_cursor_token_full_final_page_is_early_stopped`, regression guard CursorToken FULL arm); **RG-PSG-043 added** (`test_cursor_token_no_page_size_conservative`, regression guard CursorToken `None` fallback); all three in `crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs`; RED-before-GREEN per SAC-1; feature HEAD e2c8d0426 GREEN. red_gate_tests 55→58; BC-5.38.001 density 58/14≈4.14 PASS. (4) **Task 7 extended** with RG-PSG-041/042/043 authoring sub-task (red-then-green ordering: write RED before `active_page_size` CursorToken extension; update post-impl green-check). (5) **BC-2.16.002 Version cell** v2.49→v2.50 (structured pin, POL-39-exempt); EC-01-041 Role cell updated with mode-scope note (§D8.4) and GREEN anchor (AC-014 + RG-PSG-039/040/041/042/043). (6) **BC-2.11.001 trace note** EC-11-094 extended with mode-scope (§D8.4) and GREEN anchor. (7) **input-hash** updated 6ba0af1→4d4c809 (BC-2.16.002 v2.50 + BC-2.11.001 v1.29 drift). TD-VSDD-097: Dim-1 — no named story-twin; within-body grep for `== page_size` found the single AC-014 FULL-arm occurrence updated; CLEAR. Dim-2 — BC-2.16.002 Version cell pin updated (structured pin cell); BC-2.11.001 trace note EC-11-094 updated consistently with AC-014 mode-scope; red_gate_tests frontmatter (58) consistent with RG table count (58), density paragraph (58/14), Task 7 extended sub-task (RG-PSG-041/042/043 listed); FULL. Dim-3 — no new MUSTs introduced; all new RG rows anchored to AC-014 and ADR-060 §D8.4; CLEAR. acceptance_criteria_count UNCHANGED at 14 (AC-014 extended, not new AC). |
