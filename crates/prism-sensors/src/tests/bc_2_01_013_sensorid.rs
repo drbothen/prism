@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use prism_core::{OrgId, SensorId};
 
 use crate::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     registry::AdapterRegistry,
 };
@@ -47,7 +47,7 @@ impl SensorAdapter for SensorIdStubAdapter {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::Internal {
             detail: "stub — not implemented".into(),
         })

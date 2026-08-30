@@ -1922,7 +1922,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_
     // Wire-shape discipline (CLAUDE.md §Conventions): verify the result has at least 1 row.
     // The mock returns audit_log_response_one_record() = 1 record.
     // A successful fetch on a datetime INDEX column must produce non-empty output.
-    let batches = result.as_ref().unwrap();
+    let batches = result.as_ref().unwrap().batches.as_slice();
     let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
     assert!(
         total_rows > 0,

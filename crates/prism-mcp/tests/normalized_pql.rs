@@ -42,8 +42,9 @@ mod tests {
         PrismQlParser,
     };
     use prism_sensors::{
-        AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
-        SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+        adapter::FetchOutput, AdapterRegistry, CredentialResolver,
+        QueryParams as SensorQueryParams, SensorAdapter, SensorAuth, SensorError,
+        SensorSpec as SensorAdapterSpec,
     };
     use prism_spec_engine::{
         overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
@@ -79,7 +80,7 @@ mod tests {
             _spec: &SensorAdapterSpec,
             _params: &SensorQueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             Err(SensorError::HttpError {
                 sensor: self.sensor_id.to_string(),
                 status: 503,

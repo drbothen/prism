@@ -330,7 +330,7 @@ async fn test_BC_DEFECT_CSDEVICES_001_devices_pipeline_returns_records_via_post(
         .find(|t| t.table_name == "devices")
         .expect("crowdstrike spec must declare a 'devices' table");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()

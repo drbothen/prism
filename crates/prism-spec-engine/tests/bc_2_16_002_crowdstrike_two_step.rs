@@ -91,7 +91,7 @@ async fn test_BC_2_16_002_pipeline_executor_runs_crowdstrike_two_step_spec() {
         .find(|t| t.table_name == "detections")
         .expect("crowdstrike spec must declare a 'detections' table (AC-001)");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -173,7 +173,7 @@ async fn test_BC_2_16_002_crowdstrike_batch_boundary_100_ids_one_batch() {
         .find(|t| t.table_name == "detections")
         .expect("detections table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -260,7 +260,7 @@ async fn test_PLUGIN_MIGRATION_001_F_bc_2_16_002_crowdstrike_two_step_toml_drive
         .find(|t| t.table_name == "detections")
         .expect("AC-002: crowdstrike spec must declare 'detections' table");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()

@@ -20,7 +20,7 @@
 use prism_core::SensorId;
 
 use crate::{
-    adapter::SensorError,
+    adapter::{FetchOutput, SensorError},
     fanout::{error_to_retry_metadata, MAX_FANOUT_CONCURRENCY},
 };
 
@@ -192,11 +192,15 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Int32, false)]));
             let batch = RecordBatch::try_new(schema, vec![Arc::new(Int32Array::from(vec![1i32]))])
                 .expect("valid batch");
-            Ok(vec![batch])
+            Ok(FetchOutput {
+                batches: vec![batch],
+                any_early_stopped: false,
+                pipeline_truncated: false,
+            })
         }
     }
 

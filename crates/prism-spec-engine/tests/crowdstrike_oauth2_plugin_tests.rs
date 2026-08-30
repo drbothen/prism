@@ -798,7 +798,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1603,7 +1603,7 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()

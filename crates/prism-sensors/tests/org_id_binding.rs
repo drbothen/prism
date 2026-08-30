@@ -28,7 +28,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::SensorId;
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     AdapterRegistry, OrgId,
 };
@@ -85,14 +85,14 @@ impl SensorAdapter for StubAdapter {
         spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         if spec.org_id != self.org_id {
             return Err(SensorError::OrgIdMismatch {
                 adapter_org_id: self.org_id,
                 query_org_id: spec.org_id,
             });
         }
-        Ok(vec![])
+        Ok(FetchOutput::new(vec![], false, false))
     }
 }
 

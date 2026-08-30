@@ -231,7 +231,7 @@ mod helpers {
 
     use prism_core::{OrgId, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -242,6 +242,9 @@ mod helpers {
         pub sensor_id: SensorId,
         pub row_count: usize,
         pub client_slug: String,
+        /// Whether this adapter signals early-stop in FetchOutput (ADR-060 §D8.3).
+        /// Set to true to model a sensor that stopped after the first page.
+        pub any_early_stopped: bool,
     }
 
     #[async_trait]
@@ -259,7 +262,7 @@ mod helpers {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![Field::new(
                 "detection_id",
                 DataType::Utf8,
@@ -270,7 +273,7 @@ mod helpers {
                 ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             )) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).expect("stub batch must be valid");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], self.any_early_stopped, false))
         }
     }
 
@@ -319,6 +322,7 @@ mod helpers {
                 sensor_id: SensorId::from("crowdstrike"),
                 row_count,
                 client_slug: "acme".to_string(),
+                any_early_stopped: false,
             }),
         );
         let normalizer = Arc::new(OcsfNormalizer::new());
@@ -363,6 +367,7 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -494,7 +499,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
         types::FilterMap,
     };
@@ -520,7 +525,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let mut guard = self.captured.lock().unwrap_or_else(|e| e.into_inner());
             guard.push(params.filters.clone());
 
@@ -533,7 +538,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
             let hostnames = Arc::new(StringArray::from(vec!["target"])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![hostnames]).expect("spy batch must be valid");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -683,6 +688,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -691,6 +697,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "beta".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -786,6 +793,7 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1171,6 +1179,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -1179,6 +1188,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "beta".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1463,6 +1473,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1531,6 +1542,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1599,6 +1611,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1863,7 +1876,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
     use prism_core::OrgId;
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -1886,7 +1899,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             self.call_count
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let schema = Arc::new(arrow::datatypes::Schema::new(vec![
@@ -1898,7 +1911,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
             ]));
             let arr = Arc::new(arrow::array::StringArray::from(vec!["row1"])) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).unwrap();
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -2056,6 +2069,7 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -2103,7 +2117,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2125,9 +2139,9 @@ async fn test_AC_timeout_returns_query_timeout_error() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 
@@ -2262,6 +2276,7 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_036() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let org_slug = OrgSlug::new("acme");
@@ -2321,7 +2336,7 @@ impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
         _spec: &prism_sensors::adapter::SensorSpec,
         _params: &prism_sensors::adapter::QueryParams,
         _auth: &dyn prism_sensors::auth::SensorAuth,
-    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
         self.call_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let schema = Arc::new(arrow::datatypes::Schema::new(vec![
@@ -2329,7 +2344,11 @@ impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("counting batch");
-        Ok(vec![batch])
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            false,
+        ))
     }
 }
 
@@ -2521,7 +2540,7 @@ impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
         _spec: &prism_sensors::adapter::SensorSpec,
         _params: &prism_sensors::adapter::QueryParams,
         _auth: &dyn prism_sensors::auth::SensorAuth,
-    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
         self.call_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
@@ -2534,7 +2553,11 @@ impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("toggling batch");
-        Ok(vec![batch])
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            false,
+        ))
     }
 }
 
@@ -2617,6 +2640,368 @@ async fn test_QRY_P1_05_forced_refresh_failed_fetch_invalidates_entry() {
 }
 
 // ---------------------------------------------------------------------------
+// RG-PSG-034 (S-ENGINE-LIMIT-EARLY-STOP-001): EC-01-039 / F-R16-P17-LENSA-MED-001
+// Early-stopped response must NOT be cached as complete — `is_truncated` must
+// survive a cache round-trip.
+// ---------------------------------------------------------------------------
+
+/// Sensor adapter that (a) counts `fetch` invocations and (b) always signals
+/// early-stop in `FetchOutput` — models a sensor whose first page fills the
+/// requested limit exactly (LIMIT == page_size) while more upstream rows exist.
+struct EarlyStopCountingAdapter {
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+    /// Number of rows to emit per fetch (always == requested limit in this test).
+    row_count: usize,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for EarlyStopCountingAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let ids: Vec<String> = (0..self.row_count).map(|i| format!("early-{i}")).collect();
+        let arr = Arc::new(arrow::array::StringArray::from(
+            ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("early-stop batch");
+        // any_early_stopped = true: sensor stopped after page 1 with more rows upstream.
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            true,
+            false,
+        ))
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `EarlyStopCountingAdapter`.
+fn make_early_stop_engine(
+    row_count: usize,
+) -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(EarlyStopCountingAdapter {
+            call_count: Arc::clone(&call_count),
+            row_count,
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![helpers::org("acme")]);
+    (engine, call_count)
+}
+
+/// RG-PSG-034 / EC-01-039 (F-R16-P17-LENSA-MED-001, BC-2.16.002):
+/// An early-stopped response MUST NOT be cached as "complete".
+///
+/// Scenario: the adapter returns exactly `limit` rows with `any_early_stopped=true`
+/// (LIMIT == page_size; more data exists upstream). The first `execute` populates
+/// the response cache. The second identical `execute` is a cache HIT (sensor NOT
+/// fetched again). `is_truncated` must be `true` on the cached-response path.
+///
+/// Fix (landed): `complete = errors.is_empty() && !fan_result.any_early_stopped`
+/// ensures early-stopped responses are NOT cached as "complete".
+/// Query 2 therefore re-fetches, and `is_truncated = true` is preserved on
+/// both the live-fetch and cached-response paths.
+#[tokio::test]
+async fn test_psg_rg034_early_stopped_response_not_cached_as_complete() {
+    use prism_query::engine::QueryOptions;
+
+    // 2 rows returned, limit = 2 → early-stop condition (LIMIT == page_size).
+    // any_early_stopped=true means more data exists upstream.
+    let limit = 2_usize;
+    let (engine, call_count) = make_early_stop_engine(limit);
+
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        limit: Some(limit),
+        ..QueryOptions::default()
+    };
+
+    // Query 1: live fetch → sensor called once → early-stop response cached (bug)
+    // or NOT cached (correct).
+    let r1 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("Query 1 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "RG-PSG-034: Query 1 must invoke the sensor adapter exactly once"
+    );
+    // Query 1 must itself report is_truncated=true (early-stop signal present).
+    assert!(
+        r1.is_truncated,
+        "RG-PSG-034: Query 1 (live fetch) must report is_truncated=true \
+         when the adapter sets any_early_stopped=true (EC-01-039)"
+    );
+
+    // Query 2: identical SQL + same options → may be a cache HIT (if the bug
+    // incorrectly cached the partial) or a cache MISS (if correctly NOT cached).
+    // Either way, is_truncated MUST be true because more data exists upstream.
+    let r2 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("Query 2 must succeed");
+
+    // PRIMARY ASSERTION (the discriminating test): is_truncated must survive
+    // the cache round-trip. With the current bug:
+    //   - cache stores the early-stopped partial as "complete" (errors.is_empty())
+    //   - cache-hit path never restores any_early_stopped
+    //   - Engine Step 6: is_truncated = (2 > 2) || false = false  ← FAILS HERE
+    assert!(
+        r2.is_truncated,
+        "RG-PSG-034 / EC-01-039: Query 2 must report is_truncated=true even \
+         when served from the response cache; an early-stopped partial response \
+         must NOT be cached as complete (complete = errors.is_empty() ignores \
+         any_early_stopped; got is_truncated=false — cached partial lost the \
+         truncation signal)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-PSG-035/036 (S-ENGINE-LIMIT-EARLY-STOP-001): DI-019 cache-completeness
+// and Step-6 truncation-signal red gates.
+//
+// DI-019 scenario: the spec-engine pipeline (`PipelineExecutor::execute_impl`)
+// truncates at `MAX_PIPELINE_RECORDS = 10_000` and sets `PipelineResult.truncated
+// = true`, but `early_stopped` remains `false`. `PipelineResult.truncated` is
+// propagated through `FetchOutput.any_pipeline_truncated` → `FanOutResult` →
+// `MaterializationOutput` to the cache-completeness guard and engine Step 6.
+//
+// These tests exercise the mock-adapter approximation of DI-019:
+//   • `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+//     and `any_pipeline_truncated=true` (the DI-019 signal).
+//   • `make_di019_engine` raises `max_materialized_records` to `usize::MAX` so
+//     the materialization layer does NOT hard-error (E-QUERY-005) on 10,001 rows
+//     — the DI-019 cap fires in the spec-engine pipeline level, not here.
+// ---------------------------------------------------------------------------
+
+/// Sensor adapter that counts `fetch` invocations and returns exactly 10,001 rows
+/// with `any_early_stopped=false` and `any_pipeline_truncated=true` — models the
+/// surface output of a DI-019 pipeline truncation event (`PipelineResult.truncated=
+/// true`, `PipelineResult.early_stopped=false`). Row generator uses a lightweight
+/// string index column (no hand-written literals); one batch per fetch call.
+struct Di019CountingAdapter {
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for Di019CountingAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        // 10,001 rows: one more than MAX_PIPELINE_RECORDS (10,000). Lightweight
+        // generator — no hand-written literals. In the spec-engine pipeline this
+        // volume causes DI-019 to fire (truncate to 10K, PipelineResult.truncated=true).
+        let ids: Vec<String> = (0..10_001_usize).map(|i| format!("di019-{i}")).collect();
+        let arr = Arc::new(arrow::array::StringArray::from(
+            ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("di019 counting batch");
+        // any_early_stopped=false: DI-019 is a pipeline record-count cap
+        // (PipelineResult.truncated=true), NOT a LIMIT-driven early-stop
+        // (PipelineResult.early_stopped=false).
+        // pipeline_truncated=true: this mock simulates the DI-019 signal that
+        // `spec_driven_adapter.rs` propagates from PipelineResult.truncated
+        // (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            true,
+        ))
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `Di019CountingAdapter`.
+///
+/// `max_materialized_records = usize::MAX` (DI-019 tests only): the DI-019 record-count
+/// cap fires in the spec-engine pipeline layer (`PipelineExecutor::execute_impl`), not
+/// in the materialization layer. A direct mock adapter bypasses the spec-engine, so
+/// raising the materialization cap prevents the engine from hard-erroring
+/// (E-QUERY-005 `QueryMaterializationLimitExceeded`) on the 10,001-row batch. Without
+/// this, `execute()` would return `Err` rather than `Ok(QueryResult)`, making the
+/// cache-completeness and `is_truncated` assertions unreachable.
+fn make_di019_engine() -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+    use prism_query::engine::QueryEngineConfig;
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(Di019CountingAdapter {
+            call_count: Arc::clone(&call_count),
+        }),
+    );
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        helpers::org("acme"),
+    ]));
+    let config = QueryEngineConfig {
+        // Must be > 10_001 to prevent E-QUERY-005 `QueryMaterializationLimitExceeded`.
+        // DI-019 cap fires in the spec-engine pipeline layer; these tests exercise
+        // the cache-completeness guard and `is_truncated` signal that depend on
+        // `any_pipeline_truncated`, not the materialization record limit.
+        max_materialized_records: usize::MAX,
+        ..QueryEngineConfig::default()
+    };
+    let engine = prism_query::engine::QueryEngine::new(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+    )
+    .with_credential_resolver(Arc::new(helpers::StubCredentialResolver));
+    (engine, call_count)
+}
+
+/// RG-PSG-035 / EC-01-039 / F-R16-P18-LENSA-MED-001 (DI-019 cache-completeness):
+/// A pipeline-level record-count truncation (DI-019) must NOT be cached as a
+/// "complete" response. A second identical query must re-fetch from the sensor.
+///
+/// Scenario: `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+/// (the DI-019 profile). Two identical queries are executed against the same engine.
+/// The first populates the cross-query response cache; the second must be a cache
+/// MISS (adapter called again) because the first response was DI-019-truncated and
+/// therefore incomplete.
+///
+/// Fix (landed): cache-completeness guard is
+///   `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`.
+/// `Di019CountingAdapter` sets `any_pipeline_truncated=true` → DI-019-truncated
+/// responses are NOT cached as complete → Query 2 re-fetches → call count == 2.
+#[tokio::test]
+async fn test_psg_rg035_di019_truncated_response_not_cached_as_complete() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, call_count) = make_di019_engine();
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        ..QueryOptions::default()
+    };
+
+    // Query 1: live fetch — adapter is called once.
+    let _r1 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("RG-PSG-035: Query 1 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "RG-PSG-035: Query 1 must invoke the sensor adapter exactly once"
+    );
+
+    // Query 2: identical SQL + same options.
+    // MUST be a cache MISS (adapter called again) because the DI-019-truncated
+    // partial is not a complete response and must not be cached.
+    //
+    // With the fix, `any_pipeline_truncated=true` prevents caching as complete.
+    // Query 2 therefore re-fetches from the sensor.
+    let _r2 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("RG-PSG-035: Query 2 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "RG-PSG-035 / EC-01-039 (F-R16-P18-LENSA-MED-001): a DI-019-truncated \
+         response (PipelineResult.truncated=true, any_early_stopped=false) must \
+         NOT be cached as complete — Query 2 must re-fetch from the sensor \
+         (expected call_count == 2, got {}). \
+         Root cause: `complete = errors.is_empty() && !any_early_stopped` does \
+         not account for `any_pipeline_truncated` → DI-019 partial is stored as \
+         a complete cache entry → Query 2 is a cache HIT → adapter not called. \
+         Fix: add `&& !fan_result.any_pipeline_truncated` to the completeness guard.",
+        call_count.load(std::sync::atomic::Ordering::SeqCst)
+    );
+}
+
+/// RG-PSG-036 / EC-01-039 / F-R16-P18-LENSA-MED-001 (DI-019 Step-6 truncation signal):
+/// When a pipeline-level record-count truncation (DI-019) fires and `options.limit=None`
+/// (no user-specified row limit), `QueryResult.is_truncated` must be `true`.
+///
+/// Scenario: `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+/// (the DI-019 profile). Query is executed with `options.limit = None`.
+///
+/// Fix (landed): engine Step 6 formula is
+///   `is_truncated = total_rows > limit || output.any_early_stopped || output.any_pipeline_truncated`
+/// With `any_pipeline_truncated = true` from the mock adapter:
+///   `is_truncated = false || false || true = true`.
+#[tokio::test]
+async fn test_psg_rg036_di019_truncated_step6_is_truncated_true() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, _call_count) = make_di019_engine();
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        // limit=None → effective_limit = usize::MAX in engine Step 6.
+        // With 10,001 rows: `10_001 > usize::MAX` is false, so the truncation
+        // signal MUST come from `any_pipeline_truncated`, not `total_rows > limit`.
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await
+        .expect("RG-PSG-036: execute must succeed (10,001 rows within usize::MAX mat-cap)");
+
+    assert!(
+        result.is_truncated,
+        "RG-PSG-036 / EC-01-039 (F-R16-P18-LENSA-MED-001): \
+         QueryResult.is_truncated must be true when DI-019 fires \
+         (PipelineResult.truncated=true, any_early_stopped=false, limit=None). \
+         Current engine Step 6 formula `total_rows > limit || any_early_stopped` = \
+         `10_001 > usize::MAX || false` = false — the `any_pipeline_truncated` \
+         term is missing. Fix: extend Step 6 to \
+         `is_truncated = total_rows > limit || any_early_stopped || any_pipeline_truncated`."
+    );
+}
+
+// ---------------------------------------------------------------------------
 // S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1 / CRIT-2
 // SqlPipe end-to-end via QueryEngine::execute (not via bare plan_sqlpipe_query)
 // ---------------------------------------------------------------------------
@@ -2645,6 +3030,7 @@ async fn test_crit1_sqlpipe_executes_via_engine_not_empty() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2689,6 +3075,7 @@ async fn test_crit2_sqlpipe_forbid_both_via_engine_returns_e_query_040() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2745,7 +3132,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2767,7 +3154,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Return one row with a `timestamp` column as a recent ISO-8601 string.
             // This is a recent timestamp so it falls within `NOW() - INTERVAL '7d'`.
             let schema = Arc::new(Schema::new(vec![
@@ -2780,7 +3167,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
             let ts_arr = Arc::new(StringArray::from(vec![ts_str.as_str()])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![ids, ts_arr]).expect("timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -2831,7 +3218,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2850,7 +3237,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("timestamp", DataType::Utf8, false),
@@ -2864,7 +3251,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
                 ],
             )
             .expect("sqlpipe timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -2923,6 +3310,7 @@ async fn test_forbid_both_fires_with_zero_row_sensor() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2977,6 +3365,7 @@ async fn test_high2_did_you_mean_near_miss_via_engine() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -3094,7 +3483,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3116,7 +3505,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_timestamp", DataType::Utf8, false),
@@ -3130,7 +3519,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
                 ],
             )
             .expect("pipe timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3193,7 +3582,7 @@ async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
     use prism_core::{OrgId, PrismError, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3215,10 +3604,10 @@ async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Return an empty vec — no batches at all.
             // This is different from row_count:0 (which returns vec![0-row-batch]).
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 
@@ -3287,7 +3676,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3309,7 +3698,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let mut guard = self
                 .captured_start
                 .lock()
@@ -3330,7 +3719,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
                 ],
             )
             .expect("spy batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3496,7 +3885,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3516,7 +3905,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Row A: now (inside 24h window)
             // Row B: 30 days ago (outside 24h window)
             let schema = Arc::new(Schema::new(vec![
@@ -3536,7 +3925,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3617,7 +4006,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3636,7 +4025,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_time", DataType::Utf8, false),
@@ -3657,7 +4046,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
                 ],
             )
             .expect("two-row sql stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3727,7 +4116,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3746,7 +4135,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_time", DataType::Utf8, false),
@@ -3767,7 +4156,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row sqlpipe stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3823,4 +4212,1033 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
 // ---------------------------------------------------------------------------
 
 // HIGH-002 tests are unit tests in lib.rs (pub(crate) access to inject_now).
+
+// ---------------------------------------------------------------------------
+// F-R13-MED-002: truncation signal correctness when plan-shape gate suppresses
+// early-stop — BC-2.11.001 `is_truncated` / `total_available` / `returned_results`
+// ---------------------------------------------------------------------------
+
+/// F-R13-MED-002 (BC-2.11.001): `QueryEngine::execute` must set `is_truncated = true`
+/// and report `total_available = 100` (true match count) when:
+///   1. the plan-shape gate suppresses early-stop (`fetch_limit = 0`), AND
+///   2. the filter yields MORE rows than the tool limit (100 > 25).
+///
+/// ## Defect being caught
+///
+/// `run_materialization_pipeline` contains a `truncate_result_to_limit` call that
+/// caps the DataFusion output to `options.limit` **before** returning to the caller.
+/// `engine.rs::execute` Step 6 then sees `total_rows = 25` (already capped) instead
+/// of `total_rows = 100`, so it computes `is_truncated = 25 > 25 = false` and
+/// `total_available = 25` — the truncation signal is silently lost.
+///
+/// The fix is to REMOVE `truncate_result_to_limit` from `run_materialization_pipeline`
+/// so Step 6 sees the raw 100 filtered rows and correctly computes
+/// `is_truncated = true`, `total_available = 100`, `returned_results = 25`.
+///
+/// ## Red-Gate mechanics
+///
+/// RED  (pre-cap present, current state):
+///   - Gate: `fetch_limit = 0` → 300 rows fetched.
+///   - DataFusion WHERE: 100 "page2" rows.
+///   - `truncate_result_to_limit(100, 25)` → 25 rows returned to engine.
+///   - Engine Step 6: total_rows=25, is_truncated=25>25=false, returned_results=25.
+///   - Assertions: `is_truncated == true` → FAIL; `total_available == 100` → FAIL.
+///
+/// GREEN (pre-cap removed):
+///   - `run_materialization_pipeline` returns 100 rows untruncated.
+///   - Engine Step 6: total_rows=100, is_truncated=100>25=true, returned_results=25.
+///   - All three assertions pass.
+///
+/// ## Setup
+///
+/// Uses `TruncSignalMockAdapter` (local to this test) whose `sensor_name() = "mock"`
+/// so the table reference `mock_events` resolves through `sensor_id_from_table_name`.
+/// The adapter replicates `PlanShapeGateMockAdapter` behavior:
+///   - `params.limit == 0`: gate suppressed → returns 300 rows (page1+page2+page3).
+///   - `params.limit > 0`: early-stop active → returns 100 rows (page1 only).
+///
+/// SAP-3: query goes through the full `QueryEngine::execute` path — not through a
+/// synthetic AST or `run_materialization_pipeline` directly.
+#[tokio::test]
+async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+        AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // TruncSignalMockAdapter
+    // -----------------------------------------------------------------------
+    // Returns different data based on params.limit:
+    //   limit == 0: gate suppressed → 300 rows (100 page1 + 100 page2 + 100 page3)
+    //   limit >  0: early-stop active → 100 rows (page1 only)
+    //
+    // The query `mock_events | where status = 'page2'` with a non-temporal predicate
+    // triggers Condition G in `ast_is_reducing_plan`, setting fetch_limit=0.
+    // DataFusion then filters the 300-row full set to 100 "page2" rows.
+    // With the pre-cap in place: those 100 rows are capped to 25 before engine Step 6.
+    // After pre-cap removal: engine Step 6 sees 100 rows and sets is_truncated=true.
+
+    struct TruncSignalMockAdapter {
+        fetch_count: Arc<AtomicU64>,
+        full_batches: Vec<RecordBatch>, // 300 rows — returned when limit == 0
+        page1_batches: Vec<RecordBatch>, // 100 rows — returned when limit > 0
+    }
+
+    impl std::fmt::Debug for TruncSignalMockAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("TruncSignalMockAdapter")
+                .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
+                .finish()
+        }
+    }
+
+    #[async_trait]
+    impl SensorAdapter for TruncSignalMockAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("mock")
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "mock"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<FetchOutput, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            if params.limit == 0 {
+                Ok(FetchOutput::new(self.full_batches.clone(), false, false))
+            } else {
+                Ok(FetchOutput::new(self.page1_batches.clone(), true, false))
+            }
+        }
+    }
+
+    // Build 300-row full set (100 page1 + 100 page2 + 100 page3).
+    fn make_status_batch(value: &str, n: usize) -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            true,
+        )]));
+        let values: Vec<Option<&str>> = std::iter::repeat_n(Some(value), n).collect();
+        let array = Arc::new(StringArray::from(values)) as Arc<dyn arrow::array::Array>;
+        RecordBatch::try_new(schema, vec![array]).expect("make_status_batch must succeed")
+    }
+
+    let fetch_count = Arc::new(AtomicU64::new(0));
+    let page1 = make_status_batch("page1", 100);
+    let page2 = make_status_batch("page2", 100);
+    let page3 = make_status_batch("page3", 100);
+
+    let adapter = Arc::new(TruncSignalMockAdapter {
+        fetch_count: Arc::clone(&fetch_count),
+        full_batches: vec![page1.clone(), page2, page3],
+        page1_batches: vec![page1],
+    });
+
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    // Build engine using the same helper used by AC-1..AC-7.
+    // `make_engine` wires StubCredentialResolver so fan_out can call the adapter.
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(25),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // Condition G: `| where status = 'page2'` is a non-temporal pipe WHERE predicate.
+    // `ast_is_reducing_plan` must detect it and set fetch_limit=0 (gate suppresses).
+    // DataFusion WHERE then filters 300 rows to 100 "page2" rows.
+    //
+    // With pre-cap:    materialization returns 25 → engine sees 25 → is_truncated=false.
+    // Without pre-cap: materialization returns 100 → engine sees 100 → is_truncated=true.
+    let result = engine
+        .execute("mock_events | where status = 'page2'", options)
+        .await
+        .expect("F-R13-MED-002: execute must not error for pipe WHERE query");
+
+    // Precondition: adapter must have been called (not vacuously empty pipeline).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "F-R13-MED-002: adapter must have been called at least once (fetch_count={fc}). \
+         A count of 0 means the pipeline short-circuited and all result assertions are vacuous."
+    );
+
+    // PRIMARY — truncation signal: is_truncated must be true when 100 rows > limit 25.
+    //
+    // RED  (pre-cap): engine sees total_rows=25 → is_truncated=false → FAIL.
+    // GREEN (fix):    engine sees total_rows=100 → is_truncated=true  → PASS.
+    assert!(
+        result.is_truncated,
+        "F-R13-MED-002 (BC-2.11.001): is_truncated must be true when 100 matching rows \
+         exceed the tool limit of 25; got is_truncated=false. \
+         This means truncate_result_to_limit pre-capped the output to 25 inside \
+         run_materialization_pipeline before engine Step 6 could compute the signal."
+    );
+
+    // PRIMARY — total_available must reflect the TRUE match count before the cap.
+    //
+    // RED  (pre-cap): total_available=25 (already capped) → FAIL.
+    // GREEN (fix):    total_available=100 (raw filtered count) → PASS.
+    assert_eq!(
+        result.total_available, 100,
+        "F-R13-MED-002 (BC-2.11.001): total_available must equal the true filtered \
+         match count (100); got {}. \
+         The pre-cap truncates before engine Step 6, so total_available reports 25 \
+         (the cap) instead of 100 (the real count).",
+        result.total_available
+    );
+
+    // PRIMARY — returned_results must honour the tool limit (25 rows delivered).
+    //
+    // PASSES both before and after fix (25 rows are returned either way).
+    // Included to confirm the cap still applies correctly at the engine layer.
+    assert_eq!(
+        result.returned_results, 25,
+        "F-R13-MED-002 (BC-2.11.001): returned_results must equal the tool limit (25); \
+         got {}.",
+        result.returned_results
+    );
+}
 // See `crates/prism-query/src/lib.rs` mod tests::high002_*
+
+// ---------------------------------------------------------------------------
+// RG-PSG-025: exact-limit is_truncated soundness (round-15)
+// ADR-060 §D8.3 — early-stop at exact LIMIT boundary must set is_truncated = true
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-025 — ADR-060 §D8.3: `is_truncated` must be `true` when early-stop fires
+/// at the exact LIMIT boundary (total_rows == limit with more pages remaining).
+///
+/// ## Defect Being Caught
+///
+/// Engine Step 6 computes `is_truncated = total_rows > limit`. When early-stop fires
+/// after exactly `limit` rows are accumulated (i.e., `all_records.len() >= limit`
+/// triggers the break), the pipeline returns exactly `limit` rows. DataFusion's
+/// LIMIT clause also returns exactly `limit` rows. Step 6 then sees:
+///
+///   `is_truncated = limit > limit = false`
+///
+/// This is WRONG: early-stop halted pagination with pages remaining (the mock has
+/// 3 × limit rows total). The honest signal is `is_truncated = true`.
+///
+/// ## Round-15 Fix (ADR-060 v1.5 §D8.3)
+///
+/// Propagate an `early_stopped` flag from `run_materialization_pipeline` to
+/// `QueryEngine::execute`. Engine Step 6 uses:
+///
+///   `is_truncated = early_stopped` (if early-stop fires, more data may exist,
+///   so always report truncated regardless of `total_rows vs limit` comparison).
+///
+/// Or equivalently: `is_truncated = total_rows >= limit` (since `>= limit` covers
+/// both the `> limit` case and the `== limit` early-stop case).
+///
+/// ## Mock Setup
+///
+/// `EarlyStopExactLimitMockAdapter`:
+/// - `params.limit  > 0`: returns exactly `EXACT_LIMIT` rows (one "full page")
+/// - `params.limit == 0`: returns `3 × EXACT_LIMIT` rows (all pages, gate suppressed)
+///
+/// Query: `SELECT * FROM mock_events LIMIT 1000` — bare projection, no WHERE/agg/DISTINCT.
+/// `ast_is_reducing_plan = false` → early-stop fires → `fetch_limit = 1000`.
+/// Mock returns 1000 rows. DataFusion LIMIT 1000 → 1000 rows to engine.
+/// Engine Step 6: `total_rows = 1000`, `limit = 1000`,
+///   `is_truncated = 1000 > 1000 = false` ← WRONG (2 more pages exist).
+///
+/// ## RED / GREEN
+///
+/// RED  (current — `is_truncated = total_rows > limit`):
+///   `is_truncated = 1000 > 1000 = false` → assertion `is_truncated == true` FAILS.
+/// RED  (post-Task-12, same formula unchanged):
+///   same → still FAILS.
+/// GREEN (round-15 fix — `early_stopped` propagated):
+///   `is_truncated = true` (early-stop fired) → PASSES.
+///
+/// SAP-3: query goes through the full `QueryEngine::execute` path from a real SQL
+/// query string — not through a synthetic AST or `run_materialization_pipeline` directly.
+#[tokio::test]
+async fn test_psg_exact_limit_is_truncated_true() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+        AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // The exact limit constant used by this test.
+    // -----------------------------------------------------------------------
+    const EXACT_LIMIT: usize = 1000;
+
+    // -----------------------------------------------------------------------
+    // EarlyStopExactLimitMockAdapter
+    //
+    // Returns EXACT_LIMIT rows when params.limit > 0 (early-stop active, one page).
+    // Returns 3 × EXACT_LIMIT rows when params.limit == 0 (gate suppressed, all pages).
+    //
+    // This simulates: server has 3 pages of 1000 rows each (3000 total). When
+    // early-stop fires after page 1 (1000 rows ≥ LIMIT 1000), we stop fetching.
+    // The 2 remaining pages (2000 rows) are never fetched.
+    // -----------------------------------------------------------------------
+    struct EarlyStopExactLimitMockAdapter {
+        fetch_count: Arc<AtomicU64>,
+        /// 1 page × EXACT_LIMIT rows — returned when params.limit > 0.
+        page1_batches: Vec<RecordBatch>,
+        /// 3 pages × EXACT_LIMIT rows — returned when params.limit == 0.
+        full_batches: Vec<RecordBatch>,
+    }
+
+    impl std::fmt::Debug for EarlyStopExactLimitMockAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("EarlyStopExactLimitMockAdapter")
+                .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
+                .finish()
+        }
+    }
+
+    #[async_trait]
+    impl SensorAdapter for EarlyStopExactLimitMockAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("mock")
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "mock"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<FetchOutput, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            if params.limit == 0 {
+                // Gate suppressed → return all 3000 rows (3 pages × EXACT_LIMIT).
+                Ok(FetchOutput::new(self.full_batches.clone(), false, false))
+            } else {
+                // Early-stop active → return EXACT_LIMIT rows (page 1 only).
+                // This simulates the boundary case: one full page = exactly the limit.
+                Ok(FetchOutput::new(self.page1_batches.clone(), true, false))
+            }
+        }
+    }
+
+    // Build RecordBatch with `n` rows; single "status" column (Utf8).
+    fn make_data_batch(n: usize) -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            true,
+        )]));
+        let values: Vec<Option<&str>> = std::iter::repeat_n(Some("data"), n).collect();
+        let array = Arc::new(StringArray::from(values)) as Arc<dyn arrow::array::Array>;
+        RecordBatch::try_new(schema, vec![array]).expect("make_data_batch must succeed")
+    }
+
+    // 3 pages × EXACT_LIMIT rows each.
+    let page1 = make_data_batch(EXACT_LIMIT);
+    let page2 = make_data_batch(EXACT_LIMIT);
+    let page3 = make_data_batch(EXACT_LIMIT);
+
+    let fetch_count = Arc::new(AtomicU64::new(0));
+    let adapter = Arc::new(EarlyStopExactLimitMockAdapter {
+        fetch_count: Arc::clone(&fetch_count),
+        page1_batches: vec![page1.clone()],
+        full_batches: vec![page1, page2, page3],
+    });
+
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    // Build engine using the helpers::make_engine factory (StubCredentialResolver wired).
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(EXACT_LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // Bare projection — no WHERE, no aggregation, no DISTINCT, no JOIN.
+    // ast_is_reducing_plan = false → early-stop fires → fetch_limit = EXACT_LIMIT.
+    // Mock: params.limit = EXACT_LIMIT > 0 → returns EXACT_LIMIT rows (page 1 only).
+    // DataFusion LIMIT EXACT_LIMIT → returns EXACT_LIMIT rows to engine.
+    // Engine Step 6: total_rows = EXACT_LIMIT, limit = EXACT_LIMIT.
+    //   is_truncated = EXACT_LIMIT > EXACT_LIMIT = false  ← WRONG (2 more pages exist)
+    //   returned_results = min(EXACT_LIMIT, EXACT_LIMIT) = EXACT_LIMIT
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM mock_events LIMIT {EXACT_LIMIT}"),
+            options,
+        )
+        .await
+        .expect("PSG-025: execute must not error for bare projection");
+
+    // Precondition: adapter must have been called (not a vacuous short-circuit).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-025 (exact-limit is_truncated): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means the pipeline short-circuited and all \
+         result assertions are vacuous."
+    );
+
+    // PRIMARY — is_truncated must be true when early-stop fires at the exact boundary.
+    //
+    // RED  (current code): is_truncated = EXACT_LIMIT > EXACT_LIMIT = false → FAILS.
+    // RED  (post-Task-12, same formula): same → still FAILS.
+    // GREEN (round-15 fix — propagate early_stopped flag):
+    //   is_truncated = early_stopped = true → PASSES.
+    //
+    // There are 2 remaining pages (2 × EXACT_LIMIT rows) that were never fetched.
+    // The consumer sees EXACT_LIMIT rows with is_truncated=false and has no signal
+    // that additional data exists — this is the defect being caught.
+    assert!(
+        result.is_truncated,
+        "PSG-025 (ADR-060 §D8.3 — exact-limit truncation signal): is_truncated must be \
+         true when early-stop fires at the exact LIMIT boundary ({EXACT_LIMIT} rows \
+         accumulated >= limit {EXACT_LIMIT}); got is_truncated=false. \
+         Engine Step 6 computes is_truncated = total_rows > limit = {EXACT_LIMIT} > \
+         {EXACT_LIMIT} = false — this misses the early-stop case where total_rows == \
+         limit but more pages exist. Fix: propagate early_stopped signal from \
+         run_materialization_pipeline and set is_truncated = true when early_stopped."
+    );
+
+    // SECONDARY — total_available must equal EXACT_LIMIT (Step 6 sole-owner, EC-11-093).
+    //
+    // This assertion passes both in RED and GREEN state; it verifies that materialization
+    // returns the full pre-cap count to engine Step 6 WITHOUT applying a tool-level pre-cap.
+    // A pre-cap inside run_materialization_pipeline would cause Step 6 to see fewer rows,
+    // producing a wrong total_available and potentially a wrong is_truncated signal.
+    //
+    // In both RED and GREEN: mock returns EXACT_LIMIT rows (page 1); DataFusion LIMIT
+    // EXACT_LIMIT → EXACT_LIMIT rows reach engine Step 6; total_available = EXACT_LIMIT.
+    assert_eq!(
+        result.total_available, EXACT_LIMIT,
+        "PSG-025 (EC-11-093 Step-6 sole-owner): total_available must equal the pre-cap \
+         row count ({EXACT_LIMIT}) returned by materialization; got {}. \
+         If total_available < EXACT_LIMIT, materialization applied a tool-level pre-cap \
+         before returning to engine Step 6, which violates the Step-6 sole-owner property \
+         and breaks is_truncated signal computation (F-R13-CRIT-001 prohibited behavior).",
+        result.total_available
+    );
+
+    // SECONDARY — returned_results must be the tool limit (EXACT_LIMIT rows delivered).
+    // This assertion passes both in RED and GREEN state; included as a sanity check.
+    assert_eq!(
+        result.returned_results, EXACT_LIMIT,
+        "PSG-025: returned_results must equal the tool LIMIT ({EXACT_LIMIT}); got {}.",
+        result.returned_results
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-PSG-027 / RG-PSG-028: multi-sensor fan-out any_early_stopped correctness
+// (round-16 remediation)
+// ADR-060 §D8.3 — any_early_stopped OR-aggregated across fan-out sensors
+// BC-2.11.001 EC-11-092/EC-11-093
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-027 — ADR-060 §D8.3: `is_truncated = true` when at least one sensor
+/// in a 2-sensor fan-out early-stops at the exact LIMIT boundary.
+///
+/// ## Topology
+///
+/// 2-sensor fan-out, `options.limit = 50`:
+/// - sensor1 (org1): returns 40 rows (no early-stop — sensor has exactly 40 rows)
+/// - sensor2 (org2): returns 10 rows (models early-stop at page boundary — sensor
+///   stopped pagination after page 1, more pages exist)
+/// - total = 40 + 10 = 50 == limit
+///
+/// ## Expected behavior (ADR-060 §D8.3)
+///
+/// `is_truncated = (total_rows > limit) OR any_early_stopped`
+///   = (50 > 50) OR true
+///   = false OR true
+///   = true
+///
+/// ## Current state (heuristic path)
+///
+/// The current implementation at `materialization.rs` computes:
+///   `any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit`
+///   = `50 > 0 && 50 >= 50` = `true`
+///
+/// By coincidence, this gives the CORRECT answer for this topology (sum equals
+/// limit), so `is_truncated = true` and the assertion PASSES with the current code.
+///
+/// NOTE: This test becomes RED in the intermediate state (post-Task-11 heuristic
+/// removal, pre-Task-16 per-sensor chain wiring). It is written now so the
+/// implementer has a green target to hit when wiring the correct chain.
+///
+/// ## SAP-3 compliance
+///
+/// The query goes through `QueryEngine::execute` from a real SQL string (not a
+/// synthetic AST or direct `run_materialization_pipeline` call).
+#[tokio::test]
+async fn test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    const LIMIT: usize = 50;
+
+    // Register two StubAdapters: sensor1 returns 40 rows, sensor2 returns 10 rows.
+    // Total = 50 == LIMIT.
+    //
+    // sensor2 models a sensor that early-stopped at the page boundary (it has more
+    // pages, but pagination halted after returning exactly 10 rows that completed
+    // the limit). StubAdapter does not simulate internal pagination — the "early-stop"
+    // signal is provided by the any_early_stopped chain wired in Task 16.
+    //
+    // HARNESS NOTE — why explicit OrgRegistry + clients: Some(...):
+    //
+    // UUID v7 uses a 48-bit millisecond timestamp in the high bits.  Two consecutive
+    // OrgId::new() calls within the same millisecond produce UUIDs whose first 8 hex
+    // characters are IDENTICAL.  The materialization pipeline builds in-query cache
+    // keys as:
+    //
+    //   format!("{}:{:?}:{}:{}", target.client_id.as_str(), ...)
+    //
+    // When the pipeline runs without an OrgRegistry, it synthesises client_id as
+    // "org-{first8_of_org_uuid}".  Identical first-8 chars → identical cache keys
+    // → the second adapter is served from the in-query cache (skips live fan-out,
+    // skips total_fetched_rows accumulation).  Result: total_fetched_rows = 40 (or 10)
+    // instead of 50, heuristic does not fire, both tests fail for the WRONG reason.
+    //
+    // Fix: wire an OrgRegistry that maps deterministic slug strings ("org1"/"org2")
+    // to each distinct OrgId.  The pipeline's explicit-client path (resolve_org_id
+    // Path 1) maps "org1" → org_id1 and "org2" → org_id2, giving unique cache keys
+    // "org1:..." and "org2:..." regardless of UUID timestamp similarity.
+    let org_id1 = OrgId::new();
+    let org_id2 = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id1,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 40,
+            client_slug: "org1".to_string(),
+            any_early_stopped: false,
+        }),
+    );
+    registry.register(
+        org_id2,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 10,
+            client_slug: "org2".to_string(),
+            any_early_stopped: true,
+        }),
+    );
+
+    let org_registry = prism_core::OrgRegistry::new();
+    org_registry
+        .register(helpers::org("org1"), org_id1)
+        .expect("PSG-027: register org1 must succeed");
+    org_registry
+        .register(helpers::org("org2"), org_id2)
+        .expect("PSG-027: register org2 must succeed");
+
+    let engine = helpers::make_engine(registry, vec![helpers::org("org1"), helpers::org("org2")])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("org1"), helpers::org("org2")]),
+        sensors: None,
+        limit: Some(LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
+            options,
+        )
+        .await
+        .expect(
+            "PSG-027: QueryEngine::execute must not error for 2-sensor fan-out \
+             (40+10 rows, limit=50) against StubAdapters",
+        );
+
+    // PRECONDITION: total rows must be exactly LIMIT (non-vacuous execution check).
+    assert_eq!(
+        result.total_available, LIMIT,
+        "PSG-027 precondition: total_available must be {LIMIT} (40 + 10 rows from fan-out); \
+         got {}. A lower count means one or both adapters short-circuited.",
+        result.total_available
+    );
+
+    // PRECONDITION: returned_results must equal LIMIT (no silent cap below limit).
+    assert_eq!(
+        result.returned_results, LIMIT,
+        "PSG-027 precondition: returned_results must be {LIMIT}; got {}.",
+        result.returned_results
+    );
+
+    // PRIMARY — is_truncated must be true: sensor2 early-stopped, more data exists.
+    //
+    // ADR-060 §D8.3: is_truncated = (total_rows > limit) OR any_early_stopped
+    //   = (50 > 50) OR true = false OR true = true.
+    //
+    // CURRENT (heuristic): total_fetched=50 >= fetch_limit=50 → any_early_stopped=true
+    //   → is_truncated=true → PASSES (correct result, wrong mechanism).
+    // POST-ROUND-16 (correct chain): any_early_stopped OR-aggregated from per-sensor
+    //   FetchOutput.early_stopped → same result via proper chain → PASSES.
+    assert!(
+        result.is_truncated,
+        "PSG-027 (ADR-060 §D8.3 — 2-sensor fan-out, one sensor early-stopped): \
+         is_truncated must be true when sensor2 (10 rows) early-stopped at the page \
+         boundary (total_rows={total}==limit={LIMIT}, any_early_stopped=true). \
+         Engine Step 6: is_truncated = (total > limit) OR any_early_stopped \
+         = ({total} > {LIMIT}) OR true = true. \
+         Got is_truncated=false.",
+        total = result.total_available
+    );
+}
+
+/// RG-PSG-028 — ADR-060 §D8.3: `is_truncated = false` when all sensors in a
+/// 2-sensor fan-out return rows WITHOUT early-stopping, even though the sum
+/// equals the query limit exactly.
+///
+/// ## Topology
+///
+/// 2-sensor fan-out, `options.limit = 50`:
+/// - sensor1 (org1): returns 25 rows (no early-stop — sensor exhausted)
+/// - sensor2 (org2): returns 25 rows (no early-stop — sensor exhausted)
+/// - total = 25 + 25 = 50 == limit
+///
+/// ## Expected behavior (ADR-060 §D8.3)
+///
+/// `is_truncated = (total_rows > limit) OR any_early_stopped`
+///   = (50 > 50) OR false
+///   = false OR false
+///   = false
+///
+/// ## RED Gate — WHY THIS MUST FAIL NOW
+///
+/// The current heuristic at `materialization.rs`:
+///   `any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit`
+///   = `50 > 0 && 50 >= 50` = `true`
+///
+/// This is a FALSE POSITIVE: no sensor actually early-stopped. Both sensors
+/// exhausted their full result set. The heuristic cannot distinguish this case
+/// from a case where sensors did stop early.
+///
+/// Therefore:
+///   `is_truncated = (50 > 50) OR true (FALSE POSITIVE) = true`
+///
+/// The assertion `is_truncated == false` FAILS → RED GATE.
+///
+/// ## GREEN (post-round-16)
+///
+/// After implementing per-sensor `FetchOutput.early_stopped` tracking and wiring
+/// `any_early_stopped` as an OR-aggregation across all sensors:
+///   `any_early_stopped = false OR false = false`
+///   `is_truncated = false OR false = false` → assertion PASSES.
+///
+/// ## SAP-3 compliance
+///
+/// The query goes through `QueryEngine::execute` from a real SQL string.
+#[tokio::test]
+async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    const LIMIT: usize = 50;
+
+    // Register two StubAdapters each returning 25 rows — no early-stop on either.
+    // Total = 50 == LIMIT.  Both sensors exhausted their full result set.
+    //
+    // HARNESS NOTE — why explicit OrgRegistry + clients: Some(...):
+    // (See PSG-027 for the full explanation of the UUID v7 collision root cause.)
+    //
+    // Without OrgRegistry: both OrgId::new() calls in the same millisecond produce
+    // UUIDs with identical first-8 hex chars → synthetic cache key "org-{first8}:..."
+    // collides for both adapters → second adapter served from in-query cache →
+    // total_fetched_rows = 25 (not 50) → heuristic 25 < 50 = false → any_early_stopped=false
+    // → is_truncated=false → assertion !is_truncated PASSES for the WRONG reason.
+    //
+    // With OrgRegistry: unique slugs "org1"/"org2" → cache keys "org1:..." and "org2:..."
+    // → both adapters execute live fan-out → total_fetched_rows = 50 → heuristic
+    // 50 >= 50 = TRUE (FALSE POSITIVE) → any_early_stopped=true → is_truncated=true
+    // → assertion !is_truncated FAILS → RED GATE (correct).
+    let org_id1 = OrgId::new();
+    let org_id2 = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id1,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 25,
+            client_slug: "org1".to_string(),
+            any_early_stopped: false,
+        }),
+    );
+    registry.register(
+        org_id2,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 25,
+            client_slug: "org2".to_string(),
+            any_early_stopped: false,
+        }),
+    );
+
+    let org_registry = prism_core::OrgRegistry::new();
+    org_registry
+        .register(helpers::org("org1"), org_id1)
+        .expect("PSG-028: register org1 must succeed");
+    org_registry
+        .register(helpers::org("org2"), org_id2)
+        .expect("PSG-028: register org2 must succeed");
+
+    let engine = helpers::make_engine(registry, vec![helpers::org("org1"), helpers::org("org2")])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("org1"), helpers::org("org2")]),
+        sensors: None,
+        limit: Some(LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
+            options,
+        )
+        .await
+        .expect(
+            "PSG-028: QueryEngine::execute must not error for 2-sensor fan-out \
+             (25+25 rows, limit=50) against StubAdapters",
+        );
+
+    // PRECONDITION: total rows must be exactly LIMIT (both sensors fully exhausted).
+    assert_eq!(
+        result.total_available, LIMIT,
+        "PSG-028 precondition: total_available must be {LIMIT} (25 + 25 rows from fan-out); \
+         got {}. A lower count means one or both adapters short-circuited.",
+        result.total_available
+    );
+
+    // PRECONDITION: returned_results must equal LIMIT (no silent cap below limit).
+    assert_eq!(
+        result.returned_results, LIMIT,
+        "PSG-028 precondition: returned_results must be {LIMIT}; got {}.",
+        result.returned_results
+    );
+
+    // PRIMARY — is_truncated must be false: no sensor early-stopped, all data returned.
+    //
+    // ADR-060 §D8.3: is_truncated = (total_rows > limit) OR any_early_stopped
+    //   = (50 > 50) OR false = false OR false = false.
+    //
+    // RED  (current heuristic): total_fetched=50 >= fetch_limit=50 → any_early_stopped=TRUE
+    //   → is_truncated = false OR TRUE = TRUE → assertion FAILS → RED GATE.
+    //   The heuristic cannot distinguish "50 rows because sensors exhausted at 25+25"
+    //   from "50 rows because sensors stopped early at the limit boundary".
+    //
+    // GREEN (post-round-16): per-sensor FetchOutput.early_stopped=false for both sensors
+    //   → any_early_stopped = false OR false = false
+    //   → is_truncated = false OR false = false → assertion PASSES.
+    assert!(
+        !result.is_truncated,
+        "PSG-028 (ADR-060 §D8.3 — RED GATE — 2-sensor fan-out, no early-stop): \
+         is_truncated must be false when both sensors fully exhausted their result sets \
+         (sensor1=25 rows, sensor2=25 rows, total=50==limit={LIMIT}, any_early_stopped=false). \
+         Engine Step 6 should compute: is_truncated = (50>50) OR false = false. \
+         Got is_truncated=true. \
+         \n\nDiagnosis: The heuristic `total_fetched_rows >= fetch_limit` (50>=50=true) \
+         produces a FALSE POSITIVE — it cannot distinguish sensor exhaustion from \
+         early-stop pagination. Fix: implement per-sensor FetchOutput.early_stopped \
+         and OR-aggregate into FanOutResult.any_early_stopped (ADR-060 §D8.3, \
+         S-ENGINE-LIMIT-EARLY-STOP-001 Task 16)."
+    );
+}
+
+// ===========================================================================
+// SLUG-005 — RG-SLUG-005 (AC-013): cross-tenant cache-key collision
+//            resistance — collision-resistant cache keys via OrgRegistry
+// ===========================================================================
+
+/// RG-SLUG-005 — ADR-061 D4 collision-resistant in-query cache keys
+///
+/// Verifies that two `OrgId`s whose UUIDs share an identical first-8-hex prefix
+/// produce DISTINCT in-query cache keys after the D2 fix for Step 3b, so that
+/// adapter-B is called independently of adapter-A and its rows appear in the result.
+///
+/// ## Collision mechanism (current code — RED)
+///
+/// Step 3b synthesizes a slug via `format!("org-{}", &org_id.to_string()[..8])`.
+/// Two `OrgId`s built from bytes with prefix `[0xde, 0xad, 0xbe, 0xef, ...]`
+/// both stringify to `"deadbeef-..."` — first 8 chars are "deadbeef" for both.
+/// Synthetic slugs are identical: `"org-deadbeef"`.
+///
+/// In-query cache key: `format!("{}:{:?}:{}:{}", target.client_id, sensor_id, …)`.
+/// With the same slug, adapter-A fetches first and its rows are cached under
+/// `"org-deadbeef:crowdstrike:crowdstrike:..."`.  Adapter-B's key is identical →
+/// cache HIT → adapter-B is NEVER called → "beta-001" rows are absent from result.
+///
+/// Assertion `provider_values_contain_beta` FAILS → RED GATE.
+///
+/// ## Correct behaviour (post-D2 fix — GREEN)
+///
+/// Step 3b checks `mat_ctx.org_registry`:
+/// - org_id_A → `"tenant-alpha"` (from OrgRegistry)
+/// - org_id_B → `"tenant-beta"`  (from OrgRegistry)
+/// Distinct slugs → distinct in-query cache keys → adapter-B fetched independently
+/// → "beta-001" rows present → assertion PASSES.
+///
+/// ## Engine-layer defense-in-depth assertion (NOT the wire-level MCP assertion)
+///
+/// This test operates on `QueryResult.batches` (Arrow `RecordBatch` structs) —
+/// a pre-serialization Rust structure.  It verifies the engine-layer isolation
+/// property directly.
+///
+/// The MCP wire-level assertion — routing through `PrismServer::query` and
+/// asserting on `CallToolResult.content[0].text` (the exact bytes the LLM agent
+/// consumes) — is in `crates/prism-bin/tests/mcp_integration_tests.rs`
+/// `test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys`
+/// (F-R16-P15-LENSB-MED-001 fix).
+///
+/// Both tests are load-bearing: this test catches engine-layer isolation
+/// failures before they reach the wire; the wire test catches envelope-path
+/// bugs that this test cannot see.
+///
+/// SAP-3: the query reaches the fan-out path through `QueryEngine::execute`
+/// from a real bare-filter string, not a synthetic AST.
+#[tokio::test]
+async fn test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys() {
+    use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use uuid::Uuid;
+
+    // Build two OrgIds whose first-8-hex chars are identical ("deadbeef").
+    // bytes[0..4] = [0xde, 0xad, 0xbe, 0xef] → UUID display starts "deadbeef-".
+    // bytes[15] differs so the UUIDs are distinct.
+    let uuid_a = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]);
+    let uuid_b = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x02,
+    ]);
+    let org_id_a = OrgId::from_uuid(uuid_a);
+    let org_id_b = OrgId::from_uuid(uuid_b);
+
+    // Verify the collision precondition: both produce the same first-8-hex prefix.
+    assert_eq!(
+        &org_id_a.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 precondition: org_id_a first-8-hex must be 'deadbeef'"
+    );
+    assert_eq!(
+        &org_id_b.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 precondition: org_id_b first-8-hex must be 'deadbeef'"
+    );
+
+    // ---------------------------------------------------------------------------
+    // Two inline adapters: adapter-A returns "alpha-001", adapter-B "beta-001".
+    // ---------------------------------------------------------------------------
+    struct ProviderAdapter {
+        sensor_id: SensorId,
+        provider_value: &'static str,
+        fetch_count: std::sync::Arc<AtomicU64>,
+    }
+
+    impl std::fmt::Debug for ProviderAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("ProviderAdapter")
+                .field("provider_value", &self.provider_value)
+                .finish()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl prism_sensors::adapter::SensorAdapter for ProviderAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &prism_sensors::adapter::SensorSpec,
+            _params: &prism_sensors::adapter::QueryParams,
+            _auth: &dyn prism_sensors::auth::SensorAuth,
+        ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError>
+        {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            let schema = std::sync::Arc::new(arrow::datatypes::Schema::new(vec![
+                arrow::datatypes::Field::new("provider", arrow::datatypes::DataType::Utf8, false),
+            ]));
+            let arr =
+                std::sync::Arc::new(arrow::array::StringArray::from(vec![self.provider_value]))
+                    as _;
+            let batch =
+                arrow::record_batch::RecordBatch::try_new(schema, vec![arr]).expect("batch");
+            Ok(prism_sensors::adapter::FetchOutput::new(
+                vec![batch],
+                false,
+                false,
+            ))
+        }
+    }
+
+    let fetch_count_a = std::sync::Arc::new(AtomicU64::new(0));
+    let fetch_count_b = std::sync::Arc::new(AtomicU64::new(0));
+
+    let mut adapter_registry = prism_sensors::AdapterRegistry::new();
+    adapter_registry.register(
+        org_id_a,
+        std::sync::Arc::new(ProviderAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            provider_value: "alpha-001",
+            fetch_count: std::sync::Arc::clone(&fetch_count_a),
+        }),
+    );
+    adapter_registry.register(
+        org_id_b,
+        std::sync::Arc::new(ProviderAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            provider_value: "beta-001",
+            fetch_count: std::sync::Arc::clone(&fetch_count_b),
+        }),
+    );
+
+    // OrgRegistry with both orgs mapped — after D2 fix, Step 3b will use these
+    // distinct slugs instead of the identical "org-deadbeef" synthetic slug.
+    let org_registry = OrgRegistry::new();
+    org_registry
+        .register(helpers::org("tenant-alpha"), org_id_a)
+        .expect("register tenant-alpha");
+    org_registry
+        .register(helpers::org("tenant-beta"), org_id_b)
+        .expect("register tenant-beta");
+
+    // CRITICAL: use an EMPTY ClientRegistry so Step 3b (bare-filter ALL-scope fan-out) fires.
+    //
+    // With a populated ClientRegistry containing "tenant-alpha"/"tenant-beta",
+    // `resolve_clients(None, registry)` returns those slugs as an explicit list.
+    // `run_materialization_pipeline` then routes through `resolve_source_refs` with
+    // explicit clients, which already looks up OrgRegistry correctly — bypassing Step 3b
+    // entirely and making the test pass vacuously (the bug is never exercised).
+    //
+    // With an empty ClientRegistry: `resolve_clients(None, empty)` returns `[]`.
+    // In the pipeline `all_clients = []` → targets remain empty after Steps 1–3a →
+    // Step 3b fires: iterates adapter_registry, synthesizes slugs from first-8-hex.
+    // Collision: both org_ids get "org-deadbeef" → same cache key → adapter-B skipped.
+    let engine = helpers::make_engine(adapter_registry, vec![])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    // Bare-filter query (no explicit source) → Step 3b fan-out to ALL adapters.
+    // With collision (current code): both get slug "org-deadbeef" → same cache key
+    //   → adapter-B hits adapter-A's cache → adapter-B NEVER called → "beta-001" absent.
+    // After fix: distinct slugs "tenant-alpha"/"tenant-beta" → distinct cache keys
+    //   → both adapters fetched → "beta-001" present.
+    let options = QueryOptions {
+        clients: None, // ALL scope — Step 3b enumerates all registered adapters
+        sensors: None,
+        limit: Some(10),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+    let result = engine
+        .execute("provider IS NOT NULL", options)
+        .await
+        .expect(
+            "SLUG-005: QueryEngine::execute must not error for bare-filter fan-out \
+             (provider IS NOT NULL against crowdstrike adapters)",
+        );
+
+    // Engine-layer defense-in-depth: collect 'provider' column values from
+    // QueryResult.batches (Arrow RecordBatch — pre-serialization Rust structs).
+    // Verifies the engine-layer isolation property. This does NOT exercise the
+    // MCP wire path; see mcp_integration_tests.rs for the real wire-level assertion.
+    let provider_values: Vec<String> = result
+        .batches
+        .iter()
+        .flat_map(|b| {
+            b.schema()
+                .index_of("provider")
+                .ok()
+                .map(|col_idx| {
+                    let arr = b
+                        .column(col_idx)
+                        .as_any()
+                        .downcast_ref::<arrow::array::StringArray>()
+                        .expect("provider column must be StringArray");
+                    (0..arr.len())
+                        .map(|i| arr.value(i).to_string())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        })
+        .collect();
+
+    // Engine-layer assertion: "beta-001" must appear in the result batches.
+    //
+    // RED (current code — Step 3b collision):
+    //   Both org_ids get slug "org-deadbeef" → cache collision → adapter-B never called
+    //   → result contains only "alpha-001" rows → provider_values does NOT contain "beta-001"
+    //   → FAILS.
+    //
+    // GREEN (post-D2 fix):
+    //   org_id_B → slug "tenant-beta" → distinct cache key → adapter-B fetched
+    //   → "beta-001" row in result → provider_values CONTAINS "beta-001" → PASSES.
+    let provider_values_contain_beta = provider_values.iter().any(|v| v == "beta-001");
+    assert!(
+        provider_values_contain_beta,
+        "RG-SLUG-005 (ADR-061 D4 — collision-resistant cache keys via OrgRegistry, \
+         engine-layer defense-in-depth): \
+         'beta-001' rows from adapter-B must appear in QueryResult.batches. \
+         Got provider_values={provider_values:?}. \
+         If absent, Step 3b synthesized the same slug 'org-deadbeef' for both org_ids \
+         (UUID prefix collision), causing an in-query cache HIT for adapter-B that served \
+         adapter-A's rows. Fix: Step 3b must consult mat_ctx.org_registry when present \
+         (ADR-061 D2 for the bare-filter path). \
+         NOTE: the MCP wire-level assertion is in \
+         test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys."
+    );
+}

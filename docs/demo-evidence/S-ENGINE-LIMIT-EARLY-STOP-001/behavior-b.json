@@ -1,0 +1,80 @@
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"_meta\":{\"data_source\":[\"claroty\"],\"has_more\":false,\"next_cursor\":null,\"page\":1,\"query_time\":\"2026-08-30T08:11:22.794699+00:00\",\"safety_flags\":[],\"tool\":\"query\",\"total_results\":1,\"trust_level\":\"untrusted_external\"},\"content\":[{\"text\":\"1 result found\",\"type\":\"text\"}],\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT * FROM claroty_alerts LIMIT 1\",\"returned_results\":1,\"rows\":[{\"_client\":\"org-b\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2025-12-29T05:41:00Z\",\"finding_info_title\":\"Alert-0\",\"finding_info_uid\":\"150\",\"message\":\"Alert 0 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2025-12-26T15:38:00Z\"}],\"total_available\":1},\"structuredContent\":{\"results\":{\"is_truncated\":false,\"normalized_pql\":\"SELECT * FROM claroty_alerts LIMIT 1\",\"returned_results\":1,\"rows\":[{\"_client\":\"org-b\",\"_sensor\":\"claroty\",\"_source_table\":\"claroty_alerts\",\"_source_type\":\"live\",\"class_uid\":2004,\"finding_info_modified_time\":\"2025-12-29T05:41:00Z\",\"finding_info_title\":\"Alert-0\",\"finding_info_uid\":\"150\",\"message\":\"Alert 0 detected by fixture generator\",\"raw_extensions\":\"{\\\"alert_class\\\":\\\"policy_violation\\\",\\\"alert_type_name\\\":\\\"Network Anomaly\\\",\\\"category\\\":\\\"Segmentation\\\",\\\"devices_count\\\":1,\\\"ot_devices_count\\\":1}\",\"status\":\"Unresolved\",\"time\":\"2025-12-26T15:38:00Z\"}],\"total_available\":1}}}"
+      }
+    ],
+    "structuredContent": {
+      "_meta": {
+        "data_source": [
+          "claroty"
+        ],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-08-30T08:11:22.794699+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 1,
+        "trust_level": "untrusted_external"
+      },
+      "content": [
+        {
+          "text": "1 result found",
+          "type": "text"
+        }
+      ],
+      "results": {
+        "is_truncated": false,
+        "normalized_pql": "SELECT * FROM claroty_alerts LIMIT 1",
+        "returned_results": 1,
+        "rows": [
+          {
+            "_client": "org-b",
+            "_sensor": "claroty",
+            "_source_table": "claroty_alerts",
+            "_source_type": "live",
+            "class_uid": 2004,
+            "finding_info_modified_time": "2025-12-29T05:41:00Z",
+            "finding_info_title": "Alert-0",
+            "finding_info_uid": "150",
+            "message": "Alert 0 detected by fixture generator",
+            "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+            "status": "Unresolved",
+            "time": "2025-12-26T15:38:00Z"
+          }
+        ],
+        "total_available": 1
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": false,
+          "normalized_pql": "SELECT * FROM claroty_alerts LIMIT 1",
+          "returned_results": 1,
+          "rows": [
+            {
+              "_client": "org-b",
+              "_sensor": "claroty",
+              "_source_table": "claroty_alerts",
+              "_source_type": "live",
+              "class_uid": 2004,
+              "finding_info_modified_time": "2025-12-29T05:41:00Z",
+              "finding_info_title": "Alert-0",
+              "finding_info_uid": "150",
+              "message": "Alert 0 detected by fixture generator",
+              "raw_extensions": "{\"alert_class\":\"policy_violation\",\"alert_type_name\":\"Network Anomaly\",\"category\":\"Segmentation\",\"devices_count\":1,\"ot_devices_count\":1}",
+              "status": "Unresolved",
+              "time": "2025-12-26T15:38:00Z"
+            }
+          ],
+          "total_available": 1
+        }
+      }
+    },
+    "isError": false
+  }
+}

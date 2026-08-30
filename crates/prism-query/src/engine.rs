@@ -1095,7 +1095,19 @@ impl QueryEngine {
         // Step 6: Apply tool-level limit truncation.
         let limit = options.limit.unwrap_or(usize::MAX);
         let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
-        let is_truncated = total_rows > limit;
+        // ADR-060 §D8.3 (RG-PSG-025/026): is_truncated must be true when the sensor
+        // fan-out stopped early (any_early_stopped) regardless of whether total_rows
+        // exceeds limit. The boundary case total_rows == limit is TRUNCATED when early-
+        // stop fired (more pages exist but were not fetched). Without the OR term, a
+        // sensor returning exactly `limit` rows appears complete even though 2+ pages
+        // were never fetched (AC-009 / EC-11-092).
+        // ADR-060 §D8.10 (RG-PSG-036 / F-R16-P18-LENSA-MED-001): is_truncated must also
+        // be true when the spec-engine pipeline hit the DI-019 record-count cap
+        // (PipelineResult.truncated=true, any_early_stopped=false). Without this term,
+        // `limit=None → usize::MAX` causes `total_rows > limit` to be false even when
+        // 10K rows were silently dropped by DI-019.
+        let is_truncated =
+            total_rows > limit || output.any_early_stopped || output.any_pipeline_truncated;
         let returned_results = total_rows.min(limit);
 
         // Truncate to limit (if needed).
@@ -1395,10 +1407,15 @@ impl QueryEngine {
             execution_time_ms: 0, // filled in by execute_scheduled()
         };
 
+        // ADR-060 §D8.10 / F-R16-P18-LENSA-OBS-001 (scheduled path sibling sweep):
+        // Scheduled queries must reflect DI-019 truncation and early-stop in is_truncated,
+        // matching the analyst path formula. The previous hardcoded `false` suppressed
+        // truncation signals for all scheduled queries.
+        let is_truncated = output.any_early_stopped || output.any_pipeline_truncated;
         let qr = QueryResult {
             batches: output.batches,
             total_available: total_rows,
-            is_truncated: false,
+            is_truncated,
             returned_results: total_rows,
             context,
             sensor_errors: output.sensor_errors,

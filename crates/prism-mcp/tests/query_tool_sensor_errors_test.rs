@@ -66,8 +66,9 @@ mod tests {
         table_registry::TableRegistry,
     };
     use prism_sensors::{
-        AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
-        SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+        adapter::FetchOutput, AdapterRegistry, CredentialResolver,
+        QueryParams as SensorQueryParams, SensorAdapter, SensorAuth, SensorError,
+        SensorSpec as SensorAdapterSpec,
     };
     use prism_spec_engine::{
         overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
@@ -112,7 +113,7 @@ mod tests {
             _spec: &SensorAdapterSpec,
             _params: &SensorQueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             Err(SensorError::HttpError {
                 sensor: self.sensor_id.to_string(),
                 status: self.http_status,
@@ -681,7 +682,7 @@ mod tests {
             _spec: &SensorAdapterSpec,
             _params: &SensorQueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             use std::sync::Arc as StdArc;
             let schema = StdArc::new(arrow::datatypes::Schema::new(vec![
                 arrow::datatypes::Field::new("item_id", arrow::datatypes::DataType::Utf8, true),
@@ -691,7 +692,7 @@ mod tests {
                 vec![StdArc::new(StringArray::from(vec!["rg017_success_row"]))],
             )
             .expect("RG-017 StubSuccessAdapter: RecordBatch construction must not fail");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 

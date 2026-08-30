@@ -181,7 +181,7 @@ async fn test_BC_2_16_013_dtu_parity_crowdstrike() {
 
     // Step 4: Construct FetchContext with test org slug (audit-allowlisted in new_unchecked_audit.rs;
     // production callers prohibited per AD-017).
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     // Step 5: Build HTTP client with required 30-second timeout (CLAUDE.md §Conventions).
     let http_client = reqwest::Client::builder()
@@ -257,7 +257,7 @@ async fn test_BC_2_16_013_dtu_parity_crowdstrike_batch_cap_100_ids() {
         .find(|t| t.table_name == "detections")
         .expect("detections table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()

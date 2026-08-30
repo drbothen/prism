@@ -67,7 +67,7 @@ fn one_step_spec(base_url: &str, path_template: &str, response_path: &str) -> Se
 }
 
 fn default_context() -> FetchContext {
-    FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
+    FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None)
 }
 
 // ---------------------------------------------------------------------------
@@ -531,7 +531,7 @@ async fn test_BC_2_16_002_execute_interpolates_body_template_and_derives_content
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -620,7 +620,7 @@ async fn test_BC_2_16_002_execute_percent_encodes_opaque_cursor() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -713,7 +713,7 @@ async fn test_BC_2_16_002_execute_only_final_step_records_in_pipeline_result() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -804,7 +804,7 @@ async fn test_BC_2_16_002_execute_fan_out_invokes_step_per_batch() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -894,7 +894,7 @@ async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_ca
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -972,7 +972,7 @@ async fn test_BC_2_16_002_execute_interpolates_query_filter_in_path_template() {
     let table = spec.tables[0].clone();
     let mut filters = HashMap::new();
     filters.insert("severity".to_string(), "critical".to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1058,7 +1058,7 @@ async fn test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1159,7 +1159,7 @@ async fn test_BC_2_16_002_execute_fan_out_sends_distinct_batch_urls() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1296,7 +1296,7 @@ async fn test_BC_2_16_002_execute_aborts_on_non_advancing_cursor() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1362,7 +1362,7 @@ async fn test_BC_2_16_002_execute_derives_application_json_for_array_body() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1448,7 +1448,7 @@ async fn test_BC_2_16_002_execute_coerces_numeric_cursor_to_string() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -2150,7 +2150,7 @@ async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500()
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
@@ -2496,7 +2496,7 @@ async fn test_BC_2_16_002_cursor_preview_handles_multi_byte_utf8_without_panic()
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -2661,7 +2661,7 @@ async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() 
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -2805,7 +2805,7 @@ async fn test_BC_2_16_002_fanout_invalid_source_type_emits_structured_event_for_
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -2912,7 +2912,7 @@ async fn test_BC_2_16_002_rg009_send_failure_includes_source_chain() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("rg009-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("rg009-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
@@ -3040,7 +3040,7 @@ async fn test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_ut
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("med1-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("med1-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
@@ -3155,7 +3155,7 @@ async fn test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("f1-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("f1-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()

@@ -300,3 +300,12 @@ required-features = ["test-helpers"]
 [[test]]
 name = "bc_2_19_redo_test"
 path = "tests/bc_2_19_redo_test.rs"
+
+# S-ENGINE-LIMIT-EARLY-STOP-001: RG-001..RG-004 — LIMIT-aware early-stop pagination pipeline tests.
+# Tests FetchContext.early_stop_limit wiring at the PipelineExecutor level.
+# required-features: NullAuthProvider is feature-gated behind "test-helpers".
+# BCs: BC-2.16.002 LIMIT-Aware Early-Stop (ADR-060 §D8).
+[[test]]
+name = "bc_2_16_002_early_stop_tests"
+path = "tests/bc_2_16_002_early_stop_tests.rs"
+required-features = ["test-helpers"]

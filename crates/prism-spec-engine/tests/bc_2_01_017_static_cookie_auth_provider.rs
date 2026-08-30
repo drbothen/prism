@@ -335,7 +335,7 @@ async fn test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_r
         .first()
         .expect("spec must have at least one table");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     // ── Step 3: Build HTTP client + inject MockAuthProvider ───────────────
     // MockAuthProvider returns "test-api-key-abc123" — the canonical TV-BC-2.01.017 value.

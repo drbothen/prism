@@ -1353,7 +1353,7 @@ impl prism_sensors::SensorAdapter for MockAdapterDownXdome {
         _spec: &prism_sensors::SensorSpec,
         _params: &prism_sensors::QueryParams,
         _auth: &dyn prism_sensors::SensorAuth,
-    ) -> Result<Vec<arrow::record_batch::RecordBatch>, prism_sensors::SensorError> {
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Timeout {
             sensor: "xdome".to_string(),
             elapsed_ms: 30_000,
