@@ -6,8 +6,8 @@ level: "L4"
 wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: ready
-# BC status: BC-2.16.015 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
+status: merged
+# BC status: BC-2.16.015 active (promoted draft→active per POL-14 on PR #245 squash-merge D-2387 2026-08-31). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready; merged 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
 version: "2.2"
@@ -20,8 +20,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "e751203"
-# input-hash: updated 2026-08-30 — compute-input-hash reported e751203 (BC-2.16.015 advanced to v1.9 by cve_ids native-array amendment; prior f695bf5 was stale against v1.9)
+input-hash: "528cfe1"
+# input-hash: updated 2026-08-31 — compute-input-hash reported 528cfe1 (BC-2.16.015 lifecycle_status promoted draft→active per POL-14 D-2387; prior e751203 stale against active BC)
 traces_to: "BC-2.16.015"
 points: 5
 estimated_days: 1

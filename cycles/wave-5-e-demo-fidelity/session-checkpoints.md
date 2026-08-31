@@ -633,3 +633,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **PROCESS-GAP (D-2340):** MCP-wire paper-gate class recurred 3× round-16 (RG-PSG-026/028/RG-SLUG-005). 3-recurrence threshold met. Standing adversary probe warranted.
 
 **NOTE: Superseded by D-2341 — round-16 pass-16 3-lens batch ALL FIXED. ADR-060 v1.8 (collect_datetime_index_cols shared helper + reversed-operand + Condition K). BC-2.16.002 v2.44. Story v1.23. Feature HEAD @ce196ae7b (new frozen HEAD). streak RESET 0/3. STATE v8.873→v8.874.**
+
+---
+
+## Archived: D-2386 — 2026-08-31; STATE v8.917→v8.918 — G2 LOCAL adversary spec-fix COMPLETE; BC-2.16.016 v1.2 + story v1.2; @98b8234dc; fresh re-gate PENDING; G1 423fc7659 LOCAL-ONLY
+
+**RESUME IN ONE BREATH:** Phase 3 Wave-5-E, deadline Claroty xDome FULL functionality Mon 2026-08-31. VULNS-001 (G1) CONVERGED + gate PASSED (human-directed) + LIVE monroe validation PASS — G3–G6 pre-delivery remove-uncertainty COMPLETE (D-2385), all four stories promoted draft→ready. G2 MED-1+MED-2+LOW-1 spec-fix COMPLETE (D-2386): BC-2.16.016 v1.2, story v1.2, code @98b8234dc; LOCAL 3-CLEAN streak RESET; fresh adversary re-gate PENDING. NEXT ACTION: force-push feature/S-CLAROTY-VULNS-001 to 423fc7659 (--force-with-lease) → PR → CI → EXPLICIT human merge-auth → squash-merge → post-merge burst; THEN G2 fresh LOCAL adversary re-gate on frozen @98b8234dc + BC-2.16.016 v1.2/story v1.2 → converge → PR → G3–G6 serialized. Autonomy D-989; capped-strict; deadline governs sequencing not the quality bar.
+
+**HEADS (D-2386 2026-08-31):** develop: origin/develop = local develop = `51bb3bc1` (D-2378 divergence RESOLVED); feature/S-CLAROTY-VULNS-001 (G1): `423fc7659` LOCAL-ONLY (origin stale at `5aae6f0b3`; force-push-with-lease required); feature/S-CLAROTY-OT-EVENTS-001 (G2): `98b8234dc` LOCAL-ONLY (MED-1+MED-2+LOW-1 fixes applied; BC-2.16.016 v1.2 + story v1.2; LOCAL 3-CLEAN RESET; fresh re-gate PENDING); feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED squash `c5be059f`; S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (P2 non-gating, parked); Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2387 — S-CLAROTY-VULNS-001 G1 PR #245 squash-merged develop@6972ac2e (human-authorized 2026-08-31). BC-2.16.015 draft→active per POL-14. develop_head 51bb3bc1→6972ac2e. STATE v8.918→v8.919.**
