@@ -1652,7 +1652,7 @@ ocsf_column_naming = true
 #[cfg(test)]
 mod claroty_ot_activity_events_parse_tests {
     use super::SpecLoader;
-    use prism_core::ColumnType;
+    use prism_core::{ColumnOptions, ColumnType};
 
     const CLAROTY_TOML: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -1871,6 +1871,25 @@ mod claroty_ot_activity_events_parse_tests {
             Some("finding_info.uid"),
             "RG-002: column 'event_id' must declare ocsf_field = \"finding_info.uid\" \
              (BC-2.16.016 AC-002; ADR-058 §C2 Option 4 dot-notation)"
+        );
+        // ── event_id column_type == Integer ───────────────────────────────────
+        // BC-2.16.016 AC-002: event_id is an Integer column (platform-unique numeric ID).
+        assert_eq!(
+            event_id_col.column_type,
+            ColumnType::Integer,
+            "RG-002 (AC-002) LOAD-BEARING: 'event_id' column_type must be ColumnType::Integer. \
+             Got: {:?}. BC-2.16.016 AC-002; F-COE1-P1-LOW-001.",
+            event_id_col.column_type
+        );
+        // ── event_id options contains Required ────────────────────────────────
+        // BC-2.16.016 AC-002: event_id declares options = ["REQUIRED"] (push-down parameter
+        // per BC-2.11.007 / classify_predicates), consistent with sibling id/uid columns.
+        assert!(
+            event_id_col.options.contains(&ColumnOptions::Required),
+            "RG-002 (AC-002) LOAD-BEARING: 'event_id' options must contain ColumnOptions::Required \
+             (mandatory push-down parameter per BC-2.11.007). \
+             Got options: {:?}. BC-2.16.016 AC-002; F-COE1-P1-LOW-001.",
+            event_id_col.options
         );
 
         // ── detection_time → time ─────────────────────────────────────────────

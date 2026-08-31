@@ -247,11 +247,17 @@ fn test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_netw
 
 // ── RG-006 ────────────────────────────────────────────────────────────────────
 /// BC-2.16.016 AC-007 / EC-001 (EC-016-016-001):
-///   When the API response omits the REQUIRED `event_id` field, `ColumnMapper::map_record`
-///   must still return a row (not an error), but the mapped `finding_info.uid` key
-///   in the `mapped_fields` map MUST be absent/null (graceful null passthrough).
+///   When the API response omits `event_id`, `ColumnMapper::map_record` must still
+///   return a row (not an error), but the mapped `finding_info.uid` key in the
+///   `mapped_fields` map MUST be absent/null (graceful null passthrough).
 ///
 ///   `ColumnMapper::map_record(raw: &Value, table: &TableSpec) -> Result<MappingResult, PrismError>`
+///
+///   Rationale for null behavior:
+///   Absent-field → null is the DEFAULT absent-field handling of `ColumnMapper::map_record`
+///   and occurs regardless of `ColumnOptions::Required`. The `REQUIRED` option on `event_id`
+///   declares it as a mandatory push-down parameter (BC-2.11.007 / classify_predicates),
+///   consistent with sibling id/uid columns — it does NOT gate null-row production.
 ///
 ///   Note on DOT-form key discipline (TD-VSDD-059 guard):
 ///   `map_record` stores Tier-1 fields in DOT form (ocsf_field value, not Arrow-name).

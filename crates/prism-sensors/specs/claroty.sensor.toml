@@ -763,7 +763,10 @@ ocsf_class = "detection_finding"
   # ── Tier-1 columns (4) ───────────────────────────────────────────────────
 
   # OTActivityEvent.event_id: Integer — platform-unique event identifier.
-  # REQUIRED: absent event_id → null row per spec-engine REQUIRED semantics.
+  # REQUIRED = mandatory push-down parameter (BC-2.11.007 / ColumnOptions::Required),
+  # consistent with sibling id/uid columns (e.g., claroty_alerts.alert_id, claroty_assets.asset_id).
+  # Absent event_id → finding_info.uid null via default map_record absent-field handling
+  # (ColumnMapper::map_record graceful null passthrough) — NOT a REQUIRED-option effect.
   # ocsf_field_to_arrow_name("finding_info.uid") = "finding_info_uid" (ADR-058 §C2 Option 4).
   [[tables.columns]]
   name = "event_id"

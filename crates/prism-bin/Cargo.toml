@@ -363,19 +363,17 @@ prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0", featur
 # prism-dtu-harness: transitively pulls prism-dtu-common/fixture-gen via its own dep chain.
 prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
-# F-VULNS-P1-001 (S-CLAROTY-VULNS-001 pass-2 fix): arrow-json needed by
-# bc_2_16_015_claroty_vulnerabilities_wire_shape tests to run the production MCP
-# serialization path (WriterBuilder::new().with_explicit_nulls(true)) for
-# wire-shape null-not-absent assertions (CLAUDE.md §Wire-shape assertion discipline).
+# arrow-json: used by bc_2_16_015_claroty_vulnerabilities_wire_shape (F-VULNS-P1-001,
+# S-CLAROTY-VULNS-001 pass-2 fix) and bc_2_16_016_claroty_ot_activity_events_wire_shape
+# (S-CLAROTY-OT-EVENTS-001 EC-002-WIRE) to run the production MCP serialization path
+# (WriterBuilder::new().with_explicit_nulls(true)) for wire-shape null-not-absent and
+# native JSON array assertions (CLAUDE.md §Wire-shape assertion discipline).
+# Must match arrow workspace version (arrow = "58").
 arrow-json = "58"
 # S-ADR058-OCSF-COERCION-001 RG-006/RG-009: tracing subscriber for log-capture assertions
 # in build_column_array in-crate tests (column_coercion_failure warn verification).
 # Same version as prism-spec-engine (tracing-test = "0.2" in that crate's dev-deps).
 tracing-test = "0.2"
-# S-CLAROTY-OT-EVENTS-001: wire-level RecordBatch → JSON serialization for EC-002
-# related_alert_ids native JSON array assertion (BC-2.16.016 AC-006; CLAUDE.md §Wire-shape).
-# Must match arrow workspace version (arrow = "58").
-arrow-json = "58"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
