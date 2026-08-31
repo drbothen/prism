@@ -992,11 +992,13 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
  {
     let mock_server = MockServer::start().await;
 
-    // Catch-all POST mock for all 9 Claroty table endpoints.
+    // Catch-all POST mock for all 13 Claroty table endpoints.
     // source_table = "claroty" → queried_table_name = None → all tables execute.
-    // The response MUST include all nine response_path keys ($.alerts, $.audit_log,
+    // The response MUST include all thirteen response_path keys ($.alerts, $.audit_log,
     // $.devices, $.devices_alerts, $.vulnerabilities, $.ot_activity_events,
-    // $.devices_vulnerabilities, $.servers, $.server_interfaces) as empty arrays:
+    // $.devices_vulnerabilities, $.servers, $.server_interfaces,
+    // $.organization_zones, $.organization_zone_policies,
+    // $.organization_firewall_groups, $.organization_firewall_policies) as empty arrays:
     // extract_at_path returns Err for missing keys (not empty-array), which would
     // short-circuit the table loop via `?`.
     // S-CLAROTY-VULNS-001 added $.vulnerabilities (5th table — Wave A G1).
@@ -1004,6 +1006,8 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
     // S-CLAROTY-DEVVULNREL-001 added $.devices_vulnerabilities (7th table — Wave B G3).
     // S-CLAROTY-SERVERS-001 added $.servers (8th table — Wave C G4) and
     //   $.server_interfaces (9th table — Wave C G4).
+    // S-CLAROTY-ORGPOLICY-001 added $.organization_zones (10th), $.organization_zone_policies (11th),
+    //   $.organization_firewall_groups (12th), $.organization_firewall_policies (13th — Wave C G5).
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "alerts": [],
@@ -1021,7 +1025,15 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
             // S-CLAROTY-SERVERS-001: servers table uses response_path "$.servers".
             "servers": [],
             // S-CLAROTY-SERVERS-001: server_interfaces table uses response_path "$.server_interfaces".
-            "server_interfaces": []
+            "server_interfaces": [],
+            // S-CLAROTY-ORGPOLICY-001: organization_zones uses response_path "$.organization_zones".
+            "organization_zones": [],
+            // S-CLAROTY-ORGPOLICY-001: organization_zone_policies uses response_path "$.organization_zone_policies".
+            "organization_zone_policies": [],
+            // S-CLAROTY-ORGPOLICY-001: organization_firewall_groups uses response_path "$.organization_firewall_groups".
+            "organization_firewall_groups": [],
+            // S-CLAROTY-ORGPOLICY-001: organization_firewall_policies uses response_path "$.organization_firewall_policies".
+            "organization_firewall_policies": []
         })))
         .mount(&mock_server)
         .await;
