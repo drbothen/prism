@@ -904,7 +904,7 @@ ocsf_class = "detection_finding"
 # 201 of 214 DeviceVulnerability enum fields deferred per BC-2.16.017 §PC4 Groups A/B/C
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_device_vulnerability_relations"
+table_name = "device_vulnerability_relations"
 ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm; same as claroty_vulnerabilities)
 
   # Tier-1: vulnerability_name → finding_info.title → Arrow "finding_info_title" (REQUIRED)
