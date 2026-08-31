@@ -156,7 +156,9 @@ mod tests {
     /// - error is PrismError::ColumnNotFound (E-QUERY-038)
     /// - d.column == "policy_source"
     /// - d.table == "claroty_organization_acl_policies" (fully-qualified form)
-    /// - d.available_columns contains "raw_extensions" (the Tier-2 aggregate)
+    /// - d.available_columns contains the FULL Tier-1/synthesized set:
+    ///   raw_extensions, metadata_uid, name, actor_user_name, comment, class_uid, _sensor
+    ///   (BC-2.16.022 §Invariants — strengthened from raw_extensions-only per LOW finding)
     /// - d.available_columns does NOT contain "policy_source"
     ///
     /// Red Gate pre-implementation: `.find().expect()` panics (table absent) → FAILS.
@@ -203,17 +205,33 @@ mod tests {
                      'claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
                     d.table
                 );
-                // Wire-shape: "raw_extensions" must be in available_columns.
-                // This tells the LLM agent that policy_source is inside raw_extensions,
-                // not a first-class projected column (ADR-058 §I2 Tier-2 routing).
-                assert!(
-                    d.available_columns.contains(&"raw_extensions".to_string()),
-                    "BC-2.16.022 AC-005: E-QUERY-038 available_columns MUST contain \
-                     'raw_extensions' (policy_source is Tier-2 → aggregated into \
-                     raw_extensions). available_columns: {:?}",
-                    d.available_columns
-                );
+                // Wire-shape: ALL Tier-1/synthesized columns must be in available_columns.
+                // BC-2.16.022 §Invariants: `available_columns` MUST contain the full set —
+                // raw_extensions, metadata_uid, name, actor_user_name, comment, class_uid,
+                // _sensor. A regression silently dropping any member of this set would pass
+                // if only `raw_extensions` were checked (the pre-fix gap this assertion closes).
+                let required_available: &[&str] = &[
+                    "raw_extensions",
+                    "metadata_uid",
+                    "name",
+                    "actor_user_name",
+                    "comment",
+                    "class_uid",
+                    "_sensor",
+                ];
+                for col in required_available {
+                    assert!(
+                        d.available_columns.contains(&col.to_string()),
+                        "BC-2.16.022 AC-005: E-QUERY-038 available_columns MUST contain \
+                         '{}' (BC-2.16.022 §Invariants — full Tier-1/synthesized set: \
+                         raw_extensions, metadata_uid, name, actor_user_name, comment, \
+                         class_uid, _sensor). available_columns: {:?}",
+                        col,
+                        d.available_columns
+                    );
+                }
                 // Wire-shape: "policy_source" must NOT be in available_columns.
+                // Raw Tier-2 TOML column names are NOT projected as standalone Arrow columns.
                 assert!(
                     !d.available_columns.contains(&"policy_source".to_string()),
                     "BC-2.16.022 AC-005: E-QUERY-038 available_columns MUST NOT contain \
