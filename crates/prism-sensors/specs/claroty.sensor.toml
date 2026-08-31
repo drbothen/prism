@@ -620,7 +620,7 @@ ocsf_class = "vulnerability_finding"
   column_type = "string"
 
   # xDome Vulnerability fields_enum: cve_ids — associated CVE identifier list.
-  # column_type = "json": serialized as a JSON array string (e.g., '["CVE-2024-1234"]').
+  # column_type = "json": native JSON array on the wire (e.g., ["CVE-2024-1234"] or []).
   [[tables.columns]]
   name = "cve_ids"
   column_type = "json"

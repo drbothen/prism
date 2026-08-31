@@ -1011,21 +1011,20 @@ fn test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_expli
 
 /// Wire-level assertion for EC-016-015-005: when `cve_ids` is an EMPTY JSON array `[]`
 /// in the Claroty xDome API response, the downstream ENRICH-1 DD-2 transformation in
-/// `pipeline_result_to_record_batch` (`serde_json::Value::Array(arr)` arm) serializes it
-/// as the JSON-list string `"[]"`, which is then stored as a string value inside the
-/// `raw_extensions` JSON blob.
+/// `pipeline_result_to_record_batch` (`serde_json::Value::Array(arr)` arm) preserves it
+/// as a NATIVE JSON array `[]` because `cve_ids` has `column_type = "json"` (BC-2.16.015 v1.9).
 ///
 /// At the wire level (MCP serialized JSON output):
 ///   - `raw_extensions` (StringArray cell) deserializes to a JSON object
 ///   - The key `cve_ids` MUST be PRESENT in that object (not absent)
-///   - Its value MUST be the STRING `"[]"` (not JSON null, not an actual JSON array,
+///   - Its value MUST be a NATIVE JSON array `[]` (not JSON null, not the string "[]",
 ///     not the string "null")
 ///
 /// This closes the empty-vs-null regression gap identified in F-L2-001:
 /// the existing `test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_extensions`
 /// (prism-sensors) only asserts the pre-conversion form (`Value::Array(vec![])` in
-/// `map_record`). The DD-2 arm (`serde_json::to_string(&strings)` with empty strings vec)
-/// was not asserted at the wire level before this test.
+/// `map_record`). The DD-2 arm native-array preservation path (Json branch) was not
+/// asserted at the wire level before this test.
 ///
 /// Wire path: `SpecDrivenSensorAdapter::fetch()` →
 ///   `pipeline_result_to_record_batch` (OCSF mode, raw_extensions block, ENRICH-1 DD-2) →
@@ -1039,8 +1038,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_seria
     let mock_server = MockServer::start().await;
 
     // Record with cve_ids as an EMPTY JSON array [].
-    // ENRICH-1 DD-2 arm: Value::Array(vec![]) → serde_json::to_string(&strings) where
-    // strings = vec![] (empty) → "[]" (the JSON-list string for an empty array).
+    // ENRICH-1 DD-2 arm (Json branch): Value::Array(vec![]) → Value::Array(vec![]) preserved
+    // as a native JSON array because cve_ids has column_type = "json" (BC-2.16.015 v1.9).
     Mock::given(method("POST"))
         .and(path("/api/v1/vulnerabilities/"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -1131,9 +1130,9 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_seria
     );
 
     // LOAD-BEARING EC-005 wire assertion: cve_ids must be PRESENT in raw_extensions
-    // (not absent) and its value must be the STRING "[]" (not JSON null).
-    // ENRICH-1 DD-2: serde_json::to_string(&vec![] as &Vec<String>) = "\"[]\"" → Value::String("[]")
-    // stored in the raw_extensions JSON object, which serializes as {"cve_ids":"[]",...}.
+    // (not absent) and its value must be a NATIVE JSON array [] (not JSON null, not the
+    // string "[]"). BC-2.16.015 v1.9: cve_ids column_type = "json" → DD-2 Json branch
+    // preserves Value::Array(vec![]) as-is in raw_extensions.
     let cve_ids_wire = raw_ext_obj.get("cve_ids");
     assert!(
         cve_ids_wire.is_some(),
@@ -1149,14 +1148,14 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_seria
         cve_ids_wire,
         Some(&serde_json::Value::Null),
         "F-L2-001 LOAD-BEARING: 'cve_ids' MUST NOT be JSON null when API returned []. \
-         ENRICH-1 DD-2 serializes empty arrays as the string '[]', not null. \
+         ENRICH-1 DD-2 Json branch preserves empty arrays as native [], not null. \
          BC-2.16.015 §EC-016-015-005."
     );
     assert_eq!(
         cve_ids_wire,
-        Some(&serde_json::Value::String("[]".to_string())),
-        "F-L2-001 LOAD-BEARING: 'cve_ids' MUST equal the JSON string \"[]\" in raw_extensions. \
-         ENRICH-1 DD-2: serde_json::to_string(&Vec::<String>::new()) produces the string '[]'. \
+        Some(&serde_json::Value::Array(vec![])),
+        "F-L2-001 LOAD-BEARING: 'cve_ids' MUST equal a native JSON array [] in raw_extensions. \
+         ENRICH-1 DD-2 Json branch: column_type=json preserves Value::Array as-is (BC-2.16.015 v1.9). \
          Got: {:?}. BC-2.16.015 §EC-016-015-005.",
         cve_ids_wire
     );
