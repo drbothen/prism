@@ -436,6 +436,17 @@ fn test_BC_2_16_018_claroty_servers_live_raw_extensions_contains_tier2_keys() {
 /// of an absent field (device.name absent from mapped_fields). The pipeline produces
 /// a null row when mapped_fields lacks a REQUIRED Tier-1 field.
 ///
+/// SAP-3 rule-3 defense-in-depth disclaimer: this test calls `ColumnMapper::map_record`
+/// directly. `map_record` has ZERO production callers; the production data path is
+/// `SpecDrivenSensorAdapter::fetch` → `pipeline_result_to_record_batch` → `build_column_array`.
+/// This test is SAP-3 defense-in-depth only. The authoritative production-path coverage
+/// for RG-007 (null-passthrough, wire-level null-not-absent) is:
+///   `crates/prism-bin/tests/bc_2_16_018_claroty_servers_wire_shape.rs` →
+///   `test_BC_2_16_018_claroty_servers_null_passthrough_server_name_absent_null_not_absent`
+/// That test exercises `SpecDrivenSensorAdapter::fetch` end-to-end with a wiremock
+/// response containing an absent server_name, and asserts `"device_name": null` (not absent)
+/// in the serialized wire JSON (CLAUDE.md §Wire-shape assertion discipline; BC-2.11.001 EC-11-079).
+///
 /// Traces to: BC-2.16.018 §Invariants (server_name MUST be present); EC-016-018-001.
 /// Story: S-CLAROTY-SERVERS-001 AC-007
 #[test]

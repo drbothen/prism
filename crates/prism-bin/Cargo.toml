@@ -337,6 +337,34 @@ path = "tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs"
 name = "bc_2_16_017_claroty_device_vulnerability_relations_wire_shape"
 path = "tests/bc_2_16_017_claroty_device_vulnerability_relations_wire_shape.rs"
 
+# S-CLAROTY-SERVERS-001 SAP-4 gap closure: production-path wire-shape + null-passthrough
+# tests for Claroty xDome Collection Servers (BC-2.16.018).
+# Exercises the full SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch →
+# build_column_array production path using wiremock + explicit_nulls=true serialization.
+# Closes the coverage gap where prism-sensors RG-007 called map_record directly
+# (map_record has ZERO production callers — SAP-3 defense-in-depth only).
+# BCs: BC-2.16.018, BC-2.11.001
+# Tests (2 total):
+#   test_BC_2_16_018_claroty_servers_wire_shape_class_uid_5001_mock (NEW-1 / SID-1 mock, non-live)
+#   test_BC_2_16_018_claroty_servers_null_passthrough_server_name_absent_null_not_absent (RG-007-WIRE)
+[[test]]
+name = "bc_2_16_018_claroty_servers_wire_shape"
+path = "tests/bc_2_16_018_claroty_servers_wire_shape.rs"
+
+# S-CLAROTY-SERVERS-001 SAP-4 gap closure: production-path wire-shape + null-passthrough
+# tests for Claroty xDome Collection Server Interfaces (BC-2.16.019).
+# Exercises the full SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch →
+# build_column_array production path using wiremock + explicit_nulls=true serialization.
+# Closes the coverage gap where prism-sensors RG-015 called map_record directly
+# (map_record has ZERO production callers — SAP-3 defense-in-depth only).
+# BCs: BC-2.16.019, BC-2.11.001
+# Tests (2 total):
+#   test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock (NEW-2 / SID-1 mock, non-live)
+#   test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire (RG-015-WIRE)
+[[test]]
+name = "bc_2_16_019_claroty_server_interfaces_wire_shape"
+path = "tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"

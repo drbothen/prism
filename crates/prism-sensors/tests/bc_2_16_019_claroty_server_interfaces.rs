@@ -459,6 +459,16 @@ fn test_BC_2_16_019_claroty_server_interfaces_live_raw_extensions_contains_tier2
 /// Note: REQUIRED null-row production is enforced at PipelineExecutor level, not ColumnMapper.
 /// This test verifies the structural precondition (REQUIRED declared) and ColumnMapper's behavior.
 ///
+/// SAP-3 rule-3 defense-in-depth disclaimer: this test calls `ColumnMapper::map_record`
+/// directly. `map_record` has ZERO production callers; the production data path is
+/// `SpecDrivenSensorAdapter::fetch` → `pipeline_result_to_record_batch` → `build_column_array`.
+/// This test is SAP-3 defense-in-depth only. The authoritative production-path coverage
+/// for RG-015 part 1 (null-passthrough, server_name absent) is:
+///   `crates/prism-bin/tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs` →
+///   `test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire`
+/// (The wire test exercises the full production path with a server_name-present /
+/// interface_name-null record and asserts on serialized wire JSON.)
+///
 /// Traces to: BC-2.16.019 §Invariants (server_name MUST be present); EC-016-019-001.
 /// Story: S-CLAROTY-SERVERS-001 AC-015 (part 1)
 #[test]
@@ -522,6 +532,18 @@ fn test_BC_2_16_019_claroty_server_interfaces_required_server_name_absent_produc
 ///
 /// Composite PK degraded scenario: server_name = "Monroe-Collector-1", interface_name = null.
 /// The row is degraded (server identified, interface lost) but must be materialized.
+///
+/// SAP-3 rule-3 defense-in-depth disclaimer: this test calls `ColumnMapper::map_record`
+/// directly. `map_record` has ZERO production callers; the production data path is
+/// `SpecDrivenSensorAdapter::fetch` → `pipeline_result_to_record_batch` → `build_column_array`.
+/// This test is SAP-3 defense-in-depth only. The authoritative production-path coverage
+/// for RG-015 part 2 (null interface_name row-not-dropped, wire-level null-not-absent) is:
+///   `crates/prism-bin/tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs` →
+///   `test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire`
+/// That test exercises `SpecDrivenSensorAdapter::fetch` end-to-end with a wiremock response
+/// containing `interface_name = null`, asserts both rows survive (row-not-dropped invariant),
+/// and asserts `"interface_name": null` (not absent) inside raw_extensions in the serialized
+/// wire JSON (CLAUDE.md §Wire-shape assertion discipline; BC-2.11.001 EC-11-079).
 ///
 /// Traces to: BC-2.16.019 §Invariants (interface_name does NOT have REQUIRED); EC-016-019-002.
 /// Story: S-CLAROTY-SERVERS-001 AC-015 (part 2)
