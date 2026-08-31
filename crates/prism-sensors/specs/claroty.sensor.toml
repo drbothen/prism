@@ -735,3 +735,156 @@ ocsf_class = "vulnerability_finding"
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: ot_activity_events  (registered as: claroty_ot_activity_events)
+# POST-for-read pattern; offset pagination (page_size = 1000)
+# Wave A G2 — S-CLAROTY-OT-EVENTS-001
+#
+# OCSF class: detection_finding / class_uid 2004 — Option B per spike-findings §Spike 2
+#   §Decision. The governing plan constraint ("NO new OCSF class_selector arms required")
+#   is satisfied — the detection_finding arm already exists (used by alerts and
+#   device_alert_relations). See BC-2.16.016 §Postconditions §3.
+#
+# DTU: NONE — no DTU clone exists for this endpoint.
+#   SAP-2 probe is N/A for this story (deferred D-2200; OT-events DTU out of scope for Wave G2).
+#
+# Tier-1 columns (ocsf_field present) → exposed as OCSF Arrow field names under
+#   ocsf_column_naming = true (event_id→finding_info_uid, detection_time→time,
+#   event_type→activity_name, description→message).
+# Tier-2 columns (no ocsf_field) → aggregate into raw_extensions.
+#   Network 5-tuple (source_ip, dest_ip, protocol, dest_port, source_port, ip_protocol)
+#   is intentionally Tier-2 per BC-2.16.016 §Postconditions §3 Option B.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "ot_activity_events"
+ocsf_class = "detection_finding"
+
+  # ── Tier-1 columns (4) ───────────────────────────────────────────────────
+
+  # OTActivityEvent.event_id: Integer — platform-unique event identifier.
+  # REQUIRED = mandatory push-down parameter (BC-2.11.007 / ColumnOptions::Required),
+  # consistent with sibling id/uid columns (e.g., alerts.id, devices.uid, device_alert_relations.device_uid).
+  # Absent event_id → finding_info.uid null via build_column_array within
+  # pipeline_result_to_record_batch (reached via SpecDrivenSensorAdapter::fetch) — NOT a
+  # REQUIRED-option effect. (map_record is a non-production reference mirror; zero production callers.)
+  # ocsf_field_to_arrow_name("finding_info.uid") = "finding_info_uid" (ADR-058 §C2 Option 4).
+  [[tables.columns]]
+  name = "event_id"
+  column_type = "integer"
+  ocsf_field = "finding_info.uid"
+  options = ["REQUIRED"]
+
+  # OTActivityEvent.detection_time: String (ISO 8601) — detection timestamp.
+  # No timestamp_formats: implicit iso8601 default per ADR-028 §D8-B.
+  # ocsf_field_to_arrow_name("time") = "time".
+  [[tables.columns]]
+  name = "detection_time"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # OTActivityEvent.event_type: String — OT activity type label.
+  # ocsf_field_to_arrow_name("activity_name") = "activity_name".
+  [[tables.columns]]
+  name = "event_type"
+  column_type = "string"
+  ocsf_field = "activity_name"
+
+  # OTActivityEvent.description: String — human-readable event description.
+  # ocsf_field_to_arrow_name("message") = "message".
+  [[tables.columns]]
+  name = "description"
+  column_type = "string"
+  ocsf_field = "message"
+
+  # ── Tier-2 columns (17): aggregate into raw_extensions ───────────────────
+  # Network 5-tuple is Tier-2 per BC-2.16.016 §Postconditions §3 Option B.
+
+  [[tables.columns]]
+  name = "source_ip"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_ip"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "protocol"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_port"
+  column_type = "integer"
+
+  [[tables.columns]]
+  name = "source_port"
+  column_type = "integer"
+
+  [[tables.columns]]
+  name = "ip_protocol"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "source_asset_id"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_asset_id"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "source_device_name"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_device_name"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "source_device_type"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_device_type"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "source_site_name"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "dest_site_name"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "source_username"
+  column_type = "string"
+
+  # OTActivityEvent.related_alert_ids: Array of alert IDs linking this event to
+  # Claroty alerts (confirms Option B detection_finding class).
+  # column_type = "json": uses json column type; the pipeline preserves the array
+  # natively in raw_extensions, per the vulnerabilities.cve_ids precedent. The value
+  # is a native JSON array (e.g. [101, 202] or []); must NOT be stringified.
+  # EC-016-016-002: empty array → [] in raw_extensions (not null).
+  [[tables.columns]]
+  name = "related_alert_ids"
+  column_type = "json"
+
+  [[tables.columns]]
+  name = "mode"
+  column_type = "string"
+
+  # POST-for-read step with offset pagination
+  # response_path: "$.ot_activity_events" — envelope key from the xDome API.
+  # body_template: 21-field projection per BC-2.16.016 §Postconditions §1.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time.
+  [[tables.steps]]
+  name = "fetch_ot_activity_events"
+  method = "POST"
+  path_template = "/api/v1/ot_activity_events/"
+  body_template = '{"fields": ["event_id", "detection_time", "event_type", "description", "source_ip", "dest_ip", "protocol", "dest_port", "source_port", "ip_protocol", "source_asset_id", "dest_asset_id", "source_device_name", "dest_device_name", "source_device_type", "dest_device_type", "source_site_name", "dest_site_name", "source_username", "related_alert_ids", "mode"]}'
+  response_path = "$.ot_activity_events"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

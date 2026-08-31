@@ -1,0 +1,112 @@
+# AC-001 + AC-002: Table registration and column schema
+# Story: S-CLAROTY-OT-EVENTS-001 (Wave A G2)
+# Traces to: BC-2.16.016 §Postconditions §1 (TOML Table Contract), §2 (Tier-1/Tier-2 column classification)
+#
+# Tool: prism_describe — client_id: monroe
+# Result: claroty_ot_activity_events registered with 7 visible columns
+#         (4 Tier-1 OCSF-named + raw_extensions Tier-2 aggregate + class_uid + _sensor)
+#
+# AC-001 evidence: table claroty_ot_activity_events is present in monroe's schema;
+#   OCSF class = detection_finding; sensor_type = claroty.
+# AC-002 evidence: exactly 4 columns have OCSF field mappings (Tier-1):
+#   finding_info_uid → finding_info.uid (integer)
+#   time            → time (datetime)
+#   activity_name   → activity_name (string)
+#   message         → message (string)
+#   raw_extensions aggregates all 17 Tier-2 source columns (source_ip, dest_ip,
+#   protocol, dest_port, source_port, ip_protocol, source_asset_id, dest_asset_id,
+#   source_device_name, dest_device_name, source_device_type, dest_device_type,
+#   source_site_name, dest_site_name, source_username, related_alert_ids, mode).
+# class_uid (integer, nullable=false) and _sensor are synthesized by the engine.
+#
+# NOTE: prism_describe returns 7 visible columns. The 21-column TOML spec collapses
+# to 7 query-surface columns under ocsf_column_naming=true (4 Tier-1 + raw_extensions
+# + class_uid + _sensor). The 17 Tier-2 columns are accessible via raw_extensions only.
+# This is the correct ADR-058 behavior.
+
+--- WIRE RESPONSE: prism_describe (client: monroe) ---
+{
+  "_meta": {
+    "data_source": "monroe",
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T15:57:15.110615+00:00",
+    "safety_flags": [],
+    "tool": "prism_describe",
+    "total_results": 0,
+    "trust_level": "internal"
+  },
+  "results": {
+    "client_id": "monroe",
+    "pql_hints": [
+      "Use 'SELECT * FROM <table> LIMIT 25' to query any of the 6 table(s) above.",
+      "Consult prismql://reference for full PQL grammar and operator reference.",
+      "No enrichment UDFs are registered for this client — enrichment is not available."
+    ],
+    "tables": [
+      {
+        "name": "claroty_ot_activity_events",
+        "description": "detection_finding",
+        "sensor_type": "claroty",
+        "example_query": "SELECT finding_info_uid, COUNT(*) FROM claroty_ot_activity_events GROUP BY finding_info_uid ORDER BY COUNT(*) DESC LIMIT 10",
+        "columns": [
+          {
+            "col_type": "integer",
+            "description": "finding_info.uid",
+            "name": "finding_info_uid",
+            "nullable": true
+          },
+          {
+            "col_type": "datetime",
+            "description": "time",
+            "name": "time",
+            "nullable": true
+          },
+          {
+            "col_type": "string",
+            "description": "activity_name",
+            "name": "activity_name",
+            "nullable": true
+          },
+          {
+            "col_type": "string",
+            "description": "message",
+            "name": "message",
+            "nullable": true
+          },
+          {
+            "col_type": "json",
+            "description": "JSON object containing un-mapped source columns: source_ip, dest_ip, protocol, dest_port, source_port, ip_protocol, source_asset_id, dest_asset_id, source_device_name, dest_device_name, source_device_type, dest_device_type, source_site_name, dest_site_name, source_username, related_alert_ids, mode",
+            "name": "raw_extensions",
+            "nullable": true
+          },
+          {
+            "col_type": "integer",
+            "description": "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices).",
+            "name": "class_uid",
+            "nullable": false
+          },
+          {
+            "col_type": "string",
+            "description": "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').",
+            "name": "_sensor",
+            "nullable": false
+          }
+        ]
+      }
+    ]
+  }
+}
+
+--- SUMMARY ---
+AC-001 PASS: claroty_ot_activity_events table registered; OCSF class=detection_finding;
+  21-column TOML spec parsed without error (confirmed by passing RG-001 test).
+AC-002 PASS: 4 Tier-1 columns with correct OCSF Arrow names:
+  finding_info_uid (integer) ← ocsf_field="finding_info.uid"
+  time             (datetime) ← ocsf_field="time"
+  activity_name    (string)  ← ocsf_field="activity_name"
+  message          (string)  ← ocsf_field="message"
+  17 Tier-2 columns visible in raw_extensions description field.
+  (Confirmed by passing RG-002 test: test_BC_2_16_016_claroty_ot_activity_events_four_tier1_columns)
+--- Exit 0 ---
