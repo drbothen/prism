@@ -10,6 +10,8 @@
 //! | EC-002-WIRE  | test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array | Wire-level: related_alert_ids=[1,2,3] survives as native JSON array (not stringified) inside raw_extensions JSON object |
 //! | RG-003 (SAP-3) | test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038 | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() — authoritative end-to-end reachability gate |
 //! | AC-005/EC-009  | test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038 | E-QUERY-038 when querying raw TOML name `detection_time` (projected as Arrow name `time` under ocsf_column_naming=true) — F-COE1-P1-OBS-001 closure |
+//! | AC-007 (MED-2) | test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path | Production-path fetch: absent event_id → finding_info_uid=null (wire), row survives with time+raw_extensions populated. SAP-3 reachability gate. |
+//! | AC-008 (MED-2) | test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path | Production-path fetch: absent detection_time → time=null (wire), row survives with finding_info_uid+raw_extensions populated. SAP-3 reachability gate. |
 //!
 //! # SAP-2 status
 //!
@@ -914,4 +916,346 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_tim
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// AC-007 (MED-2): Production-path coverage — absent event_id → null finding_info_uid
+// ---------------------------------------------------------------------------
+
+/// AUTHORITATIVE SAP-3 production-path reachability gate for AC-007 (MED-2 closure):
+///   When `event_id` is absent from the API response, `SpecDrivenSensorAdapter::fetch()`
+///   (the PRODUCTION materialization path: `pipeline_result_to_record_batch` →
+///   `build_column_array`) MUST:
+///   (a) NOT drop the row — exactly 1 row must appear in the serialized output
+///   (b) Emit `finding_info_uid` as `null` in the serialized JSON wire output
+///       (with `explicit_nulls=true`, null Arrow cells appear as JSON `null`, not absent)
+///   (c) Still populate `time` with a non-null value (detection_time was provided)
+///   (d) Still populate `raw_extensions` with a non-null JSON object (Tier-2 present)
+///
+/// This test exercises the PRODUCTION path, NOT `ColumnMapper::map_record` which has
+/// zero live callers in `crates/*/src/`. The existing RG-006 in
+/// `crates/prism-sensors/tests/bc_2_16_016_claroty_ot_activity_events.rs` tests
+/// `map_record` directly (defense-in-depth; labeled with SAP-3 rule-3 disclaimer there).
+///
+/// Wire-shape discipline (CLAUDE.md §Wire-shape assertion discipline): assertions are on
+/// the serialized JSON output via `arrow_json::writer::WriterBuilder::new()
+/// .with_explicit_nulls(true)`, mirroring the MCP server.rs production path.
+///
+/// BC-2.16.016 AC-007; EC-016-016-001; SAP-3 (MED-2 closure); CLAUDE.md §Wire-shape.
+/// Story: S-CLAROTY-OT-EVENTS-001.
+#[tokio::test]
+async fn test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path()
+ {
+    let mock_server = MockServer::start().await;
+
+    // API response with event_id absent (AC-007 / EC-016-016-001: REQUIRED field missing).
+    // All other fields present to isolate the event_id absence.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "ot_activity_events": [{
+                // event_id intentionally absent (AC-007 / EC-016-016-001)
+                "detection_time": "2024-01-15T10:30:00Z",
+                "event_type": "network_connection",
+                "description": "AC-007 production-path: absent event_id test",
+                "source_ip": "192.168.1.100",
+                "dest_ip": "10.0.0.50",
+                "protocol": "TCP",
+                "dest_port": 443_i64,
+                "source_port": 54321_i64,
+                "ip_protocol": "IPv4",
+                "source_asset_id": "asset-ac007-prod-001",
+                "dest_asset_id": "asset-ac007-prod-002",
+                "source_device_name": "PLC-AC007",
+                "dest_device_name": "HMI-AC007",
+                "source_device_type": "PLC",
+                "dest_device_type": "HMI",
+                "source_site_name": "Site-AC007-A",
+                "dest_site_name": "Site-AC007-B",
+                "source_username": "operator-ac007",
+                "related_alert_ids": [101_i64, 102_i64],
+                "mode": "Learning"
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_ot_activity_events_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_ot_activity_events".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-ot-events-ac007-prod-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-ac007-prod");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "AC-007 PRODUCTION PATH: fetch() must succeed even when event_id is absent. \
+             The production pipeline must NOT drop or error on a record with a REQUIRED \
+             field absent — null passthrough is the contract. \
+             BC-2.16.016 AC-007; EC-016-016-001.",
+        );
+
+    assert!(
+        !batches.batches.is_empty(),
+        "AC-007 PRODUCTION PATH: fetch() must return at least one RecordBatch. \
+         BC-2.16.016 AC-007."
+    );
+
+    // Serialize via production arrow_json path with explicit_nulls=true
+    // (mirrors MCP server.rs production path).
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches.batches {
+        writer
+            .write(batch)
+            .expect("AC-007 PRODUCTION PATH: arrow_json write must not fail");
+    }
+    writer
+        .finish()
+        .expect("AC-007 PRODUCTION PATH: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect(
+            "AC-007 PRODUCTION PATH: arrow_json output must deserialize as a JSON array of rows",
+        );
+
+    // ── AC-007 assertion 1: row must NOT be dropped ───────────────────────────
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "AC-007 PRODUCTION PATH LOAD-BEARING: row must NOT be dropped when event_id is \
+         absent — exactly 1 row must survive production materialization. \
+         BC-2.16.016 AC-007; EC-016-016-001."
+    );
+
+    let row0 = &json_rows[0];
+
+    // ── AC-007 assertion 2: finding_info_uid must be null in wire output ──────
+    // event_id absent → finding_info_uid (Integer Arrow column) null cell.
+    // With explicit_nulls=true, null Arrow cells appear as JSON `null`, NOT absent.
+    // Wire-shape discipline: assert on serialized output, not pre-serialization struct.
+    assert_eq!(
+        row0.get("finding_info_uid"),
+        Some(&serde_json::json!(null)),
+        "AC-007 PRODUCTION PATH LOAD-BEARING: 'finding_info_uid' must be JSON null \
+         (not absent) in wire output when event_id is absent from the API response. \
+         With explicit_nulls=true, a null Arrow Int64 cell serializes as `null`. \
+         BC-2.16.016 AC-007; EC-016-016-001; CLAUDE.md §Wire-shape assertion discipline."
+    );
+
+    // ── AC-007 assertion 3: time must be present and non-null ─────────────────
+    // detection_time="2024-01-15T10:30:00Z" was provided — row must survive with time set.
+    let time_val = row0.get("time");
+    assert!(
+        time_val.is_some() && time_val != Some(&serde_json::Value::Null),
+        "AC-007 PRODUCTION PATH: 'time' must be present and non-null in wire output \
+         when detection_time='2024-01-15T10:30:00Z' was provided. \
+         Row must survive despite absent event_id. \
+         BC-2.16.016 AC-007; EC-016-016-001. Got: {:?}",
+        time_val
+    );
+
+    // ── AC-007 assertion 4: raw_extensions present and non-null ──────────────
+    let raw_ext_str = row0.get("raw_extensions").and_then(|v| v.as_str()).expect(
+        "AC-007 PRODUCTION PATH: 'raw_extensions' must be present and a JSON string \
+             even when event_id is absent (Tier-2 fields were provided). \
+             BC-2.16.016 AC-007; ADR-058 §J6.",
+    );
+    let raw_ext_json: serde_json::Value = serde_json::from_str(raw_ext_str)
+        .expect("AC-007 PRODUCTION PATH: raw_extensions must be valid JSON");
+    assert!(
+        raw_ext_json.is_object(),
+        "AC-007 PRODUCTION PATH: raw_extensions must deserialize to a JSON object. \
+         BC-2.16.016 AC-007."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-008 (MED-2): Production-path coverage — absent detection_time → null time
+// ---------------------------------------------------------------------------
+
+/// AUTHORITATIVE SAP-3 production-path reachability gate for AC-008 (MED-2 closure):
+///   When `detection_time` is absent from the API response, `SpecDrivenSensorAdapter::fetch()`
+///   (the PRODUCTION materialization path: `pipeline_result_to_record_batch` →
+///   `build_column_array`) MUST:
+///   (a) NOT drop the row — exactly 1 row must appear in the serialized output
+///   (b) Emit `time` as `null` in the serialized JSON wire output
+///       (ADR-028 §D8-B: absent source → null, not an error; implicit iso8601 default)
+///   (c) Still populate `finding_info_uid` with a non-null value (event_id was provided)
+///   (d) Still populate `raw_extensions` with a non-null JSON object (Tier-2 present)
+///
+/// This test exercises the PRODUCTION path, NOT `ColumnMapper::map_record` which has
+/// zero live callers in `crates/*/src/`. The existing RG-007 in
+/// `crates/prism-sensors/tests/bc_2_16_016_claroty_ot_activity_events.rs` tests
+/// `map_record` directly (defense-in-depth; labeled with SAP-3 rule-3 disclaimer there).
+///
+/// Wire-shape discipline (CLAUDE.md §Wire-shape assertion discipline): assertions are on
+/// the serialized JSON output via `arrow_json::writer::WriterBuilder::new()
+/// .with_explicit_nulls(true)`, mirroring the MCP server.rs production path.
+///
+/// BC-2.16.016 AC-008; EC-016-016-003; ADR-028 §D8-B; SAP-3 (MED-2 closure);
+/// CLAUDE.md §Wire-shape.
+/// Story: S-CLAROTY-OT-EVENTS-001.
+#[tokio::test]
+async fn test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path()
+ {
+    let mock_server = MockServer::start().await;
+
+    // API response with detection_time absent (AC-008 / EC-016-016-003: optional Datetime null).
+    // event_id present to isolate the detection_time absence.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "ot_activity_events": [{
+                "event_id": 67890_i64,
+                // detection_time intentionally absent (AC-008 / EC-016-016-003)
+                "event_type": "policy_violation",
+                "description": "AC-008 production-path: absent detection_time test",
+                "source_ip": "10.1.2.3",
+                "dest_ip": "10.4.5.6",
+                "protocol": "UDP",
+                "dest_port": 161_i64,
+                "source_port": 40000_i64,
+                "ip_protocol": "IPv4",
+                "source_asset_id": "asset-ac008-prod-001",
+                "dest_asset_id": "asset-ac008-prod-002",
+                "source_device_name": "PLC-AC008",
+                "dest_device_name": "RTU-AC008",
+                "source_device_type": "PLC",
+                "dest_device_type": "RTU",
+                "source_site_name": "Site-AC008-A",
+                "dest_site_name": "Site-AC008-B",
+                "source_username": "operator-ac008",
+                "related_alert_ids": [201_i64, 202_i64],
+                "mode": "Protection"
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_ot_activity_events_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_ot_activity_events".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-ot-events-ac008-prod-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-ac008-prod");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "AC-008 PRODUCTION PATH: fetch() must succeed even when detection_time is absent. \
+             ADR-028 §D8-B: absent datetime source → null, not an error. \
+             BC-2.16.016 AC-008; EC-016-016-003.",
+        );
+
+    assert!(
+        !batches.batches.is_empty(),
+        "AC-008 PRODUCTION PATH: fetch() must return at least one RecordBatch. \
+         BC-2.16.016 AC-008."
+    );
+
+    // Serialize via production arrow_json path with explicit_nulls=true
+    // (mirrors MCP server.rs production path).
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches.batches {
+        writer
+            .write(batch)
+            .expect("AC-008 PRODUCTION PATH: arrow_json write must not fail");
+    }
+    writer
+        .finish()
+        .expect("AC-008 PRODUCTION PATH: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect(
+            "AC-008 PRODUCTION PATH: arrow_json output must deserialize as a JSON array of rows",
+        );
+
+    // ── AC-008 assertion 1: row must NOT be dropped ───────────────────────────
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "AC-008 PRODUCTION PATH LOAD-BEARING: row must NOT be dropped when detection_time \
+         is absent — exactly 1 row must survive production materialization. \
+         ADR-028 §D8-B: absent → null, not an error. \
+         BC-2.16.016 AC-008; EC-016-016-003."
+    );
+
+    let row0 = &json_rows[0];
+
+    // ── AC-008 assertion 2: time must be null in wire output ──────────────────
+    // detection_time absent → time (Datetime Arrow column) null cell.
+    // With explicit_nulls=true, null Arrow cells appear as JSON `null`, NOT absent.
+    // ADR-028 §D8-B: absent source field → null Arrow cell via implicit iso8601 default.
+    assert_eq!(
+        row0.get("time"),
+        Some(&serde_json::json!(null)),
+        "AC-008 PRODUCTION PATH LOAD-BEARING: 'time' must be JSON null \
+         (not absent) in wire output when detection_time is absent from the API response. \
+         ADR-028 §D8-B: absent datetime source → null Arrow cell, not an error. \
+         With explicit_nulls=true, null Arrow Timestamp cell serializes as `null`. \
+         BC-2.16.016 AC-008; EC-016-016-003; CLAUDE.md §Wire-shape assertion discipline."
+    );
+
+    // ── AC-008 assertion 3: finding_info_uid must be present and non-null ─────
+    // event_id=67890 was provided — finding_info_uid must be non-null.
+    let fuid_val = row0.get("finding_info_uid");
+    assert!(
+        fuid_val.is_some() && fuid_val != Some(&serde_json::Value::Null),
+        "AC-008 PRODUCTION PATH: 'finding_info_uid' must be present and non-null in wire \
+         output when event_id=67890 was provided. \
+         Row must survive despite absent detection_time. \
+         BC-2.16.016 AC-008; EC-016-016-003. Got: {:?}",
+        fuid_val
+    );
+
+    // ── AC-008 assertion 4: raw_extensions present and non-null ──────────────
+    let raw_ext_str = row0.get("raw_extensions").and_then(|v| v.as_str()).expect(
+        "AC-008 PRODUCTION PATH: 'raw_extensions' must be present and a JSON string \
+             even when detection_time is absent (Tier-2 fields were provided). \
+             BC-2.16.016 AC-008; ADR-058 §J6.",
+    );
+    let raw_ext_json: serde_json::Value = serde_json::from_str(raw_ext_str)
+        .expect("AC-008 PRODUCTION PATH: raw_extensions must be valid JSON");
+    assert!(
+        raw_ext_json.is_object(),
+        "AC-008 PRODUCTION PATH: raw_extensions must deserialize to a JSON object. \
+         BC-2.16.016 AC-008."
+    );
 }

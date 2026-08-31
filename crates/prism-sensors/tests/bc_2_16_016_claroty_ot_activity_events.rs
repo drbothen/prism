@@ -2,7 +2,8 @@
 //! Red Gate test suite for BC-2.16.016 — Claroty xDome OT Activity Events Table.
 //!
 //! Covers S-CLAROTY-OT-EVENTS-001 acceptance criteria AC-003..AC-009.
-//! BC-5.38.001 density check: 8 RGTs / 9 ACs = 0.89 (≥ 0.5 threshold — PASS).
+//! BC-5.38.001 density check: 10 RGTs / 9 ACs = 1.11 (≥ 0.5 threshold — PASS).
+//! (RG-009 = EC-002 non-empty array test; RG-010 = EC-004 mode-absent test; added in v1.2).
 //!
 //! ## Red Gate invariant
 //!
@@ -265,9 +266,24 @@ fn test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_netw
 ///   Asserting the Arrow-name form ("finding_info_uid") would be tautological — Arrow-name
 ///   flattening happens downstream in `pipeline_result_to_record_batch`.
 ///
+/// ## SAP-3 rule 3 — DEFENSE-IN-DEPTH NOTICE
+///
+/// THIS TEST IS NOT THE PRODUCTION REACHABILITY GATE for AC-007.
+///
+/// This test exercises `ColumnMapper::map_record` directly — a non-production
+/// intermediate path with ZERO live callers in `crates/*/src/` (confirmed: grep
+/// `ColumnMapper::map_record` in `crates/*/src/` returns only the definition itself).
+/// The production materialization path goes through `SpecDrivenSensorAdapter::fetch`
+/// → `pipeline_result_to_record_batch` → `build_column_array`, NOT through `map_record`.
+///
+/// SAP-3 rule 3: defense-in-depth tests must carry a comment stating they are NOT
+/// the reachability gate. The AUTHORITATIVE production-path gate for AC-007 lives in:
+///   `crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`
+///   fn `test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path`
+///
 /// RED: panics at `.expect("claroty_ot_activity_events table must exist")`.
 ///
-/// BC-2.16.016 AC-007; EC-016-016-001; S-CLAROTY-OT-EVENTS-001 RG-006.
+/// BC-2.16.016 AC-007; EC-016-016-001; SAP-3 rule 3; S-CLAROTY-OT-EVENTS-001 RG-006.
 #[test]
 fn test_BC_2_16_016_claroty_ot_activity_events_required_event_id_absent_produces_null_row() {
     let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
@@ -361,9 +377,25 @@ fn test_BC_2_16_016_claroty_ot_activity_events_required_event_id_absent_produces
 ///   - EC-002: related_alert_ids=[] → Value::Array([]) in raw_extensions
 ///   - EC-004: mode=null → Value::Null in raw_extensions
 ///
+/// ## SAP-3 rule 3 — DEFENSE-IN-DEPTH NOTICE
+///
+/// THIS TEST IS NOT THE PRODUCTION REACHABILITY GATE for AC-008.
+///
+/// This test exercises `ColumnMapper::map_record` directly — a non-production
+/// intermediate path with ZERO live callers in `crates/*/src/` (confirmed: grep
+/// `ColumnMapper::map_record` in `crates/*/src/` returns only the definition itself).
+/// The production materialization path goes through `SpecDrivenSensorAdapter::fetch`
+/// → `pipeline_result_to_record_batch` → `build_column_array`, NOT through `map_record`.
+///
+/// SAP-3 rule 3: defense-in-depth tests must carry a comment stating they are NOT
+/// the reachability gate. The AUTHORITATIVE production-path gate for AC-008 lives in:
+///   `crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`
+///   fn `test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path`
+///
 /// RED: panics at `.expect("claroty_ot_activity_events table must exist")`.
 ///
-/// BC-2.16.016 AC-008; EC-016-016-003; ADR-028 §D8-B; S-CLAROTY-OT-EVENTS-001 RG-007.
+/// BC-2.16.016 AC-008; EC-016-016-003; ADR-028 §D8-B; SAP-3 rule 3;
+/// S-CLAROTY-OT-EVENTS-001 RG-007.
 #[test]
 fn test_BC_2_16_016_claroty_ot_activity_events_detection_time_null_passthrough() {
     let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
