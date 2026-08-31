@@ -86,6 +86,93 @@ fn test_BC_2_16_015_claroty_vulnerabilities_toml_block_parses() {
         table.columns.len(),
         table.columns.iter().map(|c| &c.name).collect::<Vec<_>>()
     );
+
+    // AC-001: body_template of fetch_vulnerabilities must contain EXACTLY the 18-field
+    // projection — all 19 declared columns except `id`, which uses source_path = "$.id"
+    // and is intentionally excluded from the fields projection per BC-2.16.015
+    // §Postconditions §2. A typo dropping or renaming a projected field would silently
+    // omit data from the outgoing Claroty API request and ship undetected without this
+    // assertion (F-VULNS-ADVFRESH-OBS-001 fix; traceability: AC-001).
+    let fetch_step = table
+        .steps
+        .iter()
+        .find(|s| s.name == "fetch_vulnerabilities")
+        .expect(
+            "fetch_vulnerabilities step must exist in vulnerabilities table (AC-001); \
+             body_template 18-field projection cannot be verified without this step",
+        );
+    let body_template_str = fetch_step.body_template.as_deref().expect(
+        "fetch_vulnerabilities step must carry a body_template (AC-001); \
+             Claroty API requires a fields projection (minItems: 1)",
+    );
+    let body_template_json: serde_json::Value = serde_json::from_str(body_template_str).expect(
+        "fetch_vulnerabilities body_template must be valid JSON (AC-001); \
+             body_template is a static string literal in claroty.sensor.toml",
+    );
+    let fields_array = body_template_json
+        .get("fields")
+        .and_then(|v| v.as_array())
+        .expect(
+            "fetch_vulnerabilities body_template must contain a top-level 'fields' JSON array \
+             (AC-001); the Claroty xDome POST /api/v1/vulnerabilities/ endpoint requires it",
+        );
+    let actual_fields: std::collections::HashSet<&str> = fields_array
+        .iter()
+        .map(|v| {
+            v.as_str().expect(
+                "each element in body_template 'fields' array must be a JSON string (AC-001)",
+            )
+        })
+        .collect();
+    // Ground-truth 18-field projection: sourced directly from claroty.sensor.toml
+    // vulnerabilities [[tables.steps]] body_template (F-VULNS-ADVFRESH-OBS-001).
+    // All 19 declared columns except `id` (source_path = "$.id", root-level key extraction —
+    // NOT in fields projection per BC-2.16.015 §Postconditions §2).
+    let expected_fields: std::collections::HashSet<&str> = [
+        "name",
+        "vulnerability_type",
+        "cve_ids",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v3_vector_string",
+        "cvss_v2_score",
+        "description",
+        "is_known_exploited",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "epss_score",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "exploits_count",
+        "source_name",
+        "source_url",
+    ]
+    .iter()
+    .copied()
+    .collect();
+    assert_eq!(
+        actual_fields,
+        expected_fields,
+        "AC-001: fetch_vulnerabilities body_template 'fields' array must be EXACTLY the \
+         18-field projection (all 19 columns except 'id' which uses source_path = '$.id'). \
+         Extra: {:?}, Missing: {:?}. BC-2.16.015 §Postconditions §2; \
+         F-VULNS-ADVFRESH-OBS-001.",
+        actual_fields
+            .difference(&expected_fields)
+            .collect::<Vec<_>>(),
+        expected_fields
+            .difference(&actual_fields)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        fields_array.len(),
+        18,
+        "AC-001: fetch_vulnerabilities body_template 'fields' array must have exactly 18 \
+         elements (no duplicates, no extras beyond the 18-field projection); got {}. \
+         BC-2.16.015 §Postconditions §2; F-VULNS-ADVFRESH-OBS-001.",
+        fields_array.len()
+    );
 }
 
 // ── RG-002 ────────────────────────────────────────────────────────────────────
@@ -514,10 +601,18 @@ fn test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_r
                  (Required = push-down eligibility, not extraction gate)",
     );
 
-    // PRECISION: absent 'name' → 'finding_info_title' is simply absent from mapped_fields.
+    // PRECISION: absent 'name' → 'finding_info.title' (DOT form) is absent from mapped_fields.
+    // map_record stores Tier-1 OCSF fields in DOT form (e.g., "finding_info.title"), NOT the
+    // Arrow-name underscore form ("finding_info_title"). Arrow-name flattening happens downstream
+    // in pipeline_result_to_record_batch. Asserting the DOT form makes this assertion load-bearing:
+    // if map_record were ever changed to emit "finding_info.title" even for absent inputs, this
+    // test would go red. Asserting the underscore form was tautological — mapped_fields never
+    // contains the underscore form regardless of input (F-VULNS-ADVFRESH-MED-001 fix).
+    // See RG-008 sibling: uses "finding_info.title" for the PRESENT-name case (consistent).
     assert!(
-        !row.mapped_fields.contains_key("finding_info_title"),
-        "finding_info_title must be absent (not errored) when 'name' is missing; \
+        !row.mapped_fields.contains_key("finding_info.title"),
+        "finding_info.title (DOT form) must be absent from mapped_fields when 'name' is \
+         missing — map_record skips absent fields silently; absent input → key absent entirely. \
          mapped_fields: {:?}",
         row.mapped_fields
     );
