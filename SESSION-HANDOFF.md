@@ -1,18 +1,72 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.033"
+version: "8.034"
 status: current
-timestamp: 2026-08-31T23:55:00Z
+timestamp: 2026-08-31T23:59:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2400 (2026-08-31): BLANKET MERGE AUTHORITY GRANT (human-directed) — ORCHESTRATOR may now merge v1-release PRs (G2–G6) on objective-gate pass without per-PR human ask. STATE v8.929→v8.930. SESSION-HANDOFF v8.032→v8.033. [D-2399 historical: G2 live holdout gate HUMAN-ACCEPTED. D-2397 historical: session-wrap.]**
+> **D-2401 (2026-08-31): POST-MERGE BURST — G2 (S-CLAROTY-OT-EVENTS-001) MERGED PR #246 @3d724a069 (D-2400 blanket authority). BC-2.16.016 draft→active (POL-14). develop_head 6972ac2e→3d724a069. STATE v8.930→v8.931. SESSION-HANDOFF v8.033→v8.034. [D-2400 historical: BLANKET MERGE AUTHORITY GRANT. D-2399 historical: G2 live holdout gate HUMAN-ACCEPTED.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2400 (2026-08-31 — BLANKET MERGE AUTHORITY GRANT; G2 holdout ACCEPTED; demo in progress; SAFE TO CLEAR) [supersedes D-2397]
+## §RESUME SNAPSHOT — D-2401 (2026-08-31 — G2 MERGED; G3 NEXT; SAFE TO CLEAR) [supersedes D-2400]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. G1 (S-CLAROTY-VULNS-001) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). G2 (S-CLAROTY-OT-EVENTS-001) MERGED (D-2401; PR #246 @3d724a069; BC-2.16.016 active). develop_head=3d724a069. D-2400 BLANKET MERGE AUTHORITY in force (orchestrator may merge G3–G6 on objective-gate pass; pr-manager still may NOT self-authorize; quality bar UNCHANGED). D-2396 CONVERGENCE-BAR DECISION in force. NEXT per story G3→G4→G5→G6: (1) rebase onto current develop; (2) final consistency-validator sweep (feature diff vs develop + story + BC + policies.yaml v1.44 incl SAP-1/2/3/4/POL-39/42) → fix any residual → CLEAN(PR-merge) confirm; (3) story-level holdout gate; (4) demo per-AC; (5) force-push --force-with-lease; (6) pr-manager PR; (7) ORCHESTRATOR-authorized merge (D-2400 blanket grant); (8) squash-merge; (9) post-merge burst; (10) rebase remaining branches. After all merged: LIVE xDome tenant validation (monroe) — v1 release gate.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional (human-directed). G3–G6 feature branches LOCAL-ONLY, code-complete, convergence-round complete, never pushed. Critical path: G3 → G4 → G5 → G6 (serialized with rebase) → LIVE xDome tenant validation.
+
+### CONVERGENCE BAR (D-2396, human-approved 2026-08-31)
+LOCAL bar: CLEAN(PR-merge) (zero CRIT/HIGH/MED) + one exhaustive consistency-validator sweep per story perimeter (feature diff vs current develop + story + BC + policies.yaml v1.44 incl SAP-1/2/3/4/POL-39/42) with ALL findings fixed. Standing "no pragmatic convergence / fix all issues" in force.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **VULNS-001 (G1):** MERGED (PR #245 @6972ac2e; D-2387). BC-2.16.015 active. Worktree REMOVABLE.
+- **G2 (S-CLAROTY-OT-EVENTS-001):** MERGED (PR #246 @3d724a069; D-2401). BC-2.16.016 active. Worktree REMOVABLE.
+- **G3 (S-CLAROTY-DEVVULNREL-001):** feature @69db93dc6 LOCAL-ONLY. Story v1.7 / BC-2.16.017 v1.2. Convergence-round COMPLETE. RESUME NEXT-ACTION: rebase onto develop@3d724a069 → Option-B final step.
+- **G4 (S-CLAROTY-SERVERS-001):** feature @c84dd785a LOCAL-ONLY. Story v1.7 / BC-2.16.018 v1.3 / BC-2.16.019 v1.2. Convergence-round COMPLETE. RESUME NEXT-ACTION: same after G3 merge.
+- **G5 (S-CLAROTY-ORGPOLICY-001):** feature @e5b453cb3 LOCAL-ONLY. Story v1.5 / BC-2.16.020 v1.2 / BC-2.16.021 v1.2. Convergence-round COMPLETE. RESUME NEXT-ACTION: same after G4 merge.
+- **G6 (S-CLAROTY-ACLPOLICY-001):** feature @1a6873a13 LOCAL-ONLY. Story v1.4 / BC-2.16.022 v1.2. Convergence-round COMPLETE. RESUME NEXT-ACTION: same after G5 merge.
+
+### CONVERGENCE STATE
+G1 MERGED (BC-2.16.015 active; develop@6972ac2e). G2 MERGED (BC-2.16.016 active; develop@3d724a069). G3 @69db93dc6 / G4 @c84dd785a / G5 @e5b453cb3 / G6 @1a6873a13 — all LOCAL-ONLY, convergence-round complete, NEXT = rebase + final consistency sweep + CLEAN(PR-merge) confirm per D-2396 bar.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `3d724a069` (D-2401 G2 PR #246 squash-merge 2026-08-31).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-CLAROTY-VULNS-001` (G1): MERGED (squash `6972ac2e`); worktree REMOVABLE.
+- `feature/S-CLAROTY-OT-EVENTS-001` (G2): MERGED (squash `3d724a069`); worktree REMOVABLE.
+- `feature/S-CLAROTY-DEVVULNREL-001` (G3): `69db93dc6` LOCAL-ONLY (story v1.7; convergence-round complete)
+- `feature/S-CLAROTY-SERVERS-001` (G4): `c84dd785a` LOCAL-ONLY (story v1.7; BC-2.16.018 v1.3/BC-2.16.019 v1.2)
+- `feature/S-CLAROTY-ORGPOLICY-001` (G5): `e5b453cb3` LOCAL-ONLY (story v1.5)
+- `feature/S-CLAROTY-ACLPOLICY-001` (G6): `1a6873a13` LOCAL-ONLY (story v1.4)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED (squash `c5be059f`); worktree REMOVABLE.
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### CANONICAL DECISIONS
+D-2401: G2 (S-CLAROTY-OT-EVENTS-001) MERGED PR #246 @3d724a069 (D-2400 blanket authority 2026-08-31). POL-14: BC-2.16.016 draft→active. D-2400: BLANKET MERGE AUTHORITY GRANT (human-directed 2026-08-31) — still in force for G3–G6; quality bar UNCHANGED. D-2396: LOCAL convergence bar = CLEAN(PR-merge) + exhaustive consistency-validator sweep.
+
+### LIVE VALIDATION (per-story merge gate, D-2310)
+Runbook: .factory/ops/live-tenant-validation-runbook.md; monroe onboarded (test-soc/live-soc/clients/monroe.env, keyring AD-017). WORKING procedure: build release binary from feature worktree → copy to test-soc/bin/prism + sensor TOML to test-soc/.prism-live/specs/ → tmux-cli launch zsh → drive `claude -p` headless prism-live MCP.
+
+### DEFERRED HOUSEKEEPING (non-blocking, tracked)
+(a) test doc-comment re-anchor. (b) holdout harness/fixture reconciliation. (c) validator gate for holdout-at-materialization. (d) BC-bump propagation checklist (D-2377). (e) `prism query` CLI stub wiring. (f) codify auto-mode merge-auth classifier protocol (D-2387). (g) vulnerabilities-table map_record comment fix-PR (D-2392 deferred). (h) E-QUERY-038 E2E test-writer discipline codification (D-2392). (i) POL-39 lint L11 (D-2393). (j) docs PR for SAP-4. (k) worktree cleanup: G1+G2+LIMIT REMOVABLE. (l) DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 post-v1 adjudication.
+
+### HEARTBEAT (permanent)
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
+
+### DECISION DELTA
+D-2401 (G2 MERGED PR #246 @3d724a069; POL-14 BC-2.16.016 active; SESSION-HANDOFF v8.033→v8.034). D-2400 (BLANKET MERGE AUTHORITY GRANT; historical). D-2399 (G2 live holdout gate HUMAN-ACCEPTED; historical).
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2357 G2–G6 in v1 scope. (d) D-2396 convergence bar in effect. (e) D-2400 BLANKET MERGE AUTHORITY (human-directed 2026-08-31) — still in force for G3–G6. (f) Live xDome tenant validation per-story merge gate; canonical runbook: .factory/ops/live-tenant-validation-runbook.md. (g) SAP-4/POL-42 in force. (h) Holdout gate BLOCKING at story level before demo/push.
+
+---
+
+## §RESUME SNAPSHOT — D-2400 (2026-08-31 — BLANKET MERGE AUTHORITY GRANT; G2 holdout ACCEPTED; demo in progress; SAFE TO CLEAR) [SUPERSEDED by D-2401]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. S-CLAROTY-VULNS-001 (G1) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). SAP-4/POL-42 committed on branch docs/sap4-codification @a86c32bdb (pushed; docs PR to develop PENDING). D-2395 convergence-round COMPLETE: all G2–G6 code+spec findings fixed (G2 @acf662de7; G3 @69db93dc6; G4 @c84dd785a; G5 @e5b453cb3; G6 @1a6873a13). D-2396 CONVERGENCE-BAR DECISION (human-approved): LOCAL bar = CLEAN(PR-merge) + exhaustive consistency-validator sweep ALL findings fixed. D-2399: G2 live holdout gate EXECUTED (HS-002 PASS 1.00 consumed, HS-003 PASS 1.00 consumed, HS-001 SETUP-FAILURE unconsumed; Human ACCEPTED). D-2400: BLANKET MERGE AUTHORITY GRANTED (human-directed 2026-08-31) — ORCHESTRATOR may merge v1-release PRs on objective-gate pass without per-PR human ask; pr-manager still may NOT self-authorize. NEXT per story in order G2→G3→G4→G5→G6: (1) final consistency-validator sweep (feature diff vs develop@6972ac2e + story + BC + policies.yaml v1.44 incl SAP-1/2/3/4/POL-39/42) → fix any residual → CLEAN(PR-merge) confirm; (2) story-level holdout gate; (3) demo per-AC; (4) force-push --force-with-lease; (5) pr-manager PR; (6) ORCHESTRATOR-authorized merge (D-2400 blanket grant — no separate per-PR human ask; pr-manager still must NOT self-authorize); (7) squash-merge; (8) post-merge burst; (9) rebase remaining branches. After all 5 merged: LIVE xDome tenant validation (monroe) — v1 release gate.
