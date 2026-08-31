@@ -862,7 +862,8 @@ ocsf_class = "detection_finding"
 
   # OTActivityEvent.related_alert_ids: Array of alert IDs linking this event to
   # Claroty alerts (confirms Option B detection_finding class).
-  # column_type = "json": first production use of json in this sensor. The value
+  # column_type = "json": uses json column type; the pipeline preserves the array
+  # natively in raw_extensions, per the vulnerabilities.cve_ids precedent. The value
   # is a native JSON array (e.g. [101, 202] or []); must NOT be stringified.
   # EC-016-016-002: empty array → [] in raw_extensions (not null).
   [[tables.columns]]
