@@ -4935,3 +4935,25 @@ Register either a self-improvement story anchored to the wave-5-e-demo-fidelity 
 **Follow-up obligation:** Register a self-improvement story at wave-5-e-demo-fidelity cycle close, or a justified deferral with a REAL story ID per Canonical Principle Rule 3. Without a mechanical gate, this class will recur on every story with story-writer-authored RG test lists.
 
 **Source:** D-2342 state-manager (2026-08-28). Pattern family: phantom-symbol authoring, section-scoped-sweep-failure, POL-39 body-prose version pin, POL-40 index-row compaction missed.
+
+---
+
+### [scenario-authoring] 2026-08-31 D-2403 — Holdout scenarios for OCSF tables with Tier-1 columns MUST assert via Tier-1 Arrow field name, not raw_extensions
+
+**Date recorded:** 2026-08-31
+**D-NNN anchor:** D-2403 (G3 live holdout gate VERDICT-A adjudication; single occurrence — record only; not yet a gate/rule)
+**Story:** S-CLAROTY-DEVVULNREL-001
+**Tags:** [scenario-authoring] [ocsf] [tier1-column] [raw_extensions] [holdout]
+**Classification:** SCENARIO-AUTHORING — over-specified holdout scenario dimension (HS-DEVVULNREL-001-002 v1.0 dimension 2) asserted that a REQUIRED Tier-1 column "must also appear in raw_extensions" — this contradicts ADR-058 §B2 (Tier-1 and Tier-2 are mutually exclusive; a Tier-1 column is NEVER in raw_extensions).
+
+**Description:**
+
+HS-DEVVULNREL-001-002 v1.0 was authored with dimension 2: "SELECT raw_extensions returns JSON object with vulnerability_name key present" — asserting that `vulnerability_name` (a REQUIRED Tier-1 column mapped to OCSF `finding_info.title`, Arrow field `finding_info_title`) would appear in `raw_extensions`. On live evaluation, `vulnerability_name` was correctly NOT in `raw_extensions` (because it is Tier-1; ADR-058 §B2: Tier-1 columns are exposed only as top-level Arrow fields and are never aggregated into `raw_extensions`). The implementation was correct; the scenario dimension was wrong.
+
+**Root cause:** Product-owner scenario-authoring error — `vulnerability_name` has `ocsf_field = "finding_info.title"` which makes it Tier-1, but the original scenario treated it as if it were Tier-2 (no `ocsf_field`). The ADR-058 §B2 mutual-exclusion constraint (Tier-1 ⟺ top-level Arrow field; Tier-2 ⟺ raw_extensions aggregation) was not applied when authoring dimension 2.
+
+**Rule (single occurrence — not yet gate-level):** Holdout scenarios for tables using `ocsf_column_naming = true` MUST assert join-key and identity-column accessibility via the Tier-1 Arrow field name (e.g., `finding_info_title` for `vulnerability_name` with `ocsf_field = "finding_info.title"`), NOT via `raw_extensions`. ADR-058 §B2: the tiers are mutually exclusive. A column with `ocsf_field` set is Tier-1 — its only queryable path is the Arrow field name from `ocsf_field_to_arrow_name`; it does NOT appear in `raw_extensions`. Asserting "column X is in raw_extensions" for a column with `ocsf_field` set will always fail at evaluation — the scenario is asserting the wrong tier.
+
+**Corrective action taken:** HS-002 amended v1.0→v1.1 by product-owner (VERDICT-A): dimension 2 corrected to "SELECT finding_info_title returns finding_info_title as a top-level Tier-1 column with a non-null string value" — the correct assertion for a Tier-1 REQUIRED column. Scenario consumed at satisfaction 0.75 (three dimensions correct; one dimension was over-specified; adjudicated as scenario error, not implementation gap). Gate treated as PASS. Mean satisfaction 0.92.
+
+**Transferable rule for scenario authoring:** Before authoring any dimension that asserts "column X is in raw_extensions" for a sensor TOML table with `ocsf_column_naming = true`, verify: does column X have an `ocsf_field` key? If YES → it is Tier-1 → it is a top-level Arrow column and is NEVER in raw_extensions → the correct assertion is "SELECT <arrow_field_name> returns a non-null value at the row top level." If NO → it is Tier-2 → it aggregates into raw_extensions → "SELECT raw_extensions returns JSON object with X key" is the correct assertion.

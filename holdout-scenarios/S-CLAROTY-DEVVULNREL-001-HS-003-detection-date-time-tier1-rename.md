@@ -10,24 +10,24 @@ epic_id: "EPIC-CLAROTY-XDOME-WAVE-B"
 story_source: "S-CLAROTY-DEVVULNREL-001"
 version: "1.0"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-08-31"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.017-claroty-device-vulnerability-relations-table.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "fdccb7c"
+input-hash: "3ad5d86"
 traces_to: "BC-2.16.017"
 behavioral_contracts:
   - BC-2.16.017
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-DEVVULNREL-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-08-31"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null

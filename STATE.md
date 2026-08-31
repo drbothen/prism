@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.932"
+version: "8.933"
 producer: state-manager
 timestamp: 2026-08-31T23:59:59Z
 inputs: []
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2402 G3 CONSISTENCY-GATE FIX BURST (TD-VSDD-053) — feature/S-CLAROTY-DEVVULNREL-001 rebased onto develop@3d724a069; 3 MED fixed (Finding-1 RG-003 test-header owner corrected to authoritative prism-bin gate; Finding-2 AC-009 prose native-JSON-array per BC-2.16.017 EC-016-017-004; Finding-3 SAP2_STATUS constant+assertion added to both new test files per G2 pattern). Feature HEAD 9136895d1→c94022ad3; just check exit 0. story v1.7→v1.8. story_index_version 2.968→2.969. develop_head UNCHANGED 3d724a069. trajectory-tail UNCHANGED →8→0→1→2. NEXT: fresh consistency re-sweep confirm → live holdout → demo → PR → merge (D-2400). STATE v8.931→v8.932."
+current_step: "D-2403 G3 S-CLAROTY-DEVVULNREL-001 LIVE-TENANT HOLDOUT GATE PASS (TD-VSDD-053) — monroe Variant-2 read-only; HS-001 1.00 (class_uid=2002 + finding_info_title CVE), HS-003 1.00 (time Tier-1 rename), HS-002 0.75 at-threshold (VERDICT-A over-specified). Mean 0.92. All 3 CONSUMED. OBS-001 story frontmatter comment (active)→(draft; POL-14). HOLDOUT-INDEX v1.29→v1.30. Lesson appended lessons.md. develop_head UNCHANGED 3d724a069. NEXT: G3 demo → push → PR → merge (D-2400). trajectory-tail UNCHANGED →8→0→1→2. STATE v8.932→v8.933."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-31 D-2402: G3 CONSISTENCY-GATE FIX BURST — feature/S-CLAROTY-DEVVULNREL-001 rebased onto develop@3d724a069; 3 MED fixed; story v1.7→v1.8; feature HEAD 9136895d1→c94022ad3. story_index_version 2.968→2.969. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.931→v8.932. |
+| **Last Updated** | 2026-08-31 D-2403: G3 LIVE-TENANT HOLDOUT GATE PASS — HS-026 3/3 consumed (mean 0.92); VERDICT-A HS-002; OBS-001 story comment corrected; HOLDOUT-INDEX v1.29→v1.30. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.932→v8.933. |
 
 ## Phase Progress
 
@@ -140,6 +140,7 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 | _D-2375..D-2400 (exhaustive)_ | _state-manager_ | _archived_ | _archived — cycles/wave-5-e-demo-fidelity/burst-log.md_ |
 | D-2401 | state-manager | 2026-08-31 | POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) MERGED (PR #246 @3d724a069, D-2400 blanket authority). POL-14: BC-2.16.016 (claroty_ot_activity_events) draft→active. develop_head 6972ac2e→3d724a069. bc_index_version 9.93→9.94. story_index_version 2.967→2.968. STORY-INDEX row [ready v1.9]→[merged v1.9 PR #246 @3d724a069]. SESSION-HANDOFF §RESUME SNAPSHOT D-2400 marked SUPERSEDED; §RESUME SNAPSHOT D-2401 inserted. TD-VSDD-097 N/A (post-merge records/index only; no new MUSTs/spec/code). Count-propagation sweep: draft 10→9, active 254→255, total 277 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.930→v8.931. |
 | D-2402 | state-manager | 2026-08-31 | G3 (S-CLAROTY-DEVVULNREL-001) CONSISTENCY-GATE FIX BURST (TD-VSDD-053) — rebased onto develop@3d724a069; 3 MED fixed (Finding-1 RG-003 test-header owner; Finding-2 AC-009 native-JSON-array; Finding-3 SAP2_STATUS constant+assertion). Feature HEAD 9136895d1→c94022ad3; just check exit 0. story v1.7→v1.8. story_index_version 2.968→2.969. NEXT: fresh consistency re-sweep → holdout → demo → PR → merge. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.931→v8.932. |
+| D-2403 | state-manager | 2026-08-31 | G3 (S-CLAROTY-DEVVULNREL-001) LIVE-TENANT HOLDOUT GATE PASS (TD-VSDD-053) — monroe Variant-2 read-only; setup healthy; real live data _source_type:live. HS-001 1.00 (class_uid=2002 + finding_info_title CVE string non-null), HS-003 1.00 (SELECT time accepted; SELECT device_vulnerability_detection_date E-QUERY-038 with time in available_columns), HS-002 0.75 at-threshold (VERDICT-A: over-specified; implementation CORRECT — vulnerability_name is Tier-1 finding_info_title NOT in raw_extensions per ADR-058 §B2; product-owner amended HS-002 v1.0→v1.1 pre-consumption). Mean satisfaction 0.92. All 3 HS-026 scenarios CONSUMED (lifecycle_status: consumed; used: true; last_evaluated: 2026-08-31). OBS-001 story frontmatter comment corrected: "(active)" → "(draft; POL-14 promotes to active at merge)". HOLDOUT-INDEX v1.29→v1.30 (HS-026 summary + detail updated; HS-001/HS-003 input-hash fdccb7c→3ad5d86). Lesson appended cycles/wave-5-e-demo-fidelity/lessons.md (scenario-authoring: Tier-1 columns assert via Arrow field name, not raw_extensions). develop_head UNCHANGED 3d724a069. TD-VSDD-097 N/A (holdout frontmatter + records + one story-comment correction; no new MUSTs, no spec/code content change). trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.932→v8.933. |
 
 ## Decisions Log
 
@@ -282,28 +283,28 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2402 — G3 consistency-gate fixes applied; CLEAN(PR-merge) re-confirm pending; safe to clear) [supersedes D-2401]
+## Session Resume Checkpoint (D-2403 — G3 holdout gate PASSED; NEXT: demo → push → PR → merge; safe to clear) [supersedes D-2402]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. G1 (S-CLAROTY-VULNS-001) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). G2 (S-CLAROTY-OT-EVENTS-001) MERGED (D-2401; PR #246 @3d724a069; BC-2.16.016 active). develop_head=3d724a069. D-2396 CONVERGENCE-BAR DECISION in force. D-2400 BLANKET MERGE AUTHORITY in force (orchestrator may merge G3–G6 on objective-gate pass; quality bar UNCHANGED). DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 registered (post-v1 follow-up). G3 (S-CLAROTY-DEVVULNREL-001) rebased onto develop@3d724a069; 3 MED fixed; feature HEAD c94022ad3; story v1.8; CLEAN(PR-merge) re-confirm pending. NEXT: G3 consistency re-sweep confirm → holdout → demo → PR → ORCHESTRATOR-authorized merge → post-merge burst. Serialize G3→G4→G5→G6; rebase between merges. Autonomy D-989; capped-strict.
+Phase 3 Wave-5-E. G1 (S-CLAROTY-VULNS-001) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). G2 (S-CLAROTY-OT-EVENTS-001) MERGED (D-2401; PR #246 @3d724a069; BC-2.16.016 active). develop_head=3d724a069. D-2396 CONVERGENCE-BAR DECISION in force. D-2400 BLANKET MERGE AUTHORITY in force (orchestrator may merge G3–G6 on objective-gate pass; quality bar UNCHANGED). DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 registered (post-v1 follow-up). G3 (S-CLAROTY-DEVVULNREL-001) @c94022ad3 rebased develop@3d724a069; story v1.8; HOLDOUT GATE PASS (D-2403; HS-026 3/3 consumed; mean 0.92). NEXT: G3 demo-recorder → push to origin → PR → ORCHESTRATOR-authorized squash-merge → post-merge burst. Serialize G3→G4→G5→G6; rebase between merges. Autonomy D-989; capped-strict.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
-1. G3 (S-CLAROTY-DEVVULNREL-001 @c94022ad3 rebased develop@3d724a069): fresh consistency re-sweep confirm → holdout gate → demo → PR → ORCHESTRATOR-authorized merge (D-2400 blanket grant) → squash-merge → post-merge burst.
+1. G3 (S-CLAROTY-DEVVULNREL-001 @c94022ad3 rebased develop@3d724a069): demo-recorder → push to origin → PR → ORCHESTRATOR-authorized merge (D-2400 blanket grant) → squash-merge → post-merge burst.
 2. G4 (S-CLAROTY-SERVERS-001 @c84dd785a): same after G3 merge. BC-2.16.018 v1.3 / BC-2.16.019 v1.2.
 3. G5 (S-CLAROTY-ORGPOLICY-001 @e5b453cb3): same after G4 merge.
 4. G6 (S-CLAROTY-ACLPOLICY-001 @1a6873a13): same after G5 merge.
 5. POST-ALL-MERGED: LIVE xDome tenant validation (monroe) — v1 release gate per D-2310 runbook.
 6. DEFERRED HOUSEKEEPING: (a) test doc-comment re-anchor; (b) holdout harness/fixture reconciliation; (c) validator gate for holdout-at-materialization; (d) BC-bump propagation checklist (D-2377 PROCESS-GAP); (e) `prism query` CLI stub wiring; (f) codify auto-mode merge-auth classifier protocol (D-2387 PROCESS-GAP); (g) vulnerabilities-table map_record comment mischaracterization fix-PR (D-2392 deferred); (h) E-QUERY-038 authoritative E2E test-writer discipline codification (D-2392 PROCESS-GAP); (i) POL-39 lint L11 (D-2393 PROCESS-GAP); (j) docs PR for SAP-4 (docs/sap4-codification@a86c32bdb → develop); (k) worktree cleanup: S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001 + S-ENGINE-LIMIT-EARLY-STOP-001 REMOVABLE; (l) DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 post-v1 architect+PO adjudication pending.
 
-**CONVERGENCE STATE:** G1 MERGED (BC-2.16.015 active; develop@6972ac2e). G2 MERGED (BC-2.16.016 active; develop@3d724a069). G3 @c94022ad3 rebased develop@3d724a069; story v1.8; 3 MED fixed; CLEAN(PR-merge) re-confirm pending. G4 @c84dd785a LOCAL-ONLY; BC-2.16.018 v1.3/BC-2.16.019 v1.2/story v1.7; convergence-round complete; PENDING. G5 @e5b453cb3 LOCAL-ONLY; story v1.5; convergence-round complete; PENDING. G6 @1a6873a13 LOCAL-ONLY; story v1.4; convergence-round complete; PENDING.
+**CONVERGENCE STATE:** G1 MERGED (BC-2.16.015 active; develop@6972ac2e). G2 MERGED (BC-2.16.016 active; develop@3d724a069). G3 @c94022ad3 rebased develop@3d724a069; story v1.8; HOLDOUT GATE PASS (D-2403; HS-026 3/3; mean 0.92). G4 @c84dd785a LOCAL-ONLY; BC-2.16.018 v1.3/BC-2.16.019 v1.2/story v1.7; convergence-round complete; PENDING. G5 @e5b453cb3 LOCAL-ONLY; story v1.5; convergence-round complete; PENDING. G6 @1a6873a13 LOCAL-ONLY; story v1.4; convergence-round complete; PENDING.
 
 **HEADS (backup boundary):**
 - `develop`: origin/develop = local develop = `3d724a069` (D-2401 G2 PR #246 squash-merge 2026-08-31).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
 - `feature/S-CLAROTY-VULNS-001` (G1): MERGED (squash `6972ac2e`); local worktree .worktrees/S-CLAROTY-VULNS-001 REMOVABLE post-cleanup.
 - `feature/S-CLAROTY-OT-EVENTS-001` (G2): MERGED (squash `3d724a069`); local worktree .worktrees/S-CLAROTY-OT-EVENTS-001 REMOVABLE post-cleanup.
-- `feature/S-CLAROTY-DEVVULNREL-001` (G3): `c94022ad3` rebased develop@3d724a069 (story v1.8; 3 MED fixed; CLEAN(PR-merge) re-confirm pending)
+- `feature/S-CLAROTY-DEVVULNREL-001` (G3): `c94022ad3` rebased develop@3d724a069 (story v1.8; HOLDOUT GATE PASS D-2403)
 - `feature/S-CLAROTY-SERVERS-001` (G4): `c84dd785a` LOCAL-ONLY (story v1.7; BC-2.16.018 v1.3/BC-2.16.019 v1.2; convergence-round complete; never pushed)
 - `feature/S-CLAROTY-ORGPOLICY-001` (G5): `e5b453cb3` LOCAL-ONLY (story v1.5; convergence-round complete; never pushed)
 - `feature/S-CLAROTY-ACLPOLICY-001` (G6): `1a6873a13` LOCAL-ONLY (story v1.4; convergence-round complete; never pushed)
