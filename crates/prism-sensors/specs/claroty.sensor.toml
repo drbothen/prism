@@ -764,9 +764,10 @@ ocsf_class = "detection_finding"
 
   # OTActivityEvent.event_id: Integer — platform-unique event identifier.
   # REQUIRED = mandatory push-down parameter (BC-2.11.007 / ColumnOptions::Required),
-  # consistent with sibling id/uid columns (e.g., claroty_alerts.alert_id, claroty_assets.asset_id).
-  # Absent event_id → finding_info.uid null via default map_record absent-field handling
-  # (ColumnMapper::map_record graceful null passthrough) — NOT a REQUIRED-option effect.
+  # consistent with sibling id/uid columns (e.g., alerts.id, devices.uid, device_alert_relations.device_uid).
+  # Absent event_id → finding_info.uid null via build_column_array within
+  # pipeline_result_to_record_batch (reached via SpecDrivenSensorAdapter::fetch) — NOT a
+  # REQUIRED-option effect. (map_record is a non-production reference mirror; zero production callers.)
   # ocsf_field_to_arrow_name("finding_info.uid") = "finding_info_uid" (ADR-058 §C2 Option 4).
   [[tables.columns]]
   name = "event_id"
