@@ -1,0 +1,40 @@
+# AC-003 + AC-005: Tier-2 plan-gate (E-QUERY-038) and OCSF rename verification
+# Story: S-CLAROTY-OT-EVENTS-001 (Wave A G2)
+# Traces to: BC-2.16.016 §Invariants (Tier-2 plan-gate, EC-016-016-006)
+#            BC-2.16.016 §Postconditions §2 (Tier-1 detection_time→time rename, EC-009)
+#
+# Tool: query — client: monroe
+#
+# AC-003 evidence: SELECT source_ip raises E-QUERY-038 at plan time.
+#   available_columns = [_sensor, activity_name, class_uid, finding_info_uid, message, raw_extensions, time]
+#   → source_ip ABSENT (Tier-2, not a standalone Arrow column)
+#   → raw_extensions PRESENT (Tier-2 aggregate)
+#   → finding_info_uid PRESENT (Tier-1 OCSF arrow name)
+#
+# AC-005 evidence (error path): SELECT detection_time raises E-QUERY-038 at plan time.
+#   detection_time is the raw TOML column name, not an Arrow field under ocsf_column_naming=true.
+#   The Arrow field for detection_time is `time` (ocsf_field_to_arrow_name("time") = "time").
+#   available_columns contains `time`, not `detection_time`.
+
+--- QUERY 1: SELECT source_ip FROM claroty_ot_activity_events LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'source_ip' not found in table 'claroty_ot_activity_events' for client 'monroe'; available: [_sensor, activity_name, class_uid, finding_info_uid, message, raw_extensions, time]. Call prism_describe('<client_id>') to see available columns, or use the available_columns field in this error to correct the column name.
+--- Exit 0 (plan-gate fired as expected) ---
+
+--- QUERY 2: SELECT detection_time FROM claroty_ot_activity_events LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'detection_time' not found in table 'claroty_ot_activity_events' for client 'monroe'; available: [_sensor, activity_name, class_uid, finding_info_uid, message, raw_extensions, time]. Call prism_describe('<client_id>') to see available columns, or use the available_columns field in this error to correct the column name.
+--- Exit 0 (plan-gate fired as expected) ---
+
+--- SUMMARY ---
+AC-003 PASS: source_ip (Tier-2 network column) raises E-QUERY-038 at plan time.
+  available_columns correctly contains raw_extensions but NOT source_ip.
+  All 6 network 5-tuple columns (source_ip, dest_ip, protocol, dest_port,
+  source_port, ip_protocol) are Tier-2 — none appear as standalone columns.
+  (Confirmed by passing RG-003: test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038)
+
+AC-005 PASS (error path): detection_time (raw TOML column name) raises E-QUERY-038.
+  available_columns contains `time` (the OCSF Arrow name) but not `detection_time`.
+  Use `SELECT time` to query the detection_time field.
+  (Confirmed by passing RG-009: test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038)
+--- Exit 0 ---
