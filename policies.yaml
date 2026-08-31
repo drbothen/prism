@@ -23,12 +23,17 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.43"
-last_amended: 2026-08-24
+version: "1.44"
+last_amended: 2026-08-31
 
 metadata:
-  version: "1.43"
+  version: "1.44"
   changelog:
+    - version: "1.44"
+      date: 2026-08-31
+      burst: spec-steward-pol42-sap4-named-mechanism-reachability
+      findings: []
+      change: "v1.43 → v1.44 2026-08-31 — POL-42 named_mechanism_production_reachability registered (id: 42, severity: MEDIUM): When a BC or story names a specific function as the mechanism implementing an invariant/AC, that function MUST have >=1 production caller; a named mechanism with zero production callers is dead in production and tests exercising it are defense-in-depth only. Distinct from POL/SAP-3 synthetic-AST detection: catches a real function never invoked on the production path (masked coverage). Mirrors CLAUDE.md Standing Adversary Probe SAP-4. Origin: S-CLAROTY-OT-EVENTS-001 LOCAL adversary re-gate 2026-08-31 — AC-007/AC-008 covered only via ColumnMapper::map_record (0 production callers); production path is build_column_array/pipeline_result_to_record_batch. Adopted: human-approved. Policy count 41 → 42."
     - version: "1.43"
       date: 2026-08-24
       burst: state-manager-pol41-parallelize-inflight-state-writes
@@ -1157,3 +1162,33 @@ policies:
       - "A session log showing orchestrator waited idle between 'state-manager dispatched' and 'state-manager completed' before dispatching the next non-.factory/ agent is a MEDIUM violation."
       - "EXEMPT: work that writes .factory/ (second state-manager burst, spec-steward amendments to .factory/specs/) must serialize per TD-VSDD-053. The exemption applies only to different-target work (crates/, feature worktrees, research)."
       - "Self-audit question (orchestrator, before idling): 'Is there any non-.factory/ pipeline work (tests, implementation, review) that is UNBLOCKED except for waiting on the state burst?' If YES, dispatch it now in parallel."
+
+  - id: 42
+    name: named_mechanism_production_reachability
+    description: |
+      When a BC or story names a specific function as the mechanism implementing an
+      invariant or acceptance criterion (e.g. "null cell produced via
+      ColumnMapper::map_record"), that function MUST have >=1 production caller. A named
+      mechanism with zero production callers is dead in production; any test exercising it
+      is defense-in-depth ONLY and does NOT satisfy reachability — the AC requires a test
+      through the actual production entry path. This is distinct from POL/SAP-3
+      synthetic-AST detection: SAP-3 catches a real function unreachable from a grammar/
+      tool-call surface; POL-42/SAP-4 catches a real function that IS reachable from some
+      surface but is never invoked on the production execution path (masked coverage). A
+      spec that presents a non-production reference function as the production mechanism
+      is a false traceability claim. Mirrors CLAUDE.md Standing Adversary Probe SAP-4.
+      Precedent: S-CLAROTY-OT-EVENTS-001 — AC-007/AC-008 covered only via
+      ColumnMapper::map_record (0 production callers); production path is
+      build_column_array/pipeline_result_to_record_batch. Human-approved
+      2026-08-31.
+    adopted: "S-CLAROTY-OT-EVENTS-001 LOCAL adversary re-gate 2026-08-31 (human-approved)"
+    severity: MEDIUM
+    enforced_by: [adversary-prompt]
+    scope: [bc, story, source-code]
+    codified_at: null
+    lint_hook: null
+    verification_steps:
+      - "For each function a BC or story names as the mechanism for an invariant or AC, grep crates/**/src (excluding #[cfg(test)] blocks and tests/ subdirectories) for call sites of that function in production code. Command pattern: rg '<function_name>' crates/ --type rust --glob '!**/tests/**' -- then filter hits to exclude lines inside #[cfg(test)] mod blocks. Confirm >=1 production caller exists."
+      - "If the named mechanism function has zero production callers, flag P2 (MED) masked-coverage: the covering tests are defense-in-depth only. Require at least one test that reaches the claimed behavior via the actual production entry point (e.g., SpecDrivenSensorAdapter::fetch, QueryEngine::execute, or the MCP tool call surface) rather than invoking the internal function directly."
+      - "Verify that BC §Invariants, EC prose, and story ACs do not present a non-production reference or mirror function as the production mechanism. If a spec says 'X is implemented via fn foo()' but fn foo() is only called from tests or an unreachable helper, that sentence is a false traceability claim and must be corrected to name the actual production path."
+      - "For each hit flagged: identify the true production execution path from a public entry point to the behavior the BC/story claims, and verify that path has end-to-end test coverage (wire-level assertion per CLAUDE.md §Wire-shape assertion discipline, 2026-07-13)."
