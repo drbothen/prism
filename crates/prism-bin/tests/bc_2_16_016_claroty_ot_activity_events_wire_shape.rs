@@ -9,6 +9,7 @@
 //! | NEW-1        | test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock | class_uid=2004, finding_info_uid, time, activity_name, message, raw_extensions as JSON object, no Tier-2 top-level keys (RecordBatch-level assertions) |
 //! | EC-002-WIRE  | test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array | Wire-level: related_alert_ids=[1,2,3] survives as native JSON array (not stringified) inside raw_extensions JSON object |
 //! | RG-003 (SAP-3) | test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038 | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() — authoritative end-to-end reachability gate |
+//! | AC-005/EC-009  | test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038 | E-QUERY-038 when querying raw TOML name `detection_time` (projected as Arrow name `time` under ocsf_column_naming=true) — F-COE1-P1-OBS-001 closure |
 //!
 //! # SAP-2 status
 //!
@@ -782,6 +783,133 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_qu
                 "SAP-3 LOAD-BEARING: QueryEngine::execute must return \
                  PrismError::ColumnNotFound (E-QUERY-038) when a Tier-2 column is queried \
                  directly. Got: {:?}. BC-2.16.016 AC-003; SAP-3.",
+                other
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AC-005 / EC-009: raw TOML column name under ocsf_column_naming=true raises E-QUERY-038
+// ---------------------------------------------------------------------------
+
+/// AC-005 / EC-009 end-to-end coverage (F-COE1-P1-OBS-001 closure):
+/// Querying the raw TOML column name `detection_time` via `QueryEngine::execute()`
+/// raises `PrismError::ColumnNotFound` (E-QUERY-038).
+///
+/// Under `ocsf_column_naming = true`, the pipeline projects Tier-1 columns by their
+/// OCSF Arrow names, not their raw TOML names. `detection_time` has
+/// `ocsf_field = "time"`, so it is projected as Arrow name `time`. The raw name
+/// `detection_time` is NOT in the projected set — querying it directly must raise
+/// E-QUERY-038 at plan time, with `time` appearing in `available_columns`.
+///
+/// This is distinct from RG-003 (which covers Tier-2 `source_ip`): `detection_time`
+/// is Tier-1 (it has an `ocsf_field` mapping) but its RAW TOML name is hidden from
+/// the query surface. Both raw-Tier-1 names and Tier-2 names must raise E-QUERY-038.
+///
+/// Architecture: the gate fires in `QueryEngine::execute_inner` (engine.rs) at
+/// plan time, before any HTTP fan-out. Same engine setup as RG-003.
+///
+/// Assertions:
+///   - `result.is_err()` (plan-time failure)
+///   - `PrismError::ColumnNotFound` variant
+///   - `details.column == "detection_time"` (the queried raw name)
+///   - `avail.contains("time")` (the projected Arrow name IS available)
+///   - `!avail.contains("detection_time")` (the raw name is NOT available)
+///
+/// BC-2.16.016 AC-005; EC-016-016-009; ADR-058 §C2; F-COE1-P1-OBS-001.
+/// Story: S-CLAROTY-OT-EVENTS-001.
+#[tokio::test]
+async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038()
+ {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "AC-005/EC-009 test: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+    let spec = SpecLoader::parse(&spec_content)
+        .expect("AC-005/EC-009 test: claroty.sensor.toml must parse");
+
+    let registry = Arc::new(TableRegistry::new());
+    registry.register_sensor(&spec).expect(
+        "AC-005/EC-009 test: register_sensor must not fail for production claroty.sensor.toml",
+    );
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    // `detection_time` is the raw TOML column name for ocsf_field="time".
+    // Under ocsf_column_naming=true it is projected as Arrow name "time", NOT "detection_time".
+    // Querying the raw name must raise E-QUERY-038 at plan time.
+    let result = engine
+        .execute(
+            "SELECT detection_time FROM claroty_ot_activity_events",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "AC-005/EC-009 LOAD-BEARING: QueryEngine::execute must return Err when \
+         the raw TOML name 'detection_time' is queried (projected Arrow name is 'time'). \
+         Got Ok. BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001."
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::ColumnNotFound(details) => {
+            assert_eq!(
+                details.column, "detection_time",
+                "AC-005/EC-009: ColumnNotFound.column must be 'detection_time' \
+                 (the queried raw TOML name). Got: {:?}. BC-2.16.016 AC-005.",
+                details.column
+            );
+            let avail = &details.available_columns;
+
+            // The Arrow-projected name "time" MUST appear in available_columns.
+            assert!(
+                avail.contains(&"time".to_string()),
+                "AC-005/EC-009: available_columns must include 'time' \
+                 (the Arrow-name projection of detection_time under ocsf_column_naming=true). \
+                 Got: {:?}. BC-2.16.016 AC-005; ADR-058 §C2.",
+                avail
+            );
+
+            // The raw TOML name "detection_time" must NOT appear in available_columns.
+            assert!(
+                !avail.contains(&"detection_time".to_string()),
+                "AC-005/EC-009 LOAD-BEARING: 'detection_time' is the raw TOML name and MUST NOT \
+                 appear in available_columns under ocsf_column_naming=true \
+                 (only the Arrow name 'time' is projected). Got: {:?}. \
+                 BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001.",
+                avail
+            );
+
+            // raw_extensions must be available (Tier-2 aggregate).
+            assert!(
+                avail.contains(&"raw_extensions".to_string()),
+                "AC-005/EC-009: available_columns must include 'raw_extensions'. \
+                 Got: {:?}. BC-2.16.016 AC-005.",
+                avail
+            );
+        }
+        other => {
+            panic!(
+                "AC-005/EC-009 LOAD-BEARING: QueryEngine::execute must return \
+                 PrismError::ColumnNotFound (E-QUERY-038) when the raw TOML name \
+                 'detection_time' is queried directly. Got: {:?}. \
+                 BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001.",
                 other
             );
         }

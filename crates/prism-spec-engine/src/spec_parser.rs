@@ -1652,6 +1652,7 @@ ocsf_column_naming = true
 #[cfg(test)]
 mod claroty_ot_activity_events_parse_tests {
     use super::SpecLoader;
+    use prism_core::ColumnType;
 
     const CLAROTY_TOML: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -1797,6 +1798,28 @@ mod claroty_ot_activity_events_parse_tests {
             "RG-001: fetch_ot_activity_events body_template 'fields' array must have exactly 21 \
              elements (no duplicates, no extras); got {}. BC-2.16.016 §TOML Contract.",
             fields_array.len()
+        );
+
+        // ── RG-001 v1.1 hardening: related_alert_ids column_type == ColumnType::Json ──
+        // BC-2.16.016 §Postconditions §2 (EC-016-016-002 / AC-006):
+        //   `related_alert_ids` is a JSON array column and MUST declare column_type = "json"
+        //   in claroty.sensor.toml so the pipeline preserves it as a native JSON array
+        //   inside raw_extensions (not stringified). F-COE1-P1-LOW-001 closure.
+        let related_alert_ids_col = table
+            .columns
+            .iter()
+            .find(|c| c.name == "related_alert_ids")
+            .expect(
+                "RG-001 v1.1: column 'related_alert_ids' must be present in ot_activity_events. \
+                 BC-2.16.016 §Postconditions §2.",
+            );
+        assert_eq!(
+            related_alert_ids_col.column_type,
+            ColumnType::Json,
+            "RG-001 v1.1 LOAD-BEARING: 'related_alert_ids' ColumnSpec.column_type MUST be \
+             ColumnType::Json (declared as `column_type = \"json\"` in claroty.sensor.toml). \
+             Got: {:?}. BC-2.16.016 AC-006 / EC-016-016-002; F-COE1-P1-LOW-001.",
+            related_alert_ids_col.column_type
         );
     }
 
