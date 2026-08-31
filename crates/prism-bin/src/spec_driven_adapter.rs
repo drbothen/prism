@@ -6344,4 +6344,380 @@ ocsf_column_naming = true
             schema_names, helper_names
         );
     }
+
+    // =========================================================================
+    // BC-2.16.022 Red Gate tests — S-CLAROTY-ACLPOLICY-001
+    // RG-008, RG-009, RG-011
+    // =========================================================================
+
+    /// Load the actual `claroty.sensor.toml` via `SpecLoader::parse` for use in
+    /// prism-bin inline tests.
+    ///
+    /// CARGO_MANIFEST_DIR for prism-bin = `crates/prism-bin/`
+    /// Target: `crates/prism-sensors/specs/claroty.sensor.toml`
+    fn load_claroty_spec_for_bin_tests() -> SensorSpec {
+        use prism_spec_engine::SpecLoader;
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml");
+        let content = std::fs::read_to_string(&path)
+            .expect("claroty.sensor.toml must be readable from prism-sensors/specs/");
+        SpecLoader::parse(&content).expect("claroty.sensor.toml must be a valid SensorSpec TOML")
+    }
+
+    /// RG-008 / BC-2.16.022 AC-008 / BC-2.16.022 §PC5 (Json column type)
+    ///
+    /// `applied_models` is declared `column_type = "json"` (Tier-2) in the TOML.
+    /// When `pipeline_result_to_record_batch` processes a record whose `applied_models`
+    /// field is a JSON array, the raw_extensions JSON blob MUST contain
+    /// `applied_models` as a native JSON array — NOT a stringified array.
+    ///
+    /// This test exposes the ENRICH-1 DD-2 bug (lines 1155-1169): the current
+    /// raw_extensions builder converts ALL serde_json::Value::Array values to
+    /// `serde_json::Value::String(...)` regardless of `column_type`. After the
+    /// implementer's fix, arrays for `column_type = "json"` columns MUST be
+    /// preserved as native JSON arrays.
+    ///
+    /// Wire-shape assertion (2026-07-13): assert on the serialized raw_extensions
+    /// JSON, which is the exact form consumed by MCP clients via DataFusion.
+    ///
+    /// Red Gate mechanism:
+    /// - Pre-TOML-add: `.find().expect()` panics (table absent) → FAILS.
+    /// - Post-TOML-add (before ENRICH-1 fix): raw_extensions["applied_models"] is
+    ///   a string → `is_array()` fails → FAILS.
+    /// - Post-TOML-add + ENRICH-1 fix: applied_models preserved as array → PASSES.
+    #[test]
+    fn test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string() {
+        use arrow::array::StringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = load_claroty_spec_for_bin_tests();
+
+        // Red Gate: panics if `claroty_organization_acl_policies` absent from TOML.
+        let table = sensor_spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .expect(
+                "BC-2.16.022 AC-008 RED GATE: claroty_organization_acl_policies must exist \
+                 in claroty.sensor.toml. After the table is present, this test also exposes \
+                 the ENRICH-1 DD-2 bug: applied_models JSON array is stringified in \
+                 raw_extensions. The implementer must fix the raw_extensions builder to \
+                 preserve native JSON arrays for column_type = \"json\" columns.",
+            );
+
+        // Build a PipelineResult with one record containing applied_models as a JSON array.
+        // Two model names from real Claroty xDome production data.
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "policy_id":      "pol-001",
+                "policy_name":    "OT Device Isolation",
+                "applied_models": ["Siemens SIMATIC S7-300", "Rockwell ControlLogix 5571"],
+                "policy_source":  "manual"
+            })],
+            "claroty_organization_acl_policies",
+            1,
+            false,
+        );
+
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect(
+            "BC-2.16.022 AC-008: pipeline_result_to_record_batch must succeed for a \
+             valid claroty_organization_acl_policies record",
+        );
+
+        // raw_extensions is a Utf8 Arrow column; row 0 must be non-null.
+        let raw_col = batch
+            .column_by_name("raw_extensions")
+            .expect("BC-2.16.022 AC-008: 'raw_extensions' column must exist in Arrow schema");
+        let raw_arr = raw_col
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("BC-2.16.022 AC-008: raw_extensions column must be StringArray");
+        assert!(
+            !raw_arr.is_null(0),
+            "BC-2.16.022 AC-008: raw_extensions row 0 must be non-null \
+             (record has both policy_source and applied_models Tier-2 columns)"
+        );
+
+        // Wire-shape assertion (2026-07-13): parse the serialized raw_extensions JSON string.
+        // This is the exact form that MCP clients receive via DataFusion.
+        let raw_str = raw_arr.value(0);
+        let raw_json: serde_json::Value = serde_json::from_str(raw_str).expect(
+            "BC-2.16.022 AC-008: raw_extensions must be valid JSON string in Arrow StringArray",
+        );
+
+        // BC-2.16.022 §PC5 / AC-008: applied_models MUST be a JSON array in raw_extensions.
+        // ENRICH-1 DD-2 bug: the current builder converts ALL arrays to strings regardless
+        // of column_type. After the fix, column_type = "json" arrays are preserved.
+        assert!(
+            raw_json["applied_models"].is_array(),
+            "BC-2.16.022 AC-008 ENRICH-1-FIX: raw_extensions['applied_models'] MUST be a \
+             native JSON array (not a stringified array). \
+             column_type = \"json\" columns MUST NOT be stringified by the raw_extensions \
+             builder (ENRICH-1 DD-2 fix required). \
+             Got: {:?}. Full raw_extensions: {}",
+            raw_json["applied_models"],
+            raw_str
+        );
+        // Negative assertion: MUST NOT be a string (the ENRICH-1 DD-2 bug form).
+        assert!(
+            !raw_json["applied_models"].is_string(),
+            "BC-2.16.022 AC-008 ENRICH-1-FIX: raw_extensions['applied_models'] MUST NOT be \
+             a JSON string (e.g. '\"[\\\"Siemens...\\\",...]\"'). \
+             The ENRICH-1 DD-2 array-stringification bug produces this form. \
+             Got: {:?}",
+            raw_json["applied_models"]
+        );
+        // Verify the array contents are preserved correctly.
+        let arr = raw_json["applied_models"]
+            .as_array()
+            .expect("already asserted is_array above");
+        assert_eq!(
+            arr.len(),
+            2,
+            "BC-2.16.022 AC-008: applied_models array MUST have 2 elements. Got: {}",
+            arr.len()
+        );
+    }
+
+    /// RG-009 / BC-2.16.022 AC-009 — null metadata_uid when policy_id absent from record
+    ///
+    /// When a response record lacks `policy_id`, the REQUIRED Tier-1 column must produce
+    /// a null Arrow cell for `metadata_uid` (not an E-SPEC-018 datetime-parse error,
+    /// not a crash, not an empty string).
+    ///
+    /// The BC says `ColumnOptions::Required` (DI-021) but BC-2.16.022 §Invariants clarifies:
+    /// absent values at the PIPELINE level produce null cells, not query-layer rejections.
+    /// E-SPEC-018 is only raised for datetime timestamp parse failures.
+    ///
+    /// Wire-shape assertion: Arrow null cell → serialized JSON null (null-not-absent per
+    /// BC-2.11.001 EC-11-079 row-shape). Arrow `is_null()` verifies the cell-level null.
+    ///
+    /// Red Gate: `.find().expect()` panics when table absent from claroty.sensor.toml.
+    #[test]
+    fn test_BC_2_16_022_null_metadata_uid_when_policy_id_absent() {
+        use arrow::array::StringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = load_claroty_spec_for_bin_tests();
+
+        // Red Gate: panics if table absent.
+        let table = sensor_spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .expect(
+                "BC-2.16.022 AC-009 RED GATE: claroty_organization_acl_policies must exist \
+                 in claroty.sensor.toml.",
+            );
+
+        // 2 records: row 0 lacks policy_id (absent), row 1 has policy_id.
+        let result = PipelineResult::new(
+            vec![
+                serde_json::json!({
+                    // policy_id absent — metadata_uid must be null Arrow cell.
+                    "policy_name":   "default_policy",
+                    "policy_source": "auto"
+                }),
+                serde_json::json!({
+                    "policy_id":     "pol-002",
+                    "policy_name":   "strict_policy",
+                    "policy_source": "manual"
+                }),
+            ],
+            "claroty_organization_acl_policies",
+            2,
+            false,
+        );
+
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect(
+            "BC-2.16.022 AC-009: pipeline_result_to_record_batch must not raise E-SPEC-018 \
+             for absent policy_id — absent values produce null cells, not parse errors",
+        );
+
+        // Extract the metadata_uid Arrow column (Tier-1: policy_id → ocsf_field metadata.uid
+        // → Arrow field name "metadata_uid" via dot→underscore flattening).
+        let meta_uid_col = batch.column_by_name("metadata_uid").expect(
+            "BC-2.16.022 AC-009: 'metadata_uid' column must exist in Arrow schema \
+                 (policy_id → ocsf_field 'metadata.uid' → Arrow 'metadata_uid')",
+        );
+        let meta_uid_arr = meta_uid_col
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("BC-2.16.022 AC-009: metadata_uid column must be StringArray");
+
+        // BC-2.16.022 §Invariants / AC-009: row 0 — policy_id absent → null metadata_uid.
+        assert!(
+            meta_uid_arr.is_null(0),
+            "BC-2.16.022 AC-009: metadata_uid row 0 MUST be null when policy_id is absent \
+             from the response record. Got non-null: '{}'",
+            meta_uid_arr.value(0)
+        );
+
+        // BC-2.16.022 §Invariants / AC-009: row 1 — policy_id present → non-null metadata_uid.
+        assert!(
+            !meta_uid_arr.is_null(1),
+            "BC-2.16.022 AC-009: metadata_uid row 1 MUST be non-null when policy_id = 'pol-002'"
+        );
+        assert_eq!(
+            meta_uid_arr.value(1),
+            "pol-002",
+            "BC-2.16.022 AC-009: metadata_uid row 1 MUST be 'pol-002'. Got: '{}'",
+            meta_uid_arr.value(1)
+        );
+
+        // Wire-shape assertion: the Arrow schema must NOT have a "policy_id" field.
+        // Under ocsf_column_naming = true, the projected name is "metadata_uid", not "policy_id".
+        assert!(
+            batch.column_by_name("policy_id").is_none(),
+            "BC-2.16.022 AC-009: 'policy_id' MUST NOT appear as an Arrow field name under \
+             ocsf_column_naming = true (projected as 'metadata_uid' instead)"
+        );
+    }
+
+    /// RG-011 / BC-2.16.022 AC-011 — datetime Tier-2 columns: null passthrough for absent fields
+    ///
+    /// `policy_creation_date` and `policy_last_updated` are Tier-2 Datetime columns
+    /// (ocsf_field absent). They aggregate into `raw_extensions` as JSON string values.
+    /// When a record has absent datetime fields, the raw_extensions JSON object must
+    /// NOT have those keys — null passthrough (ADR-028 §D8-B, no E-SPEC-018 raised).
+    ///
+    /// Wire-shape assertion: parse the raw_extensions JSON string and check key presence.
+    ///
+    /// Red Gate: `.find().expect()` panics when table absent from claroty.sensor.toml.
+    #[test]
+    fn test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions() {
+        use arrow::array::StringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = load_claroty_spec_for_bin_tests();
+
+        // Red Gate: panics if table absent.
+        let table = sensor_spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .expect(
+                "BC-2.16.022 AC-011 RED GATE: claroty_organization_acl_policies must exist \
+                 in claroty.sensor.toml.",
+            );
+
+        // 2 records:
+        // row 0: ISO-8601 datetime values present → raw_extensions has both datetime keys
+        // row 1: both datetime fields absent → raw_extensions lacks those keys (null passthrough)
+        let result = PipelineResult::new(
+            vec![
+                serde_json::json!({
+                    "policy_id":             "pol-001",
+                    "policy_name":           "OT Policy 1",
+                    "policy_source":         "manual",
+                    "policy_creation_date":  "2024-01-15T10:30:00Z",
+                    "policy_last_updated":   "2024-06-20T08:45:00Z"
+                }),
+                serde_json::json!({
+                    "policy_id":   "pol-002",
+                    "policy_name": "OT Policy 2",
+                    "policy_source": "auto"
+                    // policy_creation_date and policy_last_updated: ABSENT
+                }),
+            ],
+            "claroty_organization_acl_policies",
+            2,
+            false,
+        );
+
+        // BC-2.16.022 AC-011: pipeline_result_to_record_batch must NOT raise E-SPEC-018
+        // for absent datetime fields (ADR-028 §D8-B null passthrough).
+        // Tier-2 datetime columns in raw_extensions are NOT timestamp-parsed (they stay
+        // as raw string values); absent fields are simply omitted from raw_extensions.
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect(
+            "BC-2.16.022 AC-011: pipeline_result_to_record_batch MUST NOT raise E-SPEC-018 \
+             for absent datetime fields in Tier-2 columns (ADR-028 §D8-B null passthrough). \
+             Tier-2 datetimes are passed through raw_extensions without timestamp parsing.",
+        );
+
+        let raw_col = batch
+            .column_by_name("raw_extensions")
+            .expect("BC-2.16.022 AC-011: 'raw_extensions' column must exist in Arrow schema");
+        let raw_arr = raw_col
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("BC-2.16.022 AC-011: raw_extensions column must be StringArray");
+
+        // Row 0: raw_extensions must be non-null and contain datetime keys.
+        assert!(
+            !raw_arr.is_null(0),
+            "BC-2.16.022 AC-011: raw_extensions row 0 must be non-null \
+             (record has policy_source, policy_creation_date, policy_last_updated)"
+        );
+        let row0_str = raw_arr.value(0);
+        let row0_json: serde_json::Value = serde_json::from_str(row0_str)
+            .expect("BC-2.16.022 AC-011: raw_extensions row 0 must be valid JSON");
+
+        // Wire-shape assertion: row 0 must have datetime keys with ISO-8601 string values.
+        assert!(
+            row0_json.get("policy_creation_date").is_some(),
+            "BC-2.16.022 AC-011: raw_extensions row 0 MUST have 'policy_creation_date' key. \
+             Got: {}",
+            row0_str
+        );
+        assert!(
+            row0_json["policy_creation_date"].is_string(),
+            "BC-2.16.022 AC-011: raw_extensions row 0 'policy_creation_date' MUST be a string \
+             (ISO-8601 passthrough). Got: {:?}",
+            row0_json["policy_creation_date"]
+        );
+        assert!(
+            row0_json.get("policy_last_updated").is_some(),
+            "BC-2.16.022 AC-011: raw_extensions row 0 MUST have 'policy_last_updated' key. \
+             Got: {}",
+            row0_str
+        );
+
+        // Row 1: raw_extensions may be null OR present without datetime keys.
+        // ADR-028 §D8-B null passthrough: absent fields → absent keys (not E-SPEC-018).
+        if !raw_arr.is_null(1) {
+            // If non-null (row has other Tier-2 cols like policy_source), verify datetime
+            // keys are absent (the raw_extensions builder skips absent fields).
+            let row1_str = raw_arr.value(1);
+            let row1_json: serde_json::Value = serde_json::from_str(row1_str)
+                .expect("BC-2.16.022 AC-011: raw_extensions row 1 must be valid JSON if non-null");
+            assert!(
+                row1_json.get("policy_creation_date").is_none(),
+                "BC-2.16.022 AC-011 (ADR-028 §D8-B): absent 'policy_creation_date' MUST \
+                 NOT appear in raw_extensions (null passthrough — key omitted, not null-valued). \
+                 Got: {}",
+                row1_str
+            );
+            assert!(
+                row1_json.get("policy_last_updated").is_none(),
+                "BC-2.16.022 AC-011 (ADR-028 §D8-B): absent 'policy_last_updated' MUST \
+                 NOT appear in raw_extensions (null passthrough — key omitted, not null-valued). \
+                 Got: {}",
+                row1_str
+            );
+        }
+        // If raw_arr.is_null(1), the entire raw_extensions is null for that row, which
+        // also satisfies the null passthrough contract (no datetime keys present).
+    }
 }
