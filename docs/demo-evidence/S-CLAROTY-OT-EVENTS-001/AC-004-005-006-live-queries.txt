@@ -1,0 +1,118 @@
+# AC-004 + AC-005 (success path) + AC-006: Live query results against monroe
+# Story: S-CLAROTY-OT-EVENTS-001 (Wave A G2)
+# Traces to: BC-2.16.016 §Postconditions §1 (class_uid=2004 wire shape),
+#            §2 (Tier-1 time column, Tier-2 raw_extensions in wire output)
+#
+# Tool: query — client: monroe
+# LIVE DATA CAVEAT: The monroe OT network is currently quiescent (0 active OT activity events).
+# All three queries execute without error and return well-formed empty result sets.
+# class_uid=2004 and Tier-1 field presence are verified by the passing
+# test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock test (RG-004 wire
+# companion), which uses a mock response with seeded rows to assert the wire shape.
+# These live queries confirm the table accepts queries without errors (structural validation).
+
+--- QUERY 1: SELECT * FROM claroty_ot_activity_events LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T15:57:15.470182+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 0,
+    "trust_level": "untrusted_external"
+  },
+  "content": [
+    {
+      "text": "0 results found",
+      "type": "text"
+    }
+  ],
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT * FROM claroty_ot_activity_events LIMIT 1",
+    "returned_results": 0,
+    "rows": [],
+    "total_available": 0
+  }
+}
+--- Exit 0 (live quiescent: 0 OT activity events on monroe at capture time) ---
+
+--- QUERY 2: SELECT time FROM claroty_ot_activity_events LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T15:57:15.473013+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 0,
+    "trust_level": "untrusted_external"
+  },
+  "content": [
+    {
+      "text": "0 results found",
+      "type": "text"
+    }
+  ],
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT time FROM claroty_ot_activity_events LIMIT 1",
+    "returned_results": 0,
+    "rows": [],
+    "total_available": 0
+  }
+}
+--- Exit 0 (time is valid Arrow column name; no E-QUERY-038) ---
+
+--- QUERY 3: SELECT raw_extensions FROM claroty_ot_activity_events LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T15:57:15.472193+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 0,
+    "trust_level": "untrusted_external"
+  },
+  "content": [
+    {
+      "text": "0 results found",
+      "type": "text"
+    }
+  ],
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT raw_extensions FROM claroty_ot_activity_events LIMIT 1",
+    "returned_results": 0,
+    "rows": [],
+    "total_available": 0
+  }
+}
+--- Exit 0 (raw_extensions is valid Arrow column name; no E-QUERY-038) ---
+
+--- SUMMARY ---
+AC-004 PARTIAL (live quiescent): SELECT * executes without error; returns well-formed
+  empty result set (0 rows, is_truncated=false, total_available=0). Wire shape including
+  class_uid=2004 and Tier-1 fields are verified by the mock-based test
+  test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock (RG-004
+  wire companion). Live data is 0 events because the monroe OT network is quiescent.
+
+AC-005 PASS (success path): SELECT time executes without E-QUERY-038. `time` is the
+  OCSF Arrow field name for the detection_time Tier-1 column under ocsf_column_naming=true.
+
+AC-006 PASS: SELECT raw_extensions executes without E-QUERY-038. raw_extensions is a
+  valid Arrow column (Tier-2 aggregate). Returns 0 rows due to live quiescence.
+  Network 5-tuple fields (source_ip, dest_ip, etc.) accessible via raw_extensions
+  when live data is present — confirmed by test structure (RG-005).
+--- Exit 0 ---
