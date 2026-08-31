@@ -28,16 +28,15 @@
 //!    ENRICH-1 DD-2 Value::Array preservation path.
 //! 3. The array element values MUST be preserved exactly.
 //!
-//! # RG-012 vs QueryEngine::execute note
+//! # RG-012 vs fetch-path note
 //!
-//! The story's RG-012 spec says "via QueryEngine::execute end-to-end path". There is no
+//! The story's RG-012 spec originally said "via QueryEngine::execute end-to-end path". There is no
 //! DTU clone for ACL policies (D-2200; SAP-2 probe deferred per story), so a non-live
 //! QueryEngine::execute cannot exercise this table without a live Claroty sensor.
 //! The fetch-path (SpecDrivenSensorAdapter::fetch + arrow_json serialization) IS the
 //! authoritative array-preservation gate — this is where ENRICH-1 DD-2 fires and where
-//! the Json column arm preserves native arrays. The story's "QueryEngine::execute"
-//! phrasing SHOULD be corrected to "fetch" in a story-side sync (story text only — no
-//! code change required here).
+//! the Json column arm preserves native arrays. The story v1.3/v1.4 corrected the RG-012
+//! row to say "fetch"; no outstanding story-side sync remains.
 //!
 //! # SID-1 compliance
 //!
@@ -413,5 +412,200 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_jso
         "RG-012: 'policy_id' (raw API field name) MUST NOT appear as a top-level key in the \
          serialized JSON row under ocsf_column_naming = true — it is projected as \
          'metadata_uid' instead. ADR-058 §I2; BC-2.16.022 §PC2.",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MED-1 / AC-008 / Task-5 / EC-016-022-005 — applied_models empty-array wire-shape
+// ---------------------------------------------------------------------------
+
+/// Wire-shape empty-array test (MED-1 / AC-008 / EC-016-022-005):
+/// `SpecDrivenSensorAdapter::fetch()` for `claroty_organization_acl_policies`, when
+/// the response record has `applied_models: []` (empty JSON array), the serialized
+/// wire output MUST have `raw_extensions["applied_models"]` as a NATIVE EMPTY JSON array.
+///
+/// ## Invariant under test (EC-016-022-005)
+///
+/// `applied_models: []` serializes as `[]` — not `null`, not the string `"[]"`.
+/// This is the empty-array sub-case of BC-2.16.022 §PC5 (column_type = "json" preservation).
+///
+/// ## Why this is separate from RG-012
+///
+/// RG-012 seeds a 2-element array and asserts the non-empty case. Neither RG-012 nor
+/// RG-008 exercise the empty array: production Claroty responses for newly created
+/// policies with no model assignments return `applied_models: []`, and the ENRICH-1 DD-2
+/// Json arm must treat an empty `Value::Array([])` identically to a non-empty one —
+/// preserved as `[]`, not coerced to null or stringified.
+///
+/// ## Wire-shape assertion discipline (CLAUDE.md 2026-07-13)
+///
+/// Serializes through the production MCP arrow_json path (`with_explicit_nulls(true)`)
+/// and asserts on the parsed JSON bytes — the exact envelope consumed by the LLM agent.
+///
+/// BC-2.16.022 AC-008 / §PC5; ADR-058 §J6; ENRICH-1 DD-2 Json arm.
+/// Story: S-CLAROTY-ACLPOLICY-001 MED-1 / Task-5 / EC-016-022-005.
+#[tokio::test]
+async fn test_BC_2_16_022_applied_models_empty_array_wire_shape() {
+    let mock_server = MockServer::start().await;
+
+    // Mock the Claroty xDome organization_acl_policies POST endpoint with a record
+    // whose applied_models is an EMPTY JSON array — the EC-016-022-005 empty-array case.
+    //
+    // Production scenario: a newly created policy with no model assignments returns [].
+    Mock::given(method("POST"))
+        .and(path("/api/v1/organization_acl_policies/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "organization_acl_policies": [{
+                "policy_id":           "mock-policy-uuid-rg012-empty-001",
+                "policy_name":         "Mock Empty Models Policy",
+                "policy_source":       "auto",
+                "applied_models":      [],
+                "matching_devices":    0_i32,
+                "policy_acl_type":     "Cisco dACL",
+                "policy_acl":          "deny ip any any",
+                "policy_creation_date": "2024-03-01T00:00:00Z",
+                "policy_last_updated": "2024-03-01T00:00:00Z",
+                "policy_updated_by":   "system@example.com",
+                "policy_notes":        null
+            }]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter_for_acl_policies(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_organization_acl_policies".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-acl-policy-wire-test-empty".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-acl-policy-empty");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "MED-1 / EC-016-022-005: fetch() must succeed when applied_models is []. \
+             BC-2.16.022 AC-008.",
+        );
+
+    assert!(
+        !batches.batches.is_empty(),
+        "MED-1: fetch() must return at least one RecordBatch. BC-2.16.022 AC-008."
+    );
+
+    // ── Production MCP serialization path (mirrors RG-012) ────────────────────
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches.batches {
+        writer.write(batch).expect(
+            "MED-1 / EC-016-022-005: arrow_json write must not fail for empty applied_models. \
+             BC-2.16.022 AC-008.",
+        );
+    }
+    writer
+        .finish()
+        .expect("MED-1 / EC-016-022-005: arrow_json finish must not fail. BC-2.16.022 AC-008.");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect(
+            "MED-1 / EC-016-022-005: arrow_json output must deserialize as JSON array. \
+             BC-2.16.022 AC-008.",
+        );
+
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "MED-1: serialized JSON must contain exactly 1 row. BC-2.16.022 AC-008."
+    );
+
+    let row0 = &json_rows[0];
+
+    // ── Assertion 1: applied_models absent at root level ──────────────────────
+    //
+    // Tier-2 column; must live inside raw_extensions, not at top level.
+    assert!(
+        row0.get("applied_models").is_none(),
+        "MED-1 / EC-016-022-005: 'applied_models' MUST NOT appear as a top-level key \
+         (Tier-2 → raw_extensions). ADR-058 §J6. \
+         Got row keys: {:?}.",
+        row0.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+
+    // ── Assertion 2: raw_extensions is a JSON string ───────────────────────────
+    let raw_ext_str = row0.get("raw_extensions").and_then(|v| v.as_str()).expect(
+        "MED-1 / EC-016-022-005: 'raw_extensions' must be present as a JSON string. \
+         ADR-058 §J6 Tier-2 aggregation; BC-2.16.022 AC-008.",
+    );
+    let raw_ext_json: serde_json::Value = serde_json::from_str(raw_ext_str)
+        .expect("MED-1 / EC-016-022-005: raw_extensions value must be valid JSON.");
+    let raw_ext_obj = raw_ext_json
+        .as_object()
+        .expect("MED-1 / EC-016-022-005: raw_extensions must be a JSON object. ADR-058 §J6.");
+
+    // ── LOAD-BEARING assertion 3: applied_models is a NATIVE EMPTY JSON array ──
+    //
+    // EC-016-022-005: `applied_models: []` must round-trip as `[]` — a native empty array.
+    // MUST NOT be null (null would indicate the column was dropped rather than preserved).
+    // MUST NOT be the string `"[]"` (stringified form — the ENRICH-1 DD-2 pre-fix bug).
+    // MUST NOT be absent (absent would indicate the Json arm skipped empty arrays).
+    let applied_models_val = raw_ext_obj.get("applied_models").expect(
+        "MED-1 / EC-016-022-005 LOAD-BEARING: 'applied_models' MUST be present inside \
+         raw_extensions even when the array is empty. column_type = 'json' Tier-2 columns \
+         with value [] must appear as an empty native JSON array — not be omitted. \
+         BC-2.16.022 AC-008 / §PC5; ADR-058 §J6.",
+    );
+
+    // Must be a native JSON array (not null, not string).
+    assert!(
+        applied_models_val.is_array(),
+        "MED-1 / EC-016-022-005 LOAD-BEARING: raw_extensions['applied_models'] MUST be a \
+         NATIVE JSON array when applied_models is []. \
+         Got: {:?}. BC-2.16.022 §PC5; ENRICH-1 DD-2 native-array preservation.",
+        applied_models_val
+    );
+
+    // Must be EMPTY — this is the empty-array sub-case.
+    let models_arr = applied_models_val
+        .as_array()
+        .expect("applied_models is an array (asserted above)");
+    assert!(
+        models_arr.is_empty(),
+        "MED-1 / EC-016-022-005 LOAD-BEARING: raw_extensions['applied_models'] MUST be an \
+         EMPTY array [] when the source value is []. Got {} elements: {:?}. \
+         BC-2.16.022 AC-008 / EC-016-022-005.",
+        models_arr.len(),
+        models_arr
+    );
+
+    // Negative: must NOT be a JSON string (the stringified bug form).
+    assert!(
+        !applied_models_val.is_string(),
+        "MED-1 / EC-016-022-005 LOAD-BEARING: raw_extensions['applied_models'] MUST NOT be \
+         a JSON string (e.g. '\"[]\"'). The ENRICH-1 DD-2 stringification bug produces this form. \
+         Got: {:?}. BC-2.16.022 §PC5.",
+        applied_models_val
+    );
+
+    // Verify the serialized form is exactly `[]` (not `null`, not `"[]"`).
+    let serialized = serde_json::to_string(applied_models_val)
+        .expect("MED-1: applied_models_val must serialize");
+    assert_eq!(
+        serialized, "[]",
+        "MED-1 / EC-016-022-005 LOAD-BEARING: raw_extensions['applied_models'] must serialize \
+         as exactly '[]'. BC-2.16.022 AC-008 / EC-016-022-005.",
     );
 }

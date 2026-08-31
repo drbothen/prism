@@ -6641,8 +6641,11 @@ ocsf_column_naming = true
 
         // BC-2.16.022 AC-011: pipeline_result_to_record_batch must NOT raise E-SPEC-018
         // for absent datetime fields (ADR-028 §D8-B null passthrough).
-        // Tier-2 datetime columns in raw_extensions are NOT timestamp-parsed (they stay
-        // as raw string values); absent fields are simply omitted from raw_extensions.
+        // NOTE: Tier-2 Datetime columns ARE normalized by pipeline.rs::normalize_timestamp_fields,
+        // which filters by column_type == ColumnType::Datetime (regardless of Tier). Present
+        // ISO-8601-Z values are idempotent after normalization (RFC3339-Z in == RFC3339-Z out).
+        // A non-ISO value in a present field WOULD raise E-SPEC-018. Absent fields are omitted
+        // from raw_extensions without raising E-SPEC-018 (ADR-028 §D8-B null passthrough).
         let batch = super::pipeline_result_to_record_batch(
             result,
             table,
@@ -6653,7 +6656,8 @@ ocsf_column_naming = true
         .expect(
             "BC-2.16.022 AC-011: pipeline_result_to_record_batch MUST NOT raise E-SPEC-018 \
              for absent datetime fields in Tier-2 columns (ADR-028 §D8-B null passthrough). \
-             Tier-2 datetimes are passed through raw_extensions without timestamp parsing.",
+             NOTE: Tier-2 datetimes ARE normalized by normalize_timestamp_fields (idempotent for \
+             ISO-8601-Z inputs); absent fields are omitted from raw_extensions without E-SPEC-018.",
         );
 
         let raw_col = batch
