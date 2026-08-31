@@ -50,14 +50,18 @@ fn load_claroty_spec() -> prism_spec_engine::spec_parser::SensorSpec {
 fn test_BC_2_16_022_claroty_org_acl_policies_toml_block_parses() {
     let spec = load_claroty_spec();
 
-    // Red Gate: panics if `claroty_organization_acl_policies` is absent.
+    // Red Gate: panics if `organization_acl_policies` bare-name entry is absent.
+    // MED-1 correction: TOML uses bare table_name = "organization_acl_policies" (consistent
+    // with sibling tables alerts/audit_logs/devices/device_alert_relations/vulnerabilities).
+    // TableRegistry derives the registered name as claroty_organization_acl_policies.
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 AC-001 RED GATE: claroty.sensor.toml MUST contain a [[tables]] block \
-             with table_name = \"claroty_organization_acl_policies\". \
+             with table_name = \"organization_acl_policies\" (bare, consistent with sibling \
+             tables). TableRegistry derives claroty_organization_acl_policies. \
              Implementer: add the TOML block from S-CLAROTY-ACLPOLICY-001 \
              §TOML Column-Block Specification.",
         );
@@ -126,7 +130,7 @@ fn test_BC_2_16_022_claroty_org_acl_policies_pagination_none_no_offset_limit() {
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 AC-002 RED GATE: claroty_organization_acl_policies must exist in \
              claroty.sensor.toml to test PaginationConfig::None contract.",
@@ -193,7 +197,7 @@ fn test_BC_2_16_022_claroty_org_acl_policies_body_template_has_policy_acl_syntax
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 AC-003 RED GATE: claroty_organization_acl_policies must exist in \
              claroty.sensor.toml to test body_template policy_acl_syntax contract.",
@@ -288,7 +292,7 @@ fn test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_type
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 AC-004 RED GATE: claroty_organization_acl_policies must exist in \
              claroty.sensor.toml to test Tier-1/Tier-2 column classification.",
@@ -469,7 +473,7 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
     let _table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 RG-007: claroty_organization_acl_policies must be in \
              claroty.sensor.toml before running live wire-shape test",
@@ -505,7 +509,7 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagi
     let _table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_acl_policies")
+        .find(|t| t.table_name == "organization_acl_policies")
         .expect(
             "BC-2.16.022 RG-010: claroty_organization_acl_policies must be in \
              claroty.sensor.toml before running live unbounded-select test",

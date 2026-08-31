@@ -14,11 +14,12 @@
 //! `.expect()` panics → test FAILS. Post-implementation the table is registered
 //! and E-QUERY-038 fires for Tier-2 column names used as SELECT columns.
 //!
-//! # Table name double-prefix
+//! # Table registered name (MED-1 correction)
 //!
-//! sensor_id = "claroty" + table_name = "claroty_organization_acl_policies"
-//! → DataFusion-registered name = "claroty_claroty_organization_acl_policies"
-//! SQL queries must reference this fully-qualified form.
+//! TOML: table_name = "organization_acl_policies" (bare, consistent with sibling tables).
+//! sensor_id = "claroty" + table_name = "organization_acl_policies"
+//! → TableRegistry-derived name = "claroty_organization_acl_policies"
+//! SQL queries must reference this derived form.
 //!
 //! CONTAMINATION CONTROL: this file MUST NOT read holdout scenario files.
 
@@ -108,8 +109,8 @@ mod tests {
     /// 2. ResolvedSensorSpec overlay for "test-org"
     /// 3. QueryEngine with the resolved spec map and table registry
     ///
-    /// sensor_id = "claroty" + table_name = "claroty_organization_acl_policies"
-    /// → registered DataFusion name = "claroty_claroty_organization_acl_policies"
+    /// sensor_id = "claroty" + table_name = "organization_acl_policies" (bare TOML)
+    /// → registered DataFusion name = "claroty_organization_acl_policies"
     fn build_claroty_engine(sensor_spec: &SensorSpec) -> QueryEngine {
         let registry = Arc::new(TableRegistry::new());
         registry
@@ -143,7 +144,7 @@ mod tests {
     // RG-005 / AC-005 — policy_source (Tier-2) triggers E-QUERY-038
     // =========================================================================
 
-    /// BC-2.16.022 §Query-gate — `SELECT policy_source FROM claroty_claroty_organization_acl_policies`
+    /// BC-2.16.022 §Query-gate — `SELECT policy_source FROM claroty_organization_acl_policies`
     /// must return E-QUERY-038 (column not found at plan time).
     ///
     /// `policy_source` is a Tier-2 column (ocsf_field absent) — it is aggregated
@@ -154,7 +155,7 @@ mod tests {
     /// Assertions:
     /// - error is PrismError::ColumnNotFound (E-QUERY-038)
     /// - d.column == "policy_source"
-    /// - d.table == "claroty_claroty_organization_acl_policies" (fully-qualified form)
+    /// - d.table == "claroty_organization_acl_policies" (fully-qualified form)
     /// - d.available_columns contains "raw_extensions" (the Tier-2 aggregate)
     /// - d.available_columns does NOT contain "policy_source"
     ///
@@ -168,7 +169,7 @@ mod tests {
         let _table = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .find(|t| t.table_name == "organization_acl_policies")
             .expect(
                 "BC-2.16.022 AC-005 RED GATE: claroty_organization_acl_policies must exist in \
                  claroty.sensor.toml. After the table is present, this test verifies that \
@@ -179,11 +180,11 @@ mod tests {
         let engine = build_claroty_engine(&sensor_spec);
 
         // E-QUERY-038 is a plan-time gate — fires before any HTTP fan-out.
-        // sensor_id="claroty" + table_name="claroty_organization_acl_policies"
-        // → DataFusion name = "claroty_claroty_organization_acl_policies"
+        // sensor_id="claroty" + table_name="organization_acl_policies" (bare TOML)
+        // → DataFusion name = "claroty_organization_acl_policies"
         let result = engine
             .execute(
-                "SELECT policy_source FROM claroty_claroty_organization_acl_policies LIMIT 1",
+                "SELECT policy_source FROM claroty_organization_acl_policies LIMIT 1",
                 QueryOptions::default(),
             )
             .await;
@@ -197,9 +198,9 @@ mod tests {
                     d.column
                 );
                 assert_eq!(
-                    d.table, "claroty_claroty_organization_acl_policies",
+                    d.table, "claroty_organization_acl_policies",
                     "BC-2.16.022 AC-005: E-QUERY-038 MUST report table = \
-                     'claroty_claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
+                     'claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
                     d.table
                 );
                 // Wire-shape: "raw_extensions" must be in available_columns.
@@ -238,14 +239,14 @@ mod tests {
     // RG-006 / AC-006 — policy_id (raw API name) NOT projected; metadata_uid is
     // =========================================================================
 
-    /// BC-2.16.022 §Query-gate — `SELECT policy_id FROM claroty_claroty_organization_acl_policies`
+    /// BC-2.16.022 §Query-gate — `SELECT policy_id FROM claroty_organization_acl_policies`
     /// must return E-QUERY-038 because the projected Arrow column name is "metadata_uid"
     /// (via ocsf_field = "metadata.uid" → dot→underscore flattening), NOT "policy_id".
     ///
     /// Assertions:
     /// - error is PrismError::ColumnNotFound (E-QUERY-038)
     /// - d.column == "policy_id" (the raw API name used in the query)
-    /// - d.table == "claroty_claroty_organization_acl_policies" (fully-qualified)
+    /// - d.table == "claroty_organization_acl_policies" (fully-qualified)
     /// - d.available_columns contains "metadata_uid" (the correct OCSF-projected name)
     /// - d.available_columns does NOT contain "policy_id" (raw name NOT projected)
     ///
@@ -263,7 +264,7 @@ mod tests {
         let _table = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .find(|t| t.table_name == "organization_acl_policies")
             .expect(
                 "BC-2.16.022 AC-006 RED GATE: claroty_organization_acl_policies must exist in \
                  claroty.sensor.toml. After the table is present, this test verifies that \
@@ -275,7 +276,7 @@ mod tests {
 
         let result = engine
             .execute(
-                "SELECT policy_id FROM claroty_claroty_organization_acl_policies LIMIT 1",
+                "SELECT policy_id FROM claroty_organization_acl_policies LIMIT 1",
                 QueryOptions::default(),
             )
             .await;
@@ -289,9 +290,9 @@ mod tests {
                     d.column
                 );
                 assert_eq!(
-                    d.table, "claroty_claroty_organization_acl_policies",
+                    d.table, "claroty_organization_acl_policies",
                     "BC-2.16.022 AC-006: E-QUERY-038 MUST report table = \
-                     'claroty_claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
+                     'claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
                     d.table
                 );
                 // Wire-shape: "metadata_uid" must be in available_columns.
@@ -324,7 +325,7 @@ mod tests {
                     error_string
                 );
                 assert!(
-                    error_string.contains("claroty_claroty_organization_acl_policies"),
+                    error_string.contains("claroty_organization_acl_policies"),
                     "BC-2.16.022 AC-006 (SID-2): E-QUERY-038 Display MUST mention the table name. \
                      Got: {}",
                     error_string

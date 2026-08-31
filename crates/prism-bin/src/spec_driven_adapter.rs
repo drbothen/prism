@@ -6396,7 +6396,7 @@ ocsf_column_naming = true
         let table = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .find(|t| t.table_name == "organization_acl_policies")
             .expect(
                 "BC-2.16.022 AC-008 RED GATE: claroty_organization_acl_policies must exist \
                  in claroty.sensor.toml. After the table is present, this test also exposes \
@@ -6511,7 +6511,7 @@ ocsf_column_naming = true
         let table = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .find(|t| t.table_name == "organization_acl_policies")
             .expect(
                 "BC-2.16.022 AC-009 RED GATE: claroty_organization_acl_policies must exist \
                  in claroty.sensor.toml.",
@@ -6609,7 +6609,7 @@ ocsf_column_naming = true
         let table = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_organization_acl_policies")
+            .find(|t| t.table_name == "organization_acl_policies")
             .expect(
                 "BC-2.16.022 AC-011 RED GATE: claroty_organization_acl_policies must exist \
                  in claroty.sensor.toml.",

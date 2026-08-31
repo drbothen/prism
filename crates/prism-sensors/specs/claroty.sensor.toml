@@ -1564,3 +1564,120 @@ ocsf_class = "entity_management"   # class_uid 3004
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: organization_acl_policies
+#   BC-2.16.022 (S-CLAROTY-ACLPOLICY-001 Wave C G6)
+#   Registered name: claroty_organization_acl_policies
+#     (TableRegistry derives {sensor_id}_{table_name} = "claroty_organization_acl_policies")
+#   OCSF class: entity_management (class_uid 3004)
+#   KEY NOVELTY: PaginationConfig::None — the only non-paginated Claroty table.
+#   The Claroty GetOrganizationAclPoliciesRequest has NO offset/limit fields and
+#   declares additionalProperties:false; injecting offset/limit causes a 422.
+#   mandatory body field: policy_acl_syntax = "Cisco dACL" (REQUIRED by OpenAPI schema)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "organization_acl_policies"
+ocsf_class = "entity_management"
+
+  # ---------------------------------------------------------------------------
+  # Tier-1 columns: ocsf_field set → projected as standalone Arrow columns under
+  # ocsf_column_naming = true. Queryable by their OCSF Arrow name (dot→underscore).
+  # ---------------------------------------------------------------------------
+
+  # Tier-1 #1: policy_id — UUID-format system-assigned immutable identifier.
+  # PK rationale (BC-2.16.022 §PC3): policy_id is UUID-stable; policy_name is human-editable.
+  # ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid" under ocsf_column_naming=true.
+  # options = ["REQUIRED"]: index-based push-down eligibility; absent value → null Arrow cell.
+  [[tables.columns]]
+  name = "policy_id"
+  column_type = "string"
+  ocsf_field = "metadata.uid"
+  options = ["REQUIRED"]
+
+  # Tier-1 #2: policy_name — human-editable display name of the ACL policy.
+  # ocsf_field_to_arrow_name("name") = "name" (single-segment, unchanged).
+  [[tables.columns]]
+  name = "policy_name"
+  column_type = "string"
+  ocsf_field = "name"
+
+  # Tier-1 #3: policy_updated_by — identity of the last user to update the policy.
+  # ocsf_field_to_arrow_name("actor.user.name") = "actor_user_name" (dot→underscore).
+  [[tables.columns]]
+  name = "policy_updated_by"
+  column_type = "string"
+  ocsf_field = "actor.user.name"
+
+  # Tier-1 #4: policy_notes — free-text comment/annotation on the policy.
+  # ocsf_field_to_arrow_name("comment") = "comment" (single-segment, unchanged).
+  [[tables.columns]]
+  name = "policy_notes"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # ---------------------------------------------------------------------------
+  # Tier-2 columns: ocsf_field absent → aggregate into raw_extensions under
+  # ocsf_column_naming = true. Not directly queryable by raw API name (E-QUERY-038).
+  # ---------------------------------------------------------------------------
+
+  # Tier-2 #1: policy_source — source/origin label of the policy (e.g. "manual", "imported").
+  [[tables.columns]]
+  name = "policy_source"
+  column_type = "string"
+
+  # Tier-2 #2: policy_acl_type — ACL format type (e.g. "Cisco dACL", "AireOS").
+  [[tables.columns]]
+  name = "policy_acl_type"
+  column_type = "string"
+
+  # Tier-2 #3: policy_acl — the ACL rule text (extended-format string).
+  [[tables.columns]]
+  name = "policy_acl"
+  column_type = "string"
+
+  # Tier-2 #4: applied_models — list of device model strings this policy applies to.
+  # column_type = "json": native JSON array on the wire (e.g. ["Siemens SIMATIC S7-300"]).
+  # P1 CRITICAL: MUST be "json" not "string" — String declaration causes array-stringification
+  # in raw_extensions (ENRICH-1 DD-2 bug). The generic ColumnType::Json arm in
+  # spec_driven_adapter preserves native arrays for json-typed columns (POL-36).
+  [[tables.columns]]
+  name = "applied_models"
+  column_type = "json"
+
+  # Tier-2 #5: matching_devices — integer count of devices matched by this policy.
+  [[tables.columns]]
+  name = "matching_devices"
+  column_type = "integer"
+
+  # Tier-2 #6: policy_creation_date — ISO 8601 datetime when the policy was created.
+  # column_type = "datetime": no timestamp_formats key → implicit ["iso8601"] default
+  # via effective_formats (ADR-028 §D8-B backward compatibility).
+  [[tables.columns]]
+  name = "policy_creation_date"
+  column_type = "datetime"
+
+  # Tier-2 #7: policy_last_updated — ISO 8601 datetime of the last policy modification.
+  # column_type = "datetime": no timestamp_formats key → implicit ["iso8601"] default
+  # via effective_formats (ADR-028 §D8-B backward compatibility).
+  [[tables.columns]]
+  name = "policy_last_updated"
+  column_type = "datetime"
+
+  # POST-for-read step with NO pagination.
+  # SAP-2: No DTU route exists (D-2200); SAP-2 probe deferred per story.
+  # response_path: "$.organization_acl_policies" — sole key in GetOrganizationAclPoliciesResponse.
+  # body_template: policy_acl_syntax is a REQUIRED request field (OpenAPI required: ["policy_acl_syntax"]).
+  #   Hardcoded "Cisco dACL" for v1; NOT in fields projection enum.
+  #   fields: all 11 OrganizationAclPolicy fields_enum values (policy_acl_syntax excluded from fields).
+  # pagination.type = "none": GetOrganizationAclPoliciesRequest declares additionalProperties:false
+  #   with NO offset/limit fields. Injecting them causes a 422 API error.
+  [[tables.steps]]
+  name = "fetch_organization_acl_policies"
+  method = "POST"
+  path_template = "/api/v1/organization_acl_policies/"
+  body_template = '{"policy_acl_syntax": "Cisco dACL", "fields": ["policy_id", "policy_name", "policy_source", "applied_models", "matching_devices", "policy_acl_type", "policy_acl", "policy_creation_date", "policy_last_updated", "policy_updated_by", "policy_notes"]}'
+  response_path = "$.organization_acl_policies"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
