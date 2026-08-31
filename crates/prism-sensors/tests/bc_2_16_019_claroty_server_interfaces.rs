@@ -365,7 +365,7 @@ fn test_BC_2_16_019_claroty_server_interfaces_interface_status_raw_name_raises_e
          got: {projected_joined}"
     );
     assert!(
-        !projected_joined.contains("interface_status") && !projected_joined.contains(",server_name"),
+        !projected_joined.contains("interface_status") && !projected_joined.contains("server_name"),
         "projected names string must NOT contain raw TOML names 'interface_status' or 'server_name'; \
          got: {projected_joined}"
     );

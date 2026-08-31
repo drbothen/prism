@@ -15,12 +15,13 @@
 //!
 //! # Tests in this file
 //!
-//! | ID          | Test name | Assertion |
-//! |-------------|-----------|-----------|
-//! | NEW-2       | test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock | class_uid=5001, device_name, status_code, raw_extensions; no Tier-2 top-level keys |
-//! | RG-015-WIRE | test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire | null interface_name → row not dropped; device_name non-null; null-not-absent in raw_extensions |
-//! | RG-011-E2E  | test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column | E-QUERY-038 via QueryEngine::execute() for interface_name (Tier-2 composite PK); authoritative SAP-3 gate |
-//! | RG-016-PROD | test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows | SpecDrivenSensorAdapter::fetch returns Ok+zero rows for {"server_interfaces":[],"count":null} (EC-016-019-005) |
+//! | ID              | Test name | Assertion |
+//! |-----------------|-----------|-----------|
+//! | NEW-2           | test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock | class_uid=5001, device_name, status_code, raw_extensions; no Tier-2 top-level keys |
+//! | RG-015-WIRE     | test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire | null interface_name → row not dropped; device_name non-null; null-not-absent in raw_extensions |
+//! | RG-015-WIRE-SNA | test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent | server_name absent → device_name null (null-not-absent); row survives; mirrors servers RG-007-WIRE |
+//! | RG-011-E2E      | test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column | E-QUERY-038 via QueryEngine::execute() for interface_name (Tier-2 composite PK); authoritative SAP-3 gate |
+//! | RG-016-PROD     | test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows | SpecDrivenSensorAdapter::fetch returns Ok+zero rows for {"server_interfaces":[],"count":null} (EC-016-019-005) |
 //!
 //! # SID-1 compliance (NEW-2)
 //!
@@ -630,6 +631,206 @@ async fn test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_
         row1.get("class_uid"),
         Some(&serde_json::json!(5001_i32)),
         "RG-015-WIRE: row 1 class_uid must equal 5001. BC-2.16.019 AC-010."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-015-WIRE-SNA: server_name-absent production-path null-passthrough test
+//                  (AC-015 part 1 / EC-016-019-001 — sibling of servers RG-007-WIRE)
+// ---------------------------------------------------------------------------
+
+/// Production-path null-passthrough test: `SpecDrivenSensorAdapter::fetch()` for
+/// `claroty_server_interfaces` with a two-record response where the FIRST record
+/// omits `server_name` (the REQUIRED Tier-1 composite PK anchor):
+///
+///   - Record 0: `server_name` absent → `device_name` becomes Arrow null (REQUIRED absent)
+///   - Record 1: `server_name = "Monroe-2"` → `device_name = "Monroe-2"` (non-null)
+///
+/// LOAD-BEARING assertions (CLAUDE.md §Wire-shape assertion discipline):
+///   1. Both rows survive — row count MUST be 2 (row with absent server_name is NOT dropped).
+///   2. NULL-NOT-ABSENT (C3/H20 defect class): row 0 `device_name` MUST appear as
+///      `"device_name": null` in serialized JSON — NOT be absent.
+///      `arrow_json` with `explicit_nulls=false` (DEFAULT) would OMIT the key;
+///      this test locks in the `explicit_nulls=true` production configuration.
+///   3. Row 1 `device_name` MUST be `"Monroe-2"` (non-null, correct value).
+///
+/// ## Why this test exists (twin asymmetry closure / MED-2)
+///
+/// The sibling table `claroty_servers` has the authoritative production-path coverage for
+/// its server_name-absent scenario in `bc_2_16_018_claroty_servers_wire_shape.rs` →
+/// `test_BC_2_16_018_claroty_servers_null_passthrough_server_name_absent_null_not_absent`
+/// (RG-007-WIRE). The `claroty_server_interfaces` table had a coverage gap: the existing
+/// RG-015-WIRE test seeds server_name PRESENT in both records, covering only the
+/// interface_name=null scenario. This test mirrors RG-007-WIRE for the server_interfaces
+/// table, closing the AC-015 part 1 / EC-016-019-001 production-path gap.
+///
+/// BC-2.16.019 AC-015 (part 1); BC-2.11.001 EC-11-079 (null-not-absent);
+/// EC-016-019-001; CLAUDE.md §Wire-shape assertion discipline; SAP-4.
+/// Story: S-CLAROTY-SERVERS-001 RG-015-WIRE-SNA (MED-2 twin-asymmetry closure).
+#[tokio::test]
+async fn test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent()
+ {
+    let mock_server = MockServer::start().await;
+
+    // Two records:
+    //   Record 0: server_name deliberately absent (REQUIRED Tier-1 composite PK anchor missing)
+    //             → device_name will be Arrow null (null-not-absent in serialized wire JSON)
+    //   Record 1: server_name = "Monroe-2" → device_name = "Monroe-2" (non-null)
+    Mock::given(method("POST"))
+        .and(path("/api/v1/server_interfaces/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_interfaces": [
+                {
+                    // Record 0: server_name deliberately absent (REQUIRED field missing)
+                    "interface_status": "Active",
+                    "interface_name": "eth0",
+                    "interface_type": "1000BASE-T"
+                    // server_name absent → device_name will be Arrow null
+                },
+                {
+                    // Record 1: server_name present → device_name non-null
+                    "server_name": "Monroe-2",
+                    "interface_status": "Inactive",
+                    "interface_name": "eth1"
+                }
+            ]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_server_interfaces".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-server-interfaces-sna-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-server-interfaces-sna-test");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "RG-015-WIRE-SNA: fetch() must succeed for a valid two-record \
+             server_interfaces response (server_name absent in record 0). \
+             BC-2.16.019 AC-015.",
+        );
+
+    assert!(
+        !batches.batches.is_empty(),
+        "RG-015-WIRE-SNA: fetch() must return at least one RecordBatch. BC-2.16.019 AC-015."
+    );
+
+    // ── Production MCP serialization path ─────────────────────────────────────
+    // Mirrors server.rs (prism-mcp) §CRIT-1 fix:
+    //   arrow_json::writer::WriterBuilder::new()
+    //       .with_explicit_nulls(true)
+    //       .build::<_, arrow_json::writer::JsonArray>(&mut buf)
+    //
+    // explicit_nulls=true: NULL-valued Arrow cells → `{"key":null}` in JSON output.
+    // explicit_nulls=false (DEFAULT): NULL cells are OMITTED — the C3/H20 defect class
+    // (BC-2.11.001 EC-11-079; CLAUDE.md §Wire-shape assertion discipline).
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches.batches {
+        writer.write(batch).expect(
+            "RG-015-WIRE-SNA: arrow_json write must not fail for \
+             claroty_server_interfaces RecordBatch",
+        );
+    }
+    writer
+        .finish()
+        .expect("RG-015-WIRE-SNA: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect(
+            "RG-015-WIRE-SNA: arrow_json output must deserialize as a \
+             JSON array of row objects",
+        );
+
+    assert_eq!(
+        json_rows.len(),
+        2,
+        "RG-015-WIRE-SNA LOAD-BEARING: serialized JSON must contain exactly 2 rows — \
+         BOTH records survive even when record 0 has server_name absent. \
+         The row MUST NOT be dropped; it becomes a null-cell row per REQUIRED semantics. \
+         BC-2.16.019 AC-015; EC-016-019-001."
+    );
+
+    // ── Row 0: server_name absent → device_name null-not-absent ───────────────
+    let row0 = &json_rows[0];
+
+    // NULL-NOT-ABSENT LOAD-BEARING assertion (RG-015-WIRE-SNA):
+    // When `server_name` is absent in the API record, `device_name` becomes an Arrow null
+    // cell (nullable=true, value=None). With explicit_nulls=true the JSON row MUST contain
+    // `"device_name": null` — NOT omit the key.
+    // With explicit_nulls=false (the arrow_json DEFAULT), the key would be absent.
+    // This locks in the C3/H20-class defect prevention (BC-2.11.001 EC-11-079).
+    let row0_device_name = row0.get("device_name");
+    assert!(
+        row0_device_name.is_some(),
+        "RG-015-WIRE-SNA LOAD-BEARING (null-not-absent): 'device_name' key MUST be \
+         PRESENT in row 0 serialized JSON even when 'server_name' was absent in the \
+         API response. arrow_json with explicit_nulls=false (DEFAULT) would OMIT this \
+         key — that is the C3/H20 defect class (BC-2.11.001 EC-11-079). \
+         row0 keys present: {:?}",
+        row0.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+    assert_eq!(
+        row0_device_name,
+        Some(&serde_json::Value::Null),
+        "RG-015-WIRE-SNA LOAD-BEARING (null-not-absent): 'device_name' MUST be \
+         JSON null (not another value) in row 0. \
+         BC-2.11.001 EC-11-079; BC-2.16.019 AC-015; EC-016-019-001."
+    );
+
+    // Row 0 class_uid must still be 5001 even for a null-device_name row
+    assert_eq!(
+        row0.get("class_uid"),
+        Some(&serde_json::json!(5001_i32)),
+        "RG-015-WIRE-SNA: row 0 class_uid must equal 5001 even when device_name is null. \
+         BC-2.16.019 AC-010."
+    );
+
+    // Raw Tier-1 TOML name MUST NOT appear as a top-level key
+    assert!(
+        row0.get("server_name").is_none(),
+        "RG-015-WIRE-SNA: 'server_name' (raw TOML name) MUST NOT appear as top-level key \
+         in row 0. Arrow name is 'device_name'. BC-2.16.019 AC-011."
+    );
+
+    // ── Row 1: server_name present → device_name non-null ─────────────────────
+    let row1 = &json_rows[1];
+
+    let row1_device_name = row1.get("device_name");
+    assert!(
+        row1_device_name.is_some(),
+        "RG-015-WIRE-SNA: 'device_name' key must be present in row 1. BC-2.16.019 AC-010."
+    );
+    assert_eq!(
+        row1_device_name,
+        Some(&serde_json::json!("Monroe-2")),
+        "RG-015-WIRE-SNA: row 1 'device_name' must be 'Monroe-2' (non-null, exact seeded value). \
+         BC-2.16.019 AC-015."
+    );
+
+    assert!(
+        row1.get("server_name").is_none(),
+        "RG-015-WIRE-SNA: 'server_name' (raw TOML name) MUST NOT appear as top-level key \
+         in row 1. Arrow name is 'device_name'. BC-2.16.019 AC-011."
     );
 }
 
