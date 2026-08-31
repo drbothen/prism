@@ -393,6 +393,17 @@ path = "tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs"
 name = "bc_2_16_021_claroty_org_fw_policy_wire_shape"
 path = "tests/bc_2_16_021_claroty_org_fw_policy_wire_shape.rs"
 
+# S-CLAROTY-ACLPOLICY-001 RG-012 (MED-001 fix):
+# Wire-shape end-to-end gate for Claroty xDome Organization ACL Policies (BC-2.16.022).
+# Tests the full fetch → pipeline_result_to_record_batch → arrow_json serialization path
+# for `applied_models` JSON-array preservation (ENRICH-1 DD-2 Json arm, column_type="json").
+# BCs: BC-2.16.022, BC-2.11.001
+# Tests (1 total — non-live async adapter.fetch() + arrow_json serialization):
+#   test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array (RG-012)
+[[test]]
+name = "bc_2_16_022_claroty_acl_policies_wire_shape"
+path = "tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
