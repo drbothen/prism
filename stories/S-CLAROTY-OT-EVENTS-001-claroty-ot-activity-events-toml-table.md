@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.016 — MED-1 bare table_name + MED-3 build_column_array mechanism re-anchor applied 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.4"
+version: "1.5"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -26,7 +26,7 @@ traces_to: "BC-2.16.016"
 points: 5
 estimated_days: 1
 tdd_mode: strict
-subsystems: [SS-01, SS-16]
+subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications (ARCH-INDEX Subsystem Registry):
 #   SS-01 (Sensor Adapters) owns this story's scope because
 #     `crates/prism-sensors/specs/claroty.sensor.toml` — the TOML spec file being
@@ -38,6 +38,12 @@ subsystems: [SS-01, SS-16]
 #     block without validation error. RG-001/RG-002 are spec-parser unit tests that
 #     exercise SS-16's ColumnSpec and FetchStep deserialization. SS-16 is the canonical
 #     owner of prism-spec-engine per ARCH-INDEX Subsystem Registry.
+#   SS-22 (Process Lifecycle) owns this story's scope because
+#     `crates/prism-bin` — the process-lifecycle crate per ARCH-INDEX — hosts the
+#     authoritative E-QUERY-038 end-to-end gate (RG-003) and wire-shape serialization
+#     assertion (RG-010), both of which exercise the spec_driven_adapter
+#     (§pipeline_result_to_record_batch / `build_column_array`) that lives in prism-bin.
+#     SS-22 is the canonical owner of prism-bin per ARCH-INDEX Subsystem Registry.
 target_module: prism-sensors
 crates_touched: [prism-sensors, prism-spec-engine, prism-bin]
 # crates_touched:
@@ -546,6 +552,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-08-31 | story-writer | SS-22 (Process Lifecycle) added to frontmatter `subsystems:` with justification comment — story touches prism-bin via authoritative E-QUERY-038 end-to-end test and wire-shape assertions (`bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`); §Architecture Mapping cites `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch`. SS-22 canonical subsystem ID confirmed against ARCH-INDEX Subsystem Registry. |
 | 1.4 | 2026-08-31 | story-writer | F-OTE-MED-002 (POL-39 anti-volatile-pin + stale cross-artifact drift): removed volatile vX.Y version pins from §Authority prose (BC-2.16.016 §Postconditions §1–§4 headings), §References, §Token Budget table, and frontmatter prose comments; synced §Behavioral Contracts table Version column v1.3→v1.4 (POL-40 structural pin). No behavioral content changes. |
 | 1.3 | 2026-08-31 | story-writer | MED-1 + MED-3 mechanism re-anchor: §Authority + AC-001 bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"` (derivation note added — `{sensor_id}_{table_name}` = registered/queryable name `claroty_ot_activity_events`). AC-007 title + body + EC-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`, `crates/prism-bin/src/spec_driven_adapter.rs`); `map_record` retained as explicitly-labeled non-production reference mirror only. All BC-2.16.016 refs bumped v1.2→v1.3. |
 | 1.2 | 2026-08-31 | story-writer | MED-1 (POL-4) REQUIRED-semantics fix: AC-007 §Acceptance Criteria and EC-001 §Edge Cases causal attribution corrected — absent-field null passthrough attributed to ColumnMapper::map_record default absent-field handling, independent of REQUIRED push-down-parameter flag per BC-2.11.007 §Invariants (BC-2.16.016 v1.2 §Invariants and EC-016-016-001 authoritative wording); AC-007 title updated to reflect row-NOT-dropped + time/raw_extensions-remain semantics. MED-2 prism-bin traceability: frontmatter crates_touched adds prism-bin; §Architecture Mapping spec_driven_adapter.rs corrected to crates/prism-bin/src/ (not prism-spec-engine); §Red Gate Tests RG-003 row updated to prism-bin authoritative end-to-end + prism-sensors defense-in-depth SAP-3 note; RG-009 (EC-009 raw detection_time E-QUERY-038) and RG-010 (EC-002-WIRE JSON-array wire assertion) added; §File Structure Requirements adds CREATE crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs and MODIFY crates/prism-bin/Cargo.toml; density check updated to 10/9. All BC-2.16.016 refs bumped v1.1→v1.2. |

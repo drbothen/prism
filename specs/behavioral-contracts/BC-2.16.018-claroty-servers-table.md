@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -113,7 +113,7 @@ Under `ocsf_column_naming = true`, columns are classified as follows:
 | `management_ip` | String | Data/Management port IP address; supports in_subnet operations at API level |
 | `idrac_ip` | String | Integrated Dell Remote Access Controller IP address |
 | `management_mac` | String | Data/Management port MAC address |
-| `uptime_days` | Float | Days the server has been up; may be fractional (e.g., 1.5 = 36h) — verify exact type on live monroe sensor before asserting Integer |
+| `uptime_days` | Float | Days the server has been up; confirmed fractional from xDome OpenAPI example (e.g., 667.233661); Float type resolved |
 | `avg_traffic_past_month_mbps` | Float | Average traffic volume to the server in the past month (Mbps) |
 | `avg_traffic_past_week_mbps` | Float | Average traffic volume to the server in the past week (Mbps) |
 | `avg_traffic_past_hour_mbps` | Float | Average traffic volume to the server in the past hour (Mbps) |
@@ -262,5 +262,6 @@ S-CLAROTY-SERVERS-001; holdout evaluator exercises live monroe surface via HS-02
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | g4-adversary-low2-uptime-caution | 2026-08-31 | product-owner | LOW-2: §Postconditions §2 Tier-2 table `uptime_days` row — removed stale "verify exact type on live monroe sensor before asserting Integer" caution; Float type confirmed fractional from xDome OpenAPI example (e.g., 667.233661) and propagated to TOML, story §risk, Notes, and EC-016-018-003. Row now states Float as resolved with OpenAPI-example confirmation. |
 | 1.1 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_servers"` to `"servers"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name `"claroty_servers"`). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome servers queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G4. TOML table contract, 17-column Tier-1/Tier-2 classification per ADR-058 (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code]; 15 Tier-2 into raw_extensions). PK: server_name (String, REQUIRED, single-column). OCSF class: inventory_info/5001 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). Endpoint path `/api/v1/servers/` confirmed from OpenAPI spec. All 17 fields from Server fields_enum confirmed in schema-extract §Server. HS-027 holdout group registered with 3 P0 scenarios for S-CLAROTY-SERVERS-001. |

@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.91"
+version: "9.92"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T16:00:00Z
+timestamp: 2026-08-31T17:00:00Z
+# NOTE: D-2392 — BC-INDEX v9.91→v9.92: BC-2.16.018 pin v1.1→v1.2 (uptime_days caution removed from §Notes/§Tier-2 column prose; no behavioral content change). draft/active/total UNCHANGED (10/254/277). D-2390 NOTE archived.
 # NOTE: D-2390 — BC-INDEX v9.90→v9.91: Shared G2–G6 spec-prose reconciliation. BC-2.16.016 pin v1.3→v1.4 (G2 F-OTE-P1-HIGH-001 §Architecture Anchors prism-spec-engine→prism-bin path fix). BC-2.16.017 pin v1.1→v1.2, BC-2.16.018 pin v1.0→v1.1, BC-2.16.019 pin v1.0→v1.1, BC-2.16.020 pin v1.1→v1.2, BC-2.16.021 pin v1.1→v1.2, BC-2.16.022 pin v1.1→v1.2 (G3/G4/G5/G6 table_name bare-name corrections + §ArchMap path fixes + prism-bin crates_touched/§FSR/§RG declarations). input-hash updated: 017 87de555→34da2d9; 018-022 updated to 5213907. draft/active/total UNCHANGED (10/254/277). D-2388 NOTE archived.
 # NOTE: D-2388 — BC-INDEX v9.89→v9.90: BC-2.16.016 pin v1.2→v1.3 (G2 LOCAL re-gate spec-fix reconciliation — MED-1 bare table_name §Postconditions §1 corrected; MED-3 §Invariants/EC-016-016-001 re-anchored to build_column_array within pipeline_result_to_record_batch; BC v1.3 on-disk input-hash 4f7d01e confirmed). draft/active/total UNCHANGED (10/254/277). D-2387 NOTE archived.
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
@@ -371,7 +372,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.4 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
-| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
 | BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
@@ -530,6 +531,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v9.92 (2026-08-31, D-2392):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — Records-tier convergence round. BC-2.16.018 pin v1.1→v1.2 (uptime_days caution removed from §Notes/§Tier-2 column prose; specialist confirmed caution was NOT behaviorally required per xDome API behavior; no schema/postconditions content change). draft/active/total UNCHANGED (10/254/277). TD-VSDD-097: Dim-1 CLEAR (BC-2.16.018 is endpoint-distinct from all siblings — claroty_servers vs claroty_device_vulnerability_relations/claroty_ot_activity_events etc.; no cross-contamination possible). Dim-2 DISCHARGED (BC-2.16.018 uptime_days caution propagation sweep confirms caution was NOT copied to S-CLAROTY-SERVERS-001 story §Postconditions nor to claroty.sensor.toml; story/TOML already correct — no downstream copy target drift). Dim-3 CLEAR (no new MUSTs introduced). Count-propagation sweep: bc_index_version 9.91→9.92; story_index_version 2.961→2.962; total BC/VP/story/ADR counts UNCHANGED. records-lint exit 0. BC-INDEX v9.91→v9.92.
 
 **v9.91 (2026-08-31, D-2390):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — Shared G2–G6 spec-prose reconciliation. BC-2.16.016 pin v1.3→v1.4 (G2 F-OTE-P1-HIGH-001 §Architecture Anchors prism-spec-engine→prism-bin path fix). BC-2.16.017 pin v1.1→v1.2 (G3 table_name bare-name correction + §ArchMap path fix + prism-bin crates_touched/§FSR/§RG). BC-2.16.018 pin v1.0→v1.1, BC-2.16.019 pin v1.0→v1.1 (G4 same corrections). BC-2.16.020 pin v1.1→v1.2, BC-2.16.021 pin v1.1→v1.2 (G5 same corrections). BC-2.16.022 pin v1.1→v1.2 (G6 same corrections). input-hash drift closed: 017 87de555→34da2d9; 018–022 all updated to 5213907 (computed = correct). STORY-INDEX G3–G6 story rows co-updated (DEVVULNREL v1.3→v1.4, SERVERS v1.3→v1.4, ORGPOLICY v1.1→v1.2, ACLPOLICY v1.1→v1.2) with BC cross-ref pins. draft/active/total UNCHANGED (10/254/277) — G2–G6 stories not yet merged. TD-VSDD-097: Dim-1 CLEAR (016–022 are not sibling-pair artifacts; each covers a distinct xDome endpoint). Dim-2 DISCHARGED (story §Authority/AC/§ArchMap are downstream copy-targets of BC table_name/mechanism/arch-path; verified BC and story corrected consistently by PO then story-writer in prior bursts). Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. BC-INDEX v9.90→v9.91.
 
