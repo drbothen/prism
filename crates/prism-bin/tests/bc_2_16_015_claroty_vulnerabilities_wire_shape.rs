@@ -11,7 +11,7 @@
 //! | SAP-3        | test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() |
 //! | F-VULNS-EC009-001 | test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_id_column | PrismError::ColumnNotFound (E-QUERY-038) when querying Tier-2 `id` column (source_path="$.id") via QueryEngine::execute() |
 //! | F-VULNS-ADV-003 | test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_explicit_nulls_true | Source-scan guard: prism-mcp/src/server.rs MUST use with_explicit_nulls(true) in RecordBatch→JSON path |
-//! | F-L2-001     | test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_serialized_json | Wire-level: cve_ids=[] serializes as string "[]" in raw_extensions (ENRICH-1 DD-2; not null, not absent) |
+//! | F-L2-001     | test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_serialized_json | Wire-level: cve_ids=[] serializes as a native JSON array `[]` in raw_extensions (ENRICH-1 DD-2 Json arm; not null, not absent, not stringified) |
 //! | F-L2-003     | test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_verbatim_wire | Wire-level: advisory-title name preserved verbatim in finding_info_title serialized JSON (no normalization) |
 //! | F-VULNS-ADV-002 | test_BC_2_16_015_claroty_vulnerabilities_ec008_non_200_e_sensor_001 | SensorError::HttpError(E-SENSOR-001) + body excerpt in rendered error on HTTP 500 |
 //!
