@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.015 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "2.1"
+version: "2.2"
 modified: "2026-08-30"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -341,7 +341,7 @@ Architecture section references:
 | EC-002 | `id` key absent from API envelope | `id` key is absent from `raw_extensions` (no standalone `id` column); no error; pagination unaffected (EC-016-015-002). Contrast with EC-006: present-null `published_date` stores `Value::Null` in `raw_extensions`; here the key itself is absent, not null. |
 | EC-003 | `count` field is null or absent in response envelope | Pagination halts on empty page; no null-deref; consistent with device_alert_relations pattern (EC-016-015-003) |
 | EC-004 | CVE ID format varies (`CVE-YYYY-NNNNN` vs advisory title `ICSMA-21-161-01 (ZOLL...)`) | Preserved as-is in `finding_info_title`; no normalization; any valid string is a valid title (EC-016-015-004) |
-| EC-005 | `cve_ids` field is an empty array `[]` | Serialized as native JSON array `[]` (not the stringified `"[]"`) in `raw_extensions`; not null; `column_type="json"` emits native-array wire shape per BC-2.16.015 v1.9 / BC-2.16.016 cross-story standardization (EC-016-015-005) |
+| EC-005 | `cve_ids` field is an empty array `[]` | Serialized as native JSON array `[]` (not the stringified `"[]"`) in `raw_extensions`; not null; `column_type="json"` emits native-array wire shape per BC-2.16.015 §EC-016-015-005 / BC-2.16.016 cross-story standardization |
 | EC-006 | `published_date` is null for a vulnerability row | Null `published_date` stored in `raw_extensions` as a Tier-2 field; no standalone Datetime Arrow column is materialized; ADR-028 §D8-B implicit iso8601 applies to non-null present values only; no E-SPEC-018 raised (EC-016-015-006) |
 | EC-007 | `published_date` is a PRESENT non-ISO-8601 string | Structured `E-SPEC-018 TimestampParseFailure`; fetch fails atomically; no partial/accumulated pages are returned; Option-A fail-fast |
 | EC-008 | API returns non-200 HTTP for POST /api/v1/vulnerabilities/ | E-SENSOR-001 structured error; sensor=claroty, status, body excerpt; fetch fails atomically; no partial/accumulated pages are returned; Option-A fail-fast |
@@ -527,6 +527,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.2 | 2026-08-30 | story-writer | F-RECON-P1-HIGH-001: removed re-introduced POL-39 volatile version pin from EC-005 prose (cite by ID+§anchor). |
 | 2.1 | 2026-08-30 | story-writer | BC-2.16.015 v1.9 reconciliation — cve_ids native JSON array (was stringified); cross-story standardization with BC-2.16.016; DD-2 Json arm + wire test updated on branch (12ce43ed0). §Behavioral Contracts table pin v1.8→v1.9; EC-005 description updated to native-array contract; input-hash refreshed f695bf5→e751203 (BC-2.16.015 v1.9 in inputs). |
 | 2.0 | 2026-08-30 | story-writer | F-VULNS-REBASE-LOW-001: BC-2.16.015 version-pin currency fix. Removed volatile `v1.X` pins from 6 narrative prose sites (§frontmatter BC-status comment, §frontmatter behavioral_contracts comment, §Authority §Postconditions §1/§2 headers, §Token Budget, §References) per POL-39/TD-VSDD-091. §Behavioral Contracts table Version column updated v1.6→v1.8 (justified structural citation per POL-39 exception — explicit Version column in traceability table). Role text updated at 2 sites to note EC-016-015-007/008 are LIMIT-owned (S-ENGINE-LIMIT-EARLY-STOP-001), out of VULNS-001 scope. Zero AC/task/contract content changed. |
 | 1.9 | 2026-08-25 | story-writer | AC-008/EC-002 null→absent reword (F-VULNS-R4C-LOW-001/F-R4A-LOW-001): §Acceptance Criteria §AC-008 heading and body reworded to reflect absent-key→absent-in-raw_extensions semantics (BC-2.16.015 v1.6 null→absent precision correction); §Edge Cases §EC-002 reworded accordingly; §Red Gate Tests §RG-008 description and test name corrected; §Tasks §Task-3 description updated; BC pin v1.5→v1.6 propagated at 7 sites (§frontmatter BC-status comment, §frontmatter behavioral_contracts comment, §Authority §Postconditions §1/§2 headers, §Behavioral Contracts table, §Token Budget, §References). |

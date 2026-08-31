@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.954"
+version: "2.955"
 status: draft
 producer: state-manager
-timestamp: 2026-08-30T23:55:00Z
+timestamp: 2026-08-31T06:00:00Z
 phase: 3
 total_stories: 319
-# D-2381: S-CLAROTY-VULNS-001 story v2.0→v2.1 (BC-2.16.015 pin v1.8→v1.9; D-2381 CROSS-STORY CRIT-1 RESOLUTION human-approved; cve_ids native-array EC-005 updated; input-hash e751203). Feature HEAD 12ce43ed0. total_stories 319 UNCHANGED. STORY-INDEX v2.953→v2.954. D-2380 NOTE archived.
+# D-2383: S-CLAROTY-VULNS-001 story v2.1→v2.2 (F-RECON-P1-HIGH-001: POL-39 volatile version pin removed from EC-005 cite; cite by ID+§anchor). Feature HEAD 12ce43ed0→423fc7659 (F-RECON-P1-LOW-002: stale wire-test header comment fixed). total_stories 319 UNCHANGED. STORY-INDEX v2.954→v2.955. D-2381 NOTE archived.
 # D-2380: S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 spec-readiness CLEAN 2026-08-30; remove-uncertainty CLEAN; F-1 body_template TOML literal-string syntax fixed; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added; implementer notes carried). total_stories 319 UNCHANGED. STORY-INDEX v2.952→v2.953. D-2377 NOTE archived.
 # D-2375: PR #243 squash-merged (S-ENGINE-LIMIT-EARLY-STOP-001 MERGED); S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; STORY-INDEX v2.950→v2.951. D-2373 NOTE archived.
 # D-2372: F-B1-001 substantively closed; LIMIT story pin v1.40→v1.41 (AC-015/RG-PSG-044 anchoring test_early_stop_multi_batch_partial_page_is_truncated; 7-locus discriminator reconciliation; 59 RGTs/15 ACs; input-hash b8cad49; BC-2.16.002 v2.53; feature HEAD 704aac24a). total_stories 319 UNCHANGED. STORY-INDEX v2.948→v2.949. D-2367 NOTE archived.
@@ -1054,7 +1054,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
-| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v2.1] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.9) | -- | 5 | -- |
+| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v2.2] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.9) | -- | 5 | -- |
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [ready v1.1] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.1) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 current) | -- | 3 | -- |
@@ -1669,6 +1669,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.955 | 2026-08-31 | state-manager D-2383: SINGLE-COMMIT BURST (TD-VSDD-053) — F-RECON-P1-HIGH-001 + F-RECON-P1-LOW-002 CLOSED. S-CLAROTY-VULNS-001 story v2.1→v2.2 (F-RECON-P1-HIGH-001: POL-39 volatile version pin removed from EC-005 cite; cite by ID+§anchor). Feature HEAD 12ce43ed0→423fc7659 (F-RECON-P1-LOW-002: stale wire-test header comment fixed). Core DD-2 native-array mechanism confirmed correct/clean. BC-5.39.001 streak RESET 0/3 (frozen-HEAD rule). total_stories 319 UNCHANGED. STORY-INDEX v2.954→v2.955. |
 | v2.954 | 2026-08-30 | state-manager D-2381: SINGLE-COMMIT BURST (TD-VSDD-053) — D-2381 CROSS-STORY CRIT-1 RESOLUTION (human-approved). S-CLAROTY-VULNS-001 story v2.0→v2.1: BC-2.16.015 pin v1.8→v1.9 (cve_ids native JSON array per DD-2 discriminator; EC-005 updated; input-hash e751203). Feature HEAD 12ce43ed0. D-2382 VULNS-001 LIVE TENANT VALIDATION PASS (monroe Claroty xDome; 5 REAL CVEs; wire shape correct; LIMIT early-stop live; no fidelity gaps). total_stories 319 UNCHANGED. STORY-INDEX v2.953→v2.954. |
 | v2.953 | 2026-08-30 | state-manager D-2380: G2 SPEC-READINESS BURST (TD-VSDD-053) — S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 remove-uncertainty CLEAN 2026-08-30; F-1 BC body_template TOML literal-string syntax fixed; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added). G2 implementation-ready. total_stories 319 UNCHANGED. STORY-INDEX v2.952→v2.953. |
 | v2.952 | 2026-08-30 | state-manager D-2377: POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. S-CLAROTY-VULNS-001 story v1.9→v2.0 (BC-2.16.015 version-pin drift fixed per POL-39; §Behavioral Contracts Version column updated v1.6→v1.8; input-hash refreshed 0aafc8d→f695bf5). Feature HEAD fee0c64d7 UNCHANGED. total_stories 319 UNCHANGED. STORY-INDEX v2.951→v2.952. |
