@@ -1,18 +1,26 @@
-# AC-004 (wire shape mock companion) + AC-009 (native JSON array passthrough at wire level)
+# AC-004 (wire shape mock companion) + AC-006 (null-not-absent production path) + AC-009 (native JSON array passthrough)
 #
-# AC-004 mock companion: test_BC_2_16_017_..._wire_shape_class_uid_2002_mock
-#   Mock response with seeded device vulnerability row. Serialized JSON wire output contains:
-#   class_uid=2002, finding_info_title present, time present, raw_extensions present as
-#   JSON object with device_uid + vulnerability_id keys. No Tier-2 keys at row root.
+# RG-011: test_BC_2_16_017_..._wire_shape_class_uid_2002_mock
+#   Arrow RecordBatch-level assertions (NOT serialized JSON):
+#   class_uid==2002 (Int32Array), finding_info_title column present by name,
+#   raw_extensions StringArray with device_vulnerability_relevance_reasons as native
+#   JSON array ["Software","Configuration"] (NOT stringified). No Tier-2 at top level.
 #
-# AC-009 EC-004-WIRE: test_BC_2_16_017_..._wire_shape_native_json_array_and_null_passthrough
-#   device_vulnerability_relevance_reasons=[] serialized as native JSON array [] (NOT string).
-#   null passthrough at wire level for nullable Tier-2 fields.
+# RG-010: test_BC_2_16_017_..._wire_shape_native_json_array_and_null_passthrough
+#   Serialized-JSON assertions (arrow_json with explicit_nulls=true), 2-record mock:
+#   Row0: class_uid=2002, finding_info_title="CVE-2024-EMPTY-REASONS",
+#         time present+non-null+starts_with "2024-04-01T08:00:00" (MED-1 LOAD-BEARING),
+#         device_vulnerability_relevance_reasons=[] native empty array NOT null NOT "[]".
+#   Row1: finding_info_title=null (null-not-absent, BC-2.11.001 EC-11-079),
+#         time=null (null-not-absent, MED-1 LOAD-BEARING, ADR-028 §D8-B),
+#         device_vulnerability_relevance_reasons=["Network"] native array,
+#         device_uid in raw_extensions.
 #
 # Tests: RG-011 (test_BC_2_16_017_...wire_shape_class_uid_2002_mock)
 #        RG-010 (test_BC_2_16_017_...wire_shape_native_json_array_and_null_passthrough)
 # Traces to: BC-2.16.017 §PC1 (class_uid=2002), §PC2 (Tier-1/Tier-2 wire shape),
-#            §PC3 (composite PK in raw_extensions), EC-016-017-004 (JSON array passthrough)
+#            §PC3 (composite PK in raw_extensions), AC-004, AC-006,
+#            BC-2.11.001 EC-11-079 (null-not-absent), EC-016-017-004 (JSON array passthrough)
 
 Output "docs/demo-evidence/S-CLAROTY-DEVVULNREL-001/AC-004-wire-shape-mock.gif"
 Output "docs/demo-evidence/S-CLAROTY-DEVVULNREL-001/AC-004-wire-shape-mock.webm"
