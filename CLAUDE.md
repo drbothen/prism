@@ -393,6 +393,19 @@ For EVERY adversarial pass on stories or PRs touching prism-query grammar/plan g
 
 Source: live-audit triage 2026-07-13 (D-1715/D-1716); human-approved codification.
 
+### SAP-4 — Adversary standing probe: named-mechanism production-reachability
+
+For EVERY adversarial pass where a BC or story names a specific function as the mechanism implementing an invariant/AC (e.g. "absent field → null cell produced via `ColumnMapper::map_record`"):
+
+1. Grep `crates/**/src` EXCLUDING tests (`--glob '!**/tests/**'`, and disregard hits inside `#[cfg(test)]` blocks) for callers of the named mechanism function, and confirm it has **≥1 production caller**.
+2. A named mechanism function with **zero production callers is dead in production**. Any test exercising it is defense-in-depth ONLY and does NOT satisfy reachability for the invariant/AC it claims to cover — that AC requires at least one test that drives the behavior through the ACTUAL production path. Finding severity: **P2 (MED)**, masked-coverage class.
+3. This is distinct from SAP-3. SAP-3 distinguishes synthetic-AST / direct-handler tests from public-surface tests; SAP-4 catches the case where a test reaches a **real** function that is nonetheless never invoked on the production path — so the coverage looks legitimate while the production behavior is untested. A green test against a production-dead reference function is the failure mode SAP-3's synthetic-vs-surface framing does not reach.
+4. The covering test set for a BC-named mechanism MUST include at least one assertion that reaches the behavior via the production entry point (e.g. `SpecDrivenSensorAdapter::fetch` / `QueryEngine::execute`), not only the named helper in isolation. A documented non-production "reference"/mirror function may be named as such, but MUST NOT be presented (in BC §Invariants, EC prose, or story ACs) as the production mechanism.
+
+Precedent: S-CLAROTY-OT-EVENTS-001 LOCAL adversary re-gate — AC-007 (absent `event_id` → null `finding_info_uid`) and AC-008 (`detection_time` null passthrough) were covered only by tests invoking `ColumnMapper::map_record` directly; `map_record` has zero production callers (production materialization uses `build_column_array` / `pipeline_result_to_record_batch`), so the ACs had synthetic-only coverage against a dead path while the BC §Invariants mis-anchored the mechanism to `map_record`. Mirrored as POL-42 (`named_mechanism_production_reachability`) in `.factory/policies.yaml`.
+
+Source: S-CLAROTY-OT-EVENTS-001 LOCAL adversary re-gate; human-approved codification 2026-08-31.
+
 ### SID-2 — Test-writer/implementer discipline: composed-output assertions
 
 When a user/agent-visible string is composed from multiple fields (e.g., `message` + `suggestion`, category prefix + text):
@@ -430,7 +443,7 @@ Both SAC-1 and SAC-2 codified 2026-07-27 by human approval.
 
 ### Conflict with upstream agent prompts
 
-If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline / convention that contradicts SAP-1, SAP-2, SAP-3, SID-1, SID-2, SAC-1, or SAC-2, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
+If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline / convention that contradicts SAP-1, SAP-2, SAP-3, SAP-4, SID-1, SID-2, SAC-1, or SAC-2, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
 
 ---
 
