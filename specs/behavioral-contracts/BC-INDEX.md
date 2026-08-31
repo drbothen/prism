@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.85"
+version: "9.86"
 status: draft
 producer: state-manager
 timestamp: 2026-08-30T23:55:00Z
@@ -19,6 +19,7 @@ timestamp: 2026-08-30T23:55:00Z
 # NOTE: D-2333 — BC-INDEX v9.71→v9.72: ADR-061 D8 SAP-1 catalog registration — BC-2.16.002 pin v2.41→v2.42 (added query.org_slug_resolution_failure WARN catalog row 97 for two emission sites in materialization.rs; fail-closed per ADR-061 D2; catalog count 96→97; catalog label v1.70→v1.71). draft/active/total UNCHANGED (11/253/277). D-2332 NOTE archived.
 # NOTE: D-2332 — BC-INDEX v9.70→v9.71: S-ENGINE-LIMIT-EARLY-STOP-001 round-15 remediation spec package — BC-2.16.002 pin v2.40→v2.41 (EC-01-030..033: permitted-path soundness redesign — is_pushed_temporal_predicate mirrors extract_time_bounds_from_predicate; Ast::Filter+Ast::Pipe unconditionally SUPPRESS; datetime_index_cols param; Expr catch-all `_ => false`→`_ => true`; early_stopped truncation-signal chain PipelineResult→FetchOutput→FanOutResult→MaterializationOutput→engine Step 6 is_truncated). BC-2.11.001 pin v1.25→v1.26 (EC-11-092/093: exact-limit any_early_stopped truncation-signal + API response shape). story v1.12→v1.13 (RG-PSG-021..025 RED uncommitted; 7-file implementer directive per ADR-060 v1.5 design). ADR-060 v1.5 PENDING (on-disk v1.4; ARCH-INDEX retains v1.4 per POL-37; architect must write next session). draft/active/total UNCHANGED (11/253/277). D-2328 NOTE archived.
 # NOTE: D-2328 — BC-INDEX v9.69→v9.70: S-ENGINE-LIMIT-EARLY-STOP-001 comprehensive plan-shape completeness remediation — BC-2.16.002 pin v2.39→v2.40 (§Postconditions complete condition set A–J + 11 new ECs EC-016-002-008..018 incl. EC-016-002-011 HAVING — closes round-12 MED-2 gap). draft/active/total UNCHANGED (11/253/277). D-2326 NOTE archived.
+# NOTE: D-2381 — BC-INDEX v9.85→v9.86: BC-2.16.015 pin v1.8→v1.9 (D-2381 CROSS-STORY CRIT-1 RESOLUTION; human-approved: cve_ids column standardized NATIVE JSON array per DD-2 Json-arm discriminator; G2 blast-radius adversary CRIT-1 dissolved). draft/active/total UNCHANGED (11/253/277). D-2380 NOTE archived.
 # NOTE: D-2326 — BC-INDEX v9.68→v9.69: F-R11-CRIT-001 REMEDIATED — BC-2.16.002 pin v2.38→v2.39 (§Postconditions plan-shape gate clause per ADR-060 §D8.7 + 7 new ECs EC-016-002-001..007 plan-shape edge cases). BC-2.16.015 pin v1.7→v1.8 (EC-016-015-008 COUNT full-count; trace-only from LIMIT perimeter per F-R11-OBS-001 PO adjudication). draft/active/total UNCHANGED (11/253/277). D-2312 NOTE archived.
 # NOTE: D-2312 — BC-INDEX v9.67→v9.68: DEFECT-1 resolution — BC-2.16.002 pin v2.37→v2.38 (H2 flow-control §Postconditions entry REMOVED — ADR-059 §D7 falsified by live wire evidence; LIMIT early-stop postcondition + atomicity reconciliation KEPT). draft/active/total UNCHANGED (11/253/277). D-2311 NOTE archived.
 # NOTE: D-2311 — BC-INDEX v9.66→v9.67: engine spec-package burst — BC-2.16.002 pin v2.35→v2.37 (H2 flow-control postcondition + LIMIT early-stop postcondition + atomicity reconciliation; anchors S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001). BC-2.16.015 pin v1.6→v1.7 (TV-BC-2.16.015-006 + EC-016-015-007 LIMIT early-stop; anchor S-ENGINE-LIMIT-EARLY-STOP-001). draft/active/total UNCHANGED (11/253/277). D-2308 NOTE archived.
@@ -366,7 +367,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.8 |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.9 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |

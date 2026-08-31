@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.027"
+version: "8.028"
 status: current
-timestamp: 2026-08-30T23:55:00Z
+timestamp: 2026-08-31T05:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2380 (2026-08-30): G2 SPEC-READINESS BURST (TD-VSDD-053) — S-CLAROTY-OT-EVENTS-001 draft→ready v1.1; BC-2.16.016 v1.1; G2 implementation-ready. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. STATE v8.912→v8.913. [D-2379 historical]**
+> **D-2381/D-2382 (2026-08-31): VULNS-001 CRIT-1 RESOLVED + LIVE monroe PASS (TD-VSDD-053) — D-2381: CROSS-STORY CRIT-1 RESOLVED (human-approved; cve_ids native array; BC-2.16.015 v1.9; story v2.1; 12ce43ed0; just check 5904 GREEN). D-2382: LIVE monroe PASS (5 CVEs; wire shape correct; D-2310 gate RETIRED). BC-INDEX v9.85→v9.86. STORY-INDEX v2.953→v2.954. STATE v8.913→v8.914. [D-2380 historical]**
 
 ---
 
