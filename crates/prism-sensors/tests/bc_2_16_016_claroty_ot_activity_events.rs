@@ -59,9 +59,14 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use std::collections::HashMap;
+
+use prism_core::OrgSlug;
 use prism_spec_engine::{
     column_mapping::{ocsf_projected_column_names, ColumnMapper},
+    pipeline::{FetchContext, PipelineExecutor},
     spec_parser::SpecLoader,
+    NullAuthProvider,
 };
 use serde_json::json;
 
@@ -210,44 +215,259 @@ fn test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_03
 
 // ── RG-004 ────────────────────────────────────────────────────────────────────
 /// BC-2.16.016 AC-004 (LIVE — requires CLAROTY_INSTANCE_URL):
-///   Wire-shape class_uid == 2004, Tier-1 columns present (finding_info_uid, time,
-///   activity_name, message), raw_extensions non-null JSON object with at least one
-///   Tier-2 field.
+///   Env-gated live integration test. When `CLAROTY_INSTANCE_URL` is set, connects
+///   to a real Claroty xDome instance, executes the `ot_activity_events` pipeline,
+///   and for each of the first 5 records verifies:
+///   - class_uid == 2004 (ot_activity_finding) on the simulated wire row (illustrative)
+///   - At least one Tier-1 OCSF field present (finding_info_uid, time, activity_name,
+///     or message) — confirming column mapping produces OCSF-normalised output
+///   - raw_extensions is a JSON object (Tier-2 aggregation, ADR-058 §J6)
+///   - Tier-2 column names are NOT at top level — they are inside raw_extensions only
 ///
-/// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL — ungated in CI after a live
-/// Claroty xDome instance is available. Until then, the non-live wire-shape coverage
-/// is provided by the prism-bin wire-shape test (SID-1 compliance).
-#[test]
+///   Graceful for quiescent OT networks: if the pipeline returns 0 records, no
+///   assertions are made and the test passes (`.take(5)` yields nothing).
+///
+/// LIVE-MONROE-001: requires `CLAROTY_INSTANCE_URL` env var pointing to a live
+/// Claroty xDome instance. Kept `#[ignore]` until a live instance is available in CI.
+/// Non-live SID-1 coverage provided by the prism-bin wire-shape test:
+///   `test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock`
+///
+/// BC-2.16.016 AC-004; S-CLAROTY-OT-EVENTS-001 RG-004.
 #[ignore]
-// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL (live Claroty xDome instance)
-fn test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1() {
-    // LIVE-ONLY: connect to real Claroty instance and verify RecordBatch wire shape.
-    // Non-live SID-1 coverage: prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs
-    //   test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock
-    panic!(
-        "LIVE-MONROE-001: this test requires a live Claroty xDome instance at CLAROTY_INSTANCE_URL"
-    );
+#[tokio::test]
+// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL (live Claroty xDome instance);
+// ungated in CI after live instance available.
+async fn test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1() {
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+        .expect("CLAROTY_INSTANCE_URL must be set for this live test");
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "ot_activity_events")
+        .expect("ot_activity_events table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live pipeline execution must succeed");
+
+    // Graceful for quiescent OT networks: if 0 records returned, loop is a no-op.
+    //
+    // map_record stores Tier-1 fields in DOT form (ocsf_field value, not arrow-name form).
+    // Arrow-name flattening (finding_info.uid → finding_info_uid) happens downstream in
+    // pipeline_result_to_record_batch (private to prism-bin). The true arrow-name wire shape
+    // is asserted by the non-live mock test in prism-bin.
+    for raw_record in result.records.iter().take(5) {
+        // Use the original table (from `spec`, same column schema) for mapping.
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "ot_activity_events")
+            .expect("ot_activity_events table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("map_record must succeed for live record");
+
+        // ── Simulated wire-shape assertions ──────────────────────────────────
+        // Build a simulated wire JSON row from the map_record output.
+        // class_uid = 2004 is for ot_activity_finding (BC-2.16.016).
+        // prism-sensors has no prism-ocsf dep, so we insert the value directly.
+        let mut simulated_wire_row = serde_json::Map::new();
+        simulated_wire_row.insert("class_uid".to_string(), json!(2004_i32));
+        // DOT-form Tier-1 keys from map_record → simulated arrow-name wire keys.
+        // event_id → ocsf_field="finding_info.uid" → arrow name "finding_info_uid"
+        if let Some(val) = row.mapped_fields.get("finding_info.uid") {
+            simulated_wire_row.insert("finding_info_uid".to_string(), val.clone());
+        }
+        // detection_time → ocsf_field="time" → arrow name "time"
+        if let Some(val) = row.mapped_fields.get("time") {
+            simulated_wire_row.insert("time".to_string(), val.clone());
+        }
+        // event_type → ocsf_field="activity_name" → arrow name "activity_name"
+        if let Some(val) = row.mapped_fields.get("activity_name") {
+            simulated_wire_row.insert("activity_name".to_string(), val.clone());
+        }
+        // description → ocsf_field="message" → arrow name "message"
+        if let Some(val) = row.mapped_fields.get("message") {
+            simulated_wire_row.insert("message".to_string(), val.clone());
+        }
+        if !row.raw_extensions.is_empty() {
+            simulated_wire_row.insert(
+                "raw_extensions".to_string(),
+                serde_json::to_value(&row.raw_extensions)
+                    .expect("raw_extensions must serialize to JSON"),
+            );
+        }
+
+        // NON-LOAD-BEARING / ILLUSTRATIVE-ONLY: class_uid=2004 was inserted by this
+        // test's own literal, so asserting it back is a tautology — it exercises no
+        // production code path. The REAL class_uid=2004 provenance assertion lives in:
+        //   crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs
+        //   test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock
+        // Keep as documentation of the expected wire shape; rely on the mock test for coverage.
+        assert_eq!(
+            simulated_wire_row.get("class_uid"),
+            Some(&json!(2004_i32)),
+            "simulated wire row must have class_uid = 2004 (ot_activity_finding). \
+             BC-2.16.016 AC-004. \
+             NOTE: this arm is ILLUSTRATIVE-ONLY — class_uid=2004 was inserted by this \
+             test literal, not by the pipeline. The load-bearing class_uid=2004 assertion \
+             is in the prism-bin wire-shape mock test."
+        );
+
+        // At least one Tier-1 OCSF field must be present in the simulated wire row (AC-004).
+        let tier1_present = simulated_wire_row.contains_key("finding_info_uid")
+            || simulated_wire_row.contains_key("time")
+            || simulated_wire_row.contains_key("activity_name")
+            || simulated_wire_row.contains_key("message");
+        assert!(
+            tier1_present,
+            "live record simulated wire row must contain at least one Tier-1 OCSF field \
+             (finding_info_uid, time, activity_name, or message); wire row: {:?}",
+            simulated_wire_row
+        );
+
+        // raw_extensions must be present and a JSON object (Tier-2 aggregation, ADR-058 §J6).
+        assert!(
+            simulated_wire_row
+                .get("raw_extensions")
+                .map(|v| v.is_object())
+                .unwrap_or(false),
+            "live record simulated wire row must contain raw_extensions as a JSON object \
+             (Tier-2 column aggregation, ADR-058 §J6); got: {:?}",
+            simulated_wire_row.get("raw_extensions")
+        );
+
+        // No Tier-2 column names must appear as top-level wire fields (AC-004 §Tier-2 isolation).
+        let tier2_names = [
+            "source_ip",
+            "dest_ip",
+            "protocol",
+            "dest_port",
+            "source_port",
+            "ip_protocol",
+            "source_asset_id",
+            "dest_asset_id",
+            "source_device_name",
+            "dest_device_name",
+            "source_device_type",
+            "dest_device_type",
+            "source_site_name",
+            "dest_site_name",
+            "source_username",
+            "related_alert_ids",
+            "mode",
+        ];
+        for tier2_name in &tier2_names {
+            assert!(
+                !simulated_wire_row.contains_key(*tier2_name),
+                "Tier-2 column '{}' MUST NOT appear as a top-level wire field; \
+                 it must be inside raw_extensions. BC-2.16.016 AC-003; ADR-058 §J6. \
+                 Wire row keys: {:?}",
+                tier2_name,
+                simulated_wire_row.keys().collect::<Vec<_>>()
+            );
+        }
+    }
 }
 
 // ── RG-005 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.016 AC-006 / EC-002 (LIVE — requires CLAROTY_INSTANCE_URL):
-///   Wire-level related_alert_ids assertion: raw_extensions JSON object contains
-///   `related_alert_ids` as a native JSON array (not stringified) when the field
-///   is present in the API response.
+/// BC-2.16.016 AC-006 (LIVE — requires CLAROTY_INSTANCE_URL):
+///   Env-gated live integration test. When `CLAROTY_INSTANCE_URL` is set, connects
+///   to a real Claroty xDome instance, executes the `ot_activity_events` pipeline,
+///   and for each of the first 3 records verifies that `raw_extensions` is non-empty
+///   and contains at least one of the Tier-2 network 5-tuple fields
+///   (source_ip, dest_ip, protocol, dest_port).
 ///
-/// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL — ungated in CI after a live
-/// Claroty xDome instance is available. The non-live wire-level assertion for EC-002
-/// is in prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs.
-#[test]
+///   OT activity events are network activity records; these fields are Tier-2 columns
+///   (no `ocsf_field`) routed into `raw_extensions` by ADR-058 §J6.
+///
+///   Graceful for quiescent OT networks: if the pipeline returns 0 records, no
+///   assertions are made and the test passes (`.take(3)` yields nothing).
+///
+/// LIVE-MONROE-001: requires `CLAROTY_INSTANCE_URL` env var pointing to a live
+/// Claroty xDome instance. Kept `#[ignore]` until a live instance is available in CI.
+/// Non-live SID-1 coverage provided by the prism-bin wire-shape test:
+///   `test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array`
+///
+/// BC-2.16.016 AC-006; ADR-058 §J6; S-CLAROTY-OT-EVENTS-001 RG-005.
 #[ignore]
-// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL (live Claroty xDome instance)
-fn test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_network_fields() {
-    // LIVE-ONLY: connect to real Claroty instance and verify raw_extensions network fields.
-    // Non-live SID-1 coverage: prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs
-    //   test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array
-    panic!(
-        "LIVE-MONROE-001: this test requires a live Claroty xDome instance at CLAROTY_INSTANCE_URL"
-    );
+#[tokio::test]
+// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL (live Claroty xDome instance);
+// ungated in CI after live instance available.
+async fn test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_network_fields() {
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+        .expect("CLAROTY_INSTANCE_URL must be set for this live test");
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "ot_activity_events")
+        .expect("ot_activity_events table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live pipeline execution must succeed");
+
+    // Graceful for quiescent OT networks: if 0 records returned, loop is a no-op.
+    for raw_record in result.records.iter().take(3) {
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "ot_activity_events")
+            .expect("ot_activity_events table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("map_record must succeed for live record");
+
+        // raw_extensions must be non-empty for OT activity event records (Tier-2 aggregation).
+        assert!(
+            !row.raw_extensions.is_empty(),
+            "live OT activity event record must have non-empty raw_extensions \
+             (Tier-2 network fields, ADR-058 §J6); record: {:?}",
+            raw_record
+        );
+
+        // At least one of the Tier-2 network 5-tuple fields must be present in raw_extensions.
+        // OT activity events are network activity records; source_ip, dest_ip, protocol, and
+        // dest_port are Tier-2 columns (no ocsf_field) routed to raw_extensions (ADR-058 §J6).
+        // In quiescent OT networks not all fields are always populated — asserting at least
+        // one confirms Tier-2 routing is working without requiring a fully active network.
+        let network_5tuple_keys = ["source_ip", "dest_ip", "protocol", "dest_port"];
+        let has_network_field = network_5tuple_keys
+            .iter()
+            .any(|k| row.raw_extensions.contains_key(*k));
+        assert!(
+            has_network_field,
+            "live OT activity event record raw_extensions must contain at least one \
+             network 5-tuple field (source_ip, dest_ip, protocol, dest_port) — these are \
+             Tier-2 columns routed to raw_extensions (ADR-058 §J6). \
+             raw_extensions keys: {:?}. BC-2.16.016 AC-006.",
+            row.raw_extensions.keys().collect::<Vec<_>>()
+        );
+    }
 }
 
 // ── RG-006 ────────────────────────────────────────────────────────────────────
