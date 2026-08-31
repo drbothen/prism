@@ -352,6 +352,17 @@ async fn test_BC_2_16_020_claroty_organization_zones_live_wire_shape_class_uid_a
 ///
 /// Traces to: BC-2.16.020 §PC6 Json column serialization; AC-006; EC-016-020-003.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-006
+///
+/// # SAP-3 Rule-3 Defense-in-Depth Disclaimer
+///
+/// This test invokes `ColumnMapper::map_record` directly (pre-serialization path).
+/// `map_record` has ZERO production callers — it is not on the production data path.
+/// This test is **defense-in-depth only** (SAP-3 rule-3).
+///
+/// The authoritative production-path gate (SAP-4) is:
+/// `test_BC_2_16_020_claroty_organization_zones_wire_shape_class_uid_3004_mock`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`,
+/// which exercises `SpecDrivenSensorAdapter::fetch → build_column_array ColumnType::Json arm`.
 #[test]
 fn test_BC_2_16_020_claroty_organization_zones_device_conditions_json_not_string() {
     let spec = load_claroty_spec();
@@ -442,6 +453,17 @@ fn test_BC_2_16_020_claroty_organization_zones_device_conditions_json_not_string
 ///
 /// Traces to: BC-2.16.020 invariant; AC-007; EC-016-020-001.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-007
+///
+/// # SAP-3 Rule-3 Defense-in-Depth Disclaimer
+///
+/// This test invokes `ColumnMapper::map_record` directly (pre-serialization path).
+/// `map_record` has ZERO production callers — it is not on the production data path.
+/// This test is **defense-in-depth only** (SAP-3 rule-3).
+///
+/// The authoritative production-path gate (SAP-4) is:
+/// `test_BC_2_16_020_claroty_organization_zones_wire_shape_serialized_json_null_not_absent`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`,
+/// which asserts `"name": null` at the serialized JSON wire level (not absent).
 #[test]
 fn test_BC_2_16_020_claroty_organization_zones_required_zone_name_absent_produces_null_row() {
     let spec = load_claroty_spec();
@@ -833,6 +855,17 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises
 ///
 /// Traces to: BC-2.16.020 invariant; AC-013; EC-016-020-002.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-013
+///
+/// # SAP-3 Rule-3 Defense-in-Depth Disclaimer
+///
+/// This test invokes `ColumnMapper::map_record` directly (pre-serialization path).
+/// `map_record` has ZERO production callers — it is not on the production data path.
+/// This test is **defense-in-depth only** (SAP-3 rule-3).
+///
+/// The authoritative production-path gate (SAP-4) is:
+/// `test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_serialized_json_null_not_absent`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`,
+/// which asserts `"name": null` at the serialized JSON wire level (not absent).
 #[test]
 fn test_BC_2_16_020_claroty_organization_zone_policies_required_policy_name_absent_produces_null_row(
 ) {
@@ -891,6 +924,18 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_required_policy_name_abse
 ///
 /// Traces to: BC-2.16.020 §PC6; AC-014; spike-findings §Spike 3 §Table B.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-014
+///
+/// # SAP-3 Rule-3 Defense-in-Depth Disclaimer
+///
+/// This test invokes `ColumnMapper::map_record` directly (pre-serialization path).
+/// `map_record` has ZERO production callers — it is not on the production data path.
+/// This test is **defense-in-depth only** (SAP-3 rule-3).
+///
+/// The authoritative production-path gate (SAP-4) is:
+/// `test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_class_uid_3004_mock`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`,
+/// which asserts communication_conditions/related_alerts_ids/applied_zone_pairs are
+/// NATIVE JSON arrays in raw_extensions through `SpecDrivenSensorAdapter::fetch`.
 #[test]
 fn test_BC_2_16_020_claroty_organization_zone_policies_json_columns_not_stringified() {
     let spec = load_claroty_spec();
