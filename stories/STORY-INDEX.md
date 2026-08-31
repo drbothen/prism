@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.966"
+version: "2.967"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T20:00:00Z
+timestamp: 2026-08-31T23:30:00Z
 phase: 3
-total_stories: 319
-# D-2398: G2 consistency-gate closure. OT-EVENTS [ready v1.7]→[ready v1.9] (G2 consistency-gate CLEAN(PR-merge)=yes; round-1 MED-001/002/003+LOW-001+OBS-001 fixed @1222bfd65; round-2 STORY-INDEX pin+AC-005 dead citation+header label fixed @627ae66df). total_stories 319 UNCHANGED. D-2397 NOTE archived.
+total_stories: 320
+# D-2399: G2 live holdout gate EXECUTED (monroe, Variant-2). HS-002 PASS 1.00 (consumed), HS-003 PASS 1.00 (consumed), HS-001 SETUP-FAILURE (quiescent OT — NOT consumed). Human ACCEPTED (Option-1). DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 REGISTERED. total_stories 319→320. D-2398 NOTE archived.
 # D-2394: G3 (S-CLAROTY-DEVVULNREL-001) story-doc fix v1.6→v1.7 (MED-1 AC-003/§RGT test-name; LOW-1 BC pin; LOW-2 SS-16 wording). input-hash unchanged dd103fb. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.963→v2.964. D-2393 NOTE archived.
 # D-2392: Records-tier convergence round. OT-EVENTS v1.4→v1.5 (SS-22 subsystems add + test-header §RG-table mapping sync). DEVVULNREL v1.4→v1.5 (RG names/mechanisms/§FSR story-doc sync). SERVERS v1.4→v1.5 (story-doc sync + BC-2.16.018 pin v1.1→v1.2). ORGPOLICY v1.2→v1.3, ACLPOLICY v1.2→v1.3 (column_name→name template + density). statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.961→v2.962. D-2391 NOTE archived.
 # D-2391: G2 (S-CLAROTY-OT-EVENTS-001) LOCAL fix-burst story-side reconciliation. story v1.3→v1.4 (F-OTE-MED-002 POL-39 de-pin; §BC-table sync to BC-2.16.016 v1.4). BC-2.16.016 pin v1.3→v1.4. status stays ready. total_stories 319 UNCHANGED. STORY-INDEX v2.960→v2.961. D-2390 NOTE archived.
@@ -1037,6 +1037,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | DEFECT-PUSHDOWN-EQUALITY-SLOTS-001 | equality predicates extracted by classify_predicates but silently dropped [draft v0.1] | prism-query | 0 (pending PO) | -- | TBD | -- |
 | DEFECT-CS-DEVICES-INCIDENTS-TW-001 | CrowdStrike devices + incidents tables lack FQL time-window slot [draft v0.1] | prism-sensors, prism-dtu-crowdstrike | 0 (pending PO) | -- | TBD | -- |
 | DEFECT-PQL-ON-CONTAINS-001 | CONTAINS operator valid in WHERE clause but rejected in ON clause [draft v0.1] | prism-query | 0 (pending PO) | -- | TBD | -- |
+| DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 | PrismQL sensor-qualified table reference `<sensor>.<table>` triggers misleading E-QUERY-037; bare name is canonical (post-v1 grammar reconciliation) [draft v0.1] | prism-query | 0 (pending architect + PO adjudication) | -- | TBD | -- |
 
 ## Sensor-Critical Stories (Wave A / D-1889 triage — registered D-2095)
 
@@ -1675,6 +1676,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.967 | 2026-08-31 | state-manager D-2399: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) live holdout gate EXECUTED (monroe, Variant-2 read-only). HS-002 PASS 1.00 (consumed: Tier-2 source_ip E-QUERY-038 + raw_extensions queryable). HS-003 PASS 1.00 (consumed: SELECT time OCSF name accepted; SELECT detection_time E-QUERY-038). HS-001 SETUP-FAILURE (quiescent OT network — 0 events; NOT consumed; kept for future re-run). Human ACCEPTED (Option-1): gate PASSED on 2/3-at-ceiling + structural corroboration. DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 REGISTERED (post-v1, engine-defects, prism-query; E-QUERY-037 sensor-qualified table ref; post-v1 grammar reconciliation). total_stories 319→320. STORY-INDEX v2.966→v2.967. records-lint exit 0. |
 | v2.966 | 2026-08-31 | state-manager D-2398: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 consistency-gate closure. S-CLAROTY-OT-EVENTS-001 [ready v1.7]→[ready v1.9] (round-1: MED-001/002/003+LOW-001+OBS-001 ALL FIXED, story v1.7→v1.8, implementer 3 comment-only fixes @1222bfd65; round-2: NEW-LOW-001 STORY-INDEX pin stale, NEW-LOW-002 AC-005 dead citation → story v1.9, NEW-OBS-001 header label @627ae66df). CLEAN(PR-merge)=yes confirmed. NEXT = story-level holdout gate. total_stories 319 UNCHANGED. STORY-INDEX v2.965→v2.966. |
 | v2.965 | 2026-08-31 | state-manager D-2397: SESSION-WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — Convergence-round pin updates. OT-EVENTS v1.6→v1.7 (G2 convergence-round: MED-002 EC-016-016-004 intra-BC contradiction + MED-001 phantom EC cites; code @acf662de7; BC-2.16.016 pin v1.4→v1.5). SERVERS v1.6→v1.7 (G4 OBS-2 body_template single-line; OBS-1 live-test todo!()→real; OBS-3 E2E available_columns; code @c84dd785a; BC-2.16.018 pin v1.2→v1.3; BC-2.16.019 pin v1.1→v1.2). ORGPOLICY v1.4→v1.5 (G5 OBS RG-004 relabel+SAP-3 disclaimer; code @e5b453cb3). ACLPOLICY and DEVVULNREL UNCHANGED. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.964→v2.965. |
 | v2.964 | 2026-08-31 | state-manager D-2394: SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096 records-only micro-burst) — G3 (S-CLAROTY-DEVVULNREL-001) story-doc fix v1.6→v1.7: MED-1 AC-003/§RGT phantom test-name corrected to authoritative E2E + prism-sensors defense-in-depth (SAP-3 §rule-3); LOW-1 BC-2.16.017 version pin; LOW-2 SS-16 wording. input-hash unchanged dd103fb. Code HEAD unchanged @69db93dc6. LOCAL 3-CLEAN streak RESET; G3 re-gate PENDING. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.963→v2.964. |

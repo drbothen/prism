@@ -8,34 +8,34 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-A"
 story_source: "S-CLAROTY-OT-EVENTS-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-08-31"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.016-claroty-ot-activity-events-table.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.016-e-query-038-column-not-found.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "8453d6f"
+input-hash: "868ad40"
 traces_to: "BC-2.16.016"
 behavioral_contracts:
   - BC-2.16.016
   - BC-2.11.016
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-OT-EVENTS-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-08-31"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Postconditions 2 Tier-1: detection_time → ocsf_field = 'time' → Arrow field 'time'. SELECT time succeeds; SELECT detection_time raises E-QUERY-038. Validates datetime Tier-1 column is exposed under OCSF Arrow name ('time') not raw TOML name ('detection_time'). ADR-058 Tier-1 rename + BC-2.11.016 E-QUERY-038. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Postconditions 2 Tier-1: detection_time → ocsf_field = 'time' → Arrow field 'time'. SELECT time succeeds; SELECT detection_time raises E-QUERY-038. Validates datetime Tier-1 column is exposed under OCSF Arrow name ('time') not raw TOML name ('detection_time'). ADR-058 Tier-1 rename + BC-2.11.016 E-QUERY-038. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file. CONSUMED D-2399 2026-08-31: PASS 1.00 — SELECT time succeeded (plan gate accepted OCSF Arrow name); SELECT detection_time raised E-QUERY-038 with time in available_columns. Human ACCEPTED (Option-1). SINGLE-USE consumed; must NOT be reused."
 ---
 
 # HS-OTEVTS-001-003: claroty_ot_activity_events: SELECT time (Tier-1 OCSF name for detection_time) succeeds; SELECT detection_time raises E-QUERY-038
@@ -183,4 +183,5 @@ Do NOT disclose: the specific column names queried, the LIMIT values, or the exa
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | G2-live-holdout-gate | 2026-08-31 | state-manager | Evaluated D-2399: PASS 1.00 (consumed). SELECT time succeeded at plan gate (no E-QUERY-038 — OCSF Arrow name registered); SELECT detection_time raised E-QUERY-038 with time in available_columns (raw col.name hidden). Human ACCEPTED (Option-1): holdout gate PASSED. used→true; lifecycle_status→consumed; last_evaluated 2026-08-31; last_eval_satisfaction 1.00. SINGLE-USE consumed; must NOT be reused. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-025 group for S-CLAROTY-OT-EVENTS-001. Tier-1 datetime column OCSF rename: SELECT time (OCSF Arrow name) succeeds; SELECT detection_time (raw TOML name) raises E-QUERY-038 with time in available_columns. BC-2.16.016 §Postconditions 2 Tier-1 + BC-2.11.016 + ADR-058. No DTU — live sensor only. SINGLE-USE. |

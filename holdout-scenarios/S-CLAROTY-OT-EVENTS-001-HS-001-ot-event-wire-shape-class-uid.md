@@ -8,18 +8,18 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-A"
 story_source: "S-CLAROTY-OT-EVENTS-001"
-version: "1.0"
+version: "1.1"
 status: active
 used: false
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-08-31"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.016-claroty-ot-activity-events-table.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "cd3cdd6"
+input-hash: "300d619"
 traces_to: "BC-2.16.016"
 behavioral_contracts:
   - BC-2.16.016
@@ -27,14 +27,14 @@ behavioral_contracts:
 verification_properties: []
 lifecycle_status: active
 introduced: "S-CLAROTY-OT-EVENTS-001"
-last_evaluated: null
+last_evaluated: "2026-08-31"
 last_eval_satisfaction: null
 staleness_check: null
 stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Postconditions 1 (ocsf_class=detection_finding → class_uid=2004) and §Postconditions 2 Tier-1 REQUIRED column: event_id→finding_info_uid (ocsf_field_to_arrow_name of finding_info.uid). Runs against live monroe sensor. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Postconditions 1 (ocsf_class=detection_finding → class_uid=2004) and §Postconditions 2 Tier-1 REQUIRED column: event_id→finding_info_uid (ocsf_field_to_arrow_name of finding_info.uid). Runs against live monroe sensor. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file. EVALUATED D-2399 2026-08-31: SETUP-FAILURE — live OT network quiescent, 0 events returned via force_refresh on monroe; scenario Edge Conditions §'Live sensor returns empty result set' applies (NOT a behavioral FAIL). Structural corroboration present: table registered, class_uid non-null-int mapped to detection_finding, finding_info_uid integer Tier-1 column present. Human ACCEPTED (Option-1): holdout gate treated as PASSED on 2/3-at-ceiling + structural corroboration; kept unconsumed (used remains false) for future re-run when monroe OT network has ≥1 event."
 ---
 
 # HS-OTEVTS-001-001: claroty_ot_activity_events SELECT * wire shape: class_uid=2004, finding_info_uid column present in returned row
@@ -175,4 +175,5 @@ This scenario exercises the live Claroty xDome OT activity events endpoint again
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | G2-live-holdout-gate | 2026-08-31 | state-manager | Evaluated D-2399: SETUP-FAILURE (quiescent OT network — 0 events returned via force_refresh on monroe; scenario Edge Conditions §'Live sensor returns empty result set' applies; NOT a behavioral FAIL). Structural corroboration: table registered, class_uid non-null-int mapped to detection_finding, finding_info_uid integer Tier-1 column present. Human ACCEPTED (Option-1): holdout gate treated as PASSED on 2/3-at-ceiling + structural corroboration. Kept unconsumed (used remains false) for future re-run when monroe OT network has ≥1 event. last_evaluated 2026-08-31 recorded. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-025 group for S-CLAROTY-OT-EVENTS-001. Wire-shape assertion: class_uid=2004 (Option B detection_finding) and finding_info_uid REQUIRED Tier-1 column present in live monroe sensor output. BC-2.16.016 §Postconditions 1/2/3. No DTU — live sensor only. SINGLE-USE. |

@@ -8,34 +8,34 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-A"
 story_source: "S-CLAROTY-OT-EVENTS-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-08-31"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.016-claroty-ot-activity-events-table.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.016-e-query-038-column-not-found.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "8453d6f"
+input-hash: "868ad40"
 traces_to: "BC-2.16.016"
 behavioral_contracts:
   - BC-2.16.016
   - BC-2.11.016
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-OT-EVENTS-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-08-31"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Invariants: network 5-tuple Tier-2 fields not exposed as standalone columns; SELECT source_ip raises E-QUERY-038 with raw_extensions in available_columns but NOT source_ip. ALSO tests BC-2.16.016 §EC-016-016-006 edge case. Complement: SELECT raw_extensions succeeds. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-OT-EVENTS-001 (HS-025 group). Tests BC-2.16.016 §Invariants: network 5-tuple Tier-2 fields not exposed as standalone columns; SELECT source_ip raises E-QUERY-038 with raw_extensions in available_columns but NOT source_ip. ALSO tests BC-2.16.016 §EC-016-016-006 edge case. Complement: SELECT raw_extensions succeeds. No DTU — live sensor only. BLOCKING. Test-writer and implementer must NOT read this file. CONSUMED D-2399 2026-08-31: PASS 1.00 — source_ip E-QUERY-038 confirmed (Tier-2 network 5-tuple plan-gate), raw_extensions queryable (complement). Human ACCEPTED (Option-1). SINGLE-USE consumed; must NOT be reused."
 ---
 
 # HS-OTEVTS-001-002: claroty_ot_activity_events: SELECT source_ip raises E-QUERY-038 (Tier-2 network field not standalone); raw_extensions queryable
@@ -178,4 +178,5 @@ Do NOT disclose: the specific field name queried, the LIMIT value, or the exact 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | G2-live-holdout-gate | 2026-08-31 | state-manager | Evaluated D-2399: PASS 1.00 (consumed). source_ip raises E-QUERY-038 with raw_extensions in available_columns (Tier-2 network 5-tuple plan-gate rejection confirmed); raw_extensions queryable (complement confirmed). Human ACCEPTED (Option-1): holdout gate PASSED. used→true; lifecycle_status→consumed; last_evaluated 2026-08-31; last_eval_satisfaction 1.00. SINGLE-USE consumed; must NOT be reused. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-025 group for S-CLAROTY-OT-EVENTS-001. Tier-2 network field plan-gate rejection: source_ip E-QUERY-038 with raw_extensions in available_columns; complement: raw_extensions accepted. BC-2.16.016 §Invariants + EC-016-016-006 + BC-2.11.016 + ADR-058. No DTU — live sensor only. SINGLE-USE. |
