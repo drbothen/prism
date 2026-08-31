@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.911"
+version: "8.912"
 producer: state-manager
-timestamp: 2026-08-30T23:30:00Z
+timestamp: 2026-08-30T23:45:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2378 SINGLE-COMMIT BURST (TD-VSDD-053) — PR #244 squash-merged @51bb3bc1; develop divergence RESOLVED (local==origin). VULNS-001 PR-LEVEL cascade on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment prism-bin/Cargo.toml) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending. VULNS-001 1 commit behind origin/develop (no conflict). trajectory-tail UNCHANGED →8→0→1→2. STATE v8.910→v8.911."
+current_step: "D-2379 DOCUMENTATION BURST (TD-VSDD-053) — live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md v1.0); per-story xDome merge gate documented; pointer added to SESSION-HANDOFF.md STANDING DECISIONS + STATE.md Session Resume Checkpoint. D-2379 recorded. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.911→v8.912."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-30 D-2378: SHA-merge burst — PR #244 squash-merged @51bb3bc1; develop divergence RESOLVED; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 disposition pending. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.910→v8.911. |
+| **Last Updated** | 2026-08-30 D-2379: documentation burst — live-tenant-validation runbook created; per-story xDome merge gate documented. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.911→v8.912. |
 
 ## Phase Progress
 
@@ -224,6 +224,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | D-2375 | state-manager | 2026-08-30 | **SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — S-ENGINE-LIMIT-EARLY-STOP-001 MERGED. PR #243 squash-merged to origin/develop @c5be059fe (human-authorized; focused adversary re-verify CLEAN strict=yes zero findings on frozen HEAD 704aac24a + ADR-060 v1.18/BC-2.16.002 v2.54/story v1.42). POL-14: BC-2.16.002 already active (lifecycle_status: active on-disk; no promotion). BC-2.16.015 draft — promoted by S-CLAROTY-VULNS-001 merge per story annotation, not this story. STORY-INDEX v2.950→v2.951 (S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; row cell updated [draft v1.42; feature HEAD 704aac24a]→[merged c5be059fe; PR #243]). develop_head: origin/develop = c5be059fe; LOCAL develop = 95f670284 DIVERGED/not-pushed (pending human decision to reconcile). feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED + remote branch deleted; local worktree .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001 pending devops cleanup. SESSION-HANDOFF §RESUME SNAPSHOT D-2374 marked SUPERSEDED; §RESUME SNAPSHOT D-2375 inserted. NEXT: S-CLAROTY-VULNS-001 (G1) — rebase @5aae6f0b3 onto c5be059fe; streak reset per DRIFT-ORCH-PRLEVEL-PUSH-001; re-run PR-LEVEL cascade; merge → then G2 network_activity (D-2357). TD-VSDD-097 N/A (STATE/STORY-INDEX/SESSION-HANDOFF records-only; no spec/code/count changes). trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.907→v8.908.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2376 | state-manager | 2026-08-30 | **SHA-RECONCILIATION MICRO-BURST (TD-VSDD-053) — develop_head cite corrected c5be059fe→194a77665 to restore verify-sha-currency invariant. Context: D-2375 burst set develop_head to cite origin/develop c5be059fe, but local develop had been rebased 95f670284→194a77665 (CLAUDE.md §Orchestrator Auto-Recovery Heartbeat commit replayed onto merged LIMIT base c5be059fe) → SHA mismatch → pipeline HARD-BLOCKED by validate-wave-gate-prerequisite. Fix: develop_head updated to 194a77665; NOTE updated (D-2375 NOTE archived). origin/develop = c5be059fe is preserved in NOTE (PR #243 LIMIT squash-merge). Local is 1 ahead of origin/develop; heartbeat commit LOCAL-ONLY / not pushed — pushing develop remains pending human decision. SESSION-HANDOFF §RESUME SNAPSHOT D-2375 HEADS block updated (LOCAL develop 95f670284→194a77665). Records-only (no spec/code/index change). TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.908→v8.909.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2378 | state-manager | 2026-08-30 | **SINGLE-COMMIT BURST (TD-VSDD-053) — PR #244 (CLAUDE.md §Orchestrator Auto-Recovery Heartbeat doc) squash-merged to origin/develop @51bb3bc1 (human-authorized). Local develop reconciled via reset --keep to origin/develop; local == origin/develop == 51bb3bc1; develop divergence RESOLVED (prior LOCAL-ONLY heartbeat commit 194a77665 is now on origin as squash 51bb3bc1). VULNS-001 PR-LEVEL cascade on frozen 73bea7c1c (rebased onto c5be059fe + F-VULNS-IDNULL-LOW-001 closed): pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment in prism-bin/Cargo.toml wire-shape [[test]] header — lists 3 tests, file has 8) + pass-3 CLEAN(strict). BC-5.39.001 streak 1/3 on frozen 73bea7c1c; OBS-1 disposition pending orchestrator/human decision. All passes CLEAN(PR-merge) (zero CRIT/HIGH/MED). VULNS-001 1 commit behind origin/develop (PR #244 heartbeat-doc squash only, no conflict expected). Records-only (no spec/code/index change). TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.910→v8.911.** | wave-5-e-demo-fidelity | 2026-08-30 |
+| D-2379 | state-manager | 2026-08-30 | **DOCUMENTATION BURST (TD-VSDD-053) — live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md v1.0). Per-story Claroty xDome merge gate documented (D-2310 lesson; canonical procedure replaces per-session re-discovery; origin test-soc/live-soc Path B; AD-017 secrets-opaque). Pointer added to SESSION-HANDOFF.md §STANDING DECISIONS item (f) + STATE.md Session Resume Checkpoint STANDING DECISIONS. D-2379 recorded. Records-only; no spec/code/index change. TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.911→v8.912.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2377 | state-manager | 2026-08-30 | **POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. story-writer bumped S-CLAROTY-VULNS-001 v1.9→v2.0: BC-2.16.015 version-pin drift fixed (POL-39-compliant; 6 narrative prose pins removed; §Behavioral Contracts Version column updated v1.6→v1.8 per structural-citation exception; EC-016-015-007/008 scope notes added). input-hash refreshed 0aafc8d→f695bf5 (BC-2.16.015 v1.8 now in inputs; validate-input-hash block cleared). Feature HEAD fee0c64d7 UNCHANGED — spec-only fix; zero AC/task/contract content changed. PR-LEVEL cascade pass-1 on rebased HEAD fee0c64d7 was CLEAN(PR-merge)=yes / CLEAN(strict)=no (this LOW finding); after this spec fix the perimeter is re-gated toward 3-CLEAN on frozen fee0c64d7. PROCESS-GAP [OBS] DISPOSED: BC-2.16.015 v1.7/v1.8 bursts did not run POL-25 multi-cite propagation sweep against dependent story S-CLAROTY-VULNS-001, leaving the stale version pin. Concrete follow-up: enhance BC-bump burst checklist to enumerate ALL traces_to/bcs-dependent stories via STORY-INDEX grep before declaring BC-bump complete. Target: attach to S-MAINT-ANTIPIN-SWEEP-001 scope expansion OR register new S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001. Recorded in Blocking Issues PROCESS-GAP with target post-Monday 2026-08-31. STORY-INDEX v2.951→v2.952. TD-VSDD-097 N/A (spec-only story update; no new MUSTs, no sibling-pair artifacts, no downstream copy targets). Count-propagation sweep: no BC/VP/ADR count changes; STORY-INDEX story_index_version bumped. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.909→v8.910.** | wave-5-e-demo-fidelity | 2026-08-30 |
 
 ## Skip Log
@@ -255,10 +256,10 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2378 SHA-MERGE BURST — PR #244 squash-merged @51bb3bc1; develop divergence RESOLVED; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending) [supersedes D-2377]
+## Session Resume Checkpoint (D-2379 DOCUMENTATION BURST — live-tenant-validation runbook created; per-story xDome merge gate documented; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending) [supersedes D-2378]
 
 ### RESUME IN ONE BREATH
-Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. PR #244 (CLAUDE.md heartbeat doc) squash-merged @51bb3bc1; local develop reconciled to origin/develop (divergence RESOLVED). S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending. NEXT: resolve OBS-1 → complete 3-CLEAN → merge VULNS-001 → G2.
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2379 documentation burst: live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md); per-story xDome merge gate canonical. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending. NEXT: resolve OBS-1 → complete 3-CLEAN → merge VULNS-001 (live xDome validation required per runbook) → G2.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** verify heartbeat cron via CronList; if absent/expired re-arm per .factory/ops/vsdd-heartbeat-autorecovery.md (authoritative rule: CLAUDE.md §Orchestrator Auto-Recovery Heartbeat).
@@ -279,4 +280,4 @@ Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**STANDING DECISIONS (carry forward):** (a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk.
+**STANDING DECISIONS (carry forward):** (a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk. (e) Live xDome tenant validation is a per-story merge gate (D-2310 lesson); canonical runbook: .factory/ops/live-tenant-validation-runbook.md (Path B via ~/Dev/test-soc/live-soc).
