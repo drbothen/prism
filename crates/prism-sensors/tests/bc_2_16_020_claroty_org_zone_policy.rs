@@ -303,6 +303,18 @@ fn test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038()
 ///
 /// Traces to: BC-2.16.020 invariant (AC-004 WIRE-SHAPE rename); TV-BC-2.16.020-003.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-004
+///
+/// SAP-3 NOTE (defense-in-depth): This test is a UNIT-level helper assertion — it calls
+/// `ocsf_projected_column_names(zones, true)` directly and asserts `name` present /
+/// `zone_name` absent. It does NOT execute a query or hit the plan gate; it exercises
+/// projected-set membership only. Per SAP-3 rule-3, it counts as defense-in-depth only.
+/// The AUTHORITATIVE E-QUERY-038 integration gate from the public query surface (SQL parser
+/// → QueryEngine::execute) is
+/// `test_BC_2_16_020_claroty_organization_zones_e2e_e_query_038_tier2_column`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`
+/// (RG-003a, F-ORGPOL-P1-MED-001 closure), which transitively covers the raw Tier-1 name
+/// case: any column name absent from the OCSF-projected set — including `zone_name` — raises
+/// E-QUERY-038 at plan time via the same plan gate that RG-003a exercises end-to-end.
 #[test]
 fn test_BC_2_16_020_claroty_organization_zones_tier1_raw_toml_name_raises_e_query_038() {
     let spec = load_claroty_spec();
