@@ -32,6 +32,9 @@ tracing = "0.1"
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.6"
+# S-CLAROTY-VULNS-001 RG-007: PipelineExecutor tests need NullAuthProvider
+# (gated by test-helpers feature; NEVER enable in production deps per the feature doc-comment).
+prism-spec-engine = { path = "../prism-spec-engine", features = ["test-helpers"] }
 futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
 proptest = "1"

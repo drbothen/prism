@@ -1,0 +1,1446 @@
+//! Red Gate test suite for BC-2.16.015 — Claroty xDome Vulnerability Findings Table.
+//!
+//! Covers S-CLAROTY-VULNS-001 acceptance criteria AC-001..AC-008.
+//! BC-5.38.001 density check: 11 RGTs / 8 ACs = 1.375 (≥ 0.5 threshold).
+//! The story enumerates 11 Red Gate tests: RG-001..RG-009 (with RG-003a/003b + RG-004b splits).
+//!
+//! ## Red Gate invariant
+//!
+//! Non-`#[ignore]` tests in this file (covering RG-001, RG-002, RG-003b [proxy],
+//! RG-006, RG-007, RG-008, RG-009) MUST FAIL before implementation lands:
+//!   - Each test finds the `vulnerabilities` table via `.find()` and panics at
+//!     `.expect("vulnerabilities table must exist")` because the `[[tables]]`
+//!     block has not yet been added to `claroty.sensor.toml`.
+//! Also in this file (pass-2 additions, non-RGT extra coverage): EC-005 (cve_ids
+//! empty-array), EC-006 (published_date null), F-VULNS-P1-005 (null-count non-empty
+//! page).
+//! Also in this file (pass-3 addition, non-RGT extra coverage): EC-004
+//! (advisory-title verbatim).
+//!
+//! ## SAP-3 compliance (RG-003)
+//!
+//! The E-QUERY-038 gate is enforced by `check_column_availability` in prism-query, which
+//! delegates to `ocsf_projected_column_names`. Using `ocsf_projected_column_names` directly
+//! from prism-spec-engine is the architecturally correct proxy: prism-sensors CANNOT depend
+//! on prism-query (prism-query depends on prism-sensors in production — circular dependency).
+//! Both `TableRegistry::register_sensor` and `check_column_availability` delegate to the same
+//! canonical function per ADR-058 §I7, so this test is architecturally equivalent to an
+//! end-to-end E-QUERY-038 assertion.
+//!
+//! ## SID-1 compliance (RG-004, RG-005)
+//!
+//! RG-004 and RG-005 are `#[ignore]`'d because they require a live Claroty DTU instance.
+//! Non-ignored coverage (RG-001..003, RG-006..008) satisfies SID-1.
+
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
+use std::collections::HashMap;
+
+use prism_core::OrgSlug;
+use prism_spec_engine::{
+    column_mapping::{ocsf_projected_column_names, ColumnMapper},
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+    NullAuthProvider, SpecEngineError,
+};
+use serde_json::json;
+use wiremock::{
+    matchers::{body_partial_json, method},
+    Mock, MockServer, ResponseTemplate,
+};
+
+const CLAROTY_TOML: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/specs/claroty.sensor.toml"
+));
+
+// ── RG-001 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §Precondition P1: `[[tables]]` block with `table_name = "vulnerabilities"`
+/// must parse without error and appear in the SensorSpec tables list.
+/// Also asserts `ocsf_column_naming = true` on the claroty sensor (AC-001 / ADR-058 §D2).
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_toml_block_parses() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    assert_eq!(
+        table.table_name, "vulnerabilities",
+        "table_name must be 'vulnerabilities'"
+    );
+    assert!(
+        spec.ocsf_column_naming,
+        "claroty sensor must carry ocsf_column_naming = true (ADR-058 §D2)"
+    );
+    assert_eq!(
+        table.columns.len(),
+        19,
+        "vulnerabilities must declare exactly 19 ColumnSpec entries (AC-001); \
+         got {}: {:?}",
+        table.columns.len(),
+        table.columns.iter().map(|c| &c.name).collect::<Vec<_>>()
+    );
+
+    // AC-001: body_template of fetch_vulnerabilities must contain EXACTLY the 18-field
+    // projection — all 19 declared columns except `id`, which uses source_path = "$.id"
+    // and is intentionally excluded from the fields projection per BC-2.16.015
+    // §Postconditions §2. A typo dropping or renaming a projected field would silently
+    // omit data from the outgoing Claroty API request and ship undetected without this
+    // assertion (F-VULNS-ADVFRESH-OBS-001 fix; traceability: AC-001).
+    let fetch_step = table
+        .steps
+        .iter()
+        .find(|s| s.name == "fetch_vulnerabilities")
+        .expect(
+            "fetch_vulnerabilities step must exist in vulnerabilities table (AC-001); \
+             body_template 18-field projection cannot be verified without this step",
+        );
+    let body_template_str = fetch_step.body_template.as_deref().expect(
+        "fetch_vulnerabilities step must carry a body_template (AC-001); \
+             Claroty API requires a fields projection (minItems: 1)",
+    );
+    let body_template_json: serde_json::Value = serde_json::from_str(body_template_str).expect(
+        "fetch_vulnerabilities body_template must be valid JSON (AC-001); \
+             body_template is a static string literal in claroty.sensor.toml",
+    );
+    let fields_array = body_template_json
+        .get("fields")
+        .and_then(|v| v.as_array())
+        .expect(
+            "fetch_vulnerabilities body_template must contain a top-level 'fields' JSON array \
+             (AC-001); the Claroty xDome POST /api/v1/vulnerabilities/ endpoint requires it",
+        );
+    let actual_fields: std::collections::HashSet<&str> = fields_array
+        .iter()
+        .map(|v| {
+            v.as_str().expect(
+                "each element in body_template 'fields' array must be a JSON string (AC-001)",
+            )
+        })
+        .collect();
+    // Ground-truth 18-field projection: sourced directly from claroty.sensor.toml
+    // vulnerabilities [[tables.steps]] body_template (F-VULNS-ADVFRESH-OBS-001).
+    // All 19 declared columns except `id` (source_path = "$.id", root-level key extraction —
+    // NOT in fields projection per BC-2.16.015 §Postconditions §2).
+    let expected_fields: std::collections::HashSet<&str> = [
+        "name",
+        "vulnerability_type",
+        "cve_ids",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v3_vector_string",
+        "cvss_v2_score",
+        "description",
+        "is_known_exploited",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "epss_score",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "exploits_count",
+        "source_name",
+        "source_url",
+    ]
+    .iter()
+    .copied()
+    .collect();
+    assert_eq!(
+        actual_fields,
+        expected_fields,
+        "AC-001: fetch_vulnerabilities body_template 'fields' array must be EXACTLY the \
+         18-field projection (all 19 columns except 'id' which uses source_path = '$.id'). \
+         Extra: {:?}, Missing: {:?}. BC-2.16.015 §Postconditions §2; \
+         F-VULNS-ADVFRESH-OBS-001.",
+        actual_fields
+            .difference(&expected_fields)
+            .collect::<Vec<_>>(),
+        expected_fields
+            .difference(&actual_fields)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        fields_array.len(),
+        18,
+        "AC-001: fetch_vulnerabilities body_template 'fields' array must have exactly 18 \
+         elements (no duplicates, no extras beyond the 18-field projection); got {}. \
+         BC-2.16.015 §Postconditions §2; F-VULNS-ADVFRESH-OBS-001.",
+        fields_array.len()
+    );
+}
+
+// ── RG-002 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §Postcondition: exactly 2 Tier-1 columns (`ocsf_field` present):
+///   - `name`        → `ocsf_field = "finding_info.title"` (REQUIRED)
+///   - `description` → `ocsf_field = "message"`
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_tier1_columns_two_with_ocsf_field() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let tier1: Vec<_> = table
+        .columns
+        .iter()
+        .filter(|c| c.ocsf_field.is_some())
+        .collect();
+
+    assert_eq!(
+        tier1.len(),
+        2,
+        "expected exactly 2 Tier-1 columns with ocsf_field; got {}: {:?}",
+        tier1.len(),
+        tier1.iter().map(|c| &c.name).collect::<Vec<_>>()
+    );
+
+    let name_col = tier1
+        .iter()
+        .find(|c| c.name == "name")
+        .expect("Tier-1 column 'name' must exist");
+    assert_eq!(
+        name_col.ocsf_field.as_deref(),
+        Some("finding_info.title"),
+        "column 'name' must declare ocsf_field = \"finding_info.title\""
+    );
+
+    let desc_col = tier1
+        .iter()
+        .find(|c| c.name == "description")
+        .expect("Tier-1 column 'description' must exist");
+    assert_eq!(
+        desc_col.ocsf_field.as_deref(),
+        Some("message"),
+        "column 'description' must declare ocsf_field = \"message\""
+    );
+
+    let tier2: Vec<_> = table
+        .columns
+        .iter()
+        .filter(|c| c.ocsf_field.is_none())
+        .collect();
+
+    assert_eq!(
+        tier2.len(),
+        17,
+        "expected exactly 17 Tier-2 columns without ocsf_field (AC-002); got {}: {:?}",
+        tier2.len(),
+        tier2.iter().map(|c| &c.name).collect::<Vec<_>>()
+    );
+
+    let tier2_names: std::collections::HashSet<&str> =
+        tier2.iter().map(|c| c.name.as_str()).collect();
+    let expected_tier2: std::collections::HashSet<&str> = [
+        "vulnerability_type",
+        "cve_ids",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v3_vector_string",
+        "cvss_v2_score",
+        "is_known_exploited",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "epss_score",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "exploits_count",
+        "source_name",
+        "source_url",
+        "id",
+    ]
+    .iter()
+    .copied()
+    .collect();
+
+    assert_eq!(
+        tier2_names,
+        expected_tier2,
+        "Tier-2 column name set must exactly match BC-2.16.015 §2 (AC-002). \
+         Extra: {:?}, Missing: {:?}",
+        tier2_names.difference(&expected_tier2).collect::<Vec<_>>(),
+        expected_tier2.difference(&tier2_names).collect::<Vec<_>>()
+    );
+}
+
+// ── RG-003 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §Postcondition: Tier-2 column raw names are NOT in the OCSF-projected
+/// column set — querying them directly would raise E-QUERY-038 (`PrismError::ColumnNotFound`).
+/// `raw_extensions` MUST appear in the projected set (ADR-058 §J6: emitted when ≥1 Tier-2
+/// column exists).
+///
+/// SAP-3: `ocsf_projected_column_names` is the canonical function used by both
+/// `check_column_availability` (E-QUERY-038 gate) and `TableRegistry::register_sensor`
+/// per ADR-058 §I7.  Direct use here is the only architecturally valid proxy for the
+/// E-QUERY-038 assertion from prism-sensors tests (circular dep constraint).
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let projected = ocsf_projected_column_names(table, spec.ocsf_column_naming);
+
+    // Representative Tier-2 column names must NOT appear in the projected set.
+    let tier2_samples = [
+        "vulnerability_type",
+        "cve_ids",
+        "cvss_v3_score",
+        "source_url",
+        "epss_score",
+    ];
+    for col_name in &tier2_samples {
+        assert!(
+            !projected.contains(&col_name.to_string()),
+            "Tier-2 column '{}' must not be in projected columns \
+             (E-QUERY-038 would fire if queried directly); projected set: {:?}",
+            col_name,
+            projected
+        );
+    }
+
+    // raw_extensions must be present (ADR-058 §J6: emitted for tables with ≥1 Tier-2 column).
+    assert!(
+        projected.contains(&"raw_extensions".to_string()),
+        "projected columns must include 'raw_extensions' for Tier-2 aggregation; got: {:?}",
+        projected
+    );
+
+    // Tier-1 OCSF Arrow names must be present.
+    assert!(
+        projected.contains(&"finding_info_title".to_string()),
+        "projected columns must include 'finding_info_title' \
+         (name → ocsf_field finding_info.title → Arrow name finding_info_title)"
+    );
+    assert!(
+        projected.contains(&"message".to_string()),
+        "projected columns must include 'message' (description → ocsf_field message)"
+    );
+
+    // SAP-3 compliance note: the E-QUERY-038 gate is also tested end-to-end from
+    // the REAL PrismQL parser surface (not just this proxy) in:
+    //   crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
+    //   test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column
+    // This proxy (ocsf_projected_column_names direct call) is retained as
+    // defense-in-depth per SAP-3 rule 3 (reachability rationale: circular dep
+    // constraint prevents prism-sensors from importing prism-query directly).
+}
+
+// ── RG-004 ────────────────────────────────────────────────────────────────────
+/// LIVE: wire shape contains OCSF Tier-1 columns (`finding_info_title` / `message`)
+/// in every mapped record.
+///
+/// Requires a live Claroty xDome instance reachable via `CLAROTY_INSTANCE_URL`.
+///
+/// SID-1 compliance: live dependency; non-ignored coverage for this AC is provided
+/// by RG-001..003 and RG-006..008. This test is defence-in-depth only.
+/// Blocked by: DTU-VULNS-001 — requires `CLAROTY_INSTANCE_URL` env var and the
+/// `claroty_vulnerabilities` DTU route; ungated in CI after S-CLAROTY-VULNS-001 merges.
+#[ignore]
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_tier1() {
+    // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run
+    // manually or in live-validation CI job.
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+        .expect("CLAROTY_INSTANCE_URL must be set for this live test");
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live pipeline execution must succeed");
+
+    // Every mapped record must expose the wire-level OCSF shape (AC-004).
+    //
+    // map_record stores Tier-1 fields in DOT form (not arrow-name form).
+    // Arrow-name flattening (finding_info.title → finding_info_title) happens
+    // downstream in pipeline_result_to_record_batch (private to prism-bin).
+    // The true arrow-name serialized wire shape is asserted by the non-live mock test:
+    //   crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
+    //   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
+    for raw_record in result.records.iter().take(5) {
+        // Use the original table (from `spec`, same column schema) for mapping.
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "vulnerabilities")
+            .expect("vulnerabilities table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("map_record must succeed for live record");
+
+        // ── Simulated wire-shape assertions ──────────────────────────────────
+        // Build a simulated wire JSON row from the map_record output.
+        // class_uid = 2002 is from EventClassSelector::select_by_class_name("vulnerability_finding")
+        // (BC-2.02.012; prism-sensors has no prism-ocsf dep, so we assert the value directly).
+        let mut simulated_wire_row = serde_json::Map::new();
+        simulated_wire_row.insert("class_uid".to_string(), json!(2002_i32));
+        if let Some(val) = row.mapped_fields.get("finding_info.title") {
+            simulated_wire_row.insert("finding_info_title".to_string(), val.clone());
+        }
+        if let Some(val) = row.mapped_fields.get("message") {
+            simulated_wire_row.insert("message".to_string(), val.clone());
+        }
+        if !row.raw_extensions.is_empty() {
+            simulated_wire_row.insert(
+                "raw_extensions".to_string(),
+                serde_json::to_value(&row.raw_extensions)
+                    .expect("raw_extensions must serialize to JSON"),
+            );
+        }
+
+        // NON-LOAD-BEARING / ILLUSTRATIVE-ONLY: the class_uid=2002 value was inserted
+        // by this test's own literal (`simulated_wire_row.insert("class_uid", json!(2002))`),
+        // so asserting it back is a tautology — it exercises no production code path.
+        // The REAL class_uid=2002 provenance test is RG-004b:
+        //   crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
+        //   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
+        // which uses SpecDrivenSensorAdapter::fetch() → RecordBatch → asserts the actual
+        // EventClassSelector("vulnerability_finding") = 2002 assignment through the pipeline.
+        // Keep this arm as documentation of the expected wire shape; rely on RG-004b for coverage.
+        assert_eq!(
+            simulated_wire_row.get("class_uid"),
+            Some(&json!(2002_i32)),
+            "simulated wire row must have class_uid = 2002 (vulnerability_finding). \
+             BC-2.16.015 AC-004. \
+             NOTE: this arm is ILLUSTRATIVE-ONLY — class_uid=2002 was inserted by this \
+             test literal, not by the pipeline. The load-bearing class_uid=2002 assertion \
+             is in RG-004b (test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock)."
+        );
+
+        let tier1_present = simulated_wire_row.contains_key("finding_info_title")
+            || simulated_wire_row.contains_key("message");
+        assert!(
+            tier1_present,
+            "live record simulated wire row must contain at least one Tier-1 OCSF field \
+             (finding_info_title or message); wire row: {:?}",
+            simulated_wire_row
+        );
+
+        // raw_extensions must be present and a JSON object (AC-005).
+        assert!(
+            simulated_wire_row
+                .get("raw_extensions")
+                .map(|v| v.is_object())
+                .unwrap_or(false),
+            "live record simulated wire row must contain raw_extensions as a JSON object; \
+             got: {:?}",
+            simulated_wire_row.get("raw_extensions")
+        );
+
+        // No Tier-2 column names must appear as top-level wire fields (AC-004 §Tier-2 isolation).
+        let tier2_names = [
+            "vulnerability_type",
+            "cve_ids",
+            "cvss_v3_score",
+            "cvss_v3_exploitability_subscore",
+            "cvss_v3_vector_string",
+            "cvss_v2_score",
+            "is_known_exploited",
+            "affected_devices_count",
+            "affected_ot_devices_count",
+            "published_date",
+            "epss_score",
+            "adjusted_vulnerability_score",
+            "adjusted_vulnerability_score_level",
+            "exploits_count",
+            "source_name",
+            "source_url",
+            "id",
+        ];
+        for tier2_name in &tier2_names {
+            assert!(
+                !simulated_wire_row.contains_key(*tier2_name),
+                "Tier-2 column '{}' MUST NOT appear as a top-level wire field; \
+                 it must be inside raw_extensions. BC-2.16.015 §2; ADR-058 §J6. \
+                 Wire row keys: {:?}",
+                tier2_name,
+                simulated_wire_row.keys().collect::<Vec<_>>()
+            );
+        }
+    }
+}
+
+// ── RG-005 ────────────────────────────────────────────────────────────────────
+/// LIVE: `raw_extensions` is populated with Tier-2 field data in each mapped record.
+///
+/// Requires a live Claroty xDome instance reachable via `CLAROTY_INSTANCE_URL`.
+///
+/// SID-1 compliance: live dependency; non-ignored coverage for this AC is provided
+/// by RG-001..003 and RG-006..008. This test is defence-in-depth only.
+/// Blocked by: DTU-VULNS-001 — requires `CLAROTY_INSTANCE_URL` env var and the
+/// `claroty_vulnerabilities` DTU route; ungated in CI after S-CLAROTY-VULNS-001 merges.
+#[ignore]
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_tier2_keys() {
+    // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run
+    // manually or in live-validation CI job.
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+        .expect("CLAROTY_INSTANCE_URL must be set for this live test");
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live pipeline execution must succeed");
+
+    // Each non-empty record should yield a non-empty raw_extensions map.
+    for raw_record in result.records.iter().take(3) {
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "vulnerabilities")
+            .expect("vulnerabilities table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("map_record must succeed for live record");
+        assert!(
+            !row.raw_extensions.is_empty(),
+            "live record must have non-empty raw_extensions (Tier-2 data); \
+             record: {:?}",
+            raw_record
+        );
+    }
+}
+
+// ── RG-006 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-001: `ColumnOptions::Required` on `name` is push-down
+/// eligibility ONLY — NOT an extraction null/error gate.
+/// When the raw record lacks `name`, `ColumnMapper::map_record` silently skips it;
+/// `finding_info_title` is absent from `mapped_fields` (null passthrough, no panic/error).
+///
+/// PRECISION NOTE: `ColumnOptions::Required` controls whether the column is eligible
+/// for index-based push-down filtering. It does NOT cause the mapper to error or emit
+/// a null sentinel when the field is absent. The mapper skips absent fields silently.
+///
+/// ## Traceability clarification (F-VULNS-ADV-003 OBS / pass-4)
+///
+/// This test gates the **map_record-layer contribution** only: when `name` is absent
+/// from the raw API JSON object, `ColumnMapper::map_record` does NOT insert the
+/// `finding_info.title` key into `mapped_fields`.  In other words, the key is absent
+/// at the intermediate DOT-form layer (not yet null).
+///
+/// The downstream **end-to-end wire null-row** assertion — i.e., `finding_info_title`
+/// appears as `null` (not absent) in the serialized MCP JSON when the Arrow column
+/// exists in the schema but carries a null cell — is gated by
+/// `test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls`
+/// (row1) in `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs`.
+///
+/// The test name suffix `_produces_null_row` refers to the observable outcome from the
+/// caller's perspective (a row with a null finding_info_title cell at the wire level),
+/// not to the intermediate map_record assertion made here.  Do NOT rename this test —
+/// the story RG table references `RG-006` by this name.
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_row() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Record that intentionally omits the REQUIRED 'name' field.
+    let record_without_name = json!({
+        "description": "A vulnerability with no name field",
+        "vulnerability_type": "CVE",
+        "cvss_v3_score": 7.5_f64
+    });
+
+    let row = ColumnMapper::map_record(&record_without_name, table).expect(
+        "map_record must not return Err when a REQUIRED column is absent \
+                 (Required = push-down eligibility, not extraction gate)",
+    );
+
+    // PRECISION: absent 'name' → 'finding_info.title' (DOT form) is absent from mapped_fields.
+    // map_record stores Tier-1 OCSF fields in DOT form (e.g., "finding_info.title"), NOT the
+    // Arrow-name underscore form ("finding_info_title"). Arrow-name flattening happens downstream
+    // in pipeline_result_to_record_batch. Asserting the DOT form makes this assertion load-bearing:
+    // if map_record were ever changed to emit "finding_info.title" even for absent inputs, this
+    // test would go red. Asserting the underscore form was tautological — mapped_fields never
+    // contains the underscore form regardless of input (F-VULNS-ADVFRESH-MED-001 fix).
+    // See RG-008 sibling: uses "finding_info.title" for the PRESENT-name case (consistent).
+    assert!(
+        !row.mapped_fields.contains_key("finding_info.title"),
+        "finding_info.title (DOT form) must be absent from mapped_fields when 'name' is \
+         missing — map_record skips absent fields silently; absent input → key absent entirely. \
+         mapped_fields: {:?}",
+        row.mapped_fields
+    );
+
+    // 'description' → 'message' must still map correctly (independent Tier-1 column).
+    assert!(
+        row.mapped_fields.contains_key("message"),
+        "'message' (from 'description') must map correctly even when 'name' is absent"
+    );
+
+    // F-VULNS-010 (wire-null discipline): the missing `name` field means `finding_info_title`
+    // will be NULL (not absent) in the serialized MCP wire row when `explicit_nulls=true` is
+    // applied by the arrow_json WriterBuilder (CLAUDE.md §Wire-shape assertion discipline).
+    //
+    // Asserting the wire-null form (finding_info_title: null vs. absent) requires a full
+    // RecordBatch → arrow_json serialization path, which is only available in prism-bin
+    // (pipeline_result_to_record_batch is private to prism-bin). The non-live mock test
+    // in bc_2_16_015_claroty_vulnerabilities_wire_shape.rs covers general wire-shape
+    // assertions; the specific missing-name → null row case requires a live DTU/instance
+    // to produce a record with an absent "name" field in real API data — covered by live RG-004.
+    //
+    // At this level (map_record), "absent from mapped_fields" is the correct assertion
+    // (the mapper skips absent fields; null injection is downstream at RecordBatch build time).
+}
+
+// ── RG-007 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-003: When the API response delivers an empty `vulnerabilities`
+/// array (and `count: null`), the pipeline halts via the empty-page mechanism and returns
+/// 0 records.  A null `count` field must not cause a panic or error.
+///
+/// Uses wiremock to simulate the Claroty DTU response shape
+/// `{"vulnerabilities": [], "count": null, "total": 0, "page": 1}`.
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page_halt() {
+    let mock_server = MockServer::start().await;
+
+    // Mock any POST to the mock server with an empty vulnerabilities payload.
+    // Shape mirrors DTU list_vulnerabilities handler (vulnerabilities.rs):
+    //   {"vulnerabilities": [...], "total": N, "page": N}
+    // "count": null is added to exercise the nullable-count halt path.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [],
+            "count": serde_json::Value::Null,
+            "total": 0_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    // Clone and redirect base_url to mock server so pipeline does not call real Claroty.
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth)
+        .await
+        .expect("pipeline must succeed on empty-page / null-count response");
+
+    assert_eq!(
+        result.records.len(),
+        0,
+        "empty vulnerabilities page must produce 0 records (empty-page halt); \
+         got {} records",
+        result.records.len()
+    );
+    assert_eq!(
+        result.table_name, "vulnerabilities",
+        "PipelineResult.table_name must match the table spec table_name"
+    );
+}
+
+// ── RG-008 ────────────────────────────────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-002 / AC-008 / RG-008: The `id` column uses
+/// `source_path = "$.id"`.  When the raw record lacks a root-level `id` key,
+/// `ColumnMapper::map_record` skips the extraction silently (no error);
+/// `id` is **absent** from `raw_extensions` — not stored as null, not present
+/// at all.  This is the absent-key semantics: a missing source path yields no
+/// entry in the map, not a null entry.
+///
+/// RED: panics at the `.expect` because the TOML block has not been added yet.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Record that omits the 'id' field (source_path = "$.id" finds nothing).
+    let record_without_id = json!({
+        "name": "CVE-2024-1234",
+        "description": "Test vulnerability with no id field",
+        "vulnerability_type": "CVE",
+        "cvss_v3_score": 5.5_f64
+    });
+
+    let row = ColumnMapper::map_record(&record_without_id, table)
+        .expect("map_record must not error when source_path '$.id' finds no match");
+
+    // source_path extraction miss → column skipped; 'id' absent from raw_extensions.
+    assert!(
+        !row.raw_extensions.contains_key("id"),
+        "'id' must be absent from raw_extensions when source_path '$.id' finds no match; \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+
+    // Tier-1 columns that ARE present must still map correctly.
+    // map_record stores OCSF paths in DOT form (intermediate); arrow-name flattening
+    // (finding_info_title) is downstream at pipeline_result_to_record_batch. Assert dot-form
+    // here (cf. bc_2_16_003_test).
+    assert!(
+        row.mapped_fields.contains_key("finding_info.title"),
+        "'name' (ocsf_field=finding_info.title) present in the map_record intermediate \
+         when 'name' exists in the record; mapped_fields: {:?}",
+        row.mapped_fields
+    );
+}
+
+// ── F-VULNS-P1-005 (RG-007 sibling) ──────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-003 hardening: when the API returns a NON-empty first page
+/// (1000 records) with `count: null`, pagination must PROCEED (page_record_count ==
+/// page_size == 1000 → NOT < page_size → no halt).  Then an empty second page triggers
+/// the empty-page halt.  Final record count == 1000.
+///
+/// This hardens RG-007 which only covers `count: null` on an EMPTY first page.  That test
+/// proves empty-page halt fires for zero records; this test proves null-count is handled
+/// correctly when records ARE present (i.e., the pipeline does NOT null-deref on `count`
+/// to decide whether to continue — it uses `page_record_count < page_size`).
+///
+/// Two wiremock mocks differentiated by `body_partial_json`:
+///   - offset=0  → 1000 records + count: null  → pagination continues
+///   - offset=1000 → empty array + count: null → empty-page halt
+///
+/// BC-2.16.015 AC-006; BC-2.16.002 §Postconditions OffsetLimit halt condition.
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-005.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_nonempty_first_page_proceeds() {
+    let mock_server = MockServer::start().await;
+
+    // 1000 minimal vulnerability records for page 1.
+    // Each has a `name` field so finding_info_title maps to a non-null value.
+    let records: Vec<serde_json::Value> = (0..1000_u32)
+        .map(|i| {
+            json!({
+                "name": format!("CVE-2024-{i:04}"),
+                "vulnerability_type": "CVE"
+            })
+        })
+        .collect();
+
+    // Page 1: offset=0 → 1000 records + count: null
+    // page_record_count (1000) == page_size (1000) → NOT < page_size → pagination PROCEEDS.
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({"offset": 0_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": records,
+            "count": serde_json::Value::Null,
+            "total": 1000_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: offset=1000 → empty array + count: null
+    // page_record_count (0) < page_size (1000) → empty-page halt fires.
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({"offset": 1000_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [],
+            "count": serde_json::Value::Null,
+            "total": 1000_u32,
+            "page": 2_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "F-VULNS-P1-005: pipeline must succeed with count: null on a non-empty first page. \
+             BC-2.16.015 AC-006.",
+        );
+
+    assert_eq!(
+        result.records.len(),
+        1000,
+        "F-VULNS-P1-005: all 1000 records from page 1 must materialize. \
+         Pagination PROCEEDED past null-count page 1 and halted on empty page 2. \
+         BC-2.16.015 §EC-016-015-003; OffsetLimit halt condition."
+    );
+}
+
+// ── F-VULNS-P1-002: EC-016-015-005 ───────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-005: When `cve_ids` is an EMPTY JSON array `[]` in the API
+/// response, `ColumnMapper::map_record` must store it as `Value::Array([])` in
+/// `raw_extensions` — NOT as `Value::Null`, and NOT raise any error.
+///
+/// `cve_ids` is a Tier-2 column (no `ocsf_field`, `column_type = "json"`) that maps to
+/// `raw_extensions` directly.  An empty array `[]` is a valid JSON value distinct from
+/// null; it signals "no CVE IDs" without implying data absence.
+///
+/// NOTE: The downstream ENRICH-1 DD-2 conversion (empty `Value::Array` →
+/// serialized `"[]"` string inside the `raw_extensions` JSON-object column) is
+/// performed by `pipeline_result_to_record_batch` in prism-bin, AFTER `map_record`.
+/// This test asserts the pre-ENRICH-1 form (`Value::Array(vec![])`) which is the correct
+/// assertion at the `map_record` boundary.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-002.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_extensions() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let record = json!({ "cve_ids": [] });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-005: map_record must succeed when cve_ids is an empty array. \
+         BC-2.16.015 §EC-016-015-005.",
+    );
+
+    assert_eq!(
+        row.raw_extensions.get("cve_ids"),
+        Some(&serde_json::Value::Array(vec![])),
+        "EC-016-015-005: cve_ids=[] must be stored as Value::Array([]) in raw_extensions \
+         (NOT null). \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-P1-002: EC-016-015-006 ───────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-006: When `published_date` is JSON `null` in the API response,
+/// `ColumnMapper::map_record` must:
+///   1. Store `Value::Null` in `raw_extensions["published_date"]` (row materializes)
+///   2. NOT raise an error (in particular, NOT raise E-SPEC-018 `TimestampParseFailure`)
+///
+/// `published_date` is a Tier-2 datetime column (`column_type = "datetime"`, no
+/// `ocsf_field`).  A null value is valid — it means "unpublished" — and the pipeline
+/// must not attempt datetime parsing on it.
+///
+/// NOTE: The E-SPEC-018 (`TimestampParseFailure`) gate lives in
+/// `normalize_timestamp_fields` in pipeline.rs, which uses `is_null_or_absent` to
+/// skip null fields before attempting datetime parsing.  At the `map_record` level
+/// (this test's scope), E-SPEC-018 can never be raised — `map_record` stores the raw
+/// `Value::Null` without parsing.  This test gates the **map_record-layer null
+/// passthrough** only: a JSON null `published_date` stores `Value::Null` in
+/// `raw_extensions` without error.  The full-pipeline null-datetime protection
+/// (a record with `published_date: null` passing through `PipelineExecutor::execute`
+/// without E-SPEC-018) is exercised by
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_through_pipeline`
+/// below.  RG-007 uses an EMPTY `vulnerabilities` array — no record ever reaches
+/// `normalize_timestamp_fields`, so it does NOT cover the null-passthrough path.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-002.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let record = json!({ "published_date": null });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-006: map_record must not error when published_date is JSON null. \
+         No E-SPEC-018 may be raised at this boundary. BC-2.16.015 §EC-016-015-006.",
+    );
+
+    assert_eq!(
+        row.raw_extensions.get("published_date"),
+        Some(&serde_json::Value::Null),
+        "EC-016-015-006: published_date=null must store Value::Null in raw_extensions. \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-P5-004: EC-016-015-006 full-pipeline null-datetime coverage ──────
+/// BC-2.16.015 §EC-016-015-006 full-pipeline gate: a record with `published_date: null`
+/// (present key, JSON null value) passes through `PipelineExecutor::execute` without
+/// error — no E-SPEC-018 is raised, and the row materializes in `result.records` with
+/// `published_date` stored as `Value::Null` in `raw_extensions`.
+///
+/// `normalize_timestamp_fields` skips fields where `is_null_or_absent` returns true,
+/// so a JSON null `published_date` is never passed to the ISO-8601 parse chain.
+/// This test verifies that guard path end-to-end via the real pipeline executor.
+///
+/// RG-007 uses an EMPTY `vulnerabilities` array — no record ever reaches
+/// `normalize_timestamp_fields`, so it cannot cover this path.
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes`
+/// covers the map_record layer only; this test covers the complete
+/// `PipelineExecutor::execute` path including `normalize_timestamp_fields`.
+///
+/// Harness mirrors `test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018`
+/// but expects success (Ok) instead of E-SPEC-018.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P5-004 (pass-5 fix-burst).
+/// BC-2.16.015 §EC-016-015-006; PipelineExecutor::execute null-datetime passthrough.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_through_pipeline() {
+    let mock_server = MockServer::start().await;
+
+    // Return a vulnerability record with published_date as an explicit JSON null
+    // (present key, null value — NOT absent).  normalize_timestamp_fields must skip
+    // this via is_null_or_absent and NOT raise E-SPEC-018.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-NULL-DATE",
+                "description": "A mock vulnerability with null published_date",
+                "vulnerability_type": "CVE",
+                "published_date": serde_json::Value::Null
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING EC-006 full-pipeline assertion: null published_date must NOT raise
+    // E-SPEC-018 — normalize_timestamp_fields skips null via is_null_or_absent.
+    assert!(
+        result.is_ok(),
+        "F-VULNS-P5-004 LOAD-BEARING: PipelineExecutor::execute must return Ok when \
+         published_date is JSON null. normalize_timestamp_fields must skip null fields \
+         via is_null_or_absent — E-SPEC-018 must NOT be raised. \
+         Got Err: {:?}. BC-2.16.015 §EC-016-015-006.",
+        result.as_ref().err()
+    );
+
+    let pipeline_result = result.unwrap();
+    assert_eq!(
+        pipeline_result.records.len(),
+        1,
+        "F-VULNS-P5-004: the record with null published_date must materialize (1 record). \
+         Got {} records. BC-2.16.015 §EC-016-015-006.",
+        pipeline_result.records.len()
+    );
+
+    // Verify null published_date is preserved in raw_extensions (Tier-2 column).
+    // map_record stores the raw Value::Null; normalize_timestamp_fields leaves it intact.
+    let orig_table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist in original spec");
+    let row = ColumnMapper::map_record(&pipeline_result.records[0], orig_table)
+        .expect("F-VULNS-P5-004: map_record must succeed on a record with null published_date");
+
+    assert_eq!(
+        row.raw_extensions.get("published_date"),
+        Some(&serde_json::Value::Null),
+        "F-VULNS-P5-004: published_date=null must be stored as Value::Null in raw_extensions. \
+         raw_extensions: {:?}. BC-2.16.015 §EC-016-015-006.",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-ADV-002: EC-007 non-ISO published_date → E-SPEC-018 ─────────────────
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007: When `published_date` in the API response carries a
+/// non-null, non-ISO-8601 string (e.g. `"not-a-timestamp"` or `"2024/13/99"`),
+/// `normalize_timestamp_fields` in prism-spec-engine/src/pipeline.rs must fire
+/// `SpecEngineError::TimestampParseFailure` (E-SPEC-018).
+///
+/// `published_date` is a Tier-2 `column_type = "datetime"` column with no declared
+/// `timestamp_formats` — resolving to the implicit `["iso8601"]` default via
+/// `effective_formats` (ADR-028 §D8-B).  `normalize_timestamp_fields` is
+/// tier-agnostic (filters by `column_type == Datetime`) and processes `published_date`
+/// in the raw API record before `ColumnMapper::map_record`.
+///
+/// This test covers the previously-uncovered E-SPEC-018 arm for the
+/// `claroty_vulnerabilities` Tier-2 datetime column path.  The arm is reachable
+/// from the full `PipelineExecutor::execute` path because:
+///
+///   1. The mock returns `{"published_date": "not-a-timestamp", "name": "CVE-2024-1234", ...}`
+///   2. `normalize_timestamp_fields` sees `published_date = "not-a-timestamp"` as a
+///      non-null Datetime field and tries to parse with `["iso8601"]` → all fail.
+///   3. The function returns `Err(SpecEngineError::TimestampParseFailure)`, which
+///      propagates through `PipelineExecutor::execute` via `?`.
+///
+/// The error carries `column_name = "published_date"` and `sensor_id = "claroty"`.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-002 (pass-4 fix-burst).
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007; BC-2.16.015 §Error Cases E-SPEC-018;
+/// SpecEngineError::TimestampParseFailure (E-SPEC-018).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018() {
+    let mock_server = MockServer::start().await;
+
+    // Return a vulnerability record with a non-ISO published_date string.
+    // "not-a-timestamp" fails all ISO-8601 parse attempts in normalize_timestamp_fields.
+    // The record also carries a valid `name` field so that map_record itself succeeds;
+    // the E-SPEC-018 failure is in the timestamp normalization pass, not the mapping pass.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-1234",
+                "description": "A mock vulnerability with non-ISO published_date",
+                "vulnerability_type": "CVE",
+                "published_date": "not-a-timestamp"
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING EC-007 assertion: normalize_timestamp_fields must fire E-SPEC-018
+    // when published_date cannot be parsed as ISO-8601.
+    // The pipeline propagates this Err via ? — no row is materialized.
+    assert!(
+        result.is_err(),
+        "EC-007 LOAD-BEARING: PipelineExecutor::execute must return Err when \
+         published_date is non-ISO ('not-a-timestamp'). \
+         normalize_timestamp_fields (prism-spec-engine/src/pipeline.rs) is \
+         tier-agnostic and processes claroty_vulnerabilities Tier-2 Datetime columns. \
+         Got Ok with {} records. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+         BC-2.16.015 §Error Cases E-SPEC-018.",
+        result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+    );
+
+    let err = result.unwrap_err();
+    match &err {
+        SpecEngineError::TimestampParseFailure {
+            column_name,
+            sensor_id,
+            ..
+        } => {
+            assert_eq!(
+                column_name.as_str(),
+                "published_date",
+                "EC-007: TimestampParseFailure.column_name must be 'published_date'; \
+                 got: {column_name:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+            assert_eq!(
+                sensor_id.as_str(),
+                "claroty",
+                "EC-007: TimestampParseFailure.sensor_id must be 'claroty'; \
+                 got: {sensor_id:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+        }
+        other => {
+            panic!(
+                "EC-007 LOAD-BEARING: PipelineExecutor::execute must return \
+                 SpecEngineError::TimestampParseFailure (E-SPEC-018) when published_date \
+                 is non-ISO. Got: {other:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+        }
+    }
+}
+
+// ── F-L2-002: EC-007/EC-008 multi-page atomic-fail ────────────────────────────
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008 multi-page atomic-fail gate: when page 1 returns a full
+/// page of valid records (1000) and page 2 returns a record with a non-ISO `published_date`,
+/// `PipelineExecutor::execute` MUST return `Err(SpecEngineError::TimestampParseFailure)`
+/// and ZERO records must be materialized.
+///
+/// This tests the atomicity of the E-SPEC-018 failure across pages.  The existing
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018`
+/// only covers the single-page case (one record, bad date, one page total).  That test
+/// proves the E-SPEC-018 arm fires; it does NOT prove that page-1 records are atomically
+/// discarded when the failure occurs on a subsequent page.
+///
+/// Architecture of atomicity:
+///   - `PipelineExecutor::execute` uses `?` to propagate `SpecEngineError`.
+///   - `normalize_timestamp_fields` is called per record (before accumulation OR per-page).
+///   - When the E-SPEC-018 error propagates via `?`, the entire `execute` call returns
+///     `Err` — the caller receives no partial `PipelineResult`.
+///   - All records accumulated from page 1 are implicitly discarded because the
+///     `PipelineResult` is never constructed (or is discarded by the `?` operator).
+///
+/// Two wiremock mocks differentiated by `body_partial_json` (offset):
+///   - offset=0:    1000 valid records → page_record_count == page_size → pagination CONTINUES
+///   - offset=1000: 1 record with `published_date = "not-a-timestamp"` → E-SPEC-018 fires
+///
+/// Expected result: `Err(SpecEngineError::TimestampParseFailure)`
+///   - `column_name` = "published_date"
+///   - `sensor_id`   = "claroty"
+///   - 0 records returned (atomically discarded — page-1 records never reach the caller)
+///
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; BC-2.16.015 §Error Cases E-SPEC-018;
+/// SpecEngineError::TimestampParseFailure (E-SPEC-018).
+/// Story: S-CLAROTY-VULNS-001 F-L2-002 (diverse-lens batch fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_discards_all() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1 (offset=0): 1000 fully-valid records.
+    // page_record_count (1000) == page_size (1000) → NOT < page_size → pagination CONTINUES.
+    // All records have valid (absent) published_date — normalize_timestamp_fields skips them.
+    let page1_records: Vec<serde_json::Value> = (0..1000_u32)
+        .map(|i| {
+            serde_json::json!({
+                "name": format!("CVE-2024-{i:04}"),
+                "vulnerability_type": "CVE",
+                "cvss_v3_score": 5.0_f64
+            })
+        })
+        .collect();
+
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"offset": 0_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": page1_records,
+            "total": 1001_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Page 2 (offset=1000): 1 record with a non-ISO published_date.
+    // normalize_timestamp_fields processes all datetime columns tier-agnostically;
+    // "not-a-timestamp" fails the implicit ["iso8601"] chain → E-SPEC-018 fires.
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"offset": 1000_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-BAD-DATE",
+                "vulnerability_type": "CVE",
+                "published_date": "not-a-timestamp"
+            }],
+            "total": 1001_u32,
+            "page": 2_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING multi-page atomic-fail assertion:
+    // Even though page 1 returned 1000 valid records, the E-SPEC-018 from page 2
+    // propagates via `?` and the entire execute returns Err — zero records reach the caller.
+    assert!(
+        result.is_err(),
+        "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return Err when ANY page \
+         contains a non-ISO published_date, even when prior pages returned valid records. \
+         Got Ok with {} records (atomicity violated — page-1 records must be discarded). \
+         S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; BC-2.16.015 §Error Cases E-SPEC-018.",
+        result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+    );
+
+    let err = result.unwrap_err();
+    match &err {
+        SpecEngineError::TimestampParseFailure {
+            column_name,
+            sensor_id,
+            ..
+        } => {
+            assert_eq!(
+                column_name.as_str(),
+                "published_date",
+                "F-L2-002: TimestampParseFailure.column_name must be 'published_date'; \
+                 got: {column_name:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+            assert_eq!(
+                sensor_id.as_str(),
+                "claroty",
+                "F-L2-002: TimestampParseFailure.sensor_id must be 'claroty'; \
+                 got: {sensor_id:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+        }
+        other => {
+            panic!(
+                "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return \
+                 SpecEngineError::TimestampParseFailure (E-SPEC-018) when page 2 contains \
+                 a non-ISO published_date. Got: {other:?}. \
+                 S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
+            );
+        }
+    }
+}
+
+// ── RG-008 positive (AC-008 / EC-002) ────────────────────────────────────────
+/// BC-2.16.015 AC-008 positive case: the `id` column uses `source_path = "$.id"`.
+/// When the raw record CARRIES a root-level `id` key, `ColumnMapper::map_record`
+/// extracts it via the non-wildcard scalar JSONPath arm (`Ok(v) => v`) and stores
+/// the EXACT value in `raw_extensions["id"]`.
+///
+/// This is the POSITIVE counterpart of RG-008
+/// (`test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing`),
+/// which only covers the absent case. Without this test, a regression breaking the
+/// `source_path = "$.id"` scalar extraction arm silently drops `id` from
+/// `raw_extensions` and no test goes red — the false-green risk identified in
+/// MED finding FINDING-1 of the LOCAL adversary cascade (passes 1 and 3).
+///
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Record WITH a root-level `id` field — source_path = "$.id" must extract it.
+    let record_with_id = json!({
+        "name": "CVE-2024-1234",
+        "description": "Test vulnerability with id field present",
+        "vulnerability_type": "CVE",
+        "id": "test-vuln-id-positive-001"
+    });
+
+    let row = ColumnMapper::map_record(&record_with_id, table)
+        .expect("map_record must not error when source_path '$.id' finds a match");
+
+    // LOAD-BEARING AC-008 positive assertion: `id` MUST be present in raw_extensions
+    // with the EXACT value from the record. source_path = "$.id" uses the non-wildcard
+    // scalar JSONPath extraction arm (Ok(v) => v in column_mapping.rs). A regression
+    // breaking this arm silently drops `id` with no other test going red.
+    assert_eq!(
+        row.raw_extensions.get("id"),
+        Some(&serde_json::json!("test-vuln-id-positive-001")),
+        "LOAD-BEARING AC-008 positive: 'id' MUST be present in raw_extensions with the \
+         exact seeded value 'test-vuln-id-positive-001' when source_path '$.id' finds a \
+         match. raw_extensions: {:?}. \
+         S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008.",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-IDNULL-LOW-001: present-null id arm ───────────────────────────────
+/// BC-2.16.015 §Invariants — three-state `id` contract: absent → column skipped;
+/// present-with-value → extracted; present-null (`{"id": null}`) → stored as
+/// `Value::Null` in `raw_extensions["id"]`.
+///
+/// This test covers the **present-null** arm — the only arm of the three-state
+/// contract that had no test.  The other two arms are covered by:
+///   - absent: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing` (RG-008)
+///   - present-with-value: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied` (RG-009)
+///
+/// Closes the sibling-symmetry gap: the Tier-2 `published_date` column already has a
+/// present-null test (`test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes`
+/// asserting `raw_extensions["published_date"] == Value::Null`); `id` had no equivalent.
+///
+/// Code path: `extract_with_tokens` → `Value::pointer("$.id")` returns `Some(Value::Null)`
+/// for a present-null field → `map_record` `Ok(v) => v` arm → `raw_extensions.insert("id", Value::Null)`.
+/// This path was already correct; this test is a **regression guard** only — it MUST PASS
+/// immediately without any production code change.
+///
+/// AC anchor: BC-2.16.015 AC-008 / EC-002 (same AC as RG-008 and RG-009).
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-IDNULL-LOW-001.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_explicit_null() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Explicit present-null: the `id` key is present in the JSON object, but its value
+    // is JSON null.  This is DISTINCT from the absent case (RG-008) where the key does
+    // not appear at all.  source_path = "$.id" resolves to Some(Value::Null) via
+    // Value::pointer, and map_record must store that null in raw_extensions.
+    let record_with_null_id = serde_json::json!({ "id": null });
+
+    let row = ColumnMapper::map_record(&record_with_null_id, table).expect(
+        "F-VULNS-IDNULL-LOW-001: map_record must not error when 'id' is present with JSON null. \
+         BC-2.16.015 §Invariants present-null arm; AC-008 / EC-002.",
+    );
+
+    // LOAD-BEARING present-null arm assertion: 'id' MUST be present in raw_extensions as
+    // Value::Null (not absent, not any other value).  Regression guard — the extract_with_tokens
+    // Ok(v) arm stores the raw Value::Null returned by Value::pointer for a present-null field.
+    assert_eq!(
+        row.raw_extensions.get("id"),
+        Some(&serde_json::Value::Null),
+        "F-VULNS-IDNULL-LOW-001 LOAD-BEARING: 'id' present-null MUST store Value::Null in \
+         raw_extensions (NOT absent, NOT an error). \
+         BC-2.16.015 §Invariants three-state id contract; AC-008 / EC-002. \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-004: A vulnerability row whose `name` is an advisory-title
+/// format (e.g., "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)") — NOT a CVE-YYYY-NNNNN
+/// format — is preserved VERBATIM in the `finding_info.title` mapping.  No normalization
+/// is applied; the mapped value must equal the input string exactly.
+///
+/// `ColumnMapper::map_record` stores Tier-1 fields in DOT form (intermediate
+/// representation): `finding_info.title` is the intermediate key stored in
+/// `mapped_fields` (not the Arrow name `finding_info_title`).  Arrow-name flattening
+/// (`finding_info.title` → `finding_info_title`) happens downstream in
+/// `pipeline_result_to_record_batch`.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-EC004-001 (pass-3 fix-burst).
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_preserved_verbatim() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Advisory-title format: NOT CVE-YYYY-NNNNN.  Per BC-2.16.015 §EC-016-015-004
+    // this value must be preserved verbatim — no normalisation of any kind.
+    let advisory_title = "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)";
+    let record = json!({ "name": advisory_title });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-004: map_record must succeed for an advisory-title format name. \
+         BC-2.16.015 §EC-016-015-004.",
+    );
+
+    // map_record stores Tier-1 fields in DOT form (intermediate); assert the dot-form
+    // key `finding_info.title` (arrow-name flattening is downstream).
+    assert_eq!(
+        row.mapped_fields.get("finding_info.title"),
+        Some(&serde_json::Value::String(advisory_title.to_string())),
+        "EC-016-015-004: advisory-title '{}' MUST be preserved VERBATIM as \
+         finding_info.title in mapped_fields — no normalisation applied. \
+         Got: {:?}. BC-2.16.015 §EC-016-015-004.",
+        advisory_title,
+        row.mapped_fields.get("finding_info.title")
+    );
+}

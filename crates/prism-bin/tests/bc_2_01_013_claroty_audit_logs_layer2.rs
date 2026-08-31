@@ -992,17 +992,19 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
  {
     let mock_server = MockServer::start().await;
 
-    // Catch-all POST mock for all 4 Claroty table endpoints.
+    // Catch-all POST mock for all 5 Claroty table endpoints.
     // source_table = "claroty" → queried_table_name = None → all tables execute.
-    // The response MUST include all four response_path keys ($.alerts, $.audit_log,
-    // $.devices, $.devices_alerts) as empty arrays: extract_at_path returns Err for
-    // missing keys (not empty-array), which would short-circuit the table loop via `?`.
+    // The response MUST include all five response_path keys ($.alerts, $.audit_log,
+    // $.devices, $.devices_alerts, $.vulnerabilities) as empty arrays:
+    // extract_at_path returns Err for missing keys (not empty-array), which would
+    // short-circuit the table loop via `?`.
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "alerts": [],
             "audit_log": [],
             "devices": [],
-            "devices_alerts": []
+            "devices_alerts": [],
+            "vulnerabilities": []
         })))
         .mount(&mock_server)
         .await;
