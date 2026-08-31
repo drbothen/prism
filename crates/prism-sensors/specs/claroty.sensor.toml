@@ -561,3 +561,177 @@ ocsf_class = "detection_finding"
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: vulnerabilities
+# POST-for-read pattern; offset pagination (page_size = 1000)
+# DTU route: POST /api/v1/vulnerabilities/ (crates/prism-dtu-claroty/src/routes/vulnerabilities.rs)
+#
+# Gap-CL-007 (new): added this table. OCSF class = vulnerability_finding.
+#   Response envelope: {"vulnerabilities": [...], "total": N, "page": N}
+#   Key is `vulnerabilities` (matching response_path = "$.vulnerabilities").
+#
+# DTU-deferred: SAP-2 parity between the 18-field TOML body_template and the
+#   DTU ClarotyVulnerability struct is parked per D-2200. The DTU route
+#   (list_vulnerabilities) serves from fixtures/vulnerabilities.json and does
+#   not enforce a fields projection; the SAP-2 parity check against the
+#   DTU emission site is deferred to S-ADR058-DTU-PARITY-MIGRATION-001 (D-2200).
+#
+# SAP-2-deferred: source_url and source_name appear in the xDome API vulnerability
+#   fields_enum but are absent from the DTU ClarotyVulnerability struct; DTU struct
+#   parity deferred to S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Columns are
+#   included in TOML per BC-2.16.015 §2 / spike-findings §Spike 1.
+#
+# body_template: fields projection covers all 18 TOML columns (excludes `id`,
+#   which uses source_path = "$.id" from the root-level id key — NOT in fields
+#   projection per BC-2.16.015 §Postconditions §2).
+# OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} into this
+#   body at request time (pipeline.rs::build_request — BC-2.16.002 §Postconditions
+#   "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)").
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "vulnerabilities"
+ocsf_class = "vulnerability_finding"
+
+  # Tier-1 #1: OCSF finding_info.title — the vulnerability name/title.
+  # ocsf_field_to_arrow_name("finding_info.title") = "finding_info_title" under
+  # ocsf_column_naming = true (ADR-058 §C2 Option 4). Push-down eligible (REQUIRED).
+  # options = ["REQUIRED"]: index-based push-down eligibility only (not an extraction gate).
+  [[tables.columns]]
+  name = "name"
+  column_type = "string"
+  ocsf_field = "finding_info.title"
+  options = ["REQUIRED"]
+
+  # Tier-1 #2: OCSF message — the vulnerability description text.
+  # ocsf_field_to_arrow_name("message") = "message" (single-segment, unchanged).
+  [[tables.columns]]
+  name = "description"
+  column_type = "string"
+  ocsf_field = "message"
+
+  # Tier-2 columns below (no ocsf_field) — aggregate into raw_extensions under
+  # ocsf_column_naming = true (ADR-058 §J6). Not push-down eligible.
+
+  # xDome Vulnerability fields_enum: vulnerability_type — vulnerability classification
+  # (e.g., "CVE", "CWE", "RHSA"). Verified in xDome OpenAPI vulnerability fields_enum.
+  [[tables.columns]]
+  name = "vulnerability_type"
+  column_type = "string"
+
+  # xDome Vulnerability fields_enum: cve_ids — associated CVE identifier list.
+  # column_type = "json": native JSON array on the wire (e.g., ["CVE-2024-1234"] or []).
+  [[tables.columns]]
+  name = "cve_ids"
+  column_type = "json"
+
+  # xDome Vulnerability fields_enum: cvss_v3_score — CVSS v3 base score (0.0–10.0).
+  [[tables.columns]]
+  name = "cvss_v3_score"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: cvss_v3_exploitability_subscore — CVSS v3
+  # exploitability sub-score component.
+  [[tables.columns]]
+  name = "cvss_v3_exploitability_subscore"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: cvss_v3_vector_string — CVSS v3 vector string
+  # (e.g., "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H").
+  [[tables.columns]]
+  name = "cvss_v3_vector_string"
+  column_type = "string"
+
+  # xDome Vulnerability fields_enum: cvss_v2_score — CVSS v2 base score (0.0–10.0).
+  [[tables.columns]]
+  name = "cvss_v2_score"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: is_known_exploited — whether a known exploit exists
+  # (CISA KEV membership or equivalent).
+  [[tables.columns]]
+  name = "is_known_exploited"
+  column_type = "boolean"
+
+  # xDome Vulnerability fields_enum: affected_devices_count — total count of affected devices.
+  [[tables.columns]]
+  name = "affected_devices_count"
+  column_type = "integer"
+
+  # xDome Vulnerability fields_enum: affected_ot_devices_count — count of affected OT devices.
+  [[tables.columns]]
+  name = "affected_ot_devices_count"
+  column_type = "integer"
+
+  # xDome Vulnerability fields_enum: published_date — ISO 8601 publication date.
+  # column_type = "datetime": no timestamp_formats key — resolves to implicit ["iso8601"]
+  # default via effective_formats (ADR-028 §D8-B backward compatibility).
+  [[tables.columns]]
+  name = "published_date"
+  column_type = "datetime"
+
+  # xDome Vulnerability fields_enum: epss_score — EPSS probability score (0.0–1.0).
+  [[tables.columns]]
+  name = "epss_score"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: adjusted_vulnerability_score — Claroty-adjusted
+  # composite risk score.
+  [[tables.columns]]
+  name = "adjusted_vulnerability_score"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: adjusted_vulnerability_score_level — risk level
+  # label corresponding to adjusted_vulnerability_score (e.g., "High", "Medium", "Low").
+  [[tables.columns]]
+  name = "adjusted_vulnerability_score_level"
+  column_type = "string"
+
+  # xDome Vulnerability fields_enum: exploits_count — number of known public exploits.
+  [[tables.columns]]
+  name = "exploits_count"
+  column_type = "integer"
+
+  # xDome Vulnerability fields_enum: source_name — name of the vulnerability source
+  # (e.g., "NVD", "CISA", "vendor advisory").
+  # SAP-2-deferred: absent from DTU ClarotyVulnerability struct; parity deferred to
+  # S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Tier-2: aggregates into raw_extensions.
+  [[tables.columns]]
+  name = "source_name"
+  column_type = "string"
+
+  # xDome Vulnerability fields_enum: source_url — link to the vulnerability advisory page.
+  # SAP-2-deferred: absent from DTU ClarotyVulnerability struct; parity deferred to
+  # S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Tier-2: aggregates into raw_extensions.
+  [[tables.columns]]
+  name = "source_url"
+  column_type = "string"
+
+  # id column: source_path = "$.id" extracts the root-level opaque Claroty CJYASHKR id.
+  # No ocsf_field (not a push-down column); not in body_template fields projection
+  # per BC-2.16.015 §Postconditions §2.
+  # source_path miss (absent "id" key) → column skipped silently by map_record (ENRICH-1).
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  source_path = "$.id"
+
+  # POST-for-read step with offset pagination
+  # DTU route: POST /api/v1/vulnerabilities/ (crates/prism-dtu-claroty/src/routes/vulnerabilities.rs)
+  # response_path: DTU returns {"vulnerabilities": [...], "total": N, "page": N} per
+  #   GetVulnerabilitiesResponse (routes/vulnerabilities.rs).
+  # body_template: fields projection covers all 18 declared columns (excludes `id` which
+  #   uses source_path = "$.id"). OffsetLimit POST-body injection merges {"offset": N,
+  #   "limit": 1000} at request time (pipeline.rs::build_request — BC-2.16.002 §Postconditions
+  #   "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)").
+  # Do not add hardcoded offset/limit here — pipeline injects them.
+  [[tables.steps]]
+  name = "fetch_vulnerabilities"
+  method = "POST"
+  path_template = "/api/v1/vulnerabilities/"
+  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"]}'
+  response_path = "$.vulnerabilities"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

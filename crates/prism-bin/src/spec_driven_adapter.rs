@@ -1114,6 +1114,7 @@ fn pipeline_result_to_record_batch(
         // record.get(col.name)) to avoid silent data loss when source_path root ≠ col.name.
         // ENRICH-1 DD-2: array elements are individually stringified so integer array elements
         // appear as JSON strings (e.g. vlan_list [100,200] → "[\"100\",\"200\"]").
+        // Exception: ColumnType::Json columns preserve native JSON arrays (e.g. cve_ids).
         if !tier2_cols.is_empty() {
             let raw_ext_vals: Vec<Option<String>> = result
                 .records
@@ -1152,19 +1153,33 @@ fn pipeline_result_to_record_batch(
                             // ENRICH-1 DD-2: JSON arrays → compact JSON-list string with every
                             // element stringified (integers become JSON strings, preserving the
                             // contract that raw_extensions values are always scalar-or-string).
+                            //
+                            // Exception: ColumnType::Json columns preserve native JSON arrays.
+                            // EC-016-015-005 / BC-2.16.015 v1.9: cve_ids (json-typed)
+                            // MUST appear as a native JSON array in raw_extensions, NOT
+                            // a stringified JSON string. Generic: any column with
+                            // column_type = "json" preserves native array (POL-36 type
+                            // predicate, no sensor-name conditional).
                             let serialized = match v {
                                 serde_json::Value::Array(arr) => {
-                                    let strings: Vec<String> = arr
-                                        .into_iter()
-                                        .map(|elem| match elem {
-                                            serde_json::Value::String(s) => s,
-                                            other => other.to_string(),
-                                        })
-                                        .collect();
-                                    serde_json::Value::String(
-                                        serde_json::to_string(&strings)
-                                            .unwrap_or_else(|_| "[]".to_string()),
-                                    )
+                                    if col.column_type == ColumnType::Json {
+                                        // Preserve native JSON array for json-typed columns.
+                                        serde_json::Value::Array(arr)
+                                    } else {
+                                        // ENRICH-1 DD-2: stringify array elements for non-json
+                                        // columns (e.g. vlan_list [100,200] → "[\"100\",\"200\"]").
+                                        let strings: Vec<String> = arr
+                                            .into_iter()
+                                            .map(|elem| match elem {
+                                                serde_json::Value::String(s) => s,
+                                                other => other.to_string(),
+                                            })
+                                            .collect();
+                                        serde_json::Value::String(
+                                            serde_json::to_string(&strings)
+                                                .unwrap_or_else(|_| "[]".to_string()),
+                                        )
+                                    }
                                 }
                                 other => other,
                             };

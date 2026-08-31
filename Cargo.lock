@@ -4675,6 +4675,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "arrow",
+ "arrow-json",
  "async-trait",
  "bincode",
  "chrono",
