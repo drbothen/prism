@@ -6,12 +6,12 @@ level: "L4"
 wave: xdome-wave-c
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: draft
-# BC status: active BCs authored (BC-2.16.018 v1.0 draft + BC-2.16.019 v1.0 draft); promote to ready after remove-uncertainty pass.
+status: ready
+# BC status: BC-2.16.018 v1.0 draft + BC-2.16.019 v1.0 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.2"
-modified: "2026-08-24"
+version: "1.3"
+modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -21,8 +21,10 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-schema-extract.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "ae98e4f"
-# input-hash: run `compute-input-hash <this-file> --update` after writing
+input-hash: "78a00bd"
+# input-hash: refreshed 2026-08-31 (pre-delivery remove-uncertainty pass) — ae98e4f→78a00bd as
+# one or more `inputs:` files evolved since authoring; run `compute-input-hash <this-file> --update`
+# to re-verify if inputs change again.
 traces_to: "BC-2.16.018"
 # traces_to covers primary BC; BC-2.16.019 is the companion BC; both wired via behavioral_contracts
 points: 5
@@ -85,8 +87,11 @@ risk: MEDIUM
 #   claroty_server_interfaces is semantic only — no TOML REQUIRED option on
 #   interface_name. The server_interfaces endpoint is SEPARATE from /api/v1/servers/
 #   (confirmed from OpenAPI spec; endpoint correction documented in BC-2.16.019 §Description).
-#   uptime_days ColumnType is Float (fractional days possible) — verify on live monroe before
-#   asserting type. SAP-2 DTU-parity probe is N/A per D-2200 for both tables.
+#   uptime_days ColumnType is Float — CONFIRMED (pre-delivery remove-uncertainty pass 2026-08-31):
+#   the GetServersResponse §example in xdome_openapi_06.20.2026.json carries uptime_days = 667.233661
+#   (fractional), so Float is positively grounded in the schema example; the earlier "verify before
+#   asserting Integer" caution is resolved (live re-confirmation welcome but no longer gating).
+#   SAP-2 DTU-parity probe is N/A per D-2200 for both tables.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -278,11 +283,20 @@ Against the live monroe sensor, `SELECT * FROM claroty.claroty_servers LIMIT 1`
 serialized JSON response (MCP-visible wire shape per 2026-07-13 wire-shape discipline):
 1. `class_uid` key is present with value `5001`
 2. `device_name` key is present (non-null string — collection server name)
-3. `status_code` key is present (value in {"Up", "Down", "Pending"})
+3. `status_code` key is present (value in {"Up", "Down", "Pending"}) — see casing note below
 4. `raw_extensions` key is present as a JSON object (not null, not absent)
 5. None of `server_name`, `server_status`, `server_location`, `management_ip` etc. appear as
    standalone top-level keys (all Tier-2 columns are inside raw_extensions; Tier-1 raw names
    are not present as root keys)
+
+**Status-value casing note (pre-delivery remove-uncertainty pass 2026-08-31):** the
+`GetServersResponse` §example in `xdome_openapi_06.20.2026.json` renders `server_status` in
+lowercase (`"up"`) alongside other clearly-synthetic placeholders (`model="model"`,
+`notes="note"`, `serial_number="serial"`). The capitalized set `{"Up","Down","Pending"}` above
+reflects the expected live xDome values, but exact live casing is UNCONFIRMED from the schema
+example. The `#[ignore]`'d live test MUST compare `status_code` case-insensitively (or confirm
+exact casing against monroe at live-validation) and MUST NOT fail on casing alone. This applies
+equally to the raw `status_code` value assertion in RG-005.
 
 **Test:** `test_BC_2_16_018_claroty_servers_live_wire_shape_class_uid_and_tier1`
 (`#[ignore]` — requires `CLAROTY_INSTANCE_URL` env var pointing to monroe)
@@ -382,12 +396,21 @@ Against the live monroe sensor, `SELECT * FROM claroty.claroty_server_interfaces
 serialized JSON response (MCP-visible wire shape per 2026-07-13 wire-shape discipline):
 1. `class_uid` key is present with value `5001`
 2. `device_name` key is present (non-null string — collection server name)
-3. `status_code` key is present (value in {"Up", "No Carrier"})
+3. `status_code` key is present (value in {"Up", "No Carrier"}) — see casing note below
 4. `raw_extensions` key is present as a JSON object (not null, not absent)
 5. The `raw_extensions` JSON object contains `interface_name` and `interface_type` keys
    (the composite PK join key and interface type must be accessible via raw_extensions)
 6. None of `server_name`, `interface_status`, `interface_name`, `interface_type`,
    `avg_traffic_past_month_mbps` etc. appear as standalone top-level keys in the row
+
+**Status-value casing note (pre-delivery remove-uncertainty pass 2026-08-31):** the
+`GetServerInterfacesResponse` §example in `xdome_openapi_06.20.2026.json` renders
+`interface_status` in lowercase (`"up"`), `interface_type` as `"span"`, and
+`interface_connection_type` as `"RJ45"` — synthetic placeholders. The capitalized set
+`{"Up","No Carrier"}` above reflects expected live xDome values, but exact live casing is
+UNCONFIRMED from the schema example. The `#[ignore]`'d live test MUST compare `status_code`
+case-insensitively (or confirm exact casing against monroe at live-validation) and MUST NOT
+fail on casing alone. This applies equally to the raw `status_code` value assertion in RG-013.
 
 **Test:** `test_BC_2_16_019_claroty_server_interfaces_live_wire_shape_class_uid_and_tier1`
 (`#[ignore]` — requires `CLAROTY_INSTANCE_URL` env var pointing to monroe)
@@ -490,7 +513,7 @@ Architecture section references:
 |----|-------------|-------------------|
 | EC-001 | Row where `server_name` is absent (REQUIRED, claroty_servers) | Null row produced per spec-engine REQUIRED semantics; no hard error; pagination continues (EC-016-018-001) |
 | EC-002 | `server_status` is null or absent | Null `status_code` Arrow cell; not an error (EC-016-018-002) |
-| EC-003 | `uptime_days` returns fractional value (e.g., 1.5) | Float cell stored in `raw_extensions.uptime_days`; spec-engine Float type handles fractional days correctly (EC-016-018-003) |
+| EC-003 | `uptime_days` returns fractional value (confirmed: OpenAPI §example shows `667.233661`) | Float cell stored in `raw_extensions.uptime_days`; spec-engine Float type handles fractional days correctly (EC-016-018-003) |
 | EC-004 | `count` is null or absent in `servers` response envelope | Pagination halts on empty page; no null-deref; consistent with other Claroty tables (EC-016-018-004) |
 | EC-005 | Query references Tier-2 column `management_ip` by raw name | E-QUERY-038; `available_columns` contains `raw_extensions`, `device_name`, `status_code` but NOT `management_ip` (EC-016-018-005) |
 | EC-006 | `server_name` values contain spaces (e.g., "Monroe Collector 1") | Preserved as-is in `device_name` Arrow column; no normalization (EC-016-018-006) |
@@ -877,10 +900,12 @@ dependency-direction enforcement.
    `server_name` is valid — it is degraded (server identified, interface lost) but NOT dropped.
    Do not add REQUIRED to `interface_name`.
 
-5. **uptime_days ColumnType is Float.** The BC notes this may be fractional (e.g., 1.5 = 36h)
-   and recommends verifying the exact type on live monroe before asserting Integer. The TOML
-   declares `column_type = "float"` — Float handles both integer and fractional values.
-   Do not change to Integer without live verification.
+5. **uptime_days ColumnType is Float — CONFIRMED.** The pre-delivery remove-uncertainty pass
+   (2026-08-31) confirmed Float directly from the `GetServersResponse` §example in
+   `xdome_openapi_06.20.2026.json`, which carries `uptime_days = 667.233661` (fractional). The
+   type is now positively grounded in the schema example — the earlier "verify before asserting
+   Integer" caution is resolved. The TOML declares `column_type = "float"`; keep it Float. Live
+   re-confirmation on monroe is welcome but is no longer a gating uncertainty.
 
 6. **Live tests are `#[ignore]`'d.** RG-005, RG-006, RG-013, and RG-014 require the live monroe
    sensor. Mark them `#[ignore]` with comment `// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL
@@ -929,6 +954,7 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-08-31 | research-agent | PRE-DELIVERY remove-uncertainty pass (D-1110 mandatory second pass, immediately before TDD delivery). Validated all load-bearing claims against ground truth (`xdome_openapi_06.20.2026.json`, endpoint-schema-extract.md, endpoint-spike-findings.md, `crates/prism-dtu-claroty/src/clone.rs`). CONFIRMED CLEAN: two-separate-endpoints (OpenAPI declares distinct top-level paths `/api/v1/servers/` and `/api/v1/server_interfaces/`, operationId `get_servers_api_v1_server_interfaces__post`); all 17 servers + 10 server_interfaces column names match the Server/ServerInterfaces `fields_enum` and appear in the response §examples; response_paths `$.servers`/`$.server_interfaces` match required envelope keys `servers`/`server_interfaces`; OCSF inventory_info/5001 + `device.name`→`device_name` (REQUIRED) + status→`status_code`; `count` is nullable (anyOf integer/null, `include_count` default false) so empty-page-halt ACs are grounded; no Datetime columns in either fields_enum so `timestamp_formats`/SAP-2 datetime arms a/b/c are N/A; SAP-2 DTU-absence confirmed (no `servers`/`server_interfaces` route in prism-dtu-claroty `build_router`). CORRECTIONS: (1) `uptime_days` Float now POSITIVELY CONFIRMED from the `GetServersResponse` §example (`uptime_days = 667.233661`, fractional) — resolved the prior "verify on live before asserting Integer" open uncertainty (risk note, Notes item 5, EC-003 updated); (2) added status-value casing notes to AC-005 §3 and AC-013 §3 — OpenAPI response §examples render status values in lowercase (`"up"`) as synthetic placeholders, so the capitalized value sets are UNCONFIRMED; the `#[ignore]`'d live tests (RG-005/RG-013) MUST assert `status_code` case-insensitively and MUST NOT fail on casing alone (live-validation confirms exact casing). Refreshed stale `input-hash` (ae98e4f→78a00bd; one or more `inputs:` files evolved since authoring). No load-bearing spec content changed (TOML blocks, columns, ColumnTypes, ACs count, RG list, BC set, depends_on unchanged). Story `status` left `draft` per pass scope. No volatile line cites introduced (TD-VSDD-091). |
 | 1.2 | 2026-08-24 | story-writer | Sibling-sweep correction (TD-VSDD-060): fixed pipeline-state mischaracterization. §Previous Story Intelligence item 2 label changed from "merged" to "materialized draft, pending; not yet merged/implemented"; PSI text updated to reflect that S-CLAROTY-VULNS-001 [[tables]] block is NOT in committed TOML on develop, and that the TOML pattern reference comes from existing committed tables (e.g., alerts); Token Budget "existing 6 tables" corrected to "existing 4 tables on current develop"; Notes for Implementer item 9 tightened to remove stale "merged" framing now fixed in PSI. No load-bearing spec content (TOML blocks, columns, ColumnTypes, ACs, RG lists, BCs, depends_on) changed. |
 | 1.1 | 2026-08-24 | research-agent | Remove-uncertainty pass (D-1110 mandatory post-materialization). Corrected baseline-table-count claims to ground truth: committed `claroty.sensor.toml` on develop@3f1e66179 has 4 tables (`alerts`, `audit_logs`, `devices`, `device_alert_relations`), not the 6 asserted in §Background — none of `claroty_vulnerabilities`/`claroty_ot_activity_events`/`claroty_device_vulnerability_relations` exist in any sensor spec. §Background reframed to ground truth; Task 8 positioning reference to the non-existent `claroty_device_vulnerability_relations` block corrected to the actual last table block; Task 12 total-count check made relative (baseline + 2 rather than a fixed 8); added §Notes for Implementer item 9 flagging the Wave A/B merge-status residual for orchestrator/human. CONFIRMED CLEAN via direct inspection: DTU-absence (no `servers`/`server_interfaces` route in `prism-dtu-claroty` build_router or routes/ — SAP-2 N/A correct); two-separate-endpoints (OpenAPI declares distinct top-level `/api/v1/servers/` and `/api/v1/server_interfaces/` paths, operationId `get_servers_api_v1_server_interfaces__post`); all 17 servers + 10 server_interfaces column names match the Server/ServerInterfaces enums in endpoint-schema-extract.md; response_paths `$.servers`/`$.server_interfaces` match envelope keys; OCSF class_uid 5001 + `device.name`→`device_name` (REQUIRED) + status→`status_code` mapping correct. No volatile line cites introduced (TD-VSDD-091). |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-SERVERS-001 (Wave C G4). BC-2.16.018 v1.0 + BC-2.16.019 v1.0 traceability; claroty_servers 17-column Tier-1/Tier-2 spec (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code]; 15 Tier-2 into raw_extensions); claroty_server_interfaces 10-column Tier-1/Tier-2 spec (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [interface_status→status_code]; 8 Tier-2 into raw_extensions incl. composite PK element interface_name); composite PK (server_name + interface_name) per BC-2.16.019 §PC3; 16 ACs; 16 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 N/A per D-2200 for both tables; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; TOML column-block specs embedded per both BCs; HS-027 holdout gate BLOCKING; depends_on: []. |

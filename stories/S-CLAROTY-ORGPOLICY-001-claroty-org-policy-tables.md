@@ -6,12 +6,12 @@ level: "L4"
 wave: xdome-wave-c
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: draft
-# BC status: active BCs authored (BC-2.16.020 v1.0 draft + BC-2.16.021 v1.0 draft); promote to ready after remove-uncertainty pass.
+status: ready
+# BC status: BC-2.16.020 v1.1 draft + BC-2.16.021 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.0"
-modified: "2026-08-24"
+version: "1.1"
+modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -22,7 +22,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "7189b4b"
+input-hash: "2e56d80"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.020"
 # traces_to covers primary BC (Zone Domain); BC-2.16.021 (Firewall Domain) is the companion BC; both wired via behavioral_contracts
@@ -1304,4 +1304,5 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass D-1110). Validated all technology/API assumptions in the story and both BCs against ground truth: endpoint-schema-extract.md field enums (OrganizationZones, OrganizationZonePolicies, OrganizationFirewallGroups, OrganizationFirewallGroupPolicies); endpoint-spike-findings.md §Spike 3 Tables A–D; the xDome OpenAPI schema extract; `class_selector.rs::select_by_class_name`; `crates/prism-dtu-claroty/src`. Findings: all 11/13/11/13 `body_template` fields present in their respective field enums; all four endpoint paths, envelope keys, and `response_path` values confirmed (fw URL↔envelope-key asymmetry verified for both firewall tables — abbreviated `_fw_` path vs full `organization_firewall_` envelope key); `entity_management`→class_uid 3004 arm confirmed present (no new arm required); all 8 Json columns confirmed against §Spike 3; per-table `last_update`/`last_updated` datetime field-name asymmetry confirmed; `applied_zone_pairs` (zone_policies) vs `applied_group_pairs` (firewall_policies) table-scoping confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A confirmed (none of the four org-policy routes exist in prism-dtu-claroty); baseline table count confirmed = 4 committed Claroty tables (alerts, audit_logs, devices, device_alert_relations) at current develop HEAD. No corrections required to the story body — all 26 ACs, the RG list, §Architecture Mapping, and §TOML Column-Block Specification match ground truth exactly. Companion BCs corrected and bumped to v1.1 (BC-2.16.020/BC-2.16.021 §Invariants `available_columns` was missing `actor_user_name` for zones/firewall_groups; BC-INDEX H1 title drift corrected per POLICY 7). Story version bumped 1.0→1.1; status remains draft per dispatch. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-ORGPOLICY-001 (Wave C G5). BC-2.16.020 v1.0 + BC-2.16.021 v1.0 traceability; 4 TOML table blocks: claroty_organization_zones (11 cols: 4 Tier-1 [zone_name→name REQUIRED, zone_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 incl. 1 Json: device_conditions); claroty_organization_zone_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d); claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json: device_conditions; URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry documented); claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs; NOT applied_zone_pairs); 8 Json columns total; 26 ACs; 26 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 N/A per D-2200 for all 4 tables; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; TOML column-block specs embedded per both BCs; HS-028 holdout gate BLOCKING; depends_on: []. |

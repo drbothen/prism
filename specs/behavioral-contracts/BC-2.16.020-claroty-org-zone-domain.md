@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -17,11 +17,11 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a4f5f7b"
+input-hash: "2b1ff87"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: null
+modified: "2026-08-31"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -301,8 +301,8 @@ xdome-endpoint-expansion-plan.md §Per-Story Pipeline).
 - Tier-2 columns (all columns without `ocsf_field`) are NOT exposed as standalone Arrow columns;
   a PrismQL query referencing them by raw TOML name (e.g., `WHERE zone_source = 'Custom'`) MUST
   raise E-QUERY-038 with `available_columns` containing `raw_extensions`, `name`, `comment`,
-  `status_code` (zones) or `name`, `activity_name`, `comment`, `actor_user_name` (zone_policies),
-  `class_uid`, `_sensor` — but NOT the raw Tier-2 column name
+  `status_code`, `actor_user_name` (zones) or `name`, `activity_name`, `comment`, `actor_user_name`
+  (zone_policies), `class_uid`, `_sensor` — but NOT the raw Tier-2 column name
 - All four Json columns (`device_conditions`, `communication_conditions`, `related_alerts_ids`,
   `applied_zone_pairs`) MUST be declared with `column_type = "json"` in the TOML spec; declaring
   them as `String` would cause the nested object/array to be serialized as a raw string token,
@@ -414,4 +414,5 @@ S-CLAROTY-ORGPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | xdome-wave-c-remove-uncertainty | 2026-08-31 | research-agent | Remove-uncertainty pass (satisfies mandatory pre-delivery pass D-1110). Validated every TOML/API assumption against ground truth (endpoint-schema-extract.md OrganizationZones + OrganizationZonePolicies fields_enums; endpoint-spike-findings.md §Spike 3 Tables A/B; the xDome OpenAPI schema extract): all 11+13 `body_template` fields present in the respective field enums; endpoint paths (`/api/v1/organization_zones/`, `/api/v1/organization_zone_policies/`), envelope keys (`organization_zones`, `organization_zone_policies`), and `response_path` values confirmed; `entity_management`/3004 arm confirmed present in `class_selector.rs::select_by_class_name`; 4 Json columns confirmed against §Spike 3 (device_conditions ×1 zones; communication_conditions + related_alerts_ids + applied_zone_pairs zone_policies); `last_update` (zones) vs `last_updated` (zone_policies) datetime field-name asymmetry confirmed; `applied_zone_pairs` confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A re-confirmed (no zone routes exist in prism-dtu-claroty); baseline Claroty table count confirmed = 4 committed tables (alerts, audit_logs, devices, device_alert_relations). CORRECTION: §Invariants zones `available_columns` enumeration was missing `actor_user_name`, inconsistent with §PC3, EC-016-020-005, TV-BC-2.16.020-002/003, and story AC-003 — added. BC-INDEX H1 title drift corrected (POLICY 7). input-hash refreshed (input files drifted since initial authoring). No content/mechanism defects found. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Zone Domain (zones + zone_policies) queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G5. Domain-pairing rationale documented (4 points). TOML table contracts for both tables with envelope keys and pagination. Column Tier classification: zones (11 cols: 4 Tier-1 [zone_name→name REQUIRED, zone_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 including 1 Json: device_conditions); zone_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 including 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs). Datetime field name asymmetry noted (last_update vs last_updated). OCSF class: entity_management/3004 (existing arm). PK rationale for both tables. No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-028 holdout group registered with 4 P0 scenarios for S-CLAROTY-ORGPOLICY-001. |

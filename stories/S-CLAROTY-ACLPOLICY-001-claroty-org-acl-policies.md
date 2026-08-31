@@ -6,12 +6,12 @@ level: "L4"
 wave: xdome-wave-c
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: draft
-# BC status: active BC authored (BC-2.16.022 v1.0 draft); promote to ready after remove-uncertainty pass.
+status: ready
+# BC status: BC-2.16.022 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.0"
-modified: "2026-08-24"
+version: "1.1"
+modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -21,7 +21,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "ede9c3c"
+input-hash: "794fb25"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.022"
 points: 5
@@ -86,7 +86,31 @@ risk: MEDIUM
 #   Claroty table without offset/limit injection. The mandatory policy_acl_syntax
 #   field must appear in the body_template; omitting it causes an API 422.
 #   SAP-2 DTU-parity probe is N/A per D-2200.
-assumption_validations: []
+assumption_validations:
+  - assumption: "Endpoint POST /api/v1/organization_acl_policies/; envelope key organization_acl_policies with NO count field; response_path $.organization_acl_policies"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §GetOrganizationAclPoliciesResponse (sole required prop, no count); §paths /api/v1/organization_acl_policies/ (operationId ..._post); endpoint-schema-extract.md §organization_acl_policies"
+  - assumption: "policy_acl_syntax is a REQUIRED request-level parameter (not a query field), valid ACLType values Cisco dACL/AireOS/ArubaOS-Switch/ArubaOS-CX; hardcoded Cisco dACL for v1"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §GetOrganizationAclPoliciesRequest.required=[policy_acl_syntax] + §ACLType; policy_acl_syntax absent from OrganizationAclPolicy.fields_enum"
+  - assumption: "11 body_template fields match the OrganizationAclPolicy fields_enum exactly (incl. order); all 11 response columns are anyOf/nullable"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §OrganizationAclPolicy__fields_enum (11 entries) + §OrganizationAclPolicyResponseItem (11 anyOf/nullable props)"
+  - assumption: "Column types: policy_id string/uuid→String REQUIRED, policy_name/policy_source/policy_acl/policy_acl_type/policy_updated_by/policy_notes→String, applied_models array-of-string→Json, matching_devices integer→Integer, policy_creation_date/policy_last_updated date-time→Datetime"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §OrganizationAclPolicyResponseItem (per-field anyOf types; policy_id format:uuid; applied_models items:string array; dates format:date-time)"
+  - assumption: "pagination type=none correct — request schema declares no offset/limit and additionalProperties=false; PaginationConfig::None present with serde tag=type snake_case; build_request skips offset/limit body injection when page_size=0"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §GetOrganizationAclPoliciesRequest (additionalProperties:false, no offset/limit); prism-spec-engine/src/spec_parser.rs §PaginationConfig::None; prism-spec-engine/src/pipeline.rs §build_request (OffsetLimit+page_size>0 gate)"
+  - assumption: "ocsf_field_to_arrow_name flattens dots to underscores (metadata.uid→metadata_uid, actor.user.name→actor_user_name); entity_management→class_uid 3004 arm exists and carries comment attr"
+    verdict: CONFIRMED
+    source: "prism-spec-engine/src/column_mapping.rs §ocsf_field_to_arrow_name; prism-ocsf/src/class_selector.rs §CLASS_UID_ENTITY_MANAGEMENT=3004 + entity_management arm (KF-01 comment attr)"
+  - assumption: "Baseline is exactly 4 Claroty tables (alerts, audit_logs, devices, device_alert_relations); ocsf_column_naming=true at sensor level; SAP-2 N/A (no ACL DTU route)"
+    verdict: CONFIRMED
+    source: "crates/prism-sensors/specs/claroty.sensor.toml (4 table_name decls; ocsf_column_naming=true); crates/prism-dtu-claroty/src/routes/ has no organization_acl_policies route (D-2200)"
+  - assumption: "Datetime fields use ADR-028 §D8-B implicit iso8601 default (timestamp_formats omitted → effective_formats returns [iso8601]) — SAP-2 datetime arm (c)"
+    verdict: CONFIRMED
+    source: "xdome_openapi_06.20.2026.json §OrganizationAclPolicyResponseItem policy_creation_date/policy_last_updated format:date-time (ISO-8601 examples); ADR-028 §D8-B"
 risk_mitigations: []
 ---
 
@@ -850,4 +874,5 @@ reasoning path. Deferred to live-validation milestone if not complete before hol
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | remove-uncertainty-aclpolicy-g6 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass per D-1110). Validated all API/technology assumptions against ground truth (`xdome_openapi_06.20.2026.json`, `endpoint-schema-extract.md §organization_acl_policies`, `endpoint-spike-findings.md §Spike 4`, `claroty.sensor.toml`, prism-spec-engine/prism-ocsf/prism-dtu-claroty source) — see populated `assumption_validations` frontmatter (8 assumptions, all CONFIRMED). Endpoint/envelope/response_path, required policy_acl_syntax, 11-field enum↔body_template parity (incl. order), all 11 column types, pagination-none mechanism (build_request page_size=0 skip; request additionalProperties=false), Arrow-name flattening, entity_management→3004 arm, 4-table baseline, ocsf_column_naming=true, SAP-2 N/A, and datetime implicit-iso8601 all confirmed. No corrections to this story (its §TOML Column-Block Specification body_template was already the valid single-line form). Companion correction landed in BC-2.16.022 v1.1: §PC1 body_template re-rendered from an invalid multi-line single-quoted TOML literal (backslash line-continuations, not legal TOML) to a valid single-line literal identical to this story's §TOML block; story Notes-for-Implementer #1 (BC §PC1 = canonical body_template reference) remains accurate post-fix. Status left draft (no change). BC dependency bumped to BC-2.16.022 v1.1. |
 | 1.0 | xdome-wave-c-f3-story-materialization-g6 | 2026-08-24 | story-writer | Initial materialization — Wave C G6: claroty_organization_acl_policies TOML block (1 table, 11 columns: 4 Tier-1 [policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment] + 7 Tier-2 [policy_source/String, policy_acl_type/String, policy_acl/String, applied_models/Json, matching_devices/Integer, policy_creation_date/Datetime, policy_last_updated/Datetime]). KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema). OCSF entity_management/3004 (existing arm). 11 ACs; 11 RGTs; density 1.0. tdd_mode: strict. SAP-2 N/A (no DTU; D-2200 deferred). HS-029 holdout BLOCKING. depends_on: []. BC: BC-2.16.022 v1.0. |

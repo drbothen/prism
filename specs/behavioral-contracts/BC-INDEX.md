@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.86"
+version: "9.87"
 status: draft
 producer: state-manager
-timestamp: 2026-08-30T23:55:00Z
+timestamp: 2026-08-31T08:00:00Z
+# NOTE: D-2385 — BC-INDEX v9.86→v9.87: BC-2.16.022 pin v1.0→v1.1 (G3–G6 pre-delivery remove-uncertainty COMPLETE 2026-08-31; BC-2.16.022 §PC1 body_template TOML literal corrected; G6 story promoted draft→ready; BC-2.16.017/020/021 already at v1.1). draft/active/total UNCHANGED (11/253/277). D-2381 NOTE archived.
 # NOTE: D-2380 — BC-INDEX v9.84→v9.85: BC-2.16.016 pin v1.0→v1.1 (G2 spec-readiness; remove-uncertainty CLEAN 2026-08-30; F-1 body_template TOML literal-string syntax fixed; story S-CLAROTY-OT-EVENTS-001 promoted draft→ready). draft/active/total UNCHANGED (11/253/277). D-2373 NOTE archived.
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
 # NOTE: D-2372 — BC-INDEX v9.82→v9.83: F-B1-001 substantively closed; BC-2.16.002 pin v2.52→v2.53 (EC-01-041 FINAL-batch qualified; EC-01-042 NEW non-final fan-out batch discriminator); BC-2.11.001 UNCHANGED v1.31 (transitive coverage verified). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2366 NOTE archived.
@@ -369,12 +370,12 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.9 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
-| BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
+| BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
-| BC-2.16.020 | Claroty xDome Organization Zone Domain — claroty_organization_zones + claroty_organization_zone_policies Queryable Surface and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
-| BC-2.16.021 | Claroty xDome Organization Firewall Domain — claroty_organization_firewall_groups + claroty_organization_firewall_policies Queryable Surface and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
-| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
+| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |

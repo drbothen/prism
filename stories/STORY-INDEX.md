@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.955"
+version: "2.956"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T06:00:00Z
+timestamp: 2026-08-31T08:00:00Z
 phase: 3
 total_stories: 319
+# D-2385: G3–G6 pre-delivery remove-uncertainty COMPLETE (D-1110 mandatory second pass). S-CLAROTY-DEVVULNREL-001 v1.3 draft→ready, S-CLAROTY-SERVERS-001 v1.3 draft→ready, S-CLAROTY-ORGPOLICY-001 v1.1 draft→ready, S-CLAROTY-ACLPOLICY-001 v1.1 draft→ready. BC version pins reconciled: DEVVULNREL BC-2.16.017 v1.1 (already correct); ORGPOLICY BC-2.16.020/BC-2.16.021 v1.0→v1.1; ACLPOLICY BC-2.16.022 v1.0→v1.1. total_stories 319 UNCHANGED. STORY-INDEX v2.955→v2.956. D-2383 NOTE archived.
 # D-2383: S-CLAROTY-VULNS-001 story v2.1→v2.2 (F-RECON-P1-HIGH-001: POL-39 volatile version pin removed from EC-005 cite; cite by ID+§anchor). Feature HEAD 12ce43ed0→423fc7659 (F-RECON-P1-LOW-002: stale wire-test header comment fixed). total_stories 319 UNCHANGED. STORY-INDEX v2.954→v2.955. D-2381 NOTE archived.
 # D-2380: S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 spec-readiness CLEAN 2026-08-30; remove-uncertainty CLEAN; F-1 body_template TOML literal-string syntax fixed; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added; implementer notes carried). total_stories 319 UNCHANGED. STORY-INDEX v2.952→v2.953. D-2377 NOTE archived.
 # D-2375: PR #243 squash-merged (S-ENGINE-LIMIT-EARLY-STOP-001 MERGED); S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; STORY-INDEX v2.950→v2.951. D-2373 NOTE archived.
@@ -1070,7 +1071,7 @@ xdome-endpoint-expansion-plan.md §Governing Directive.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [draft v1.2] | prism-sensors, prism-spec-engine | 1 (BC-2.16.017 v1.0) | -- | 5 | S-CLAROTY-VULNS-001 |
+| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [ready v1.3] | prism-sensors, prism-spec-engine | 1 (BC-2.16.017 v1.1) | -- | 5 | S-CLAROTY-VULNS-001 |
 
 ## Sensor-Critical Stories (Wave C — Claroty xDome Endpoint Expansion)
 
@@ -1086,9 +1087,9 @@ Directive. SAP-2 probe N/A for all Wave C tables (D-2200).
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [draft v1.2] | prism-sensors, prism-spec-engine | 2 (BC-2.16.018 v1.0, BC-2.16.019 v1.0) | -- | 5 | -- |
-| S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [draft v1.0] | prism-sensors, prism-spec-engine | 2 (BC-2.16.020 v1.0, BC-2.16.021 v1.0) | -- | 8 | -- |
-| S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.022 v1.0) | -- | 5 | -- |
+| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [ready v1.3] | prism-sensors, prism-spec-engine | 2 (BC-2.16.018 v1.0, BC-2.16.019 v1.0) | -- | 5 | -- |
+| S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [ready v1.1] | prism-sensors, prism-spec-engine | 2 (BC-2.16.020 v1.1, BC-2.16.021 v1.1) | -- | 8 | -- |
+| S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [ready v1.1] | prism-sensors, prism-spec-engine | 1 (BC-2.16.022 v1.1) | -- | 5 | -- |
 
 ## Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)
 

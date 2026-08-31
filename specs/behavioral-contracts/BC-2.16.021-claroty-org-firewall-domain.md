@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -17,11 +17,11 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a4f5f7b"
+input-hash: "2b1ff87"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: null
+modified: "2026-08-31"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -303,8 +303,8 @@ Until the DTU story executes, near-term tests run against the live monroe sensor
   `claroty_organization_firewall_policies`; same null-row REQUIRED semantics
 - Tier-2 columns (all columns without `ocsf_field`) are NOT exposed as standalone Arrow columns;
   a PrismQL query referencing them by raw TOML name MUST raise E-QUERY-038 with
-  `available_columns` containing `raw_extensions`, `name`, `comment`, `status_code`
-  (firewall_groups) or `name`, `activity_name`, `comment`, `actor_user_name`
+  `available_columns` containing `raw_extensions`, `name`, `comment`, `status_code`,
+  `actor_user_name` (firewall_groups) or `name`, `activity_name`, `comment`, `actor_user_name`
   (firewall_policies), `class_uid`, `_sensor` — but NOT the raw Tier-2 column name
 - All four Json columns (`device_conditions`, `communication_conditions`, `related_alerts_ids`,
   `applied_group_pairs`) MUST be declared with `column_type = "json"` in the TOML spec; declaring
@@ -422,4 +422,5 @@ S-CLAROTY-ORGPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | xdome-wave-c-remove-uncertainty | 2026-08-31 | research-agent | Remove-uncertainty pass (satisfies mandatory pre-delivery pass D-1110). Validated every TOML/API assumption against ground truth (endpoint-schema-extract.md OrganizationFirewallGroups + OrganizationFirewallGroupPolicies fields_enums; endpoint-spike-findings.md §Spike 3 Tables C/D; the xDome OpenAPI schema extract): all 11+13 `body_template` fields present in the respective field enums; endpoint paths, envelope keys, and `response_path` values confirmed — fw URL↔envelope-key asymmetry verified (`/api/v1/organization_fw_groups/` ↔ `$.organization_firewall_groups`; `/api/v1/organization_fw_group_policies/` ↔ `$.organization_firewall_policies`); `entity_management`/3004 arm confirmed present in `class_selector.rs::select_by_class_name`; 4 Json columns confirmed against §Spike 3 (device_conditions ×1 fw_groups; communication_conditions + related_alerts_ids + applied_group_pairs fw_policies); `last_update` vs `last_updated` datetime field-name asymmetry confirmed; `applied_group_pairs` (not `applied_zone_pairs`) confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A re-confirmed (no fw routes exist in prism-dtu-claroty). CORRECTION: §Invariants firewall_groups `available_columns` enumeration was missing `actor_user_name`, inconsistent with §PC3, TV-BC-2.16.021-003, and story AC-020 — added. BC-INDEX H1 title drift corrected (POLICY 7). input-hash refreshed (input files drifted since initial authoring). No content/mechanism defects found. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Firewall Domain (firewall_groups + firewall_policies) queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G5. Structural mirror of BC-2.16.020 for the firewall subsystem. Domain-pairing rationale references BC-2.16.020. TOML table contracts for both tables with URL vs envelope key asymmetry documented (path `/api/v1/organization_fw_groups/` → envelope `$.organization_firewall_groups`; path `/api/v1/organization_fw_group_policies/` → envelope `$.organization_firewall_policies`). Column Tier classification: firewall_groups (11 cols: 4 Tier-1 [firewall_group_name→name REQUIRED, firewall_group_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 including 1 Json: device_conditions); firewall_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 including 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs). Datetime field name asymmetry noted (last_update vs last_updated — same as Zone Domain). OCSF class: entity_management/3004 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-028 holdout group registered with 4 P0 scenarios for S-CLAROTY-ORGPOLICY-001. |
