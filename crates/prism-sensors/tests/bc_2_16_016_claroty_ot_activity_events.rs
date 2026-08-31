@@ -3,7 +3,7 @@
 //!
 //! Covers S-CLAROTY-OT-EVENTS-001 acceptance criteria AC-003..AC-009.
 //! BC-5.38.001 density check: 10 RGTs / 9 ACs = 1.11 (≥ 0.5 threshold — PASS).
-//! (RG-009 = EC-002 non-empty array test; RG-010 = EC-004 mode-absent test; added in v1.2).
+//! (Additional coverage: EC-002 non-empty array test and EC-004 mode-absent test; added in v1.2).
 //!
 //! ## Red Gate invariant
 //!
