@@ -152,12 +152,12 @@ async fn test_BC_2_16_018_claroty_servers_wire_shape_class_uid_5001_mock() {
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // source_table = "claroty_claroty_servers":
-    //   sensor_id = "claroty", TOML table_name = "claroty_servers"
-    //   strip_prefix("claroty_") → "claroty_servers" → matches TOML table_name.
-    //   Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_claroty_servers".
+    // source_table = "claroty_servers":
+    //   sensor_id = "claroty", TOML table_name = "servers"
+    //   strip_prefix("claroty_") → "servers" → matches TOML table_name.
+    //   Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_servers".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_servers".to_string(),
+        source_table: "claroty_servers".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-servers-wire-test".to_string(),
@@ -420,7 +420,7 @@ async fn test_BC_2_16_018_claroty_servers_null_passthrough_server_name_absent_nu
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_servers".to_string(),
+        source_table: "claroty_servers".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-servers-null-passthrough-test".to_string(),

@@ -53,10 +53,10 @@ fn load_claroty_server_interfaces_table() -> (
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_server_interfaces")
+        .find(|t| t.table_name == "server_interfaces")
         .cloned()
         .expect(
-            "claroty_server_interfaces table must exist in claroty.sensor.toml \
+            "server_interfaces table must exist in claroty.sensor.toml \
              — RED GATE: [[tables]] block not yet added (S-CLAROTY-SERVERS-001 Task 8)",
         );
     (spec, table)

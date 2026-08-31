@@ -1015,7 +1015,7 @@ ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm; same as c
 # Tier-2 (15 cols): all remaining aggregate into raw_extensions under ocsf_column_naming=true
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_servers"
+table_name = "servers"
 ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_devices)
 
   # Tier-1: server_name → device_name (REQUIRED; primary key)
@@ -1134,7 +1134,7 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_
 # Tier-2 (8 cols, incl. composite PK element interface_name): aggregate into raw_extensions
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_server_interfaces"
+table_name = "server_interfaces"
 ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_servers)
 
   # Tier-1: server_name → device_name (REQUIRED; composite PK anchor)

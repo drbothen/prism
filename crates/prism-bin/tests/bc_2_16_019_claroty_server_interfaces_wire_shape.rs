@@ -153,12 +153,12 @@ async fn test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mo
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // source_table = "claroty_claroty_server_interfaces":
-    //   sensor_id = "claroty", TOML table_name = "claroty_server_interfaces"
-    //   strip_prefix("claroty_") → "claroty_server_interfaces" → matches TOML table_name.
-    //   Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_claroty_server_interfaces".
+    // source_table = "claroty_server_interfaces":
+    //   sensor_id = "claroty", TOML table_name = "server_interfaces"
+    //   strip_prefix("claroty_") → "server_interfaces" → matches TOML table_name.
+    //   Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_server_interfaces".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_server_interfaces".to_string(),
+        source_table: "claroty_server_interfaces".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-server-interfaces-wire-test".to_string(),
@@ -422,7 +422,7 @@ async fn test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_server_interfaces".to_string(),
+        source_table: "claroty_server_interfaces".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-server-interfaces-null-test".to_string(),
