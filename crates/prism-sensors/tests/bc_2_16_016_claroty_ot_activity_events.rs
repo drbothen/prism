@@ -72,21 +72,31 @@ const SAP2_STATUS: &str =
     "N/A: no DTU clone exists for claroty_ot_activity_events; deferred to D-2200 \
      (OT-events DTU out of scope for Wave G2, S-CLAROTY-OT-EVENTS-001)";
 
-// ── RG-003 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.016 AC-003 / SAP-3 (proxy):
-///   Querying a Tier-2 column (e.g., `source_ip`) directly from `claroty_ot_activity_events`
-///   raises E-QUERY-038 at plan time. The Tier-2 column is NOT in `ocsf_projected_column_names`
-///   (it lives inside `raw_extensions`), so the plan-time gate fires.
+// ── RG-003 (defense-in-depth proxy — NOT the SAP-3 reachability gate) ────────
+/// BC-2.16.016 AC-003 — DEFENSE-IN-DEPTH per SAP-3 rule 3.
 ///
-/// Proxy assertion: uses `ocsf_projected_column_names` from prism-spec-engine directly
-/// (circular-dep constraint prevents importing prism-query from prism-sensors).
-/// The end-to-end SAP-3 test via `QueryEngine::execute()` is in
-/// `crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`.
+/// THIS TEST IS NOT THE SAP-3 REACHABILITY GATE.
+///
+/// This test verifies that `source_ip` is absent from `ocsf_projected_column_names`
+/// for `claroty_ot_activity_events` — a necessary precondition for E-QUERY-038 to
+/// fire. However, it does NOT exercise E-QUERY-038 end-to-end from the PrismQL
+/// parser surface; it calls `ocsf_projected_column_names` directly (synthetic proxy).
+///
+/// Why proxy: prism-sensors CANNOT depend on prism-query (circular dependency). The
+/// end-to-end path — parser → QueryEngine::execute_inner → check_column_availability
+/// → E-QUERY-038 — is only exercisable from prism-bin.
+///
+/// SAP-3 rule 3: defense-in-depth tests must carry a comment stating they are NOT
+/// the reachability gate. This is that comment.
+///
+/// AUTHORITATIVE RG-003 end-to-end gate lives in:
+///   `crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`
+///   fn `test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038`
 ///
 /// RED: panics at `.expect("claroty_ot_activity_events table must exist")` because
 ///      the [[tables]] block has not been added to claroty.sensor.toml yet.
 ///
-/// BC-2.16.016 AC-003; ADR-058 §I7; S-CLAROTY-OT-EVENTS-001 RG-003.
+/// BC-2.16.016 AC-003; ADR-058 §I7; SAP-3 rule 3; S-CLAROTY-OT-EVENTS-001 RG-003.
 #[test]
 fn test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038() {
     let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");

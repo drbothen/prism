@@ -8,7 +8,7 @@
 //! |--------------|-----------|-----------|
 //! | NEW-1        | test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock | class_uid=2004, finding_info_uid, time, activity_name, message, raw_extensions as JSON object, no Tier-2 top-level keys (RecordBatch-level assertions) |
 //! | EC-002-WIRE  | test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array | Wire-level: related_alert_ids=[1,2,3] survives as native JSON array (not stringified) inside raw_extensions JSON object |
-//! | SAP-3        | test_BC_2_16_016_claroty_ot_activity_events_e2e_e_query_038_tier2_column | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() |
+//! | RG-003 (SAP-3) | test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038 | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() — authoritative end-to-end reachability gate |
 //!
 //! # SAP-2 status
 //!
@@ -23,12 +23,16 @@
 //! `#[ignore]`'d (live-only); NEW-1 provides the non-live wire-shape coverage via
 //! wiremock + Arrow RecordBatch assertions on the actual serialized column values.
 //!
-//! # SAP-3 compliance
+//! # SAP-3 compliance (RG-003)
 //!
-//! SAP-3 rule 1: at least one test must reach each BC postcondition arm end-to-end
-//! from the public surface (parser input), not just from a synthetic-AST proxy.
-//! RG-003 in prism-sensors calls `ocsf_projected_column_names()` directly — valid
-//! defense-in-depth, but SAP-3 requires this additional parser-surface test.
+//! SAP-3 rule 1: at least one test must reach the BC-2.16.016 AC-003 arm end-to-end
+//! from the public surface (PrismQL parser input), not merely via the synthetic proxy
+//! in prism-sensors (`ocsf_projected_column_names` directly — defense-in-depth only).
+//!
+//! `test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038`
+//! is the AUTHORITATIVE RG-003 end-to-end reachability gate (MED-1 closure).
+//! The prism-sensors test with the same base name is defense-in-depth per SAP-3 rule 3
+//! and is labeled as such in that file.
 //!
 //! The E-QUERY-038 plan-time column gate fires in `QueryEngine::execute_inner`
 //! (engine.rs), BEFORE `run_materialization_pipeline` is called.
@@ -612,13 +616,17 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_nat
 // SAP-3: End-to-end E-QUERY-038 test via QueryEngine::execute()
 // ---------------------------------------------------------------------------
 
-/// SAP-3 reachability test: querying a Tier-2 column directly via the REAL
-/// `QueryEngine::execute()` surface raises `PrismError::ColumnNotFound`
-/// (E-QUERY-038) with correct `available_columns`.
+/// AUTHORITATIVE RG-003 SAP-3 end-to-end reachability gate (MED-1 closure):
+/// Querying a Tier-2 column directly via the REAL `QueryEngine::execute()` surface
+/// raises `PrismError::ColumnNotFound` (E-QUERY-038) with correct `available_columns`.
 ///
-/// SAP-3 rule 1: at least one test must reach the BC-2.16.016 AC-003 arm
-/// end-to-end from the public surface (PrismQL parser input), not merely via
-/// the synthetic proxy in RG-003 (prism-sensors, `ocsf_projected_column_names`).
+/// SAP-3 rule 1: this test reaches the BC-2.16.016 AC-003 arm end-to-end from the
+/// public surface (PrismQL parser input). The identically-named test in prism-sensors
+/// (`test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038`)
+/// is defense-in-depth only (uses `ocsf_projected_column_names` directly — circular-dep
+/// constraint prevents prism-sensors from importing prism-query). Per SAP-3 rule 3,
+/// that proxy test is labeled as defense-in-depth and NOT the reachability gate.
+/// THIS test is the authoritative RG-003.
 ///
 /// Architecture: the E-QUERY-038 gate fires inside `QueryEngine::execute_inner`
 /// (engine.rs), BEFORE `run_materialization_pipeline` is called. This test uses:
@@ -628,19 +636,21 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_nat
 ///   3. `QueryEngine::new_with_cache_config(...).with_table_registry(registry)` — wires the gate
 ///   4. `engine.execute("SELECT source_ip FROM claroty_ot_activity_events", ...)` — E-QUERY-038
 ///
+/// Query form: `claroty_ot_activity_events` (DataFusion registered name: `{sensor_id}_{table_name}`).
+/// LIMIT is omitted — E-QUERY-038 fires at plan time before any data retrieval, so
+/// LIMIT has no effect on reachability. The `source_ip` column check fires first.
+///
 /// `source_ip` is Tier-2 (no ocsf_field in claroty.sensor.toml):
 ///   - NOT in ocsf_projected_column_names → NOT in TableRegistry → E-QUERY-038
-///   - available_columns contains "raw_extensions", "finding_info_uid", "time", etc.
-///   - available_columns does NOT contain "source_ip"
-///
-/// Registered table name: `{sensor_id}_{table_name}` = `claroty_ot_activity_events`
+///   - available_columns MUST include: raw_extensions, finding_info_uid, time, activity_name, message
+///   - available_columns MUST NOT include: source_ip
 ///
 /// No HTTP requests are issued — E-QUERY-038 fires at plan-time before any fan-out.
 ///
 /// BC-2.16.016 AC-003; SAP-3; ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
-/// Story: S-CLAROTY-OT-EVENTS-001 RG-003 (SAP-3 end-to-end gate).
+/// Story: S-CLAROTY-OT-EVENTS-001 RG-003 (authoritative end-to-end gate, MED-1 closure).
 #[tokio::test]
-async fn test_BC_2_16_016_claroty_ot_activity_events_e2e_e_query_038_tier2_column() {
+async fn test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038() {
     // Load the production claroty.sensor.toml (ocsf_column_naming = true at sensor level).
     let spec_content = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
