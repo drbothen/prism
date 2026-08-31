@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.022 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.3"
+version: "1.4"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -120,7 +120,7 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.022 v1.0 §Postconditions §1 — TOML Table Contract** governs the exact
+**BC-2.16.022 §Postconditions §1 — TOML Table Contract** governs the exact
 `[[tables]]` block: `table_name = "organization_acl_policies"` (bare name;
 `{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name),
 `ocsf_class = "entity_management"`, step name `"fetch_organization_acl_policies"`,
@@ -129,7 +129,7 @@ risk_mitigations: []
 fields (REQUIRED per OpenAPI schema — `required: ["policy_acl_syntax"]`),
 `response_path = "$.organization_acl_policies"`, and `pagination.type = "none"`.
 
-**BC-2.16.022 v1.0 §Postconditions §2 — Column Tier Classification (ADR-058)**
+**BC-2.16.022 §Postconditions §2 — Column Tier Classification (ADR-058)**
 governs the exact 4 Tier-1 and 7 Tier-2 column declarations under
 `ocsf_column_naming = true`:
 
@@ -142,18 +142,18 @@ governs the exact 4 Tier-1 and 7 Tier-2 column declarations under
   `matching_devices` (Integer), `policy_creation_date` (Datetime),
   `policy_last_updated` (Datetime)
 
-**BC-2.16.022 v1.0 §Postconditions §3 — Primary Key Rationale** establishes `policy_id`
+**BC-2.16.022 §Postconditions §3 — Primary Key Rationale** establishes `policy_id`
 (UUID-format, system-assigned, immutable) → `metadata.uid` as PK. `policy_name` is
 human-editable and maps to `name` (Tier-1 display label, not the PK). The OCSF anchor
 `metadata.uid` is the correct field for a stable record identifier.
 
-**BC-2.16.022 v1.0 §Postconditions §4 — Pagination-None Contract** establishes that
+**BC-2.16.022 §Postconditions §4 — Pagination-None Contract** establishes that
 `PaginationConfig::None` means `pipeline.rs::build_request` MUST NOT inject `offset`/`limit`
 into the POST body. The `GetOrganizationAclPoliciesRequest` schema has no `offset`/`limit`
 fields — injecting them causes an API 422. The body is constructed from `body_template`
 only. The response returns all ACL policies in a single HTTP response; no loop.
 
-**BC-2.16.022 v1.0 §Invariants** — critical mandatory invariants:
+**BC-2.16.022 §Invariants** — critical mandatory invariants:
 - `PaginationConfig::None` MUST NOT inject `offset`/`limit` (API 422 if violated)
 - `policy_acl_syntax = "Cisco dACL"` MUST appear in `body_template` (API error if absent)
 - Tier-2 columns NOT exposed as standalone Arrow columns (E-QUERY-038 at plan time)
@@ -246,7 +246,7 @@ files). The gate is BLOCKING: unsatisfied scenarios reset the LOCAL streak per B
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | v1.0 | §Postconditions §1 TOML contract (POST /api/v1/organization_acl_policies/, response_path $.organization_acl_policies, pagination type=none, mandatory policy_acl_syntax="Cisco dACL", 11 cols, NO count field in envelope); §Postconditions §2 Tier-1/Tier-2 column classification (4 Tier-1: policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment; 7 Tier-2 incl. 1 Json: applied_models); §Postconditions §3 PK rationale (policy_id UUID-format stable→metadata.uid; policy_name human-editable→name not PK); §Postconditions §4 Pagination-None vs Offset-Limit differentiation; §Postconditions §5 Json column serialization behavior (applied_models as JSON array not string; empty [] not null); §Postconditions §6 SAP-2 N/A; EC-016-022-001..010. All 11 ACs trace to this BC. |
+| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | v1.2 | §Postconditions §1 TOML contract (POST /api/v1/organization_acl_policies/, response_path $.organization_acl_policies, pagination type=none, mandatory policy_acl_syntax="Cisco dACL", 11 cols, NO count field in envelope); §Postconditions §2 Tier-1/Tier-2 column classification (4 Tier-1: policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment; 7 Tier-2 incl. 1 Json: applied_models); §Postconditions §3 PK rationale (policy_id UUID-format stable→metadata.uid; policy_name human-editable→name not PK); §Postconditions §4 Pagination-None vs Offset-Limit differentiation; §Postconditions §5 Json column serialization behavior (applied_models as JSON array not string; empty [] not null); §Postconditions §6 SAP-2 N/A; EC-016-022-001..010. All 11 ACs trace to this BC. |
 
 ## Acceptance Criteria
 
@@ -315,7 +315,7 @@ Under `ocsf_column_naming = true`, Arrow names resolve to `metadata_uid`, `name`
 `actor_user_name`, `comment` respectively. Exactly 4 of 11 columns have a non-None
 `ocsf_field`. Exactly 7 columns have no `ocsf_field` (aggregate into `raw_extensions`).
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_tier1_columns_four_with_ocsf_field`
+**Test:** `test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_types`
 (unit — SpecLoader::parse; inspect ColumnSpec entries; assert exactly 4 have non-None
 ocsf_field; assert ocsf_field strings match exactly; assert policy_id has REQUIRED option;
 assert 7 columns have None ocsf_field)
@@ -330,7 +330,7 @@ MUST contain `raw_extensions`, `metadata_uid`, `name`, `actor_user_name`, `comme
 Same applies for any other Tier-2 column (`policy_acl_type`, `policy_acl`, `applied_models`,
 `matching_devices`, `policy_creation_date`, `policy_last_updated`).
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_tier2_column_raises_e_query_038`
+**Test:** `test_BC_2_16_022_claroty_org_acl_policies_policy_source_tier2_e_query_038`
 (integration, plan-time — SELECT policy_source raises E-QUERY-038; assert available_columns
 set)
 
@@ -346,7 +346,7 @@ in BC-2.16.020 (zone_name→name), but with an asymmetric mapping: `policy_id` i
 column name and `metadata_uid` is the Arrow field name — they differ by more than one
 underscore substitution.
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_tier1_raw_toml_name_policy_id_raises_e_query_038`
+**Test:** `test_BC_2_16_022_claroty_org_acl_policies_policy_id_raw_name_not_projected_metadata_uid_is`
 (integration, plan-time — SELECT policy_id raises E-QUERY-038; assert available_columns
 has metadata_uid but NOT policy_id)
 
@@ -365,7 +365,7 @@ serialized JSON response (MCP-visible wire shape per 2026-07-13 wire-shape disci
    to `metadata_uid`); `policy_source`, `policy_acl`, `matching_devices`, `policy_creation_date`,
    `policy_last_updated` do NOT appear as standalone top-level keys
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_metadata_uid_and_tier1`
+**Test:** `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid`
 (`#[ignore]` — requires `CLAROTY_INSTANCE_URL` env var pointing to monroe)
 
 ### AC-008: applied_models Json column serialized as JSON array in raw_extensions, NOT as stringified value; empty array serializes as [] not null (traces to BC-2.16.022 postcondition 5 — Json column serialization; EC-016-022-005/006)
@@ -378,7 +378,7 @@ is a P1 defect — same invariant as BC-2.16.020 §Invariants).
 
 An empty `applied_models` array MUST serialize as `[]` JSON, not null (EC-016-022-005).
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_applied_models_json_not_stringified`
+**Test:** `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string`
 (unit — mock response containing a row with `applied_models: ["Siemens SIMATIC S7", "Rockwell"]`;
 assert deserialized `raw_extensions["applied_models"]` is a JSON array, not a string;
 also test with empty `applied_models: []` → serializes as `[]` not null)
@@ -389,7 +389,7 @@ The `policy_id` column carries `options = ["REQUIRED"]` in the TOML. When the AP
 contains an ACL policy row where `policy_id` is absent or null, the spec-engine produces a
 null row (REQUIRED semantics) without raising a hard error. Subsequent rows continue normally.
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_required_policy_id_absent_produces_null_row`
+**Test:** `test_BC_2_16_022_null_metadata_uid_when_policy_id_absent`
 (unit — mock response containing one row missing `policy_id` and one row with valid `policy_id`;
 assert first row is null; assert second row is non-null with metadata_uid present; no error raised)
 
@@ -404,7 +404,7 @@ The absence of a `count` key in the serialized wire output rows is already asser
 This AC additionally asserts the query completes successfully without any pagination-related
 error, confirming PaginationConfig::None takes the single-fetch path.
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination_no_count`
+**Test:** `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination`
 (NOTE: this test is the same test function named in AC-002; one live Variant-1 test covers
 both the pagination-none success path and the no-count-column assertion; counted as covering
 both AC-002 and AC-010)
@@ -417,7 +417,7 @@ implicit iso8601 default — `effective_formats` returns `["iso8601"]` when the 
 chain is empty/absent). When a row contains a null or absent datetime field, the
 spec-engine MUST pass through null without raising E-SPEC-018 (EC-016-022-010 pattern).
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_datetime_implicit_iso8601_null_passthrough`
+**Test:** `test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions`
 (unit — mock response with one row containing ISO-8601 datetime strings for both fields;
 assert Datetime cells are non-null; second row with both fields null/absent; assert Datetime
 cells are null; no E-SPEC-018 raised)
@@ -429,14 +429,14 @@ cells are null; no E-SPEC-018 raised)
 | RG-001 | `test_BC_2_16_022_claroty_org_acl_policies_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 11 ColumnSpec entries; PaginationConfig::None; response_path $.organization_acl_policies; body_template present |
 | RG-002 | `test_BC_2_16_022_claroty_org_acl_policies_pagination_none_no_offset_limit` | Unit (build_request mock) | AC-002: PaginationConfig::None path in pipeline.rs builds POST body without offset/limit fields |
 | RG-003 | `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_policy_acl_syntax` | Unit (SpecLoader::parse + body_template parse) | AC-003: body_template JSON contains key "policy_acl_syntax" with value "Cisco dACL" |
-| RG-004 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_columns_four_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-004: exactly 4 Tier-1 (policy_id→metadata.uid REQUIRED; policy_name→name; policy_updated_by→actor.user.name; policy_notes→comment); 7 Tier-2 have None ocsf_field |
-| RG-005 | `test_BC_2_16_022_claroty_org_acl_policies_tier2_column_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-005: SELECT policy_source raises E-QUERY-038; available_columns has raw_extensions, metadata_uid, name, actor_user_name, comment but NOT policy_source |
-| RG-006 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_raw_toml_name_policy_id_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-006 WIRE-SHAPE rename: SELECT policy_id raises E-QUERY-038; available_columns has metadata_uid but NOT policy_id |
-| RG-007 | `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_metadata_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-007 WIRE-SHAPE: wire JSON class_uid=3004, metadata_uid non-null UUID, raw_extensions present, applied_models JSON array not stringified; policy_id NOT standalone root key |
-| RG-008 | `test_BC_2_16_022_claroty_org_acl_policies_applied_models_json_not_stringified` | Unit (mock response) | AC-008: applied_models in raw_extensions is JSON array not stringified string; empty array serializes as [] not null |
-| RG-009 | `test_BC_2_16_022_claroty_org_acl_policies_required_policy_id_absent_produces_null_row` | Unit (mock response) | AC-009: policy_id absent → null row; no hard error; subsequent rows continue |
-| RG-010 | `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination_no_count` | Live Variant-1 (`#[ignore]`) | AC-002 + AC-010: SELECT * (no LIMIT) succeeds; no E-SENSOR-001; no count column in wire JSON; result stable across two runs |
-| RG-011 | `test_BC_2_16_022_claroty_org_acl_policies_datetime_implicit_iso8601_null_passthrough` | Unit (mock response) | AC-011: policy_creation_date and policy_last_updated parse ISO-8601 correctly; absent fields produce null cell not E-SPEC-018 |
+| RG-004 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_types` | Unit (ColumnSpec inspection) | AC-004: exactly 4 Tier-1 (policy_id→metadata.uid REQUIRED; policy_name→name; policy_updated_by→actor.user.name; policy_notes→comment); 7 Tier-2 have None ocsf_field |
+| RG-005 | `test_BC_2_16_022_claroty_org_acl_policies_policy_source_tier2_e_query_038` | Integration end-to-end (prism-query, via QueryEngine::execute — authoritative) | AC-005: SELECT policy_source raises E-QUERY-038; available_columns has raw_extensions, metadata_uid, name, actor_user_name, comment but NOT policy_source |
+| RG-006 | `test_BC_2_16_022_claroty_org_acl_policies_policy_id_raw_name_not_projected_metadata_uid_is` | Integration end-to-end (prism-query, via QueryEngine::execute — authoritative) | AC-006 WIRE-SHAPE rename: SELECT policy_id raises E-QUERY-038; available_columns has metadata_uid but NOT policy_id |
+| RG-007 | `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid` | Live Variant-1 (`#[ignore]`) | AC-007 WIRE-SHAPE: wire JSON class_uid=3004, metadata_uid non-null UUID, raw_extensions present, applied_models JSON array not stringified; policy_id NOT standalone root key |
+| RG-008 | `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-008: applied_models in raw_extensions is JSON array not stringified string; empty array serializes as [] not null |
+| RG-009 | `test_BC_2_16_022_null_metadata_uid_when_policy_id_absent` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-009: policy_id absent → null row; no hard error; subsequent rows continue |
+| RG-010 | `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination` | Live Variant-1 (`#[ignore]`) | AC-002 + AC-010: SELECT * (no LIMIT) succeeds; no E-SENSOR-001; no count column in wire JSON; result stable across two runs |
+| RG-011 | `test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-011: policy_creation_date and policy_last_updated parse ISO-8601 correctly; absent fields produce null cell not E-SPEC-018 |
 | RG-012 | `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array` | Integration (prism-bin, wire-shape serialization assertion via SpecDrivenSensorAdapter::fetch — authoritative production path) | Wire-level assertion: `applied_models` Json column serializes as JSON-typed array (not string) in wire output; `applied_models` key absent from root-level wire envelope; fetch path is authoritative (no DTU for ACL policies per D-2200) |
 
 **BC-5.38.001 density check:** 12 Red Gate tests / 11 acceptance criteria = 1.09 ≥ 0.5 threshold. PASS.
@@ -586,7 +586,7 @@ type = "none"
 |------|-----------------|
 | This story spec | ~8,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4-table baseline; may be higher at implementation time if sibling expansion stories merge first per depends_on) | ~4,000 |
-| BC-2.16.022 v1.0 (full) | ~6,500 |
+| BC-2.16.022 (full) | ~6,500 |
 | ADR-058 §B2/§C/§D sections (Tier-1/Tier-2; metadata.uid → metadata_uid; actor.user.name → actor_user_name) | ~3,000 |
 | ADR-028 §D8-B (implicit iso8601 default; datetime passthrough) | ~1,000 |
 | `crates/prism-spec-engine/src/spec_parser.rs` (ColumnSpec + FetchStep + PaginationConfig::None variant) | ~3,500 |
@@ -620,7 +620,7 @@ the TOML block and any production code changes are made.
   MUST fail before Task 8 (block not yet in TOML).
 
 - [ ] **Task 2 (Red Gate — test first):** Write RG-004:
-  `test_BC_2_16_022_claroty_org_acl_policies_tier1_columns_four_with_ocsf_field`.
+  `test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_types`.
   Assert exactly 4 ColumnSpec entries have non-None `ocsf_field`; assert the exact ocsf_field
   strings (`"metadata.uid"` with REQUIRED for `policy_id`, `"name"` for `policy_name`,
   `"actor.user.name"` for `policy_updated_by`, `"comment"` for `policy_notes`); assert 7
@@ -636,17 +636,17 @@ the TOML block and any production code changes are made.
   guard is absent).
 
 - [ ] **Task 4 (Red Gate — test first):** Write RG-005 and RG-006:
-  `test_BC_2_16_022_claroty_org_acl_policies_tier2_column_raises_e_query_038` and
-  `test_BC_2_16_022_claroty_org_acl_policies_tier1_raw_toml_name_policy_id_raises_e_query_038`.
+  `test_BC_2_16_022_claroty_org_acl_policies_policy_source_tier2_e_query_038` and
+  `test_BC_2_16_022_claroty_org_acl_policies_policy_id_raw_name_not_projected_metadata_uid_is`.
   Integration plan-time tests: `SELECT policy_source` raises E-QUERY-038 with correct
   `available_columns` set (contains `metadata_uid`, not `policy_source`);
   `SELECT policy_id` raises E-QUERY-038 with `available_columns` containing `metadata_uid`
   but NOT `policy_id`. MUST fail before Task 8.
 
 - [ ] **Task 5 (Red Gate — test first):** Write RG-008, RG-009, RG-011:
-  `test_BC_2_16_022_claroty_org_acl_policies_applied_models_json_not_stringified`,
-  `test_BC_2_16_022_claroty_org_acl_policies_required_policy_id_absent_produces_null_row`,
-  `test_BC_2_16_022_claroty_org_acl_policies_datetime_implicit_iso8601_null_passthrough`.
+  `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string`,
+  `test_BC_2_16_022_null_metadata_uid_when_policy_id_absent`,
+  `test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions`.
   Unit tests with mock responses:
   - applied_models mock: row with `applied_models: ["ModelA", "ModelB"]`; assert
     `raw_extensions["applied_models"]` is a JSON array (not string). Second mock:
@@ -658,8 +658,8 @@ the TOML block and any production code changes are made.
   MUST fail before Task 8.
 
 - [ ] **Task 6 (Red Gate — test first):** Write RG-007 and RG-010 (live `#[ignore]` tests):
-  `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_metadata_uid_and_tier1`
-  and `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination_no_count`.
+  `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid`
+  and `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination`.
   Mark both `#[ignore]` with comment:
   `// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job`.
   Wire-level JSON assertions per AC-007 and AC-010 respectively.
@@ -766,8 +766,9 @@ Extracted from ADR-058 and ADR-028 (section-anchored cites per TD-VSDD-091):
 
 8. **Forbidden dependency rule:** `prism-sensors` MUST NOT gain a direct dependency on
    `prism-query` in this story (the TOML spec authoring is data, not query execution logic).
-   If any test requires plan-time E-QUERY-038 verification, the test runs through
-   `prism-spec-engine` (column mapping and schema inspection), not `prism-query`.
+   Plan-time E-QUERY-038 verification tests run through `prism-query` (via
+   QueryEngine::execute — the authoritative end-to-end surface per SAP-3 rule 3), NOT
+   through `prism-spec-engine`.
 
 ## Library & Framework Requirements
 
@@ -849,14 +850,14 @@ present:
 Per xdome-endpoint-expansion-plan.md §Per-Story Pipeline and BC-2.16.022 §Canonical Test Vectors:
 
 **Variant-1 (structural, required before holdout gate):**
-- `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_metadata_uid_and_tier1`
+- `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid`
   (RG-007): `SELECT * FROM claroty.claroty_organization_acl_policies LIMIT 1`
   Wire assertions: `class_uid = 3004`; `metadata_uid` present non-null (UUID); `name` present;
   `raw_extensions` present as JSON object; `raw_extensions["applied_models"]` is a JSON array
   (not a JSON-stringified array); `policy_id` NOT a standalone root key.
   Corresponds to TV-BC-2.16.022-001.
 
-- `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination_no_count`
+- `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination`
   (RG-010): `SELECT * FROM claroty.claroty_organization_acl_policies` (no LIMIT)
   Wire assertions: query completes without E-SENSOR-001; no `count` key in any row; running
   the query twice yields the same row count (no pagination loop occurring).
@@ -879,6 +880,7 @@ reasoning path. Deferred to live-validation milestone if not complete before hol
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | story-doc-governance-sweep-g3-g4-g5-g6 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC-2.16.022 version pins from §Authority (§Postconditions §1..§4 + §Invariants headings) and §Token Budget row; §Behavioral Contracts table Version synced to v1.2 per POL-40 current-state pin. FIX 3 (§Red Gate Tests + §Architecture Compliance): Synced 8 RG rows to delivered test names and crate paths (RG-004/007/010 name rename; RG-005/006 prism-bin→prism-query + removed SAP-3 defense-in-depth text; RG-008/009/011 Unit inline prism-bin/src/spec_driven_adapter.rs); §AC §Tasks §Live-Test Approach test names updated in all occurrences via replace_all. Rule #8 corrected: E-QUERY-038 plan-time tests run through prism-query (authoritative per SAP-3 rule 3), NOT prism-spec-engine. |
 | 1.3 | post-delivery-test-sync | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 11 `column_name =` occurrences changed to `name =` (ColumnSpec deserializer field). FIX B: §Red Gate Tests RG-012 mechanism corrected from QueryEngine::execute → SpecDrivenSensorAdapter::fetch (authoritative production path; no DTU for ACL policies per D-2200). FIX C: §File Structure Requirements RG-012 CREATE entry description corrected to SpecDrivenSensorAdapter::fetch path with DTU-absence rationale. |
 | 1.2 | g2-proven-spec-prose-corrections | 2026-08-31 | story-writer | G2-proven spec-prose corrections applied (mirrors S-CLAROTY-OT-EVENTS-001 v1.3 fixes). FIX 1 (MED-1 table_name): `[[tables]]` block now uses bare `table_name = "organization_acl_policies"`; §Authority, TOML block, and AC-001 updated; derivation note `{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name added; SELECT examples and error prose retain prefixed queryable names unchanged. FIX 2 (MED-3 mechanism attribution): N/A — no ColumnMapper::map_record references in this story. FIX 3 (MED-4 prism-bin declaration): `crates_touched` adds `prism-bin` and `prism-query`; RG-005/RG-006 updated to prism-bin end-to-end authoritative (plan-time prism-sensors tests remain defense-in-depth per SAP-3 rule 3); RG-012 added (wire-shape serialization assertion in prism-bin for `applied_models` Json column); density check 11→12 RGTs / 11 ACs = 1.09 PASS; §File Structure Requirements adds CREATE `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs` + MODIFY `crates/prism-bin/Cargo.toml`; TOML block description updated to bare name. FIX 4 (§Architecture Mapping path): `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` corrected to `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`). |
 | 1.1 | remove-uncertainty-aclpolicy-g6 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass per D-1110). Validated all API/technology assumptions against ground truth (`xdome_openapi_06.20.2026.json`, `endpoint-schema-extract.md §organization_acl_policies`, `endpoint-spike-findings.md §Spike 4`, `claroty.sensor.toml`, prism-spec-engine/prism-ocsf/prism-dtu-claroty source) — see populated `assumption_validations` frontmatter (8 assumptions, all CONFIRMED). Endpoint/envelope/response_path, required policy_acl_syntax, 11-field enum↔body_template parity (incl. order), all 11 column types, pagination-none mechanism (build_request page_size=0 skip; request additionalProperties=false), Arrow-name flattening, entity_management→3004 arm, 4-table baseline, ocsf_column_naming=true, SAP-2 N/A, and datetime implicit-iso8601 all confirmed. No corrections to this story (its §TOML Column-Block Specification body_template was already the valid single-line form). Companion correction landed in BC-2.16.022 v1.1: §PC1 body_template re-rendered from an invalid multi-line single-quoted TOML literal (backslash line-continuations, not legal TOML) to a valid single-line literal identical to this story's §TOML block; story Notes-for-Implementer #1 (BC §PC1 = canonical body_template reference) remains accurate post-fix. Status left draft (no change). BC dependency bumped to BC-2.16.022 v1.1. |

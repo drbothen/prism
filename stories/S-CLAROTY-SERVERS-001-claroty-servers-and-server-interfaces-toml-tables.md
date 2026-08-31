@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.018 v1.0 draft + BC-2.16.019 v1.0 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,8 +21,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-schema-extract.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "250d51e"
-# input-hash: refreshed 2026-08-31 (G4 spec-prose corrections v1.4); recomputed by validate-input-hash hook
+input-hash: "bfaf2e0"
+# input-hash: refreshed 2026-08-31 (G4 story-doc governance sweep v1.5→v1.6; BC input files updated to v1.2/v1.1)
 traces_to: "BC-2.16.018"
 # traces_to covers primary BC; BC-2.16.019 is the companion BC; both wired via behavioral_contracts
 points: 5
@@ -41,12 +41,10 @@ subsystems: [SS-01, SS-16]
 #     unit tests that exercise SS-16's ColumnSpec and FetchStep deserialization.
 #     SS-16 is the canonical owner of prism-spec-engine per ARCH-INDEX Subsystem Registry.
 target_module: prism-sensors
-crates_touched: [prism-sensors, prism-spec-engine, prism-bin]
+crates_touched: [prism-sensors, prism-bin]
 # crates_touched:
 #   prism-sensors: claroty.sensor.toml — two new [[tables]] blocks (servers,
 #     server_interfaces)
-#   prism-spec-engine: RG-001/RG-002/RG-009/RG-010 spec-parser unit tests; no production
-#     code changes
 #   prism-bin: authoritative RG-003/RG-011 end-to-end E-QUERY-038 gates + RG-017 wire-shape assertions
 capabilities:
   - CAP-029
@@ -99,20 +97,20 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.018 v1.0 §Postconditions §1 — TOML Table Contract (claroty_servers)** governs the
+**BC-2.16.018 §Postconditions §1 — TOML Table Contract (claroty_servers)** governs the
 exact `[[tables]]` block structure: `table_name = "servers"` (bare name; `{sensor_id}_{table_name}` derives the registered/queryable name `claroty_servers`),
 `ocsf_class = "inventory_info"`, step name `"fetch_servers"`, `method = "POST"`,
 `path_template = "/api/v1/servers/"`, `response_path = "$.servers"`,
 pagination `type = "offset_limit"` / `page_size = 1000`, and the 17-field `body_template`.
 Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.018 v1.0 §Postconditions §2 — Tier-1/Tier-2 Column Classification (claroty_servers)**
+**BC-2.16.018 §Postconditions §2 — Tier-1/Tier-2 Column Classification (claroty_servers)**
 governs Arrow field naming under `ocsf_column_naming = true`:
 - Tier-1: `server_name` (`ocsf_field = "device.name"` → Arrow `device_name`, options REQUIRED),
   `server_status` (`ocsf_field = "status_code"` → Arrow `status_code`).
 - Tier-2 (15 columns): all remaining columns aggregate into `raw_extensions`.
 
-**BC-2.16.019 v1.0 §Postconditions §1 — TOML Table Contract (claroty_server_interfaces)** governs
+**BC-2.16.019 §Postconditions §1 — TOML Table Contract (claroty_server_interfaces)** governs
 the exact `[[tables]]` block: `table_name = "server_interfaces"` (bare name; `{sensor_id}_{table_name}` derives the registered/queryable name `claroty_server_interfaces`),
 `ocsf_class = "inventory_info"`, step name `"fetch_server_interfaces"`, `method = "POST"`,
 `path_template = "/api/v1/server_interfaces/"`, `response_path = "$.server_interfaces"`,
@@ -121,13 +119,13 @@ pagination `type = "offset_limit"` / `page_size = 1000`, and the 10-field `body_
 (operationId `get_servers_api_v1_server_interfaces__post`, confirmed from OpenAPI spec).
 Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.019 v1.0 §Postconditions §2 — Tier-1/Tier-2 Column Classification (claroty_server_interfaces)**:
+**BC-2.16.019 §Postconditions §2 — Tier-1/Tier-2 Column Classification (claroty_server_interfaces)**:
 - Tier-1: `server_name` (`ocsf_field = "device.name"` → Arrow `device_name`, options REQUIRED),
   `interface_status` (`ocsf_field = "status_code"` → Arrow `status_code`).
 - Tier-2 (8 columns, including composite PK element `interface_name`): all aggregate into
   `raw_extensions`.
 
-**BC-2.16.019 v1.0 §Postconditions §3 — Composite PK (claroty_server_interfaces)**:
+**BC-2.16.019 §Postconditions §3 — Composite PK (claroty_server_interfaces)**:
 Composite PK is (`server_name`, `interface_name`). `server_name` carries `REQUIRED`;
 `interface_name` does NOT — a row with null `interface_name` is degraded but not dropped.
 `interface_name` is Tier-2 (in `raw_extensions`) and is the primary join key for cross-table
@@ -217,8 +215,8 @@ is BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | v1.0 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path `$.servers`); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1: device_name REQUIRED + status_code; 15 Tier-2 into raw_extensions); §Postconditions §3 PK rationale (server_name → device_name single-column); §Postconditions §4 SAP-2 N/A; EC-016-018-001..006 edge cases. ACs 001–008 trace to this BC. |
-| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | v1.0 | §Postconditions §1 TOML table contract (step, path `/api/v1/server_interfaces/`, body_template, pagination, response_path `$.server_interfaces`; SEPARATE endpoint confirmed); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1: device_name REQUIRED + status_code; 8 Tier-2 into raw_extensions incl. composite PK element interface_name); §Postconditions §3 composite PK (server_name + interface_name); §Postconditions §4 SAP-2 N/A; EC-016-019-001..006 edge cases. ACs 009–016 trace to this BC. |
+| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | v1.2 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path `$.servers`); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1: device_name REQUIRED + status_code; 15 Tier-2 into raw_extensions); §Postconditions §3 PK rationale (server_name → device_name single-column); §Postconditions §4 SAP-2 N/A; EC-016-018-001..006 edge cases. ACs 001–008 trace to this BC. |
+| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | v1.1 | §Postconditions §1 TOML table contract (step, path `/api/v1/server_interfaces/`, body_template, pagination, response_path `$.server_interfaces`; SEPARATE endpoint confirmed); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1: device_name REQUIRED + status_code; 8 Tier-2 into raw_extensions incl. composite PK element interface_name); §Postconditions §3 composite PK (server_name + interface_name); §Postconditions §4 SAP-2 N/A; EC-016-019-001..006 edge cases. ACs 009–016 trace to this BC. |
 
 ## Acceptance Criteria
 
@@ -478,9 +476,10 @@ pattern in `claroty_vulnerabilities` and `claroty_servers`.
 | RG-020 | `test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock` | Integration (prism-bin, wire-shape via SpecDrivenSensorAdapter::fetch — authoritative path; no DTU per D-2200) | SAP-4 production-path: class_uid=5001; server_interfaces table; device_name present; raw_extensions present; Tier-2 NOT as standalone root keys |
 | RG-021 | `test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire` | Integration (prism-bin, wire-shape via SpecDrivenSensorAdapter::fetch — authoritative path) | null-not-absent wire discipline: null interface_name row not dropped; interface_name key appears as explicit null in wire output; row materialized with null in raw_extensions |
 | RG-022 | `test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows` | Integration (prism-bin, production-path via SpecDrivenSensorAdapter::fetch — authoritative) | EC-016-019-005: count=null in server_interfaces envelope → empty-page halt, zero rows returned, no error |
+| RG-023 | `test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent` | Integration (prism-bin, wire-shape via SpecDrivenSensorAdapter::fetch — authoritative) | null-not-absent wire discipline: absent server_name in server_interfaces produces explicit null cell in wire output (consistent with wire-shape null-not-absent rule per BC-2.11.001 EC-11-079) |
 
-**BC-5.38.001 density check:** 22 Red Gate tests / 16 acceptance criteria = 1.375 ≥ 0.5 threshold. PASS.
-(Note: RG-015 gates two sub-tests under AC-015; counted as 1 RGT per 1 AC. RG-017..RG-022 are authoritative fetch-path wire-shape and production-path tests via SpecDrivenSensorAdapter::fetch.)
+**BC-5.38.001 density check:** 23 Red Gate tests / 16 acceptance criteria = 1.4375 ≥ 0.5 threshold. PASS.
+(Note: RG-015 gates two sub-tests under AC-015; counted as 1 RGT per 1 AC. RG-017..RG-023 are authoritative fetch-path wire-shape and production-path tests via SpecDrivenSensorAdapter::fetch.)
 
 ## Architecture Mapping
 
@@ -733,8 +732,8 @@ page_size = 1000
 |------|-----------------|
 | This story spec | ~10,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables on current develop; may be higher at implementation time if sibling expansion stories merge first per depends_on) | ~7,500 |
-| BC-2.16.018 v1.0 (full) | ~5,500 |
-| BC-2.16.019 v1.0 (full) | ~5,000 |
+| BC-2.16.018 (full) | ~5,500 |
+| BC-2.16.019 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
 | prism-spec-engine/src/column_mapping.rs (ocsf_field_to_arrow_name) | ~1,500 |
@@ -869,7 +868,7 @@ crate imports in production code.
 | CREATE | `crates/prism-sensors/tests/bc_2_16_018_claroty_servers.rs` | RG-003..RG-008 tests for claroty_servers; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
 | CREATE | `crates/prism-sensors/tests/bc_2_16_019_claroty_server_interfaces.rs` | RG-009..RG-016 integration and unit tests for claroty_server_interfaces; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
 | CREATE | `crates/prism-bin/tests/bc_2_16_018_claroty_servers_wire_shape.rs` | Authoritative tests for BC-2.16.018: RG-003 E2E (SELECT server_location → E-QUERY-038 via QueryEngine::execute), RG-017 class_uid=5001 mock (fetch), RG-018 null-not-absent server_name (fetch), RG-019 EC-016-018-004 count=null (fetch); SAP-2 N/A comment at file header |
-| CREATE | `crates/prism-bin/tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs` | Authoritative tests for BC-2.16.019: RG-011 E2E (SELECT interface_name → E-QUERY-038 via QueryEngine::execute), RG-020 class_uid=5001 mock (fetch), RG-021 null interface_name not dropped wire (fetch), RG-022 EC-016-019-005 count=null (fetch); SAP-2 N/A comment at file header |
+| CREATE | `crates/prism-bin/tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs` | Authoritative tests for BC-2.16.019: RG-011 E2E (SELECT interface_name → E-QUERY-038 via QueryEngine::execute), RG-020 class_uid=5001 mock (fetch), RG-021 null interface_name not dropped wire (fetch), RG-022 EC-016-019-005 count=null (fetch), RG-023 null-not-absent server_name (fetch); SAP-2 N/A comment at file header |
 | MODIFY | `crates/prism-bin/Cargo.toml` | Add `arrow-json` dev-dependency (wire-shape serialization in end-to-end tests); add two `[[test]]` entries: `bc_2_16_018_claroty_servers_wire_shape` and `bc_2_16_019_claroty_server_interfaces_wire_shape` |
 
 Files that MUST NOT be modified:
@@ -949,8 +948,8 @@ dependency-direction enforcement.
 
 ## References
 
-- BC-2.16.018 v1.0 (draft) — §Postconditions §1 TOML contract (servers); §Postconditions §2 17-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 N/A; EC-016-018-001..006
-- BC-2.16.019 v1.0 (draft) — §Postconditions §1 TOML contract (server_interfaces; SEPARATE endpoint); §Postconditions §2 10-column Tier-1/Tier-2; §Postconditions §3 composite PK (server_name + interface_name); §Postconditions §4 SAP-2 N/A; EC-016-019-001..006
+- BC-2.16.018 — §Postconditions §1 TOML contract (servers); §Postconditions §2 17-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 N/A; EC-016-018-001..006
+- BC-2.16.019 — §Postconditions §1 TOML contract (server_interfaces; SEPARATE endpoint); §Postconditions §2 10-column Tier-1/Tier-2; §Postconditions §3 composite PK (server_name + interface_name); §Postconditions §4 SAP-2 N/A; EC-016-019-001..006
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — dot-to-underscore Arrow names; §D — per-sensor ocsf_column_naming flag
 - spike-findings §Overall Verdict — inventory_info/5001 arm confirmed existing; no new arm required
 - xdome-endpoint-expansion-plan.md §Gap Table G4 — Wave C scope authority (claroty_servers + claroty_server_interfaces); §Per-Story Pipeline — no-DTU live test approach; §Governing Directive — DTU skip directive
@@ -964,6 +963,7 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC version pins from §Authority (BC-2.16.018 §Postconditions §1..§2 + BC-2.16.019 §Postconditions §1..§3 headings), §Token Budget (both BC rows), and §References; §Behavioral Contracts table Version columns synced to v1.2/v1.1 per POL-40 current-state pin. FIX 2 (crates_touched): Removed prism-spec-engine — delivered tests live in crates/prism-sensors/tests/ and crates/prism-bin/tests/ (no prism-spec-engine file modified per worktree verification). FIX 4 (new delivered test): Added RG-023 test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent to §Red Gate Tests table and §File Structure Requirements (bc_2_16_019_claroty_server_interfaces_wire_shape.rs CREATE row); density check updated 22→23 RGTs / 16 ACs = 1.4375. input-hash refreshed to bfaf2e0 (BC-2.16.018 v1.2, BC-2.16.019 v1.1). |
 | 1.5 | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 27 `column_name =` occurrences (17 servers + 10 server_interfaces) changed to `name =`. FIX B: §Red Gate Tests — RG-003 test name corrected (`…e2e_e_query_038_tier2_column`); RG-011 test name corrected (`…e2e_e_query_038_tier2_column`); RG-017 (single combined wire-shape row) replaced with 6 authoritative fetch-path tests (RG-017..RG-022) across two delivered files; density updated 17→22 RGTs, ratio 1.06→1.375. FIX C: §File Structure Requirements prism-bin CREATE entry split from 1 combined file (`bc_2_16_018_019_…`) to 2 BC-scoped files (`bc_2_16_018_claroty_servers_wire_shape.rs` + `bc_2_16_019_claroty_server_interfaces_wire_shape.rs`); Cargo.toml MODIFY note updated to two `[[test]]` entries. |
 | 1.4 | 2026-08-31 | story-writer | G4 spec-prose corrections (MED-1/MED-4 mirroring G2 S-CLAROTY-OT-EVENTS-001 v1.3). FIX 1 (MED-1): §Authority + AC-001 bare table_name for both tables: `"claroty_servers"` → `"servers"` and `"claroty_server_interfaces"` → `"server_interfaces"` (derivation notes added — `{sensor_id}_{table_name}` = registered/queryable names `claroty_servers` / `claroty_server_interfaces`); §TOML Column-Block Specification both table_name fields updated to bare form with derivation comments. FIX 2 (MED-3): N/A — no `ColumnMapper::map_record` references found. FIX 3 (MED-4): frontmatter `crates_touched` adds `prism-bin`; RG-003 and RG-011 updated to prism-bin end-to-end authoritative + prism-sensors defense-in-depth (SAP-3 rule 3); RG-017 added (wire-shape serialization assertion via prism-bin QueryEngine::execute); §File Structure Requirements adds CREATE `crates/prism-bin/tests/bc_2_16_018_019_...wire_shape.rs` and MODIFY `crates/prism-bin/Cargo.toml`; density check updated 16→17 RGTs / 16 ACs. FIX 4 (MED-4): §Architecture Mapping `spec_driven_adapter.rs` corrected from `crates/prism-spec-engine/src/` to `crates/prism-bin/src/`. |
 | 1.3 | 2026-08-31 | research-agent | PRE-DELIVERY remove-uncertainty pass (D-1110 mandatory second pass, immediately before TDD delivery). Validated all load-bearing claims against ground truth (`xdome_openapi_06.20.2026.json`, endpoint-schema-extract.md, endpoint-spike-findings.md, `crates/prism-dtu-claroty/src/clone.rs`). CONFIRMED CLEAN: two-separate-endpoints (OpenAPI declares distinct top-level paths `/api/v1/servers/` and `/api/v1/server_interfaces/`, operationId `get_servers_api_v1_server_interfaces__post`); all 17 servers + 10 server_interfaces column names match the Server/ServerInterfaces `fields_enum` and appear in the response §examples; response_paths `$.servers`/`$.server_interfaces` match required envelope keys `servers`/`server_interfaces`; OCSF inventory_info/5001 + `device.name`→`device_name` (REQUIRED) + status→`status_code`; `count` is nullable (anyOf integer/null, `include_count` default false) so empty-page-halt ACs are grounded; no Datetime columns in either fields_enum so `timestamp_formats`/SAP-2 datetime arms a/b/c are N/A; SAP-2 DTU-absence confirmed (no `servers`/`server_interfaces` route in prism-dtu-claroty `build_router`). CORRECTIONS: (1) `uptime_days` Float now POSITIVELY CONFIRMED from the `GetServersResponse` §example (`uptime_days = 667.233661`, fractional) — resolved the prior "verify on live before asserting Integer" open uncertainty (risk note, Notes item 5, EC-003 updated); (2) added status-value casing notes to AC-005 §3 and AC-013 §3 — OpenAPI response §examples render status values in lowercase (`"up"`) as synthetic placeholders, so the capitalized value sets are UNCONFIRMED; the `#[ignore]`'d live tests (RG-005/RG-013) MUST assert `status_code` case-insensitively and MUST NOT fail on casing alone (live-validation confirms exact casing). Refreshed stale `input-hash` (ae98e4f→78a00bd; one or more `inputs:` files evolved since authoring). No load-bearing spec content changed (TOML blocks, columns, ColumnTypes, ACs count, RG list, BC set, depends_on unchanged). Story `status` left `draft` per pass scope. No volatile line cites introduced (TD-VSDD-091). |

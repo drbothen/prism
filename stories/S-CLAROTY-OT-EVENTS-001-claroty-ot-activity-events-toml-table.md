@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.016 — MED-1 bare table_name + MED-3 build_column_array mechanism re-anchor applied 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -147,8 +147,10 @@ accessible via `raw_extensions`.
 
 ## Background
 
-The xDome sensor currently exposes 4 tables: `alerts`, `audit_logs`, `devices`,
-`device_alert_relations`. The `POST /api/v1/ot_activity_events/` endpoint (Gap G2) is unaddressed.
+The xDome sensor currently exposes 4 or 5 tables depending on whether S-CLAROTY-VULNS-001 (G1)
+has merged: `alerts`, `audit_logs`, `devices`, `device_alert_relations` (always present), plus
+optionally `claroty_vulnerabilities`. The `POST /api/v1/ot_activity_events/` endpoint (Gap G2)
+is unaddressed.
 
 This story delivers the complete Wave A G2 addition:
 1. **`claroty.sensor.toml`** — add `[[tables]]` block for `claroty_ot_activity_events` (21 columns,
@@ -269,8 +271,9 @@ No E-QUERY-038 is raised on `raw_extensions` itself.
 
 Additionally, when `related_alert_ids` data is present in any fetched row, the `raw_extensions` JSON
 object MUST contain `related_alert_ids` as a native JSON array (e.g., `[1, 2, 3]` or `[]`) — NOT
-as a stringified JSON string (e.g., `"[1,2,3]"`) — matching EC-002 (EC-016-016-002). This is the
-first production use of `column_type = "json"` in this sensor; validate array pass-through at the
+as a stringified JSON string (e.g., `"[1,2,3]"`) — matching EC-002 (EC-016-016-002). Uses
+`column_type = "json"`; native JSON array preserved in `raw_extensions`, per the
+`vulnerabilities.cve_ids` precedent (S-CLAROTY-VULNS-001); validate array pass-through at the
 wire level explicitly.
 
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_network_fields`
@@ -318,7 +321,7 @@ ensures the constant is present in test file for adversarial review verification
 
 | ID | Test name | Test type | What it gates |
 |----|-----------|-----------|---------------|
-| RG-001 | `test_BC_2_16_016_claroty_ot_activity_events_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 21 column entries returned for claroty_ot_activity_events; `related_alert_ids` ColumnType::Json confirmed (first json column_type use; not stringified) |
+| RG-001 | `test_BC_2_16_016_claroty_ot_activity_events_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 21 column entries returned for claroty_ot_activity_events; `related_alert_ids` ColumnType::Json confirmed (uses json column_type, per vulnerabilities.cve_ids precedent; not stringified) |
 | RG-002 | `test_BC_2_16_016_claroty_ot_activity_events_four_tier1_columns` | Unit (ColumnSpec inspection) | AC-002: exactly 4 Tier-1 columns (ocsf_field == Some); event_id REQUIRED; detection_time→time; event_type→activity_name; description→message |
 | RG-003 | `test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-003: SELECT source_ip raises E-QUERY-038 end-to-end; available_columns excludes source_ip; includes raw_extensions, finding_info_uid, time, activity_name, message |
 | RG-004 | `test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-004: wire JSON contains class_uid=2004; finding_info_uid, time, activity_name, message present; raw_extensions present with network fields; no Tier-2 standalone keys |
@@ -327,7 +330,7 @@ ensures the constant is present in test file for adversarial review verification
 | RG-007 | `test_BC_2_16_016_claroty_ot_activity_events_detection_time_null_passthrough` | Unit (mock response) | AC-008: detection_time null → null cell; no E-SPEC-018; no pagination halt |
 | RG-008 | `test_BC_2_16_016_claroty_ot_activity_events_sap2_na_documented` | Marker (constant assertion) | AC-009: SAP-2 N/A constant documented in test file; adversarial reviewer can verify |
 | RG-009 | `test_BC_2_16_016_claroty_ot_activity_events_raw_detection_time_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute) | EC-009 / AC-005 MUST clause: SELECT detection_time by raw TOML name raises E-QUERY-038 (not an Arrow column under ocsf_column_naming=true; use `time` instead) |
-| RG-010 | `test_BC_2_16_016_claroty_ot_activity_events_wire_related_alert_ids_json_array` | Unit/integration (prism-bin, wire-shape serialization assertion) | EC-002-WIRE / AC-006: related_alert_ids serialized as native JSON array (e.g., `[1,2,3]` or `[]`), NOT as a stringified string — first production use of column_type="json" in this sensor; wire-level assertion mandatory |
+| RG-010 | `test_BC_2_16_016_claroty_ot_activity_events_wire_related_alert_ids_json_array` | Unit/integration (prism-bin, wire-shape serialization assertion) | EC-002-WIRE / AC-006: related_alert_ids serialized as native JSON array (e.g., `[1,2,3]` or `[]`), NOT as a stringified string — uses column_type="json" (per vulnerabilities.cve_ids precedent); wire-level assertion mandatory |
 
 **BC-5.38.001 density check:** 10 Red Gate tests / 9 acceptance criteria = 1.11 ≥ 0.5 threshold.
 PASS. RG-001..RG-008 each gate a primary AC (AC-005 covered within RG-004's `time` key assertion).
@@ -552,6 +555,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-08-31 | story-writer | LOW records-accuracy fix: removed false "first production use of column_type=json" absolute claim from §AC-006 body, §Red Gate Tests RG-001 and RG-010 rows — S-CLAROTY-VULNS-001 vulnerabilities.cve_ids on develop already uses json column_type, so the absolute was false; replaced with "per vulnerabilities.cve_ids precedent" wording throughout. Proactive sweep: §Background "4 tables" absolute made merge-order-safe ("4 or 5 tables depending on whether S-CLAROTY-VULNS-001 G1 has merged"), matching Task 10 count-agnostic pattern. No AC coverage, BC-trace, or behavioral content changes. |
 | 1.5 | 2026-08-31 | story-writer | SS-22 (Process Lifecycle) added to frontmatter `subsystems:` with justification comment — story touches prism-bin via authoritative E-QUERY-038 end-to-end test and wire-shape assertions (`bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`); §Architecture Mapping cites `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch`. SS-22 canonical subsystem ID confirmed against ARCH-INDEX Subsystem Registry. |
 | 1.4 | 2026-08-31 | story-writer | F-OTE-MED-002 (POL-39 anti-volatile-pin + stale cross-artifact drift): removed volatile vX.Y version pins from §Authority prose (BC-2.16.016 §Postconditions §1–§4 headings), §References, §Token Budget table, and frontmatter prose comments; synced §Behavioral Contracts table Version column v1.3→v1.4 (POL-40 structural pin). No behavioral content changes. |
 | 1.3 | 2026-08-31 | story-writer | MED-1 + MED-3 mechanism re-anchor: §Authority + AC-001 bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"` (derivation note added — `{sensor_id}_{table_name}` = registered/queryable name `claroty_ot_activity_events`). AC-007 title + body + EC-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`, `crates/prism-bin/src/spec_driven_adapter.rs`); `map_record` retained as explicitly-labeled non-production reference mirror only. All BC-2.16.016 refs bumped v1.2→v1.3. |
