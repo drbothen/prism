@@ -819,7 +819,7 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_qu
 ///   - `avail.contains("time")` (the projected Arrow name IS available)
 ///   - `!avail.contains("detection_time")` (the raw name is NOT available)
 ///
-/// BC-2.16.016 AC-005; EC-016-016-009; ADR-058 §C2; F-COE1-P1-OBS-001.
+/// BC-2.16.016 AC-005; EC-009; ADR-058 §C2; F-COE1-P1-OBS-001.
 /// Story: S-CLAROTY-OT-EVENTS-001.
 #[tokio::test]
 async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038()
@@ -864,7 +864,7 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_tim
         result.is_err(),
         "AC-005/EC-009 LOAD-BEARING: QueryEngine::execute must return Err when \
          the raw TOML name 'detection_time' is queried (projected Arrow name is 'time'). \
-         Got Ok. BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001."
+         Got Ok. BC-2.16.016 AC-005; EC-009; F-COE1-P1-OBS-001."
     );
 
     let err = result.unwrap_err();
@@ -894,7 +894,7 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_tim
                 "AC-005/EC-009 LOAD-BEARING: 'detection_time' is the raw TOML name and MUST NOT \
                  appear in available_columns under ocsf_column_naming=true \
                  (only the Arrow name 'time' is projected). Got: {:?}. \
-                 BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001.",
+                 BC-2.16.016 AC-005; EC-009; F-COE1-P1-OBS-001.",
                 avail
             );
 
@@ -911,7 +911,7 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_tim
                 "AC-005/EC-009 LOAD-BEARING: QueryEngine::execute must return \
                  PrismError::ColumnNotFound (E-QUERY-038) when the raw TOML name \
                  'detection_time' is queried directly. Got: {:?}. \
-                 BC-2.16.016 AC-005; EC-016-016-009; F-COE1-P1-OBS-001.",
+                 BC-2.16.016 AC-005; EC-009; F-COE1-P1-OBS-001.",
                 other
             );
         }
