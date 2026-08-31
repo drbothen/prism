@@ -1,18 +1,67 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.029"
+version: "8.030"
 status: current
 timestamp: 2026-08-31T06:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2383 (2026-08-31): VULNS-001 FOCUSED RE-GATE + STORY v2.2 (TD-VSDD-053) — F-RECON-P1-HIGH-001 CLOSED (POL-39 volatile pin removed from EC-005; story v2.1→v2.2; cite by ID+§anchor). F-RECON-P1-LOW-002 CLOSED (stale wire-test comment; feature HEAD 12ce43ed0→423fc7659). Core DD-2 native-array confirmed correct/clean. Streak RESET 0/3. STORY-INDEX v2.954→v2.955. STATE v8.914→v8.915. [D-2381/D-2382 historical]**
+> **D-2384 (2026-08-31): SESSION WRAP (TD-VSDD-053) — VULNS-001 gate PASSED (human-directed). RESUME SNAPSHOT D-2384 authored. G1 423fc7659 LOCAL-ONLY (force-push-with-lease required). G2 1315abd8c LOCAL-ONLY; OPEN MED-1. G3–G6 stories drafted. STATE v8.915→v8.916. SESSION-HANDOFF v8.029→v8.030. [D-2383 historical]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2383 (2026-08-31 — FOCUSED RE-GATE FIX; story v2.2; 423fc7659; F-RECON-P1-HIGH-001+LOW-002 CLOSED; streak reset 0/3; fresh re-gate pending on 423fc7659)
+## §RESUME SNAPSHOT — D-2384 (2026-08-31 — SESSION WRAP; VULNS-001 gate PASSED human-directed; G1 423fc7659 LOCAL-ONLY; G2 1315abd8c LOCAL-ONLY; DEADLINE 2026-08-31)
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E, deadline Claroty xDome FULL functionality Mon 2026-08-31. VULNS-001 (G1) CONVERGED + gate PASSED (human-directed) + LIVE monroe validation PASS — NEXT ACTION: force-push feature/S-CLAROTY-VULNS-001 to 423fc7659 (--force-with-lease), create PR to develop, CI, EXPLICIT human merge-auth, squash-merge, post-merge burst; THEN launch G2→G6 per the pipeline. Autonomy D-989; capped-strict; deadline governs sequencing not the quality bar.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional by Monday 2026-08-31 (human-directed); FULL G2–G6 endpoint expansion in scope. Critical path: (DONE) LIMIT merged → (DONE) G2 spec-readiness → (DONE) D-2381 CRIT-1 fix → (DONE) D-2382 LIVE monroe PASS → (DONE) D-2383 re-gate fix (story v2.2; streak 0/3) → (GATE PASSED human-directed) → NEXT: force-push 423fc7659, PR, CI, human merge-auth, squash-merge → G2–G6 TDD.
+
+### CONVERGENCE BAR (human-directed)
+CODE zero findings any severity; SPEC substantively clean (no behavioral/correctness/contract findings); ONLY pure housekeeping deferrable as tracked follow-ups. Standing "no pragmatic convergence / fix all issues" in force; deadline governs sequencing, not the bar. VULNS-001 gate PASSED human-directed this session.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **VULNS-001 (G1):** feature/S-CLAROTY-VULNS-001 @423fc7659 — story v2.2 / BC-2.16.015 v1.9. CONVERGED, gate PASSED (human-directed — NO further re-gate). LIVE monroe PASS (D-2382). RESUME NEXT-ACTION: `git push --force-with-lease origin feature/S-CLAROTY-VULNS-001` (currently stale at 5aae6f0b3 on origin) → pr-manager create PR to develop → CI → EXPLICIT human merge-auth (classifier requires named consent; prior pr-manager manufactured-auth flag stands — human go only) → squash-merge → state-manager post-merge burst (POL-14 BC-2.16.015 draft→active).
+- **G2 (S-CLAROTY-OT-EVENTS-001):** feature/S-CLAROTY-OT-EVENTS-001 @1315abd8c — story v1.1 / BC-2.16.016 v1.1. Implemented + just check green (5904); DD-2 native applied; CRIT-1 dissolved. OPEN MED-1: RG-003 E-QUERY-038 is a projected-names proxy not end-to-end plan-time. RESUME NEXT-ACTION: route test-writer to add a reachable plan-time E-QUERY-038 test (or product-owner to add SAP-3 rule-3 defense-in-depth rationale + fix RG-table label); then rebase onto merged develop, LOCAL 3-CLEAN (3 diverse-angle passes), live monroe validation, force-push+PR+human merge-auth (merges AFTER VULNS).
+- **G3–G6 (S-CLAROTY-DEVVULNREL-001/SERVERS-001/ORGPOLICY-001/ACLPOLICY-001):** all spikes RESOLVED (endpoint-spike-findings.md); stories DRAFTED (BCs + TOML blocks + RG lists). RESUME NEXT-ACTION per story: pre-TDD remove-uncertainty (report-only vs .factory/reference/api-specs/xdome_openapi_06.20.2026.json) → promote draft→ready → worktree off origin/develop → test-writer Red Gate → implementer TOML block → LOCAL 3-CLEAN (probe-first/production-path-first/test-suite-first) → live monroe validation → force-push+PR+human merge-auth. G5 watch-items: fw URL↔envelope asymmetry + last_update vs last_updated (BC-2.16.020/021). G6: PaginationConfig::None type="none" (BC-2.16.022). MERGE ORDER SERIALIZES: VULNS→G2→G3→G4→G5→G6, rebase between each.
+
+### CONVERGENCE STATE
+VULNS-001: gate PASSED (human-directed). Story v2.2 @423fc7659 LOCAL-ONLY (origin stale at 5aae6f0b3). DD-2 native-array mechanism correct. LIVE monroe PASS (D-2382; 5 CVEs; wire shape correct). D-2383 re-gate F-RECON-P1-HIGH-001+LOW-002 both CLOSED. G2 S-CLAROTY-OT-EVENTS-001: @1315abd8c implemented + GREEN; OPEN MED-1 (RG-003 plan-time reachability). G3–G6: stories drafted, pre-TDD.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `51bb3bc1` (LIMIT PR #243 + heartbeat PR #244 merged; divergence RESOLVED D-2378).
+- `factory-artifacts`: `b051f0137` (pre-wrap; after wrap commit run `git -C .factory log -1 --format='%h %s'`)
+- `feature/S-CLAROTY-VULNS-001` (G1): `423fc7659` ⚠️ LOCAL-ONLY (origin stale at `5aae6f0b3`; reconciled work NOT pushed — force-push-with-lease required).
+- `feature/S-CLAROTY-OT-EVENTS-001` (G2): `1315abd8c` LOCAL-ONLY (clean, never pushed).
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED (squash `c5be059f` into develop) — local worktree REMOVABLE post-cleanup.
+- S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (P2 non-gating, parked).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` PARKED-DIRTY do-NOT-touch.
+- No open PRs.
+
+### CANONICAL DECISION
+D-2381: column_type="json" → NATIVE JSON array on the wire (DD-2 Json-arm discriminator; POL-36 generic); string-typed array cols still stringify.
+
+### LIVE VALIDATION (per-story merge gate, D-2310)
+Runbook: .factory/ops/live-tenant-validation-runbook.md; monroe onboarded (test-soc/live-soc/clients/monroe.env, keyring AD-017); live env test-soc/bin/prism + test-soc/.prism-live (monroe overlay → api.claroty.com). WORKING procedure: build release binary from feature worktree → copy to test-soc/bin/prism + claroty.sensor.toml to test-soc/.prism-live/specs/ (backup first) → tmux-cli launch zsh → drive `claude -p` headless prism-live MCP (config/clients, check_sensor_health <client>, query LIMIT 5 clients=[<client>]). CLASSIFIER: live reads need explicit human consent NAMING the tenant; headless claude -p spawn may need a permission rule. prism query CLI = UNWIRED STUB (exit 4).
+
+### DEFERRED HOUSEKEEPING (non-blocking, tracked)
+(a) Wire/remove prism query CLI stub. (b) Holdout harness/fixture reconciliation. (c) Validator gate for holdout-at-materialization. (d) POL-25 BC-bump propagation-sweep checklist (D-2377). (e) test doc-comment re-anchor on test_early_stop_multi_batch_partial_page_is_truncated.
+
+### HEARTBEAT (permanent)
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
+
+### DECISION DELTA
+D-2384 (session wrap; VULNS-001 gate PASSED human-directed; RESUME SNAPSHOT D-2384 authored). D-2383 historical.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) Live xDome tenant validation is a per-story merge gate (D-2310 lesson); canonical runbook: .factory/ops/live-tenant-validation-runbook.md (Path B via ~/Dev/test-soc/live-soc). (f) VULNS-001 gate PASSED human-directed — do NOT re-gate; NEXT = force-push + PR + EXPLICIT human merge-auth (no manufactured-auth).
+
+---
+
+## §RESUME SNAPSHOT — D-2383 (2026-08-31 — FOCUSED RE-GATE FIX; story v2.2; 423fc7659; F-RECON-P1-HIGH-001+LOW-002 CLOSED; streak reset 0/3; fresh re-gate pending on 423fc7659) [SUPERSEDED by D-2384]
 
 ### RESUME IN ONE BREATH
 Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2383: focused re-gate on D-2381 HEAD 12ce43ed0 found 2 reconciliation-residue findings — both closed. F-RECON-P1-HIGH-001 CLOSED (POL-39 volatile version pin re-introduced in story EC-005 prose by v2.1 burst; story v2.1→v2.2; cite corrected to ID+§anchor). F-RECON-P1-LOW-002 CLOSED (stale wire-test header comment; feature HEAD 12ce43ed0→423fc7659; comment-only; compiles clean). Core DD-2 native-array mechanism confirmed correct/clean by the re-gate. BC-5.39.001 streak RESET 0/3 (frozen-HEAD rule). NEXT: focused adversary re-gate on frozen 423fc7659 → 3-CLEAN → human merge authorization.
