@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.016 — MED-1 bare table_name + MED-3 build_column_array mechanism re-anchor applied 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.7"
+version: "1.9"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -259,8 +259,10 @@ succeeds (no E-QUERY-038). `time` is the OCSF Arrow field name for the `detectio
 column (`ocsf_field_to_arrow_name("time")` = `"time"`). `SELECT detection_time FROM ...` MUST
 raise E-QUERY-038 (raw TOML column name, not an Arrow column name under `ocsf_column_naming = true`).
 
-**Test:** `test_BC_2_16_016_claroty_ot_activity_events_live_time_column_succeeds`
-(`#[ignore]` — requires `CLAROTY_INSTANCE_URL`)
+**Test (time-key-presence arm):** `test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1`
+(RG-004, `#[ignore]` — requires `CLAROTY_INSTANCE_URL`; asserts `time` key present in wire JSON within `§AC-004` wire-shape assertion, covering the `§AC-005` `time`-key-presence arm);
+`test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038`
+(RG-009 — covers the mandatory E-QUERY-038 arm: `SELECT detection_time` raises E-QUERY-038 since `detection_time` is the raw TOML column name, not the Arrow field name under `ocsf_column_naming = true`; use `time` instead)
 
 ### AC-006: `SELECT raw_extensions LIMIT 5` succeeds; JSON object contains network 5-tuple keys (traces to BC-2.16.016 postcondition 2 — Tier-2 network 5-tuple columns in raw_extensions)
 
@@ -292,7 +294,10 @@ error is raised. (`ColumnMapper::map_record` is a non-production reference mirro
 production callers and is NOT the production path.)
 
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_required_event_id_absent_produces_null_row`
-(unit test with mock response containing a row missing `event_id`)
+(RG-006 — defense-in-depth unit test with mock response containing a row missing `event_id`);
+`test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path`
+(RG-011 — SAP-3 production-path reachability gate exercising `build_column_array` within
+`pipeline_result_to_record_batch` via `SpecDrivenSensorAdapter::fetch`)
 
 ### AC-008: `detection_time` null passthrough; ISO 8601 implicit default per ADR-028 §D8-B (traces to BC-2.16.016 invariant — detection_time ISO 8601 implicit default; edge case EC-016-016-003)
 
@@ -303,7 +308,10 @@ non-ISO-8601 string appears, E-SPEC-018 is raised for that row (null-demoted wit
 pagination continues.
 
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_detection_time_null_passthrough`
-(unit test with mock response containing a row with `"detection_time": null`)
+(RG-007 — defense-in-depth unit test with mock response containing a row with `"detection_time": null`);
+`test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path`
+(RG-012 — SAP-3 production-path reachability gate via `SpecDrivenSensorAdapter::fetch` /
+`build_column_array` in `pipeline_result_to_record_batch`)
 
 ### AC-009: SAP-2 probe is N/A; no DTU exists; live-only validation documented (traces to BC-2.16.016 postcondition 4 — SAP-2 DTU parity status)
 
@@ -329,14 +337,20 @@ ensures the constant is present in test file for adversarial review verification
 | RG-006 | `test_BC_2_16_016_claroty_ot_activity_events_required_event_id_absent_produces_null_row` | Unit (mock response) | AC-007: row missing event_id → null row; no hard error; subsequent rows continue |
 | RG-007 | `test_BC_2_16_016_claroty_ot_activity_events_detection_time_null_passthrough` | Unit (mock response) | AC-008: detection_time null → null cell; no E-SPEC-018; no pagination halt |
 | RG-008 | `test_BC_2_16_016_claroty_ot_activity_events_sap2_na_documented` | Marker (constant assertion) | AC-009: SAP-2 N/A constant documented in test file; adversarial reviewer can verify |
-| RG-009 | `test_BC_2_16_016_claroty_ot_activity_events_raw_detection_time_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute) | EC-009 / AC-005 MUST clause: SELECT detection_time by raw TOML name raises E-QUERY-038 (not an Arrow column under ocsf_column_naming=true; use `time` instead) |
-| RG-010 | `test_BC_2_16_016_claroty_ot_activity_events_wire_related_alert_ids_json_array` | Unit/integration (prism-bin, wire-shape serialization assertion) | EC-002-WIRE / AC-006: related_alert_ids serialized as native JSON array (e.g., `[1,2,3]` or `[]`), NOT as a stringified string — uses column_type="json" (per vulnerabilities.cve_ids precedent); wire-level assertion mandatory |
+| RG-009 | `test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute) | EC-009 / AC-005 MUST clause: SELECT detection_time by raw TOML name raises E-QUERY-038 (not an Arrow column under ocsf_column_naming=true; use `time` instead) |
+| RG-010 | `test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array` | Unit/integration (prism-bin, wire-shape serialization assertion) | EC-002-WIRE / AC-006: related_alert_ids serialized as native JSON array (e.g., `[1,2,3]` or `[]`), NOT as a stringified string — uses column_type="json" (per vulnerabilities.cve_ids precedent); wire-level assertion mandatory |
+| RG-011 | `test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path` | Integration (prism-bin, `SpecDrivenSensorAdapter::fetch` production path, SAP-3 reachability gate) | AC-007 production-path gate: row missing event_id traverses `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`); null `finding_info_uid` cell produced; row NOT dropped; subsequent rows continue. Exercises the production mechanism that RG-006 covers only at unit/mock level (defense-in-depth). |
+| RG-012 | `test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path` | Integration (prism-bin, `SpecDrivenSensorAdapter::fetch` production path, SAP-3 reachability gate) | AC-008 production-path gate: row with absent/null detection_time traverses `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`); null `time` cell produced; no E-SPEC-018; pagination continues. Exercises the production mechanism that RG-007 covers only at unit/mock level (defense-in-depth). |
 
-**BC-5.38.001 density check:** 10 Red Gate tests / 9 acceptance criteria = 1.11 ≥ 0.5 threshold.
+**BC-5.38.001 density check:** 12 Red Gate tests / 9 acceptance criteria = 1.33 ≥ 0.5 threshold.
 PASS. RG-001..RG-008 each gate a primary AC (AC-005 covered within RG-004's `time` key assertion).
 RG-009 and RG-010 provide supplementary prism-bin wire-shape coverage: EC-009 raw-name rejection
-and EC-002-WIRE JSON-array passthrough. The authoritative RG-003 (prism-bin end-to-end) and
-defense-in-depth RG-003 (prism-sensors plan-time) share a test name; counted once in density.
+and EC-002-WIRE JSON-array passthrough. RG-011 and RG-012 are SAP-3 production-path reachability
+gates for AC-007 (`build_column_array` absent event_id path) and AC-008 (`build_column_array`
+absent detection_time path) respectively, both reached via `SpecDrivenSensorAdapter::fetch` in
+`pipeline_result_to_record_batch`; RG-006 and RG-007 remain as defense-in-depth unit tests for
+the same ACs. The authoritative RG-003 (prism-bin end-to-end) and defense-in-depth RG-003
+(prism-sensors plan-time) share a test name; counted once in density.
 
 ## Architecture Mapping
 
@@ -555,6 +569,8 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.9 | 2026-08-31 | story-writer | NEW-LOW-002 dead-citation fix: AC-005 `**Test:**` replaced dead `test_BC_2_16_016_claroty_ot_activity_events_live_time_column_succeeds` (never existed in codebase) with real covering tests — RG-004 (`test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1`, `#[ignore]`, covers `§AC-005` `time`-key-presence arm within `§AC-004` wire-shape assertion) and RG-009 (`test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038`, covers `§AC-005` mandatory E-QUERY-038 arm for raw TOML name `detection_time`). No behavioral content or BC-trace changes; traceability-only correction. |
+| 1.8 | 2026-08-31 | story-writer | Traceability corrections (G2 MED-001/MED-002/MED-003): RG-009 renamed to `test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038` (real test function name in `§bc_2_16_016_claroty_ot_activity_events_wire_shape`); RG-010 renamed to `test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array` (real test function name). RG-011 added: `test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path` (AC-007 SAP-3 production-path gate via `SpecDrivenSensorAdapter::fetch` / `build_column_array` in `pipeline_result_to_record_batch`). RG-012 added: `test_BC_2_16_016_claroty_ot_activity_events_ac008_absent_detection_time_null_time_production_path` (AC-008, same production path). AC-007 and AC-008 `**Test:**` citations updated to include production-path RG-011/RG-012 (RG-006/RG-007 remain as defense-in-depth). Density check 10→12 (ratio 1.11→1.33). No behavioral content or BC-trace changes. |
 | 1.7 | 2026-08-31 | story-writer | EC-004 corrected per BC-2.16.016 v1.5: absent `mode` → key OMITTED from `raw_extensions` (present-as-null ONLY when API returns explicit JSON null), consistent with EC-005 and `record.get()→None` production path; previous "Null string cell" wording contradicted production absent-field passthrough behavior. §Behavioral Contracts table Version cell BC-2.16.016 v1.4→v1.5 (POL-40 structural pin). No AC coverage or BC-trace changes. |
 | 1.6 | 2026-08-31 | story-writer | LOW records-accuracy fix: removed false "first production use of column_type=json" absolute claim from §AC-006 body, §Red Gate Tests RG-001 and RG-010 rows — S-CLAROTY-VULNS-001 vulnerabilities.cve_ids on develop already uses json column_type, so the absolute was false; replaced with "per vulnerabilities.cve_ids precedent" wording throughout. Proactive sweep: §Background "4 tables" absolute made merge-order-safe ("4 or 5 tables depending on whether S-CLAROTY-VULNS-001 G1 has merged"), matching Task 10 count-agnostic pattern. No AC coverage, BC-trace, or behavioral content changes. |
 | 1.5 | 2026-08-31 | story-writer | SS-22 (Process Lifecycle) added to frontmatter `subsystems:` with justification comment — story touches prism-bin via authoritative E-QUERY-038 end-to-end test and wire-shape assertions (`bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`); §Architecture Mapping cites `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch`. SS-22 canonical subsystem ID confirmed against ARCH-INDEX Subsystem Registry. |
