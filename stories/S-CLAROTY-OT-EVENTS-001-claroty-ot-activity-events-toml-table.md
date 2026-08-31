@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.016 — MED-1 bare table_name + MED-3 build_column_array mechanism re-anchor applied 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.6"
+version: "1.7"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,7 +20,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "5d0da54"
+input-hash: "3aae98d"
 # input-hash: run `compute-input-hash <this-file> --update` after writing
 traces_to: "BC-2.16.016"
 points: 5
@@ -192,7 +192,7 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.4 | §Postconditions §1 TOML table contract (bare table_name "ot_activity_events"; step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics; absent-field passthrough via build_column_array within pipeline_result_to_record_batch); EC-016-016-001..006 edge cases |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.5 | §Postconditions §1 TOML table contract (bare table_name "ot_activity_events"; step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics; absent-field passthrough via build_column_array within pipeline_result_to_record_batch); EC-016-016-001..006 edge cases |
 
 ## Acceptance Criteria
 
@@ -374,7 +374,7 @@ Architecture section references:
 | EC-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `build_column_array` absent-field passthrough within `pipeline_result_to_record_batch` (`SpecDrivenSensorAdapter::fetch` path) — independent of the REQUIRED push-down-parameter flag. (`ColumnMapper::map_record` is a non-production reference mirror.) (BC-2.16.016 §Invariants; EC-016-016-001) |
 | EC-002 | `related_alert_ids` is empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null (EC-016-016-002) |
 | EC-003 | `detection_time` is null/absent | Null Datetime cell; ADR-028 §D8-B null-passthrough; no E-SPEC-018 (EC-016-016-003) |
-| EC-004 | `mode` field absent (not all event types change mode) | Null string cell in `raw_extensions`; no error (EC-016-016-004) |
+| EC-004 | `mode` field absent (not all event types change mode) | Key OMITTED from `raw_extensions` when absent from API response; present as null only when API returns explicit JSON null; consistent with EC-005 and `record.get()→None` production path; no error (EC-016-016-004) |
 | EC-005 | Network 5-tuple fields partially absent (e.g., source_ip present, dest_ip absent) | Present fields serialized into raw_extensions; absent fields not serialized; no error (EC-016-016-005) |
 | EC-006 | SELECT source_ip by raw Tier-2 name | E-QUERY-038; available_columns includes raw_extensions but NOT source_ip (EC-016-016-006) |
 | EC-007 | `detection_time` non-ISO-8601 string | E-SPEC-018 TimestampParseFailure — null demoted with warning; row continues; no pagination halt |
@@ -555,6 +555,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.7 | 2026-08-31 | story-writer | EC-004 corrected per BC-2.16.016 v1.5: absent `mode` → key OMITTED from `raw_extensions` (present-as-null ONLY when API returns explicit JSON null), consistent with EC-005 and `record.get()→None` production path; previous "Null string cell" wording contradicted production absent-field passthrough behavior. §Behavioral Contracts table Version cell BC-2.16.016 v1.4→v1.5 (POL-40 structural pin). No AC coverage or BC-trace changes. |
 | 1.6 | 2026-08-31 | story-writer | LOW records-accuracy fix: removed false "first production use of column_type=json" absolute claim from §AC-006 body, §Red Gate Tests RG-001 and RG-010 rows — S-CLAROTY-VULNS-001 vulnerabilities.cve_ids on develop already uses json column_type, so the absolute was false; replaced with "per vulnerabilities.cve_ids precedent" wording throughout. Proactive sweep: §Background "4 tables" absolute made merge-order-safe ("4 or 5 tables depending on whether S-CLAROTY-VULNS-001 G1 has merged"), matching Task 10 count-agnostic pattern. No AC coverage, BC-trace, or behavioral content changes. |
 | 1.5 | 2026-08-31 | story-writer | SS-22 (Process Lifecycle) added to frontmatter `subsystems:` with justification comment — story touches prism-bin via authoritative E-QUERY-038 end-to-end test and wire-shape assertions (`bc_2_16_016_claroty_ot_activity_events_wire_shape.rs`); §Architecture Mapping cites `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch`. SS-22 canonical subsystem ID confirmed against ARCH-INDEX Subsystem Registry. |
 | 1.4 | 2026-08-31 | story-writer | F-OTE-MED-002 (POL-39 anti-volatile-pin + stale cross-artifact drift): removed volatile vX.Y version pins from §Authority prose (BC-2.16.016 §Postconditions §1–§4 headings), §References, §Token Budget table, and frontmatter prose comments; synced §Behavioral Contracts table Version column v1.3→v1.4 (POL-40 structural pin). No behavioral content changes. |

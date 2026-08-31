@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -183,7 +183,7 @@ Until the DTU story executes, near-term tests run against the live monroe sensor
 | EC-016-016-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `build_column_array` absent-field passthrough within `pipeline_result_to_record_batch` (`SpecDrivenSensorAdapter::fetch` path) — independent of the REQUIRED push-down-parameter flag. (`ColumnMapper::map_record` is a non-production reference mirror.) |
 | EC-016-016-002 | `related_alert_ids` is an empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null |
 | EC-016-016-003 | `detection_time` is null/absent | Null Datetime cell; no fallback chain declared (optional field); ADR-028 §D8-B null-passthrough |
-| EC-016-016-004 | `mode` field absent (not all event types change mode) | Null string cell in raw_extensions; no error |
+| EC-016-016-004 | `mode` field absent (not all event types change mode) | Key OMITTED from raw_extensions (key is present-as-null ONLY when the Claroty API returns explicit JSON null for `mode`); no error — consistent with EC-016-016-005 absent-field behavior. Attribution: `pipeline_result_to_record_batch` `record.get(&col.name)` returns None for an absent key; None is never inserted into the raw_extensions map. |
 | EC-016-016-005 | Network 5-tuple fields partially absent (e.g., only source_ip present, dest_ip absent) | Present fields serialized into raw_extensions; absent fields not serialized; no error |
 | EC-016-016-006 | Query against Tier-2 network field `source_ip` by raw name | E-QUERY-038; `available_columns` contains `raw_extensions` but NOT `source_ip` |
 
@@ -244,6 +244,7 @@ S-CLAROTY-OT-EVENTS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | g2-med-002-ec-contradiction | 2026-08-31 | product-owner | MED-002: EC-016-016-004 corrected — absent `mode` key is OMITTED from raw_extensions (not a "Null string cell"); key is present-as-null only when Claroty API returns explicit JSON null. Production path: `pipeline_result_to_record_batch` §record.get absent-field passthrough (None → not inserted). Consistent with EC-016-016-005. Prior "Null string cell" wording described the opposite behavior. |
 | 1.4 | f-ote-p1-high-001-arch-anchor | 2026-08-31 | product-owner | F-OTE-P1-HIGH-001: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (`crates/prism-bin/src/spec_driven_adapter.rs — pipeline_result_to_record_batch`); §Invariants already cited the correct `crates/prism-bin/src/` path — §Architecture Anchors is now internally consistent. |
 | 1.3 | med-1-med-3-mechanism-correction | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name). MED-3: §Invariants and EC-016-016-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`); `map_record` retained as explicitly-labeled non-production reference mirror only. |
 | 1.2 | med-1-required-semantics-correction | 2026-08-31 | product-owner | MED-1 (POL-4) REQUIRED-semantics fix — §Invariants and EC-016-016-001 prose corrected: causal attribution of absent-field passthrough moved from "spec-engine REQUIRED semantics" to `ColumnMapper::map_record` default absent-field handling; §Invariants now explains REQUIRED as mandatory push-down-parameter flag per BC-2.11.007 / `pushdown.rs::classify_predicates` priority ordering; EC-016-016-001 Expected Behavior updated to reflect that `finding_info_uid` is null while `time` and `raw_extensions` remain populated (row not dropped). No postcondition mechanics, column list, test vectors, or ACs changed. |

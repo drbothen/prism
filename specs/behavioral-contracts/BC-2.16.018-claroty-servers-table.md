@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -73,11 +73,7 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm)
 name = "fetch_servers"
 method = "POST"
 path_template = "/api/v1/servers/"
-body_template = '{"fields": ["server_name", "server_location", "server_status", "site_id", \
-  "model", "os_version", "serial_number", "num_of_interfaces", "management_ip", "idrac_ip", \
-  "management_mac", "uptime_days", "avg_traffic_past_month_mbps", \
-  "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", \
-  "num_of_open_incidents", "notes"]}'
+body_template = '{"fields": ["server_name", "server_location", "server_status", "site_id", "model", "os_version", "serial_number", "num_of_interfaces", "management_ip", "idrac_ip", "management_mac", "uptime_days", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "num_of_open_incidents", "notes"]}'
 response_path = "$.servers"
 variables_produced = []
 [tables.steps.pagination]
@@ -262,6 +258,7 @@ S-CLAROTY-SERVERS-001; holdout evaluator exercises live monroe surface via HS-02
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | g4-obs2-body-template-single-line | 2026-08-31 | product-owner | OBS-2: §Postconditions §1 `body_template` re-rendered as valid single-line TOML literal string; prior multi-line backslash-continuation form is invalid in TOML literal (single-quoted) strings. No semantic change — all 17 fields unchanged. |
 | 1.2 | g4-adversary-low2-uptime-caution | 2026-08-31 | product-owner | LOW-2: §Postconditions §2 Tier-2 table `uptime_days` row — removed stale "verify exact type on live monroe sensor before asserting Integer" caution; Float type confirmed fractional from xDome OpenAPI example (e.g., 667.233661) and propagated to TOML, story §risk, Notes, and EC-016-018-003. Row now states Float as resolved with OpenAPI-example confirmation. |
 | 1.1 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_servers"` to `"servers"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name `"claroty_servers"`). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome servers queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G4. TOML table contract, 17-column Tier-1/Tier-2 classification per ADR-058 (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code]; 15 Tier-2 into raw_extensions). PK: server_name (String, REQUIRED, single-column). OCSF class: inventory_info/5001 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). Endpoint path `/api/v1/servers/` confirmed from OpenAPI spec. All 17 fields from Server fields_enum confirmed in schema-extract §Server. HS-027 holdout group registered with 3 P0 scenarios for S-CLAROTY-SERVERS-001. |
