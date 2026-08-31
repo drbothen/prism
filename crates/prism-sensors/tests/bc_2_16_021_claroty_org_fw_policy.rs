@@ -364,6 +364,14 @@ fn test_BC_2_16_021_claroty_organization_firewall_groups_required_fwgroupname_ab
 ///
 /// Traces to: BC-2.16.021 invariant — Tier-2 not exposed standalone; AC-020.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-020
+///
+/// SAP-3 NOTE (defense-in-depth): This test exercises `ocsf_projected_column_names`
+/// directly (pre-plan-gate helper). Per SAP-3 rule-3, it counts as defense-in-depth only.
+/// The AUTHORITATIVE end-to-end gate from the public query surface (SQL parser →
+/// QueryEngine::execute) is
+/// `test_BC_2_16_021_claroty_organization_firewall_groups_e2e_e_query_038_tier2_column`
+/// in `crates/prism-bin/tests/bc_2_16_021_claroty_org_fw_policy_wire_shape.rs`
+/// (RG-020a, F-ORGPOL-P1-MED-001 closure).
 #[test]
 fn test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_query_038() {
     let spec = load_claroty_spec();
@@ -629,6 +637,14 @@ async fn test_BC_2_16_021_claroty_organization_firewall_policies_live_wire_shape
 ///
 /// Traces to: BC-2.16.021 invariant; AC-024; EC-016-021-007/010.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-024
+///
+/// SAP-3 NOTE (defense-in-depth): This test exercises `ocsf_projected_column_names`
+/// directly (pre-plan-gate helper). Per SAP-3 rule-3, it counts as defense-in-depth only.
+/// The AUTHORITATIVE end-to-end gate from the public query surface (SQL parser →
+/// QueryEngine::execute) is
+/// `test_BC_2_16_021_claroty_organization_firewall_policies_e2e_e_query_038_tier2_column`
+/// in `crates/prism-bin/tests/bc_2_16_021_claroty_org_fw_policy_wire_shape.rs`
+/// (RG-024a, F-ORGPOL-P1-MED-001 closure).
 #[test]
 fn test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_raises_e_query_038()
 {

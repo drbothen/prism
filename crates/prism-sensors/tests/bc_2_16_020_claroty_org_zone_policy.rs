@@ -243,6 +243,14 @@ fn test_BC_2_16_020_claroty_organization_zones_tier1_columns_four_with_ocsf_fiel
 ///
 /// Traces to: BC-2.16.020 invariant — Tier-2 not exposed standalone; AC-003.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-003
+///
+/// SAP-3 NOTE (defense-in-depth): This test exercises `ocsf_projected_column_names`
+/// directly (pre-plan-gate helper). Per SAP-3 rule-3, it counts as defense-in-depth only.
+/// The AUTHORITATIVE end-to-end gate from the public query surface (SQL parser →
+/// QueryEngine::execute) is
+/// `test_BC_2_16_020_claroty_organization_zones_e2e_e_query_038_tier2_column`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`
+/// (RG-003a, F-ORGPOL-P1-MED-001 closure).
 #[test]
 fn test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038() {
     let spec = load_claroty_spec();
@@ -798,6 +806,14 @@ async fn test_BC_2_16_020_claroty_organization_zone_policies_live_wire_shape_cla
 ///
 /// Traces to: BC-2.16.020 invariant; AC-012; EC-016-020-006.
 /// Story: S-CLAROTY-ORGPOLICY-001 AC-012
+///
+/// SAP-3 NOTE (defense-in-depth): This test exercises `ocsf_projected_column_names`
+/// directly (pre-plan-gate helper). Per SAP-3 rule-3, it counts as defense-in-depth only.
+/// The AUTHORITATIVE end-to-end gate from the public query surface (SQL parser →
+/// QueryEngine::execute) is
+/// `test_BC_2_16_020_claroty_organization_zone_policies_e2e_e_query_038_tier2_column`
+/// in `crates/prism-bin/tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs`
+/// (RG-012a, F-ORGPOL-P1-MED-001 closure).
 #[test]
 fn test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038() {
     let spec = load_claroty_spec();

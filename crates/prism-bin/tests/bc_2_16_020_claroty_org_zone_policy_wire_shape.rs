@@ -902,3 +902,254 @@ async fn test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_serializ
          BC-2.11.001 EC-11-079; BC-2.16.020 AC-013."
     );
 }
+
+// ---------------------------------------------------------------------------
+// SAP-3: End-to-end E-QUERY-038 tests via QueryEngine::execute()
+// Authoritative RG-003/RG-012 coverage from the public query surface.
+// (F-ORGPOL-P1-MED-001 closure)
+// ---------------------------------------------------------------------------
+
+/// SAP-3 reachability test (authoritative, F-ORGPOL-P1-MED-001):
+/// `SELECT zone_source FROM claroty_organization_zones LIMIT 1` via
+/// `QueryEngine::execute()` must raise `PrismError::ColumnNotFound` (E-QUERY-038).
+///
+/// This is the AUTHORITATIVE SAP-3 test for BC-2.16.020 AC-003.
+///
+/// `test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038`
+/// (RG-003 in prism-sensors) calls `ocsf_projected_column_names` directly —
+/// valid defense-in-depth per SAP-3 rule-3, but NOT an end-to-end gate from the
+/// public query surface (SQL parser → QueryEngine::execute).
+/// This test uses `QueryEngine::execute()` as the SAP-3 entry point.
+///
+/// Architecture: the E-QUERY-038 gate (`check_query_column_availability`) fires in
+/// `QueryEngine::execute_inner` BEFORE `run_materialization_pipeline`. No HTTP requests.
+///
+/// `zone_source` is Tier-2 (no ocsf_field in claroty.sensor.toml):
+///   - NOT in ocsf_projected_column_names → NOT in TableRegistry → E-QUERY-038
+///   - available_columns ⊇ {name, comment, status_code, actor_user_name,
+///                           raw_extensions, class_uid, _sensor}
+///   - available_columns ∌ "zone_source"
+///
+/// BC-2.16.020 AC-003; SAP-3; ADR-058 §I7; F-ORGPOL-P1-MED-001.
+/// Story: S-CLAROTY-ORGPOLICY-001 RG-003a (SAP-3 end-to-end gate).
+#[tokio::test]
+async fn test_BC_2_16_020_claroty_organization_zones_e2e_e_query_038_tier2_column() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "RG-003a: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+    let spec = SpecLoader::parse(&spec_content).expect("RG-003a: claroty.sensor.toml must parse");
+
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("RG-003a: register_sensor must not fail for production claroty.sensor.toml");
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    // `zone_source` is Tier-2 (no ocsf_field). Lives inside raw_extensions.
+    // E-QUERY-038 (PrismError::ColumnNotFound) must fire at plan-time.
+    let result = engine
+        .execute(
+            "SELECT zone_source FROM claroty_organization_zones LIMIT 1",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "RG-003a LOAD-BEARING (SAP-3): QueryEngine::execute must return Err when \
+         Tier-2 column 'zone_source' is queried directly (E-QUERY-038). \
+         Got Ok. BC-2.16.020 AC-003; SAP-3.",
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::ColumnNotFound(details) => {
+            assert_eq!(
+                details.column, "zone_source",
+                "RG-003a: ColumnNotFound.column must be 'zone_source'. \
+                 Got: {:?}. BC-2.16.020 AC-003.",
+                details.column
+            );
+            let avail = &details.available_columns;
+            // raw_extensions (Tier-2 aggregate) must be available.
+            assert!(
+                avail.contains(&"raw_extensions".to_string()),
+                "RG-003a: available_columns must include 'raw_extensions' \
+                 (ADR-058 §J6 Tier-2 aggregate). Got: {:?}",
+                avail
+            );
+            // All four Tier-1 OCSF projected Arrow names must be available.
+            for expected in ["name", "comment", "status_code", "actor_user_name"] {
+                assert!(
+                    avail.contains(&expected.to_string()),
+                    "RG-003a: available_columns must include '{}' \
+                     (Tier-1 Arrow column, claroty_organization_zones). Got: {:?}",
+                    expected,
+                    avail
+                );
+            }
+            // zone_source is Tier-2 → MUST NOT appear in available_columns.
+            assert!(
+                !avail.contains(&"zone_source".to_string()),
+                "RG-003a: 'zone_source' is Tier-2 and MUST NOT appear in \
+                 available_columns (lives inside raw_extensions). Got: {:?}",
+                avail
+            );
+            // Synthesized pseudo-columns must also be listed.
+            assert!(
+                avail.contains(&"class_uid".to_string()),
+                "RG-003a: available_columns must include 'class_uid' \
+                 (OCSF synthesized pseudo-column). Got: {:?}.",
+                avail
+            );
+            assert!(
+                avail.contains(&"_sensor".to_string()),
+                "RG-003a: available_columns must include '_sensor' \
+                 (synthesized sensor-metadata pseudo-column). Got: {:?}.",
+                avail
+            );
+        }
+        other => {
+            panic!(
+                "RG-003a LOAD-BEARING (SAP-3): QueryEngine::execute must return \
+                 PrismError::ColumnNotFound (E-QUERY-038) when Tier-2 column \
+                 'zone_source' is queried directly. Got: {:?}. \
+                 BC-2.16.020 AC-003; SAP-3.",
+                other
+            );
+        }
+    }
+}
+
+/// SAP-3 reachability test (authoritative, F-ORGPOL-P1-MED-001):
+/// `SELECT applied_zone_pairs FROM claroty_organization_zone_policies LIMIT 1` via
+/// `QueryEngine::execute()` must raise `PrismError::ColumnNotFound` (E-QUERY-038).
+///
+/// This is the AUTHORITATIVE SAP-3 test for BC-2.16.020 AC-012.
+///
+/// `test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038`
+/// (RG-012 in prism-sensors) calls `ocsf_projected_column_names` directly —
+/// valid defense-in-depth per SAP-3 rule-3, but NOT an end-to-end gate from the
+/// public query surface (SQL parser → QueryEngine::execute).
+///
+/// `applied_zone_pairs` is Tier-2 Json (no ocsf_field in claroty.sensor.toml):
+///   - NOT in ocsf_projected_column_names → NOT in TableRegistry → E-QUERY-038
+///   - available_columns ⊇ {name, activity_name, comment, actor_user_name,
+///                           raw_extensions, class_uid, _sensor}
+///   - available_columns ∌ "applied_zone_pairs"
+///
+/// BC-2.16.020 AC-012; SAP-3; ADR-058 §I7; F-ORGPOL-P1-MED-001.
+/// Story: S-CLAROTY-ORGPOLICY-001 RG-012a (SAP-3 end-to-end gate).
+#[tokio::test]
+async fn test_BC_2_16_020_claroty_organization_zone_policies_e2e_e_query_038_tier2_column() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "RG-012a: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+    let spec = SpecLoader::parse(&spec_content).expect("RG-012a: claroty.sensor.toml must parse");
+
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("RG-012a: register_sensor must not fail for production claroty.sensor.toml");
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    // `applied_zone_pairs` is Tier-2 Json (no ocsf_field). Lives inside raw_extensions.
+    // E-QUERY-038 (PrismError::ColumnNotFound) must fire at plan-time.
+    let result = engine
+        .execute(
+            "SELECT applied_zone_pairs FROM claroty_organization_zone_policies LIMIT 1",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "RG-012a LOAD-BEARING (SAP-3): QueryEngine::execute must return Err when \
+         Tier-2 column 'applied_zone_pairs' is queried directly (E-QUERY-038). \
+         Got Ok. BC-2.16.020 AC-012; SAP-3.",
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::ColumnNotFound(details) => {
+            assert_eq!(
+                details.column, "applied_zone_pairs",
+                "RG-012a: ColumnNotFound.column must be 'applied_zone_pairs'. \
+                 Got: {:?}. BC-2.16.020 AC-012.",
+                details.column
+            );
+            let avail = &details.available_columns;
+            assert!(
+                avail.contains(&"raw_extensions".to_string()),
+                "RG-012a: available_columns must include 'raw_extensions'. Got: {:?}",
+                avail
+            );
+            // Tier-1 Arrow names for zone_policies (4 Tier-1 columns).
+            for expected in ["name", "activity_name", "comment", "actor_user_name"] {
+                assert!(
+                    avail.contains(&expected.to_string()),
+                    "RG-012a: available_columns must include '{}' \
+                     (Tier-1 Arrow column, claroty_organization_zone_policies). Got: {:?}",
+                    expected,
+                    avail
+                );
+            }
+            // applied_zone_pairs is Tier-2 → MUST NOT appear in available_columns.
+            assert!(
+                !avail.contains(&"applied_zone_pairs".to_string()),
+                "RG-012a: 'applied_zone_pairs' is Tier-2 and MUST NOT appear in \
+                 available_columns (lives inside raw_extensions). Got: {:?}",
+                avail
+            );
+            assert!(
+                avail.contains(&"class_uid".to_string()),
+                "RG-012a: available_columns must include 'class_uid'. Got: {:?}.",
+                avail
+            );
+            assert!(
+                avail.contains(&"_sensor".to_string()),
+                "RG-012a: available_columns must include '_sensor'. Got: {:?}.",
+                avail
+            );
+        }
+        other => {
+            panic!(
+                "RG-012a LOAD-BEARING (SAP-3): QueryEngine::execute must return \
+                 PrismError::ColumnNotFound (E-QUERY-038) when Tier-2 column \
+                 'applied_zone_pairs' is queried directly. Got: {:?}. \
+                 BC-2.16.020 AC-012; SAP-3.",
+                other
+            );
+        }
+    }
+}
