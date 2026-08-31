@@ -54,10 +54,11 @@
 //!
 //! # Source Table Name Note
 //!
-//! TOML entries for org policy tables carry the sensor prefix inside `table_name`:
-//!   e.g. `table_name = "claroty_organization_firewall_groups"`. `SpecDrivenSensorAdapter::fetch`
-//!   strips the `sensor_id + "_"` prefix from `spec.source_table` to resolve the matching table.
-//!   Therefore `source_table = "claroty_claroty_organization_firewall_groups"`.
+//! TOML entries for org policy tables use bare names (e.g. `table_name = "organization_firewall_groups"`),
+//! matching the convention of sibling tables. `SpecDrivenSensorAdapter::fetch` prepends
+//! `sensor_id + "_"` to produce `source_table`, yielding the single-prefixed queryable name
+//! `"claroty_organization_firewall_groups"`. Tests pass `source_table = "claroty_organization_firewall_groups"`
+//! (single prefix — no double-prefix).
 //!
 //! BC: BC-2.16.021
 //! Story: S-CLAROTY-ORGPOLICY-001
@@ -248,10 +249,10 @@ async fn test_BC_2_16_021_claroty_organization_firewall_groups_wire_shape_class_
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // TOML table_name = "claroty_organization_firewall_groups" (WITH sensor prefix).
-    // source_table = "claroty_" + "claroty_organization_firewall_groups".
+    // TOML table_name = "organization_firewall_groups" (bare, no sensor prefix).
+    // source_table = "claroty_" + "organization_firewall_groups" = "claroty_organization_firewall_groups".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_firewall_groups".to_string(),
+        source_table: "claroty_organization_firewall_groups".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-fw-groups-wire-test".to_string(),
@@ -440,7 +441,7 @@ async fn test_BC_2_16_021_claroty_organization_firewall_groups_wire_shape_serial
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_firewall_groups".to_string(),
+        source_table: "claroty_organization_firewall_groups".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-fw-groups-null-test".to_string(),
@@ -580,10 +581,10 @@ async fn test_BC_2_16_021_claroty_organization_firewall_policies_wire_shape_clas
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // TOML table_name = "claroty_organization_firewall_policies" (WITH sensor prefix).
-    // source_table = "claroty_" + "claroty_organization_firewall_policies".
+    // TOML table_name = "organization_firewall_policies" (bare, no sensor prefix).
+    // source_table = "claroty_" + "organization_firewall_policies" = "claroty_organization_firewall_policies".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_firewall_policies".to_string(),
+        source_table: "claroty_organization_firewall_policies".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-fw-policies-wire-test".to_string(),
@@ -782,7 +783,7 @@ async fn test_BC_2_16_021_claroty_organization_firewall_policies_wire_shape_seri
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_firewall_policies".to_string(),
+        source_table: "claroty_organization_firewall_policies".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-fw-policies-null-test".to_string(),

@@ -41,12 +41,11 @@
 //!
 //! # Source Table Name Note
 //!
-//! TOML entries for org policy tables carry the sensor prefix inside `table_name`:
-//!   e.g. `table_name = "claroty_organization_zones"` (unlike older tables which use bare names
-//!   like `table_name = "vulnerabilities"`). `SpecDrivenSensorAdapter::fetch` strips the
-//!   `sensor_id + "_"` prefix from `spec.source_table` to resolve the matching table entry.
-//!   Therefore `source_table = "claroty_claroty_organization_zones"` — the double-prefix
-//!   convention for these tables.
+//! TOML entries for org policy tables use bare names (e.g. `table_name = "organization_zones"`),
+//! matching the convention of sibling tables. `SpecDrivenSensorAdapter::fetch` prepends
+//! `sensor_id + "_"` to produce `source_table`, yielding the single-prefixed queryable name
+//! `"claroty_organization_zones"`. Tests pass `source_table = "claroty_organization_zones"`
+//! (single prefix — no double-prefix).
 //!
 //! BC: BC-2.16.020
 //! Story: S-CLAROTY-ORGPOLICY-001
@@ -233,11 +232,11 @@ async fn test_BC_2_16_020_claroty_organization_zones_wire_shape_class_uid_3004_m
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     // source_table: strip sensor_id prefix "claroty_" from source_table to get raw table name.
-    // TOML table_name = "claroty_organization_zones" (WITH sensor prefix — org policy naming convention).
-    // Therefore source_table = "claroty_" + "claroty_organization_zones" = "claroty_claroty_organization_zones".
+    // TOML table_name = "organization_zones" (bare, no sensor prefix — same as sibling tables).
+    // source_table = "claroty_" + "organization_zones" = "claroty_organization_zones" (single prefix).
     // See: spec_driven_adapter.rs §source_table resolution logic.
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_zones".to_string(),
+        source_table: "claroty_organization_zones".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-orgpolicy-zones-wire-test".to_string(),
@@ -473,7 +472,7 @@ async fn test_BC_2_16_020_claroty_organization_zones_wire_shape_serialized_json_
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_zones".to_string(),
+        source_table: "claroty_organization_zones".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-zones-null-test".to_string(),
@@ -621,10 +620,10 @@ async fn test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_class_ui
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // TOML table_name = "claroty_organization_zone_policies" (WITH sensor prefix).
-    // source_table = "claroty_" + "claroty_organization_zone_policies".
+    // TOML table_name = "organization_zone_policies" (bare, no sensor prefix).
+    // source_table = "claroty_" + "organization_zone_policies" = "claroty_organization_zone_policies".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_zone_policies".to_string(),
+        source_table: "claroty_organization_zone_policies".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-zone-policies-wire-test".to_string(),
@@ -823,7 +822,7 @@ async fn test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_serializ
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_organization_zone_policies".to_string(),
+        source_table: "claroty_organization_zone_policies".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-zone-policies-null-test".to_string(),

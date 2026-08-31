@@ -66,10 +66,10 @@ fn test_BC_2_16_020_claroty_organization_zones_toml_block_parses() {
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
+        .find(|t| t.table_name == "organization_zones")
         .expect(
             "claroty.sensor.toml must contain a [[tables]] block with \
-             table_name = \"claroty_organization_zones\" — add per S-CLAROTY-ORGPOLICY-001 AC-001",
+             table_name = \"organization_zones\" — add per S-CLAROTY-ORGPOLICY-001 AC-001",
         );
 
     assert_eq!(
@@ -150,8 +150,8 @@ fn test_BC_2_16_020_claroty_organization_zones_tier1_columns_four_with_ocsf_fiel
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-002");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-002");
 
     let tier1_count = zones
         .columns
@@ -250,8 +250,8 @@ fn test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038()
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-003");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-003");
 
     let available = ocsf_projected_column_names(zones, true);
 
@@ -302,8 +302,8 @@ fn test_BC_2_16_020_claroty_organization_zones_tier1_raw_toml_name_raises_e_quer
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-004");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-004");
 
     let available = ocsf_projected_column_names(zones, true);
 
@@ -370,8 +370,8 @@ fn test_BC_2_16_020_claroty_organization_zones_device_conditions_json_not_string
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-006");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-006");
 
     // Verify column_type = "json"
     let device_cond_col = zones
@@ -471,8 +471,8 @@ fn test_BC_2_16_020_claroty_organization_zones_required_zone_name_absent_produce
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-007");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-007");
 
     // Confirm zone_name carries REQUIRED
     let zone_name_col = zones
@@ -537,8 +537,8 @@ fn test_BC_2_16_020_claroty_organization_zones_nullable_count_uses_empty_page_ha
     let zones = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zones")
-        .expect("claroty.sensor.toml must contain 'claroty_organization_zones' — add per AC-008");
+        .find(|t| t.table_name == "organization_zones")
+        .expect("claroty.sensor.toml must contain 'organization_zones' — add per AC-008");
 
     assert_eq!(zones.steps.len(), 1, "must have exactly 1 step");
 
@@ -605,10 +605,10 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_toml_block_parses() {
     let zone_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zone_policies")
+        .find(|t| t.table_name == "organization_zone_policies")
         .expect(
             "claroty.sensor.toml must contain a [[tables]] block with \
-             table_name = \"claroty_organization_zone_policies\" — add per AC-009",
+             table_name = \"organization_zone_policies\" — add per AC-009",
         );
 
     assert_eq!(
@@ -693,10 +693,8 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_tier1_columns_four_with_o
     let zone_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zone_policies")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_zone_policies' — add per AC-010",
-        );
+        .find(|t| t.table_name == "organization_zone_policies")
+        .expect("claroty.sensor.toml must contain 'organization_zone_policies' — add per AC-010");
 
     let tier1_count = zone_policies
         .columns
@@ -807,10 +805,8 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises
     let zone_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zone_policies")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_zone_policies' — add per AC-012",
-        );
+        .find(|t| t.table_name == "organization_zone_policies")
+        .expect("claroty.sensor.toml must contain 'organization_zone_policies' — add per AC-012");
 
     let available = ocsf_projected_column_names(zone_policies, true);
 
@@ -874,10 +870,8 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_required_policy_name_abse
     let zone_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zone_policies")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_zone_policies' — add per AC-013",
-        );
+        .find(|t| t.table_name == "organization_zone_policies")
+        .expect("claroty.sensor.toml must contain 'organization_zone_policies' — add per AC-013");
 
     // Confirm policy_name carries REQUIRED
     let policy_name_col = zone_policies
@@ -943,10 +937,8 @@ fn test_BC_2_16_020_claroty_organization_zone_policies_json_columns_not_stringif
     let zone_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_zone_policies")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_zone_policies' — add per AC-014",
-        );
+        .find(|t| t.table_name == "organization_zone_policies")
+        .expect("claroty.sensor.toml must contain 'organization_zone_policies' — add per AC-014");
 
     // Verify all three Json columns are declared column_type = "json"
     for col_name in [

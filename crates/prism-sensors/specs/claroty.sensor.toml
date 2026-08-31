@@ -1216,7 +1216,7 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_
 # DTU status: NONE — SAP-2 probe N/A per D-2200; near-term tests against live monroe only
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_organization_zones"
+table_name = "organization_zones"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claroty_audit_logs)
 
   # Tier-1: zone_name → name (REQUIRED; primary key; OCSF entity_management name field)
@@ -1300,7 +1300,7 @@ ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claro
 # NOTE: field name is last_updated (WITH trailing 'd') for zone_policies — different from zones' last_update
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_organization_zone_policies"
+table_name = "organization_zone_policies"
 ocsf_class = "entity_management"   # class_uid 3004
 
   # Tier-1: policy_name → name (REQUIRED; primary key)
@@ -1396,7 +1396,7 @@ ocsf_class = "entity_management"   # class_uid 3004
 # DTU status: NONE — SAP-2 probe N/A per D-2200
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_organization_firewall_groups"
+table_name = "organization_firewall_groups"
 ocsf_class = "entity_management"   # class_uid 3004
 
   # Tier-1: firewall_group_name → name (REQUIRED; primary key)
@@ -1480,7 +1480,7 @@ ocsf_class = "entity_management"   # class_uid 3004
 # NOTE: Json column is applied_group_pairs (NOT applied_zone_pairs — that belongs to zone_policies)
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_organization_firewall_policies"
+table_name = "organization_firewall_policies"
 ocsf_class = "entity_management"   # class_uid 3004
 
   # Tier-1: policy_name → name (REQUIRED; primary key)

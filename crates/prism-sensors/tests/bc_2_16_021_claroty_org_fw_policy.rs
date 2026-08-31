@@ -75,10 +75,10 @@ fn test_BC_2_16_021_claroty_organization_firewall_groups_toml_block_parses() {
     let fw_groups = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_groups")
+        .find(|t| t.table_name == "organization_firewall_groups")
         .expect(
             "claroty.sensor.toml must contain a [[tables]] block with \
-             table_name = \"claroty_organization_firewall_groups\" — add per S-CLAROTY-ORGPOLICY-001 AC-015",
+             table_name = \"organization_firewall_groups\" — add per S-CLAROTY-ORGPOLICY-001 AC-015",
         );
 
     assert_eq!(
@@ -166,10 +166,8 @@ fn test_BC_2_16_021_claroty_organization_firewall_groups_tier1_columns_four_with
     let fw_groups = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_groups")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_groups' — add per AC-016",
-        );
+        .find(|t| t.table_name == "organization_firewall_groups")
+        .expect("claroty.sensor.toml must contain 'organization_firewall_groups' — add per AC-016");
 
     let tier1_count = fw_groups
         .columns
@@ -310,10 +308,8 @@ fn test_BC_2_16_021_claroty_organization_firewall_groups_required_fwgroupname_ab
     let fw_groups = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_groups")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_groups' — add per AC-019",
-        );
+        .find(|t| t.table_name == "organization_firewall_groups")
+        .expect("claroty.sensor.toml must contain 'organization_firewall_groups' — add per AC-019");
 
     // Confirm firewall_group_name carries REQUIRED
     let fw_name_col = fw_groups
@@ -375,10 +371,8 @@ fn test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_q
     let fw_groups = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_groups")
-        .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_groups' — add per AC-020",
-        );
+        .find(|t| t.table_name == "organization_firewall_groups")
+        .expect("claroty.sensor.toml must contain 'organization_firewall_groups' — add per AC-020");
 
     let available = ocsf_projected_column_names(fw_groups, true);
 
@@ -435,10 +429,10 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_toml_block_parses() {
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
             "claroty.sensor.toml must contain a [[tables]] block with \
-             table_name = \"claroty_organization_firewall_policies\" — add per AC-021",
+             table_name = \"organization_firewall_policies\" — add per AC-021",
         );
 
     assert_eq!(
@@ -524,9 +518,9 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_tier1_columns_four_wi
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_policies' — add per AC-022",
+            "claroty.sensor.toml must contain 'organization_firewall_policies' — add per AC-022",
         );
 
     let tier1_count = fw_policies
@@ -643,9 +637,9 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_r
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_policies' — add per AC-024",
+            "claroty.sensor.toml must contain 'organization_firewall_policies' — add per AC-024",
         );
 
     // Part 1: plan-time column availability (E-QUERY-038 proxy)
@@ -732,9 +726,9 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_required_policy_name_
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_policies' — add per AC-025a",
+            "claroty.sensor.toml must contain 'organization_firewall_policies' — add per AC-025a",
         );
 
     // Confirm policy_name carries REQUIRED
@@ -786,9 +780,9 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_nullable_count_uses_e
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_policies' — add per AC-025b",
+            "claroty.sensor.toml must contain 'organization_firewall_policies' — add per AC-025b",
         );
 
     assert_eq!(fw_policies.steps.len(), 1, "must have exactly 1 step");
@@ -866,9 +860,9 @@ fn test_BC_2_16_021_claroty_organization_firewall_policies_json_columns_not_stri
     let fw_policies = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_organization_firewall_policies")
+        .find(|t| t.table_name == "organization_firewall_policies")
         .expect(
-            "claroty.sensor.toml must contain 'claroty_organization_firewall_policies' — add per AC-026",
+            "claroty.sensor.toml must contain 'organization_firewall_policies' — add per AC-026",
         );
 
     // Verify all three Json columns are declared column_type = "json"
