@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.958"
+version: "2.959"
 status: draft
 producer: state-manager
 timestamp: 2026-08-31T08:00:00Z
 phase: 3
 total_stories: 319
-# D-2387: S-CLAROTY-VULNS-001 G1 PR #245 squash-merged develop@6972ac2e (human-authorized 2026-08-31). S-CLAROTY-VULNS-001 status ready→merged. POL-14: BC-2.16.015 draft→active. total_stories 319 UNCHANGED. STORY-INDEX v2.957→v2.958. D-2386 NOTE archived.
-# D-2386: S-CLAROTY-OT-EVENTS-001 v1.1→v1.2 (MED-1 REQUIRED-semantics + MED-2 prism-bin traceability; BC-2.16.016 pin v1.1→v1.2; crates_touched adds prism-bin; code @98b8234dc). total_stories 319 UNCHANGED. STORY-INDEX v2.956→v2.957. D-2380 NOTE archived.
+# D-2388: S-CLAROTY-OT-EVENTS-001 v1.2→v1.3 (MED-1 bare table_name §Postconditions §1 + MED-3 §Invariants/§EC-016-016-001 build_column_array mechanism re-anchor; BC-2.16.016 pin v1.2→v1.3; story input-hash 60a425b confirmed on-disk). total_stories 319 UNCHANGED. STORY-INDEX v2.958→v2.959. D-2387 NOTE archived.
+# D-2385: G3–G6 pre-delivery remove-uncertainty COMPLETE (D-1110 mandatory second pass). S-CLAROTY-DEVVULNREL-001 v1.3 draft→ready, S-CLAROTY-SERVERS-001 v1.3 draft→ready, S-CLAROTY-ORGPOLICY-001 v1.1 draft→ready, S-CLAROTY-ACLPOLICY-001 v1.1 draft→ready. BC version pins reconciled: DEVVULNREL BC-2.16.017 v1.1 (already correct); ORGPOLICY BC-2.16.020/BC-2.16.021 v1.0→v1.1; ACLPOLICY BC-2.16.022 v1.0→v1.1. total_stories 319 UNCHANGED. STORY-INDEX v2.955→v2.956. D-2383 NOTE archived.
 # D-2385: G3–G6 pre-delivery remove-uncertainty COMPLETE (D-1110 mandatory second pass). S-CLAROTY-DEVVULNREL-001 v1.3 draft→ready, S-CLAROTY-SERVERS-001 v1.3 draft→ready, S-CLAROTY-ORGPOLICY-001 v1.1 draft→ready, S-CLAROTY-ACLPOLICY-001 v1.1 draft→ready. BC version pins reconciled: DEVVULNREL BC-2.16.017 v1.1 (already correct); ORGPOLICY BC-2.16.020/BC-2.16.021 v1.0→v1.1; ACLPOLICY BC-2.16.022 v1.0→v1.1. total_stories 319 UNCHANGED. STORY-INDEX v2.955→v2.956. D-2383 NOTE archived.
 # D-2383: S-CLAROTY-VULNS-001 story v2.1→v2.2 (F-RECON-P1-HIGH-001: POL-39 volatile version pin removed from EC-005 cite; cite by ID+§anchor). Feature HEAD 12ce43ed0→423fc7659 (F-RECON-P1-LOW-002: stale wire-test header comment fixed). total_stories 319 UNCHANGED. STORY-INDEX v2.954→v2.955. D-2381 NOTE archived.
 # D-2375: PR #243 squash-merged (S-ENGINE-LIMIT-EARLY-STOP-001 MERGED); S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; STORY-INDEX v2.950→v2.951. D-2373 NOTE archived.
@@ -1057,7 +1057,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [merged v2.2 PR #245 @6972ac2e] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.9) | -- | 5 | -- |
-| S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [ready v1.2] | prism-sensors, prism-spec-engine, prism-bin | 1 (BC-2.16.016 v1.2) | -- | 5 | -- |
+| S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [ready v1.3] | prism-sensors, prism-spec-engine, prism-bin | 1 (BC-2.16.016 v1.3) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 current) | -- | 3 | -- |
 | S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040/EC-01-041/EC-01-042, RG-PSG-034..044) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5) + partial-final-page discriminator (ADR-060 §D8.2/§D8.3; AC-014/RG-PSG-039/040) + multi-batch fan-out discriminator (ADR-060 §D8.2/§D8.3; `|| !is_last_batch`; AC-015/RG-PSG-044) + OffsetLimit-only conservative early-stop (ADR-060 §D8.4 revert; RG-PSG-041 sentinel); 59 RGTs / 15 ACs ≈ 3.93 [merged c5be059fe; PR #243] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.54; trace: BC-2.11.001 v1.31, BC-2.16.015 v1.8) | -- | 8 | -- |
@@ -1671,6 +1671,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.959 | 2026-08-31 | state-manager D-2388: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) LOCAL re-gate spec-fix reconciliation. S-CLAROTY-OT-EVENTS-001 v1.2→v1.3 (MED-1 bare table_name §Authority/AC-001; MED-3 §Edge Cases/AC-007 build_column_array mechanism re-anchor). BC-2.16.016 pin v1.2→v1.3. total_stories 319 UNCHANGED. STORY-INDEX v2.958→v2.959. |
 | v2.958 | 2026-08-31 | state-manager D-2387: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 G1 PR #245 squash-merged develop@6972ac2e (human-authorized). S-CLAROTY-VULNS-001 status ready→merged. POL-14: BC-2.16.015 draft→active. BC-INDEX v9.88→v9.89 (draft 11→10; active 253→254). develop_head 51bb3bc1→6972ac2e. total_stories 319 UNCHANGED. STORY-INDEX v2.957→v2.958. |
 | v2.957 | 2026-08-31 | state-manager D-2386: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) LOCAL adversary spec-fix reconciliation. S-CLAROTY-OT-EVENTS-001 v1.1→v1.2 (MED-1 POL-4 REQUIRED-semantics corrected; MED-2 prism-bin traceability added). BC-2.16.016 pin v1.1→v1.2. crates_touched adds prism-bin. Code fixes already on @98b8234dc. LOCAL 3-CLEAN streak RESET (frozen-HEAD advanced). total_stories 319 UNCHANGED. STORY-INDEX v2.956→v2.957. |
 | v2.956 | 2026-08-31 | state-manager D-2385: G3–G6 pre-delivery remove-uncertainty COMPLETE. S-CLAROTY-DEVVULNREL-001 v1.3/SERVERS-001 v1.3/ORGPOLICY-001 v1.1/ACLPOLICY-001 v1.1 draft→ready. total_stories 319 UNCHANGED. STORY-INDEX v2.955→v2.956. |

@@ -1,12 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.89"
+version: "9.90"
 status: draft
 producer: state-manager
 timestamp: 2026-08-31T08:00:00Z
-# NOTE: D-2387 — BC-INDEX v9.88→v9.89: BC-2.16.015 lifecycle_status draft→active per POL-14 (S-CLAROTY-VULNS-001 G1 PR #245 squash-merged develop@6972ac2e 2026-08-31; human-authorized). BC-2.16.015 input-hash c913a02→2e91a4e (claroty.sensor.toml modified by story impl; no content change to BC). draft_contracts 11→10; active_contracts 253→254; total_contracts 277 UNCHANGED.
-# NOTE: D-2386 — BC-INDEX v9.87→v9.88: BC-2.16.016 pin v1.1→v1.2 (G2 LOCAL adversary MED-1 REQUIRED-semantics + MED-2 prism-bin traceability fix-burst 2026-08-31; code @98b8234dc). draft/active/total UNCHANGED (11/253/277). D-2380 NOTE archived.
+# NOTE: D-2388 — BC-INDEX v9.89→v9.90: BC-2.16.016 pin v1.2→v1.3 (G2 LOCAL re-gate spec-fix reconciliation — MED-1 bare table_name §Postconditions §1 corrected; MED-3 §Invariants/EC-016-016-001 re-anchored to build_column_array within pipeline_result_to_record_batch; BC v1.3 on-disk input-hash 4f7d01e confirmed). draft/active/total UNCHANGED (10/254/277). D-2387 NOTE archived.
 # NOTE: D-2385 — BC-INDEX v9.86→v9.87: BC-2.16.022 pin v1.0→v1.1 (G3–G6 pre-delivery remove-uncertainty COMPLETE 2026-08-31; BC-2.16.022 §PC1 body_template TOML literal corrected; G6 story promoted draft→ready; BC-2.16.017/020/021 already at v1.1). draft/active/total UNCHANGED (11/253/277). D-2381 NOTE archived.
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
 # NOTE: D-2372 — BC-INDEX v9.82→v9.83: F-B1-001 substantively closed; BC-2.16.002 pin v2.52→v2.53 (EC-01-041 FINAL-batch qualified; EC-01-042 NEW non-final fan-out batch discriminator); BC-2.11.001 UNCHANGED v1.31 (transitive coverage verified). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2366 NOTE archived.
@@ -370,7 +369,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.3 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |

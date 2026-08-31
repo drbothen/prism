@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -16,7 +16,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "2e91a4e"
+input-hash: "4f7d01e"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
@@ -63,7 +63,7 @@ The `claroty_ot_activity_events` table MUST be declared in `claroty.sensor.toml`
 
 ```toml
 [[tables]]
-table_name = "claroty_ot_activity_events"
+table_name = "ot_activity_events"  # bare name; TableRegistry derives the registered/queryable name as {sensor_id}_{table_name} = "claroty_ot_activity_events"
 ocsf_class = "detection_finding"   # class_uid 2004 (existing arm; same as alerts table)
 ```
 
@@ -156,9 +156,11 @@ Until the DTU story executes, near-term tests run against the live monroe sensor
 - `event_id` (Integer, REQUIRED) is the platform-unique event identifier; REQUIRED flags it as
   a mandatory push-down parameter — not a null-row control (BC-2.11.007; see
   `pushdown.rs::classify_predicates` REQUIRED priority ordering). When a response row omits the
-  `event_id` field, `ColumnMapper::map_record` default absent-field handling produces a null
-  `finding_info_uid` cell; the row is NOT dropped — `time` and `raw_extensions` remain populated
-  and the row continues
+  `event_id` field, `build_column_array` (within `pipeline_result_to_record_batch`, reached via
+  `SpecDrivenSensorAdapter::fetch` in `crates/prism-bin/src/spec_driven_adapter.rs`) produces a
+  null `finding_info_uid` cell via absent-field passthrough; the row is NOT dropped — `time` and
+  `raw_extensions` remain populated and the row continues. (`ColumnMapper::map_record` is a
+  non-production reference mirror — it has zero production callers and is NOT the production path.)
 - Network 5-tuple fields (`source_ip`, `dest_ip`, `protocol`, `dest_port`, `source_port`,
   `ip_protocol`) are Tier-2 — they are NOT exposed as standalone Arrow columns; queries against
   them by raw TOML name MUST raise E-QUERY-038 with `available_columns` containing `raw_extensions`
@@ -178,7 +180,7 @@ Until the DTU story executes, near-term tests run against the live monroe sensor
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-016-016-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `ColumnMapper::map_record` default absent-field passthrough — independent of the REQUIRED push-down-parameter flag. |
+| EC-016-016-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `build_column_array` absent-field passthrough within `pipeline_result_to_record_batch` (`SpecDrivenSensorAdapter::fetch` path) — independent of the REQUIRED push-down-parameter flag. (`ColumnMapper::map_record` is a non-production reference mirror.) |
 | EC-016-016-002 | `related_alert_ids` is an empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null |
 | EC-016-016-003 | `detection_time` is null/absent | Null Datetime cell; no fallback chain declared (optional field); ADR-028 §D8-B null-passthrough |
 | EC-016-016-004 | `mode` field absent (not all event types change mode) | Null string cell in raw_extensions; no error |
@@ -242,6 +244,7 @@ S-CLAROTY-OT-EVENTS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | med-1-med-3-mechanism-correction | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name). MED-3: §Invariants and EC-016-016-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`); `map_record` retained as explicitly-labeled non-production reference mirror only. |
 | 1.2 | med-1-required-semantics-correction | 2026-08-31 | product-owner | MED-1 (POL-4) REQUIRED-semantics fix — §Invariants and EC-016-016-001 prose corrected: causal attribution of absent-field passthrough moved from "spec-engine REQUIRED semantics" to `ColumnMapper::map_record` default absent-field handling; §Invariants now explains REQUIRED as mandatory push-down-parameter flag per BC-2.11.007 / `pushdown.rs::classify_predicates` priority ordering; EC-016-016-001 Expected Behavior updated to reflect that `finding_info_uid` is null while `time` and `raw_extensions` remain populated (row not dropped). No postcondition mechanics, column list, test vectors, or ACs changed. |
 | 1.1 | f-1-remove-uncertainty | 2026-08-30 | product-owner | F-1 pre-TDD remove-uncertainty fix — TOML literal-string body_template corrected to single-line double-quoted string; zero semantic change; 21 fields unchanged. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome OT activity events queryable surface contract per xdome-endpoint-expansion-plan.md Wave A G2 and spike-findings §Spike 2. TOML table contract, 21-column Tier-1/Tier-2 classification per ADR-058, Option B OCSF class rationale (detection_finding/2004 over network_activity/4001 per plan governing constraint), SAP-2 N/A documentation (no DTU), D-2200 deferred DTU anchor. |

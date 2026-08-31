@@ -7,10 +7,10 @@ wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
 status: ready
-# BC status: BC-2.16.016 v1.2 draft; MED-1 REQUIRED-semantics correction + MED-2 prism-bin traceability applied 2026-08-31.
+# BC status: BC-2.16.016 v1.3 draft; MED-1 bare table_name + MED-3 build_column_array mechanism re-anchor applied 2026-08-31.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.2"
+version: "1.3"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,7 +20,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a03c609"
+input-hash: "60a425b"
 # input-hash: run `compute-input-hash <this-file> --update` after writing
 traces_to: "BC-2.16.016"
 points: 5
@@ -51,7 +51,7 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.016
-  # BC-2.16.016 v1.2 — Claroty xDome OT Activity Events Table: TOML table contract
+  # BC-2.16.016 v1.3 — Claroty xDome OT Activity Events Table: TOML table contract
   # (§Postconditions §1), 21-column Tier-1/Tier-2 classification (§Postconditions §2,
   # 4 Tier-1 + 17 Tier-2), Option B OCSF class rationale (§Postconditions §3),
   # SAP-2 DTU parity N/A (§Postconditions §4), EC-016-016-001..006 edge cases.
@@ -83,13 +83,13 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.016 v1.2 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
-block structure: `table_name = "claroty_ot_activity_events"`, `ocsf_class = "detection_finding"`,
+**BC-2.16.016 v1.3 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
+block structure: `table_name = "ot_activity_events"` (bare name; `{sensor_id}_{table_name}` derives the registered/queryable name `claroty_ot_activity_events`), `ocsf_class = "detection_finding"`,
 step name `"fetch_ot_activity_events"`, `path_template = "/api/v1/ot_activity_events/"`,
 `response_path = "$.ot_activity_events"`, pagination `type = "offset_limit"` / `page_size = 1000`,
 and the 21-field `body_template`. Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.016 v1.2 §Postconditions §2 — Column Tier Classification** governs Arrow field naming:
+**BC-2.16.016 v1.3 §Postconditions §2 — Column Tier Classification** governs Arrow field naming:
 - Tier-1: `event_id` (`ocsf_field = "finding_info.uid"` → `finding_info_uid`, Integer, REQUIRED),
   `detection_time` (`ocsf_field = "time"` → `time`, Datetime),
   `event_type` (`ocsf_field = "activity_name"` → `activity_name`, String),
@@ -98,7 +98,7 @@ and the 21-field `body_template`. Read §Postconditions §1 in full before autho
   Network 5-tuple (`source_ip`, `dest_ip`, `protocol`, `dest_port`, `source_port`, `ip_protocol`)
   is Tier-2 by DELIBERATE design — see §Postconditions §3 Option B rationale.
 
-**BC-2.16.016 v1.2 §Postconditions §3 — Option B OCSF Class Rationale**: `detection_finding`
+**BC-2.16.016 v1.3 §Postconditions §3 — Option B OCSF Class Rationale**: `detection_finding`
 (class_uid 2004) is used — NOT `network_activity` (class_uid 4001). Authority: spike-findings
 §Spike 2 §Decision. The governing constraint "NO new OCSF class_selector arms required
 (pragmatic mappings)" in xdome-endpoint-expansion-plan.md §Current Coverage is a design
@@ -106,7 +106,7 @@ constraint, not a suggestion. The existing `detection_finding` arm covers this t
 `related_alert_ids` signals that these events are part of the detection workflow, confirming
 Option B as the semantically correct choice.
 
-**BC-2.16.016 v1.2 §Postconditions §4 — SAP-2 N/A**: No DTU exists for
+**BC-2.16.016 v1.3 §Postconditions §4 — SAP-2 N/A**: No DTU exists for
 `claroty_ot_activity_events`. SAP-2 DTU-parity probe is explicitly not applicable for this
 delivery. Near-term tests run against the live monroe sensor only. DTU creation is deferred
 per D-2200. Once the deferred DTU story executes, BC-2.16.016 MUST be amended with DTU
@@ -184,14 +184,14 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.2 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics; absent-field passthrough via ColumnMapper::map_record); EC-016-016-001..006 edge cases |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.3 | §Postconditions §1 TOML table contract (bare table_name "ot_activity_events"; step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics; absent-field passthrough via build_column_array within pipeline_result_to_record_batch); EC-016-016-001..006 edge cases |
 
 ## Acceptance Criteria
 
 ### AC-001: TOML block parses without validation error; 21 columns declared; 4 Tier-1, 17 Tier-2; pagination offset_limit 1000 (traces to BC-2.16.016 postcondition 1 — TOML Table Contract)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_ot_activity_events"`, `ocsf_class = "detection_finding"`,
+`table_name = "ot_activity_events"` (bare name; `{sensor_id}_{table_name}` derives the registered/queryable name `claroty_ot_activity_events`), `ocsf_class = "detection_finding"`,
 a step named `"fetch_ot_activity_events"` with `method = "POST"`,
 `path_template = "/api/v1/ot_activity_events/"`,
 `response_path = "$.ot_activity_events"`, pagination `type = "offset_limit"` / `page_size = 1000`,
@@ -270,14 +270,17 @@ wire level explicitly.
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_network_fields`
 (`#[ignore]` — requires `CLAROTY_INSTANCE_URL`)
 
-### AC-007: Missing `event_id` field → null `finding_info_uid` cell; `time` and `raw_extensions` remain populated; row NOT dropped; subsequent rows unaffected (traces to BC-2.16.016 §Invariants — event_id REQUIRED push-down flag; absent-field passthrough via ColumnMapper::map_record; edge case EC-016-016-001)
+### AC-007: Missing `event_id` field → null `finding_info_uid` cell; `time` and `raw_extensions` remain populated; row NOT dropped; subsequent rows unaffected (traces to BC-2.16.016 §Invariants — event_id REQUIRED push-down flag; absent-field passthrough via build_column_array within pipeline_result_to_record_batch; edge case EC-016-016-001)
 
 The `event_id` column carries `options = ["REQUIRED"]` in the TOML, which marks it as a mandatory
 push-down parameter per BC-2.11.007 (`pushdown.rs::classify_predicates` REQUIRED priority ordering)
 — REQUIRED does NOT control null-row behavior. When the API response contains a row where `event_id`
-is absent or null, `ColumnMapper::map_record` default absent-field handling produces a null
-`finding_info_uid` cell; the row is NOT dropped — `time` and `raw_extensions` remain populated and
-subsequent rows continue to materialize normally. No hard error is raised.
+is absent or null, `build_column_array` (within `pipeline_result_to_record_batch`, reached via
+`SpecDrivenSensorAdapter::fetch` in `crates/prism-bin/src/spec_driven_adapter.rs`) produces a null
+`finding_info_uid` cell via absent-field passthrough; the row is NOT dropped — `time` and
+`raw_extensions` remain populated and subsequent rows continue to materialize normally. No hard
+error is raised. (`ColumnMapper::map_record` is a non-production reference mirror — it has zero
+production callers and is NOT the production path.)
 
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_required_event_id_absent_produces_null_row`
 (unit test with mock response containing a row missing `event_id`)
@@ -359,7 +362,7 @@ Architecture section references:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `ColumnMapper::map_record` default absent-field passthrough — independent of the REQUIRED push-down-parameter flag (BC-2.16.016 §Invariants; EC-016-016-001) |
+| EC-001 | Row missing `event_id` field in API response | `finding_info_uid` cell is null; `time` and `raw_extensions` remain populated; row is NOT dropped; no hard error; subsequent rows continue. Attribution: `build_column_array` absent-field passthrough within `pipeline_result_to_record_batch` (`SpecDrivenSensorAdapter::fetch` path) — independent of the REQUIRED push-down-parameter flag. (`ColumnMapper::map_record` is a non-production reference mirror.) (BC-2.16.016 §Invariants; EC-016-016-001) |
 | EC-002 | `related_alert_ids` is empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null (EC-016-016-002) |
 | EC-003 | `detection_time` is null/absent | Null Datetime cell; ADR-028 §D8-B null-passthrough; no E-SPEC-018 (EC-016-016-003) |
 | EC-004 | `mode` field absent (not all event types change mode) | Null string cell in `raw_extensions`; no error (EC-016-016-004) |
@@ -376,7 +379,7 @@ Architecture section references:
 |------|-----------------|
 | This story spec | ~7,500 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables as pattern reference) | ~5,500 |
-| BC-2.16.016 v1.2 (full) | ~5,000 |
+| BC-2.16.016 v1.3 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | spike-findings §Spike 2 (OCSF class decision; column set; 2 excluded fields) | ~2,500 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
@@ -529,7 +532,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 ## References
 
-- BC-2.16.016 v1.2 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 21-column Tier-1/Tier-2; §Postconditions §3 Option B rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics per BC-2.11.007; absent-field null passthrough via ColumnMapper::map_record); EC-016-016-001..006
+- BC-2.16.016 v1.3 (draft) — §Postconditions §1 TOML bare table_name "ot_activity_events" (registered/queryable name derived as {sensor_id}_{table_name}); §Postconditions §2 21-column Tier-1/Tier-2; §Postconditions §3 Option B rationale; §Postconditions §4 SAP-2 N/A; §Invariants (REQUIRED push-down semantics per BC-2.11.007; absent-field null passthrough via build_column_array within pipeline_result_to_record_batch, SpecDrivenSensorAdapter::fetch path); EC-016-016-001..006
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — underscore-flattened Arrow names; §D — per-sensor ocsf_column_naming flag
 - ADR-028 §D8-B — implicit iso8601 default for datetime columns without timestamp_formats
 - spike-findings §Spike 2 — OCSF class decision (Option B over Option A); 21-column set; 2 excluded fields (dest_network, source_network); Tier-1/Tier-2 classification authority
@@ -543,6 +546,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-08-31 | story-writer | MED-1 + MED-3 mechanism re-anchor: §Authority + AC-001 bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"` (derivation note added — `{sensor_id}_{table_name}` = registered/queryable name `claroty_ot_activity_events`). AC-007 title + body + EC-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`, `crates/prism-bin/src/spec_driven_adapter.rs`); `map_record` retained as explicitly-labeled non-production reference mirror only. All BC-2.16.016 refs bumped v1.2→v1.3. |
 | 1.2 | 2026-08-31 | story-writer | MED-1 (POL-4) REQUIRED-semantics fix: AC-007 §Acceptance Criteria and EC-001 §Edge Cases causal attribution corrected — absent-field null passthrough attributed to ColumnMapper::map_record default absent-field handling, independent of REQUIRED push-down-parameter flag per BC-2.11.007 §Invariants (BC-2.16.016 v1.2 §Invariants and EC-016-016-001 authoritative wording); AC-007 title updated to reflect row-NOT-dropped + time/raw_extensions-remain semantics. MED-2 prism-bin traceability: frontmatter crates_touched adds prism-bin; §Architecture Mapping spec_driven_adapter.rs corrected to crates/prism-bin/src/ (not prism-spec-engine); §Red Gate Tests RG-003 row updated to prism-bin authoritative end-to-end + prism-sensors defense-in-depth SAP-3 note; RG-009 (EC-009 raw detection_time E-QUERY-038) and RG-010 (EC-002-WIRE JSON-array wire assertion) added; §File Structure Requirements adds CREATE crates/prism-bin/tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs and MODIFY crates/prism-bin/Cargo.toml; density check updated to 10/9. All BC-2.16.016 refs bumped v1.1→v1.2. |
 | 1.1 | 2026-08-30 | story-writer | G2 propagation + promote: F-1 downstream-copy sweep — no body_template copy present in story (confirmed). Status promoted draft→ready (pre-TDD remove-uncertainty CLEAN 2026-08-30; F-1 fixed in BC v1.1). All BC refs updated v1.0→v1.1. Task 10 reworded count-agnostic (5 or 6 tables, G1 merge-order dependent). AC-006 + RG-001 explicit JSON-array assertion added for related_alert_ids (first json column_type use; must not stringify; matches EC-002). |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-OT-EVENTS-001 (Wave A G2). BC-2.16.016 v1.1 traceability; 21-column Tier-1/Tier-2 spec; 9 ACs; 8 RGTs; density 0.89; SAC-1 compliant; SAP-2 explicitly N/A (no DTU; D-2200 deferred); Option B OCSF class locked; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; 2 deliberately excluded fields documented. |
