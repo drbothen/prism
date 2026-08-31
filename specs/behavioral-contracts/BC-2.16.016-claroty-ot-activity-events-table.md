@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -202,7 +202,7 @@ Until the DTU story executes, near-term tests run against the live monroe sensor
 - `crates/prism-spec-engine/src/spec_parser.rs` — ColumnSpec, FetchStep deserialization
 - `crates/prism-spec-engine/src/pipeline.rs` — OffsetLimit POST-body injection
 - `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` — `"detection_finding"` arm (existing)
-- `crates/prism-spec-engine/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
+- `crates/prism-bin/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
 - `.factory/objectives/xdome-v1-validation/endpoint-spike-findings.md §Spike 2` — OCSF class decision authority
 
 ## Story Anchor
@@ -244,6 +244,7 @@ S-CLAROTY-OT-EVENTS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | f-ote-p1-high-001-arch-anchor | 2026-08-31 | product-owner | F-OTE-P1-HIGH-001: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (`crates/prism-bin/src/spec_driven_adapter.rs — pipeline_result_to_record_batch`); §Invariants already cited the correct `crates/prism-bin/src/` path — §Architecture Anchors is now internally consistent. |
 | 1.3 | med-1-med-3-mechanism-correction | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_ot_activity_events"` to `"ot_activity_events"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name). MED-3: §Invariants and EC-016-016-001 re-anchored from non-production `ColumnMapper::map_record` to production mechanism `build_column_array` within `pipeline_result_to_record_batch` (reached via `SpecDrivenSensorAdapter::fetch`); `map_record` retained as explicitly-labeled non-production reference mirror only. |
 | 1.2 | med-1-required-semantics-correction | 2026-08-31 | product-owner | MED-1 (POL-4) REQUIRED-semantics fix — §Invariants and EC-016-016-001 prose corrected: causal attribution of absent-field passthrough moved from "spec-engine REQUIRED semantics" to `ColumnMapper::map_record` default absent-field handling; §Invariants now explains REQUIRED as mandatory push-down-parameter flag per BC-2.11.007 / `pushdown.rs::classify_predicates` priority ordering; EC-016-016-001 Expected Behavior updated to reflect that `finding_info_uid` is null while `time` and `raw_extensions` remain populated (row not dropped). No postcondition mechanics, column list, test vectors, or ACs changed. |
 | 1.1 | f-1-remove-uncertainty | 2026-08-30 | product-owner | F-1 pre-TDD remove-uncertainty fix — TOML literal-string body_template corrected to single-line double-quoted string; zero semantic change; 21 fields unchanged. |

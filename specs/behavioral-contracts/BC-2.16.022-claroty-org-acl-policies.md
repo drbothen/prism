@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -17,7 +17,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "2b1ff87"
+input-hash: "5213907"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
@@ -74,7 +74,7 @@ The `claroty_organization_acl_policies` table MUST be declared in `claroty.senso
 
 ```toml
 [[tables]]
-table_name = "claroty_organization_acl_policies"
+table_name = "organization_acl_policies"  # bare name; TableRegistry derives the registered/queryable name as {sensor_id}_{table_name} = "claroty_organization_acl_policies"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm)
 ```
 
@@ -340,7 +340,7 @@ condition — the pipeline does not attempt to read `count` for `PaginationConfi
   `raw_extensions`
 - `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` — `"entity_management"` arm
   (existing; resolves to class_uid 3004)
-- `crates/prism-spec-engine/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
+- `crates/prism-bin/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
 - `.factory/reference/api-specs/xdome_openapi_06.20.2026.json §/api/v1/organization_acl_policies/` — endpoint authority; `GetOrganizationAclPoliciesRequest` schema (required: ["policy_acl_syntax"]); `OrganizationAclPolicyResponseItem` concrete schema (11 fields, all anyOf/nullable)
 - `.factory/objectives/xdome-endpoint-expansion-plan.md §Gap Table G6` — table scope authority
 - `.factory/objectives/xdome-v1-validation/endpoint-spike-findings.md §Spike 4` — AUTHORITATIVE: pagination=none decision, policy_acl_syntax mandatory handling, 11-column set with Tier classifications, PK decision (policy_id→metadata.uid), body_template
@@ -387,5 +387,6 @@ S-CLAROTY-ACLPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_organization_acl_policies"` to `"organization_acl_policies"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name `"claroty_organization_acl_policies"`; ACLPOLICY worktree TOML already uses the correct bare form — BC spec now matches). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.1 | remove-uncertainty-aclpolicy-g6 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass per D-1110). Validated every API/technology assumption against ground truth (`xdome_openapi_06.20.2026.json`, `endpoint-schema-extract.md §organization_acl_policies`, `endpoint-spike-findings.md §Spike 4`, `claroty.sensor.toml`, and prism-spec-engine/prism-ocsf/prism-dtu-claroty source). CONFIRMED: endpoint `POST /api/v1/organization_acl_policies/`; envelope key `organization_acl_policies` with NO count field (`GetOrganizationAclPoliciesResponse` sole required prop); `response_path $.organization_acl_policies`; `policy_acl_syntax` REQUIRED (`GetOrganizationAclPoliciesRequest.required`) referencing `ACLType` (Cisco dACL/AireOS/ArubaOS-Switch/ArubaOS-CX), not in fields_enum; 11 `fields_enum` entries match body_template exactly incl. order; all 11 `OrganizationAclPolicyResponseItem` column types match (policy_id string/uuid→String, applied_models array-of-string→Json, matching_devices integer→Integer, policy_creation_date/policy_last_updated date-time→Datetime, remainder String); pagination `none` correct (request schema declares no offset/limit and `additionalProperties:false`, so injection→422); `PaginationConfig::None` variant present in `spec_parser.rs` with `#[serde(tag="type", rename_all="snake_case")]`; `build_request` skips offset/limit body injection when page_size=0 (None path); `ocsf_field_to_arrow_name` yields metadata_uid/actor_user_name; `entity_management`→class_uid 3004 arm present in `class_selector.rs` (carries `comment` attr → policy_notes→comment valid); baseline exactly 4 Claroty tables; `ocsf_column_naming=true` at sensor level; SAP-2 N/A confirmed (no `organization_acl_policies` route in prism-dtu-claroty). CORRECTION: §PC1 `body_template` was rendered as a single-quoted TOML literal string spanning 3 lines with `\` line-continuations — invalid TOML (literal strings cannot span lines or use backslash continuation). Re-rendered as a valid single-line literal string identical to story §TOML Column-Block Specification. No semantic/content changes to columns, mappings, pagination, or postconditions. |
 | 1.0 | xdome-wave-c-f2-spec-evolution-g6 | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Organization ACL Policies queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G6. KEY NOVELTY: `type = "none"` pagination (only Claroty table with non-paginated fetch; all others use offset_limit/1000); mandatory `policy_acl_syntax = "Cisco dACL"` hardcoded in body_template (REQUIRED API field, not in fields_enum, hardcoded v1, follow-up story deferred); response envelope has NO count field. 11 columns from OrganizationAclPolicyResponseItem (all anyOf/nullable): 4 Tier-1 (policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment) + 7 Tier-2 (policy_source/String, policy_acl_type/String, policy_acl/String, applied_models/Json, matching_devices/Integer, policy_creation_date/Datetime, policy_last_updated/Datetime). PK: policy_id (UUID-format, stable system ID) → metadata.uid; policy_name→name (human-readable Tier-1, not PK). OCSF: entity_management/3004 (existing arm; same as BC-2.16.020/021). No new error codes (PaginationConfig::None no-count path covered by existing E-SENSOR-001/E-QUERY-038/E-SPEC-018). No new class_selector arm. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-029 holdout group registered with 3 P0 scenarios for S-CLAROTY-ACLPOLICY-001. |

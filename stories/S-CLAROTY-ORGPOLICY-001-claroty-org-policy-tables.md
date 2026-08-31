@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.020 v1.1 draft + BC-2.16.021 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.1"
+version: "1.2"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -22,7 +22,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "2e56d80"
+input-hash: "aa56676"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.020"
 # traces_to covers primary BC (Zone Domain); BC-2.16.021 (Firewall Domain) is the companion BC; both wired via behavioral_contracts
@@ -44,10 +44,11 @@ subsystems: [SS-01, SS-16]
 #     column-mapping surfaces. SS-16 is the canonical owner of prism-spec-engine per
 #     ARCH-INDEX Subsystem Registry.
 target_module: prism-sensors
-crates_touched: [prism-sensors, prism-spec-engine]
+crates_touched: [prism-sensors, prism-spec-engine, prism-bin]
 # crates_touched:
 #   prism-sensors: claroty.sensor.toml — four new [[tables]] blocks
 #   prism-spec-engine: RG unit tests (spec-parser, column inspection); no production code changes
+#   prism-bin: authoritative RG-003/RG-012/RG-020/RG-024 end-to-end E-QUERY-038 gates + RG-027 wire-shape
 capabilities:
   - CAP-029
 behavioral_contracts:
@@ -99,13 +100,15 @@ risk_mitigations: []
 ## Authority
 
 **BC-2.16.020 v1.0 §Postconditions §1 — TOML Table Contract (claroty_organization_zones)**
-governs the exact `[[tables]]` block: `table_name = "claroty_organization_zones"`,
+governs the exact `[[tables]]` block: `table_name = "organization_zones"` (bare name;
+`{sensor_id}_{table_name}` = `claroty_organization_zones` registered/queryable name),
 `ocsf_class = "entity_management"`, step name `"fetch_organization_zones"`, `method = "POST"`,
 `path_template = "/api/v1/organization_zones/"`, `response_path = "$.organization_zones"`,
 pagination `type = "offset_limit"` / `page_size = 1000`, and the 11-field `body_template`.
 
 **BC-2.16.020 v1.0 §Postconditions §2 — TOML Table Contract (claroty_organization_zone_policies)**
-governs the exact `[[tables]]` block: `table_name = "claroty_organization_zone_policies"`,
+governs the exact `[[tables]]` block: `table_name = "organization_zone_policies"` (bare name;
+`{sensor_id}_{table_name}` = `claroty_organization_zone_policies` registered/queryable name),
 `ocsf_class = "entity_management"`, step `"fetch_organization_zone_policies"`, `method = "POST"`,
 `path_template = "/api/v1/organization_zone_policies/"`, `response_path = "$.organization_zone_policies"`,
 pagination `type = "offset_limit"` / `page_size = 1000`, and the 13-field `body_template`.
@@ -129,7 +132,8 @@ produces an empty column (EC-016-020-009).
   `related_alerts_ids`, `applied_zone_pairs`.
 
 **BC-2.16.021 v1.0 §Postconditions §1 — TOML Table Contract (claroty_organization_firewall_groups)**
-governs the exact `[[tables]]` block: `table_name = "claroty_organization_firewall_groups"`,
+governs the exact `[[tables]]` block: `table_name = "organization_firewall_groups"` (bare name;
+`{sensor_id}_{table_name}` = `claroty_organization_firewall_groups` registered/queryable name),
 `ocsf_class = "entity_management"`, step `"fetch_organization_firewall_groups"`, `method = "POST"`,
 **`path_template = "/api/v1/organization_fw_groups/"`** (abbreviated `_fw_groups` in URL),
 **`response_path = "$.organization_firewall_groups"`** (full `organization_firewall_` spelling in
@@ -277,14 +281,15 @@ is BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 ### AC-001: TOML block parses without validation error; 11 columns declared; pagination offset_limit 1000; response_path $.organization_zones (traces to BC-2.16.020 postcondition 1 — TOML Table Contract)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_organization_zones"`, `ocsf_class = "entity_management"`,
+`table_name = "organization_zones"` (bare name; `{sensor_id}_{table_name}` = `claroty_organization_zones`
+registered/queryable name), `ocsf_class = "entity_management"`,
 a step named `"fetch_organization_zones"` with `method = "POST"`,
 `path_template = "/api/v1/organization_zones/"`,
 `response_path = "$.organization_zones"`, pagination `type = "offset_limit"` / `page_size = 1000`,
 and `body_template` containing all 11 contracted fields.
 
 `SpecLoader::parse` on the modified TOML returns `Ok(SensorSpec)` without validation error.
-The parsed spec reports 11 `ColumnSpec` entries for `claroty_organization_zones`.
+The parsed spec reports 11 `ColumnSpec` entries for the `claroty_organization_zones` queryable table.
 
 **Test:** `test_BC_2_16_020_claroty_organization_zones_toml_block_parses`
 
@@ -374,7 +379,8 @@ null-pointer dereference on `count`. No error raised.
 ### AC-009: TOML block parses; 13 columns declared; response_path $.organization_zone_policies; field name is `last_updated` (with trailing 'd') not `last_update` (traces to BC-2.16.020 postcondition 2 — TOML Table Contract; datetime field name asymmetry note)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_organization_zone_policies"`, `ocsf_class = "entity_management"`,
+`table_name = "organization_zone_policies"` (bare name; `{sensor_id}_{table_name}` =
+`claroty_organization_zone_policies` registered/queryable name), `ocsf_class = "entity_management"`,
 step `"fetch_organization_zone_policies"`, `method = "POST"`,
 `path_template = "/api/v1/organization_zone_policies/"`,
 `response_path = "$.organization_zone_policies"`, pagination `type = "offset_limit"` /
@@ -386,7 +392,7 @@ the zones table). Using the wrong name silently omits temporal data from the res
 (EC-016-020-009).
 
 `SpecLoader::parse` returns `Ok(SensorSpec)` without validation error. 13 `ColumnSpec`
-entries for `claroty_organization_zone_policies`.
+entries for the `claroty_organization_zone_policies` queryable table.
 
 **Test:** `test_BC_2_16_020_claroty_organization_zone_policies_toml_block_parses`
 
@@ -448,7 +454,8 @@ When the spec-engine processes a zone_policies row, each of `communication_condi
 ### AC-015: TOML block parses; 11 columns; path_template=/api/v1/organization_fw_groups/ (abbreviated URL); response_path=$.organization_firewall_groups (full envelope key) (traces to BC-2.16.021 postcondition 1 — TOML Table Contract; URL vs envelope key asymmetry invariant)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_organization_firewall_groups"`, `ocsf_class = "entity_management"`,
+`table_name = "organization_firewall_groups"` (bare name; `{sensor_id}_{table_name}` =
+`claroty_organization_firewall_groups` registered/queryable name), `ocsf_class = "entity_management"`,
 step `"fetch_organization_firewall_groups"`, `method = "POST"`,
 **`path_template = "/api/v1/organization_fw_groups/"`** (abbreviated — `_fw_groups` in path),
 **`response_path = "$.organization_firewall_groups"`** (full `organization_firewall_groups`
@@ -459,8 +466,8 @@ The presence of `/organization_fw_groups/` in `path_template` AND `$.organizatio
 in `response_path` in the SAME TOML block is NOT a contradiction — it is the documented
 API asymmetry. Both strings MUST be present exactly as specified.
 
-`SpecLoader::parse` returns `Ok(SensorSpec)`. 11 `ColumnSpec` entries for
-`claroty_organization_firewall_groups`.
+`SpecLoader::parse` returns `Ok(SensorSpec)`. 11 `ColumnSpec` entries for the
+`claroty_organization_firewall_groups` queryable table.
 
 **Test:** `test_BC_2_16_021_claroty_organization_firewall_groups_toml_block_parses`
 
@@ -529,14 +536,15 @@ Same applies for `priority`, `device_conditions`, `attributed_devices`, etc.
 ### AC-021: TOML block parses; 13 columns; path_template=/api/v1/organization_fw_group_policies/ (abbreviated); response_path=$.organization_firewall_policies (full spelling) (traces to BC-2.16.021 postcondition 2 — TOML Table Contract; URL vs envelope key asymmetry)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_organization_firewall_policies"`, `ocsf_class = "entity_management"`,
+`table_name = "organization_firewall_policies"` (bare name; `{sensor_id}_{table_name}` =
+`claroty_organization_firewall_policies` registered/queryable name), `ocsf_class = "entity_management"`,
 step `"fetch_organization_firewall_policies"`, `method = "POST"`,
 `path_template = "/api/v1/organization_fw_group_policies/"` (abbreviated URL),
 `response_path = "$.organization_firewall_policies"` (full envelope key spelling),
 pagination `type = "offset_limit"` / `page_size = 1000`, and `body_template` with all 13 fields.
 
-`SpecLoader::parse` returns `Ok(SensorSpec)`. 13 `ColumnSpec` entries for
-`claroty_organization_firewall_policies`.
+`SpecLoader::parse` returns `Ok(SensorSpec)`. 13 `ColumnSpec` entries for the
+`claroty_organization_firewall_policies` queryable table.
 
 **Test:** `test_BC_2_16_021_claroty_organization_firewall_policies_toml_block_parses`
 
@@ -614,7 +622,7 @@ objects per spike-findings §Table D — distinct from `applied_zone_pairs` (`{s
 |----|-----------|-----------|---------------|
 | RG-001 | `test_BC_2_16_020_claroty_organization_zones_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 11 ColumnSpec entries; pagination offset_limit 1000; response_path $.organization_zones |
 | RG-002 | `test_BC_2_16_020_claroty_organization_zones_tier1_columns_four_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-002: exactly 4 Tier-1 (zone_name→name REQUIRED; zone_description→comment; enabled→status_code; updated_by→actor.user.name); 7 Tier-2 have None ocsf_field |
-| RG-003 | `test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038` | Integration (plan-time) | AC-003: SELECT zone_source raises E-QUERY-038; available_columns excludes zone_source; includes raw_extensions, name, comment, status_code, actor_user_name |
+| RG-003 | `test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-003: SELECT zone_source raises E-QUERY-038; available_columns excludes zone_source; includes raw_extensions, name, comment, status_code, actor_user_name |
 | RG-004 | `test_BC_2_16_020_claroty_organization_zones_tier1_raw_toml_name_raises_e_query_038` | Integration (plan-time) | AC-004 WIRE-SHAPE rename: SELECT zone_name raises E-QUERY-038; available_columns has `name` but NOT `zone_name` |
 | RG-005 | `test_BC_2_16_020_claroty_organization_zones_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-005 WIRE-SHAPE: wire JSON class_uid=3004, name present, raw_extensions has device_conditions JSON array; no Tier-2 as standalone root keys |
 | RG-006 | `test_BC_2_16_020_claroty_organization_zones_device_conditions_json_not_string` | Unit (mock response) | AC-006: device_conditions in raw_extensions is JSON array not stringified; empty array serializes as [] not null |
@@ -623,7 +631,7 @@ objects per spike-findings §Table D — distinct from `applied_zone_pairs` (`{s
 | RG-009 | `test_BC_2_16_020_claroty_organization_zone_policies_toml_block_parses` | Unit (SpecLoader::parse) | AC-009: TOML block parses Ok; 13 ColumnSpec entries; last_updated (WITH trailing 'd') in body_template; response_path $.organization_zone_policies |
 | RG-010 | `test_BC_2_16_020_claroty_organization_zone_policies_tier1_columns_four_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-010: exactly 4 Tier-1 (policy_name→name REQUIRED; policy_action→activity_name; policy_notes→comment; updated_by→actor.user.name); 9 Tier-2 have None |
 | RG-011 | `test_BC_2_16_020_claroty_organization_zone_policies_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-011 WIRE-SHAPE: wire JSON class_uid=3004, name, activity_name present; raw_extensions has communication_conditions, related_alerts_ids, applied_zone_pairs as JSON arrays |
-| RG-012 | `test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038` | Integration (plan-time) | AC-012: SELECT applied_zone_pairs raises E-QUERY-038; available_columns excludes applied_zone_pairs; includes raw_extensions |
+| RG-012 | `test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-012: SELECT applied_zone_pairs raises E-QUERY-038; available_columns excludes applied_zone_pairs; includes raw_extensions |
 | RG-013 | `test_BC_2_16_020_claroty_organization_zone_policies_required_policy_name_absent_produces_null_row` | Unit (mock response) | AC-013: policy_name absent → null row; no hard error; subsequent rows continue |
 | RG-014 | `test_BC_2_16_020_claroty_organization_zone_policies_json_columns_not_stringified` | Unit (mock response) | AC-014: communication_conditions, related_alerts_ids, applied_zone_pairs each serialized as JSON arrays in raw_extensions; not stringified |
 | RG-015 | `test_BC_2_16_021_claroty_organization_firewall_groups_toml_block_parses` | Unit (SpecLoader::parse) | AC-015: TOML block parses Ok; 11 ColumnSpec entries; path_template=/api/v1/organization_fw_groups/ (abbreviated); response_path=$.organization_firewall_groups (full spelling) — both strings present in parsed spec |
@@ -631,16 +639,17 @@ objects per spike-findings §Table D — distinct from `applied_zone_pairs` (`{s
 | RG-017 | `test_BC_2_16_021_claroty_organization_firewall_groups_live_fw_asymmetry_nonempty_result` | Live Variant-1 (`#[ignore]`) | AC-017 fw asymmetry: SELECT name FROM claroty_organization_firewall_groups returns non-empty rows, confirming $.organization_firewall_groups response_path works against abbreviated-URL endpoint |
 | RG-018 | `test_BC_2_16_021_claroty_organization_firewall_groups_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-018 WIRE-SHAPE: wire JSON class_uid=3004, name, raw_extensions.device_conditions JSON array; no Tier-2 as standalone root keys |
 | RG-019 | `test_BC_2_16_021_claroty_organization_firewall_groups_required_fwgroupname_absent_produces_null_row` | Unit (mock response) | AC-019: firewall_group_name absent → null row; no hard error |
-| RG-020 | `test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_query_038` | Integration (plan-time) | AC-020: SELECT firewall_group_source raises E-QUERY-038; available_columns excludes firewall_group_source; includes raw_extensions, name, comment, status_code, actor_user_name |
+| RG-020 | `test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-020: SELECT firewall_group_source raises E-QUERY-038; available_columns excludes firewall_group_source; includes raw_extensions, name, comment, status_code, actor_user_name |
 | RG-021 | `test_BC_2_16_021_claroty_organization_firewall_policies_toml_block_parses` | Unit (SpecLoader::parse) | AC-021: TOML block parses Ok; 13 ColumnSpec entries; path_template=/api/v1/organization_fw_group_policies/ (abbreviated); response_path=$.organization_firewall_policies (full spelling); body_template has applied_group_pairs (NOT applied_zone_pairs) |
 | RG-022 | `test_BC_2_16_021_claroty_organization_firewall_policies_tier1_columns_four_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-022: exactly 4 Tier-1 (policy_name→name REQUIRED; policy_action→activity_name; policy_notes→comment; updated_by→actor.user.name); 9 Tier-2 have None |
 | RG-023 | `test_BC_2_16_021_claroty_organization_firewall_policies_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-023 WIRE-SHAPE: wire JSON class_uid=3004, name, activity_name; raw_extensions has applied_group_pairs (NOT applied_zone_pairs) as JSON array; communication_conditions and related_alerts_ids also JSON arrays |
-| RG-024 | `test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_raises_e_query_038` | Integration (plan-time) | AC-024: SELECT applied_group_pairs raises E-QUERY-038; also verifies TOML column block uses applied_group_pairs not applied_zone_pairs |
+| RG-024 | `test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-024: SELECT applied_group_pairs raises E-QUERY-038; also verifies TOML column block uses applied_group_pairs not applied_zone_pairs |
 | RG-025 | `test_BC_2_16_021_claroty_organization_firewall_policies_required_policy_name_absent_produces_null_row` + `test_BC_2_16_021_claroty_organization_firewall_policies_nullable_count_uses_empty_page_halt` | Unit (mock response) — two sub-tests | AC-025: (1) policy_name absent → null row; (2) count=null in fw_policies envelope → empty-page halt |
 | RG-026 | `test_BC_2_16_021_claroty_organization_firewall_policies_json_columns_not_stringified` | Unit (mock response) | AC-026: communication_conditions, related_alerts_ids, applied_group_pairs each serialized as JSON arrays; applied_group_pairs key (NOT applied_zone_pairs) present in raw_extensions |
+| RG-027 | `test_BC_2_16_020_021_claroty_org_policy_wire_shape_json_raw_extensions` | Integration (prism-bin, wire-shape serialization assertion) | Wire-level assertion: for zones and fw_policies, Json columns (device_conditions, applied_group_pairs) appear as JSON-typed values (not strings) in serialized wire output from QueryEngine::execute end-to-end path |
 
-**BC-5.38.001 density check:** 26 Red Gate tests / 26 acceptance criteria = 1.0 ≥ 0.5 threshold. PASS.
-(Note: RG-025 gates two sub-tests under AC-025; counted as 1 RGT per 1 AC.)
+**BC-5.38.001 density check:** 27 Red Gate tests / 26 acceptance criteria = 1.04 ≥ 0.5 threshold. PASS.
+(Note: RG-025 gates two sub-tests under AC-025; counted as 1 RGT per 1 AC. RG-027 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only.)
 
 ## Architecture Mapping
 
@@ -654,7 +663,7 @@ objects per spike-findings §Table D — distinct from `applied_zone_pairs` (`{s
 | Tier-1/Tier-2 Arrow schema computation (all 4 tables) | `crates/prism-spec-engine/src/column_mapping.rs §ocsf_field_to_arrow_name` | Pure (string transformation; deterministic) |
 | Json column serialization into raw_extensions (all 4 tables) | `crates/prism-spec-engine/src/pipeline.rs §PipelineExecutor::execute` | Effectful (processes HTTP response; builds Arrow RecordBatch) |
 | OffsetLimit POST-body injection (all 4 tables) | `crates/prism-spec-engine/src/pipeline.rs §PipelineExecutor::execute` | Effectful (HTTP POST to xDome; merges offset/limit into body_template) |
-| response_path extraction (all 4 tables) | `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` | Effectful (processes HTTP response) |
+| response_path extraction + null-passthrough (all 4 tables) | `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`) | Effectful (processes HTTP response; REQUIRED-field null rows; Tier-2 → raw_extensions) |
 | `entity_management` class arm (shared by all 4 tables) | `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` | Pure (constant → u32 lookup; arm already exists; returns 3004) |
 
 Architecture section references:
@@ -709,7 +718,7 @@ and BC-2.16.021 §PC1/§PC2:
 # PK: zone_name (String, REQUIRED, single-column) → Arrow name
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 [[tables]]
-table_name = "claroty_organization_zones"
+table_name = "organization_zones"          # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_zones"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claroty_audit_logs)
 
 # Tier-1: zone_name → name (REQUIRED; primary key; OCSF entity_management name field)
@@ -794,7 +803,7 @@ page_size = 1000
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 # NOTE: field name is last_updated (WITH trailing 'd') for zone_policies — different from zones' last_update
 [[tables]]
-table_name = "claroty_organization_zone_policies"
+table_name = "organization_zone_policies"  # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_zone_policies"
 ocsf_class = "entity_management"   # class_uid 3004
 
 # Tier-1: policy_name → name (REQUIRED; primary key)
@@ -891,7 +900,7 @@ page_size = 1000
 # PK: firewall_group_name (String, REQUIRED, single-column) → Arrow name
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 [[tables]]
-table_name = "claroty_organization_firewall_groups"
+table_name = "organization_firewall_groups"        # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_firewall_groups"
 ocsf_class = "entity_management"   # class_uid 3004
 
 # Tier-1: firewall_group_name → name (REQUIRED; primary key)
@@ -976,7 +985,7 @@ page_size = 1000
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 # NOTE: Json column is applied_group_pairs (NOT applied_zone_pairs — that belongs to zone_policies)
 [[tables]]
-table_name = "claroty_organization_firewall_policies"
+table_name = "organization_firewall_policies"      # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_firewall_policies"
 ocsf_class = "entity_management"   # class_uid 3004
 
 # Tier-1: policy_name → name (REQUIRED; primary key)
@@ -1216,9 +1225,11 @@ crate imports in production code.
 
 | Action | File path | Notes |
 |--------|-----------|-------|
-| MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add FOUR `[[tables]]` blocks: `claroty_organization_zones` (11 cols), `claroty_organization_zone_policies` (13 cols), `claroty_organization_firewall_groups` (11 cols), `claroty_organization_firewall_policies` (13 cols) after the existing last table block |
+| MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add FOUR `[[tables]]` blocks: `organization_zones` (bare; 11 cols), `organization_zone_policies` (bare; 13 cols), `organization_firewall_groups` (bare; 11 cols), `organization_firewall_policies` (bare; 13 cols) after the existing last table block |
 | CREATE | `crates/prism-sensors/tests/bc_2_16_020_claroty_org_zone_policy.rs` | RG tests for zones + zone_policies (RG-001..RG-014 split between spec-parser and integration tests; `#[ignore]` live tests include `LIVE-MONROE-001` comment) |
 | CREATE | `crates/prism-sensors/tests/bc_2_16_021_claroty_org_fw_policy.rs` | RG tests for fw_groups + fw_policies (RG-015..RG-026; `#[ignore]` live tests include `LIVE-MONROE-001` comment) |
+| CREATE | `crates/prism-bin/tests/bc_2_16_020_021_claroty_org_policy_wire_shape.rs` | RG-027 prism-bin wire-shape test: QueryEngine::execute end-to-end; serialized JSON assertions for device_conditions and applied_group_pairs Json columns |
+| MODIFY | `crates/prism-bin/Cargo.toml` | Add `[[test]]` entry for `bc_2_16_020_021_claroty_org_policy_wire_shape` |
 
 Files that MUST NOT be modified:
 - `crates/prism-ocsf/src/class_selector.rs` — `entity_management` arm already exists; no changes
@@ -1304,5 +1315,6 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-08-31 | story-writer | G2-proven spec-prose corrections applied (mirrors S-CLAROTY-OT-EVENTS-001 v1.3 fixes). FIX 1 (MED-1 table_name): all four `[[tables]]` blocks now use bare table_name (`organization_zones`, `organization_zone_policies`, `organization_firewall_groups`, `organization_firewall_policies`); §Authority, all four TOML blocks, and AC-001/AC-009/AC-015/AC-021 updated; derivation note `{sensor_id}_{table_name}` = registered/queryable name added throughout; SELECT examples and error prose retain prefixed queryable names unchanged. FIX 2 (MED-3 mechanism attribution): N/A — no ColumnMapper::map_record references in this story. FIX 3 (MED-4 prism-bin declaration): `crates_touched` adds `prism-bin`; RG-003/RG-012/RG-020/RG-024 updated to prism-bin end-to-end authoritative (plan-time prism-sensors tests remain defense-in-depth per SAP-3 rule 3); RG-027 added (wire-shape serialization assertion in prism-bin for Json columns); density check 26→27 RGTs / 26 ACs = 1.04 PASS; §File Structure Requirements adds CREATE `crates/prism-bin/tests/bc_2_16_020_021_claroty_org_policy_wire_shape.rs` + MODIFY `crates/prism-bin/Cargo.toml`; TOML block description updated to bare names. FIX 4 (§Architecture Mapping path): `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` corrected to `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`). |
 | 1.1 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass D-1110). Validated all technology/API assumptions in the story and both BCs against ground truth: endpoint-schema-extract.md field enums (OrganizationZones, OrganizationZonePolicies, OrganizationFirewallGroups, OrganizationFirewallGroupPolicies); endpoint-spike-findings.md §Spike 3 Tables A–D; the xDome OpenAPI schema extract; `class_selector.rs::select_by_class_name`; `crates/prism-dtu-claroty/src`. Findings: all 11/13/11/13 `body_template` fields present in their respective field enums; all four endpoint paths, envelope keys, and `response_path` values confirmed (fw URL↔envelope-key asymmetry verified for both firewall tables — abbreviated `_fw_` path vs full `organization_firewall_` envelope key); `entity_management`→class_uid 3004 arm confirmed present (no new arm required); all 8 Json columns confirmed against §Spike 3; per-table `last_update`/`last_updated` datetime field-name asymmetry confirmed; `applied_zone_pairs` (zone_policies) vs `applied_group_pairs` (firewall_policies) table-scoping confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A confirmed (none of the four org-policy routes exist in prism-dtu-claroty); baseline table count confirmed = 4 committed Claroty tables (alerts, audit_logs, devices, device_alert_relations) at current develop HEAD. No corrections required to the story body — all 26 ACs, the RG list, §Architecture Mapping, and §TOML Column-Block Specification match ground truth exactly. Companion BCs corrected and bumped to v1.1 (BC-2.16.020/BC-2.16.021 §Invariants `available_columns` was missing `actor_user_name` for zones/firewall_groups; BC-INDEX H1 title drift corrected per POLICY 7). Story version bumped 1.0→1.1; status remains draft per dispatch. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-ORGPOLICY-001 (Wave C G5). BC-2.16.020 v1.0 + BC-2.16.021 v1.0 traceability; 4 TOML table blocks: claroty_organization_zones (11 cols: 4 Tier-1 [zone_name→name REQUIRED, zone_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 incl. 1 Json: device_conditions); claroty_organization_zone_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d); claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json: device_conditions; URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry documented); claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs; NOT applied_zone_pairs); 8 Json columns total; 26 ACs; 26 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 N/A per D-2200 for all 4 tables; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; TOML column-block specs embedded per both BCs; HS-028 holdout gate BLOCKING; depends_on: []. |

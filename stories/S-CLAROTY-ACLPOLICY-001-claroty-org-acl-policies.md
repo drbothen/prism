@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.022 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.1"
+version: "1.2"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,7 +21,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "794fb25"
+input-hash: "4aa8f67"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.022"
 points: 5
@@ -41,11 +41,13 @@ subsystems: [SS-01, SS-16]
 #     RG-001..RG-011 include spec-parser and pipeline unit tests that exercise SS-16
 #     surfaces. SS-16 is the canonical owner of prism-spec-engine per ARCH-INDEX.
 target_module: prism-sensors
-crates_touched: [prism-sensors, prism-spec-engine]
+crates_touched: [prism-sensors, prism-spec-engine, prism-bin, prism-query]
 # crates_touched:
 #   prism-sensors: claroty.sensor.toml — one new [[tables]] block
 #   prism-spec-engine: RG unit tests (spec-parser, pipeline PaginationConfig::None path,
 #                      column inspection); no production code changes expected
+#   prism-bin: authoritative RG-005/RG-006 end-to-end E-QUERY-038 gates + RG-012 wire-shape
+#   prism-query: plan-time E-QUERY-038 integration test path (via QueryEngine::execute in prism-bin)
 capabilities:
   - CAP-029
 behavioral_contracts:
@@ -119,7 +121,8 @@ risk_mitigations: []
 ## Authority
 
 **BC-2.16.022 v1.0 §Postconditions §1 — TOML Table Contract** governs the exact
-`[[tables]]` block: `table_name = "claroty_organization_acl_policies"`,
+`[[tables]]` block: `table_name = "organization_acl_policies"` (bare name;
+`{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name),
 `ocsf_class = "entity_management"`, step name `"fetch_organization_acl_policies"`,
 `method = "POST"`, `path_template = "/api/v1/organization_acl_policies/"`,
 `body_template` containing `"policy_acl_syntax": "Cisco dACL"` and all 11 contracted
@@ -250,7 +253,8 @@ files). The gate is BLOCKING: unsatisfied scenarios reset the LOCAL streak per B
 ### AC-001: TOML block parses without validation error; 11 columns declared; pagination type=none declared; response_path=$.organization_acl_policies; policy_acl_syntax in body_template (traces to BC-2.16.022 postcondition 1 — TOML Table Contract)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
-`table_name = "claroty_organization_acl_policies"`, `ocsf_class = "entity_management"`,
+`table_name = "organization_acl_policies"` (bare name; `{sensor_id}_{table_name}` =
+`claroty_organization_acl_policies` registered/queryable name), `ocsf_class = "entity_management"`,
 a step named `"fetch_organization_acl_policies"` with `method = "POST"`,
 `path_template = "/api/v1/organization_acl_policies/"`,
 `response_path = "$.organization_acl_policies"`, `pagination.type = "none"` (NOT
@@ -258,8 +262,8 @@ a step named `"fetch_organization_acl_policies"` with `method = "POST"`,
 all 11 contracted fields.
 
 `SpecLoader::parse` on the modified TOML returns `Ok(SensorSpec)` without validation error.
-The parsed spec reports 11 `ColumnSpec` entries for `claroty_organization_acl_policies`.
-The parsed `FetchStep` reports `PaginationConfig::None` (not OffsetLimit).
+The parsed spec reports 11 `ColumnSpec` entries for the `claroty_organization_acl_policies`
+queryable table. The parsed `FetchStep` reports `PaginationConfig::None` (not OffsetLimit).
 
 **Test:** `test_BC_2_16_022_claroty_org_acl_policies_toml_block_parses`
 
@@ -426,16 +430,17 @@ cells are null; no E-SPEC-018 raised)
 | RG-002 | `test_BC_2_16_022_claroty_org_acl_policies_pagination_none_no_offset_limit` | Unit (build_request mock) | AC-002: PaginationConfig::None path in pipeline.rs builds POST body without offset/limit fields |
 | RG-003 | `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_policy_acl_syntax` | Unit (SpecLoader::parse + body_template parse) | AC-003: body_template JSON contains key "policy_acl_syntax" with value "Cisco dACL" |
 | RG-004 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_columns_four_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-004: exactly 4 Tier-1 (policy_id→metadata.uid REQUIRED; policy_name→name; policy_updated_by→actor.user.name; policy_notes→comment); 7 Tier-2 have None ocsf_field |
-| RG-005 | `test_BC_2_16_022_claroty_org_acl_policies_tier2_column_raises_e_query_038` | Integration (plan-time) | AC-005: SELECT policy_source raises E-QUERY-038; available_columns has raw_extensions, metadata_uid, name, actor_user_name, comment but NOT policy_source |
-| RG-006 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_raw_toml_name_policy_id_raises_e_query_038` | Integration (plan-time) | AC-006 WIRE-SHAPE rename: SELECT policy_id raises E-QUERY-038; available_columns has metadata_uid but NOT policy_id |
+| RG-005 | `test_BC_2_16_022_claroty_org_acl_policies_tier2_column_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-005: SELECT policy_source raises E-QUERY-038; available_columns has raw_extensions, metadata_uid, name, actor_user_name, comment but NOT policy_source |
+| RG-006 | `test_BC_2_16_022_claroty_org_acl_policies_tier1_raw_toml_name_policy_id_raises_e_query_038` | Integration end-to-end (prism-bin, via QueryEngine::execute — authoritative; prism-sensors version is defense-in-depth per SAP-3 rule 3) | AC-006 WIRE-SHAPE rename: SELECT policy_id raises E-QUERY-038; available_columns has metadata_uid but NOT policy_id |
 | RG-007 | `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_metadata_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-007 WIRE-SHAPE: wire JSON class_uid=3004, metadata_uid non-null UUID, raw_extensions present, applied_models JSON array not stringified; policy_id NOT standalone root key |
 | RG-008 | `test_BC_2_16_022_claroty_org_acl_policies_applied_models_json_not_stringified` | Unit (mock response) | AC-008: applied_models in raw_extensions is JSON array not stringified string; empty array serializes as [] not null |
 | RG-009 | `test_BC_2_16_022_claroty_org_acl_policies_required_policy_id_absent_produces_null_row` | Unit (mock response) | AC-009: policy_id absent → null row; no hard error; subsequent rows continue |
 | RG-010 | `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination_no_count` | Live Variant-1 (`#[ignore]`) | AC-002 + AC-010: SELECT * (no LIMIT) succeeds; no E-SENSOR-001; no count column in wire JSON; result stable across two runs |
 | RG-011 | `test_BC_2_16_022_claroty_org_acl_policies_datetime_implicit_iso8601_null_passthrough` | Unit (mock response) | AC-011: policy_creation_date and policy_last_updated parse ISO-8601 correctly; absent fields produce null cell not E-SPEC-018 |
+| RG-012 | `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array` | Integration (prism-bin, wire-shape serialization assertion) | Wire-level assertion: `applied_models` Json column serializes as a JSON-typed array (not string) in wire output from QueryEngine::execute end-to-end path; `applied_models` key absent from root-level wire envelope |
 
-**BC-5.38.001 density check:** 11 Red Gate tests / 11 acceptance criteria = 1.0 ≥ 0.5 threshold. PASS.
-(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function.)
+**BC-5.38.001 density check:** 12 Red Gate tests / 11 acceptance criteria = 1.09 ≥ 0.5 threshold. PASS.
+(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function. RG-012 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only.)
 
 ## Architecture Mapping
 
@@ -447,7 +452,7 @@ cells are null; no E-SPEC-018 raised)
 | `PaginationConfig::None` build_request path | `crates/prism-spec-engine/src/pipeline.rs §build_request` | Pure (body construction; no I/O; no offset/limit injection) |
 | PaginationConfig::None single-fetch execution | `crates/prism-spec-engine/src/pipeline.rs §PipelineExecutor::execute` | Effectful (HTTP POST to xDome; single response; no loop) |
 | Json column serialization into raw_extensions | `crates/prism-spec-engine/src/pipeline.rs §PipelineExecutor::execute` | Effectful (processes HTTP response; builds Arrow RecordBatch) |
-| response_path extraction | `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` | Effectful (processes HTTP response) |
+| response_path extraction + null-passthrough | `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`) | Effectful (processes HTTP response; REQUIRED-field null rows; Tier-2 → raw_extensions) |
 | `entity_management` class arm (shared) | `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` | Pure (constant → u32 lookup; arm already exists; returns 3004) |
 
 Architecture section references:
@@ -500,7 +505,7 @@ The complete `[[tables]]` block as specified by BC-2.16.022 §PC1/§PC2:
 # MANDATORY body field: policy_acl_syntax = "Cisco dACL" (REQUIRED per OpenAPI schema)
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 [[tables]]
-table_name = "claroty_organization_acl_policies"
+table_name = "organization_acl_policies"           # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_acl_policies"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claroty_audit_logs)
 
 # Tier-1: policy_id → metadata_uid (REQUIRED; UUID-format primary key; OCSF entity identifier)
@@ -784,16 +789,16 @@ present:
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY — append 1 `[[tables]]` block | Add `claroty_organization_acl_policies` table declaration per §TOML Column-Block Specification |
+| `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY — append 1 `[[tables]]` block | Add `organization_acl_policies` (bare name; registered/queryable `claroty_organization_acl_policies`) per §TOML Column-Block Specification |
 | `crates/prism-spec-engine/src/spec_parser.rs` | MODIFY (add tests) | RG-001/003/004/011 unit tests in `#[cfg(test)] mod tests`; verify TOML parse with 11 ColumnSpec entries; verify PaginationConfig::None; verify body_template has policy_acl_syntax |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY (add tests; possibly add guard) | RG-002 unit test for build_request PaginationConfig::None path; if guard is absent, add explicit None arm before offset/limit injection |
-| `crates/prism-sensors/tests/` or `crates/prism-spec-engine/tests/` | MODIFY (add integration tests) | RG-005/006 plan-time E-QUERY-038 integration tests (SELECT policy_source, SELECT policy_id); follow the test location pattern established by S-CLAROTY-ORGPOLICY-001 tests |
+| `crates/prism-sensors/tests/` or `crates/prism-spec-engine/tests/` | MODIFY (add integration tests) | RG-005/006 plan-time E-QUERY-038 integration tests — defense-in-depth; authoritative version is in prism-bin (see below) |
 | `crates/prism-sensors/tests/` or `crates/prism-spec-engine/tests/` | MODIFY (add live tests) | RG-007/010 live Variant-1 `#[ignore]`'d integration tests against live monroe; must carry the LIVE-MONROE-001 comment |
 | `crates/prism-spec-engine/src/pipeline.rs` or `crates/prism-sensors/tests/` | MODIFY (add unit tests) | RG-008/009 mock response unit tests for applied_models Json serialization and REQUIRED policy_id semantics |
+| `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs` | CREATE | RG-012 prism-bin wire-shape test: QueryEngine::execute end-to-end; serialized JSON assertion for applied_models Json column (JSON array, not string); wire-envelope shape |
+| `crates/prism-bin/Cargo.toml` | MODIFY | Add `[[test]]` entry for `bc_2_16_022_claroty_acl_policies_wire_shape` |
 
-**File-count summary:** 1 TOML modification + test additions across 2–3 existing test files.
-No new files need to be created; all test code should be placed in the test modules of
-existing files following established patterns in the codebase.
+**File-count summary:** 1 TOML modification + test additions across 2–3 existing test files + 1 new prism-bin wire-shape test file + Cargo.toml update.
 
 ## Notes for Implementer
 
@@ -874,5 +879,6 @@ reasoning path. Deferred to live-validation milestone if not complete before hol
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | g2-proven-spec-prose-corrections | 2026-08-31 | story-writer | G2-proven spec-prose corrections applied (mirrors S-CLAROTY-OT-EVENTS-001 v1.3 fixes). FIX 1 (MED-1 table_name): `[[tables]]` block now uses bare `table_name = "organization_acl_policies"`; §Authority, TOML block, and AC-001 updated; derivation note `{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name added; SELECT examples and error prose retain prefixed queryable names unchanged. FIX 2 (MED-3 mechanism attribution): N/A — no ColumnMapper::map_record references in this story. FIX 3 (MED-4 prism-bin declaration): `crates_touched` adds `prism-bin` and `prism-query`; RG-005/RG-006 updated to prism-bin end-to-end authoritative (plan-time prism-sensors tests remain defense-in-depth per SAP-3 rule 3); RG-012 added (wire-shape serialization assertion in prism-bin for `applied_models` Json column); density check 11→12 RGTs / 11 ACs = 1.09 PASS; §File Structure Requirements adds CREATE `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs` + MODIFY `crates/prism-bin/Cargo.toml`; TOML block description updated to bare name. FIX 4 (§Architecture Mapping path): `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` corrected to `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`). |
 | 1.1 | remove-uncertainty-aclpolicy-g6 | 2026-08-31 | research-agent | Remove-uncertainty pass (also satisfies mandatory pre-delivery pass per D-1110). Validated all API/technology assumptions against ground truth (`xdome_openapi_06.20.2026.json`, `endpoint-schema-extract.md §organization_acl_policies`, `endpoint-spike-findings.md §Spike 4`, `claroty.sensor.toml`, prism-spec-engine/prism-ocsf/prism-dtu-claroty source) — see populated `assumption_validations` frontmatter (8 assumptions, all CONFIRMED). Endpoint/envelope/response_path, required policy_acl_syntax, 11-field enum↔body_template parity (incl. order), all 11 column types, pagination-none mechanism (build_request page_size=0 skip; request additionalProperties=false), Arrow-name flattening, entity_management→3004 arm, 4-table baseline, ocsf_column_naming=true, SAP-2 N/A, and datetime implicit-iso8601 all confirmed. No corrections to this story (its §TOML Column-Block Specification body_template was already the valid single-line form). Companion correction landed in BC-2.16.022 v1.1: §PC1 body_template re-rendered from an invalid multi-line single-quoted TOML literal (backslash line-continuations, not legal TOML) to a valid single-line literal identical to this story's §TOML block; story Notes-for-Implementer #1 (BC §PC1 = canonical body_template reference) remains accurate post-fix. Status left draft (no change). BC dependency bumped to BC-2.16.022 v1.1. |
 | 1.0 | xdome-wave-c-f3-story-materialization-g6 | 2026-08-24 | story-writer | Initial materialization — Wave C G6: claroty_organization_acl_policies TOML block (1 table, 11 columns: 4 Tier-1 [policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment] + 7 Tier-2 [policy_source/String, policy_acl_type/String, policy_acl/String, applied_models/Json, matching_devices/Integer, policy_creation_date/Datetime, policy_last_updated/Datetime]). KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema). OCSF entity_management/3004 (existing arm). 11 ACs; 11 RGTs; density 1.0. tdd_mode: strict. SAP-2 N/A (no DTU; D-2200 deferred). HS-029 holdout BLOCKING. depends_on: []. BC: BC-2.16.022 v1.0. |

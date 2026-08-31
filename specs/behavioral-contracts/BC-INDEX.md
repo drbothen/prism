@@ -1,12 +1,12 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.90"
+version: "9.91"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T08:00:00Z
+timestamp: 2026-08-31T16:00:00Z
+# NOTE: D-2390 — BC-INDEX v9.90→v9.91: Shared G2–G6 spec-prose reconciliation. BC-2.16.016 pin v1.3→v1.4 (G2 F-OTE-P1-HIGH-001 §Architecture Anchors prism-spec-engine→prism-bin path fix). BC-2.16.017 pin v1.1→v1.2, BC-2.16.018 pin v1.0→v1.1, BC-2.16.019 pin v1.0→v1.1, BC-2.16.020 pin v1.1→v1.2, BC-2.16.021 pin v1.1→v1.2, BC-2.16.022 pin v1.1→v1.2 (G3/G4/G5/G6 table_name bare-name corrections + §ArchMap path fixes + prism-bin crates_touched/§FSR/§RG declarations). input-hash updated: 017 87de555→34da2d9; 018-022 updated to 5213907. draft/active/total UNCHANGED (10/254/277). D-2388 NOTE archived.
 # NOTE: D-2388 — BC-INDEX v9.89→v9.90: BC-2.16.016 pin v1.2→v1.3 (G2 LOCAL re-gate spec-fix reconciliation — MED-1 bare table_name §Postconditions §1 corrected; MED-3 §Invariants/EC-016-016-001 re-anchored to build_column_array within pipeline_result_to_record_batch; BC v1.3 on-disk input-hash 4f7d01e confirmed). draft/active/total UNCHANGED (10/254/277). D-2387 NOTE archived.
-# NOTE: D-2385 — BC-INDEX v9.86→v9.87: BC-2.16.022 pin v1.0→v1.1 (G3–G6 pre-delivery remove-uncertainty COMPLETE 2026-08-31; BC-2.16.022 §PC1 body_template TOML literal corrected; G6 story promoted draft→ready; BC-2.16.017/020/021 already at v1.1). draft/active/total UNCHANGED (11/253/277). D-2381 NOTE archived.
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
 # NOTE: D-2372 — BC-INDEX v9.82→v9.83: F-B1-001 substantively closed; BC-2.16.002 pin v2.52→v2.53 (EC-01-041 FINAL-batch qualified; EC-01-042 NEW non-final fan-out batch discriminator); BC-2.11.001 UNCHANGED v1.31 (transitive coverage verified). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2366 NOTE archived.
 # NOTE: D-2366 — BC-INDEX v9.81→v9.82: LOCAL cascade pass-2 spec-only fix-burst (F-P3-LENSC2-001 MED TD-VSDD-097 Dim-2) — BC-2.16.002 pin v2.51→v2.52 (§Postconditions PaginationConfig::None conservative-bucket + EC-01-041 mode scope); BC-2.11.001 pin v1.30→v1.31 (EC-11-094 mode scope). Feature HEAD 1c1159c68 FROZEN (no code change). BC-5.39.001 LOCAL streak RESET 1/3→0/3 (spec perimeter changed; frozen-HEAD rule). draft/active/total UNCHANGED (11/253/277). D-2358 NOTE archived.
@@ -369,13 +369,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.3 |
-| BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
-| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
-| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
-| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
-| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
-| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.4 |
+| BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
+| BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
+| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
+| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
+| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
@@ -530,6 +530,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v9.91 (2026-08-31, D-2390):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — Shared G2–G6 spec-prose reconciliation. BC-2.16.016 pin v1.3→v1.4 (G2 F-OTE-P1-HIGH-001 §Architecture Anchors prism-spec-engine→prism-bin path fix). BC-2.16.017 pin v1.1→v1.2 (G3 table_name bare-name correction + §ArchMap path fix + prism-bin crates_touched/§FSR/§RG). BC-2.16.018 pin v1.0→v1.1, BC-2.16.019 pin v1.0→v1.1 (G4 same corrections). BC-2.16.020 pin v1.1→v1.2, BC-2.16.021 pin v1.1→v1.2 (G5 same corrections). BC-2.16.022 pin v1.1→v1.2 (G6 same corrections). input-hash drift closed: 017 87de555→34da2d9; 018–022 all updated to 5213907 (computed = correct). STORY-INDEX G3–G6 story rows co-updated (DEVVULNREL v1.3→v1.4, SERVERS v1.3→v1.4, ORGPOLICY v1.1→v1.2, ACLPOLICY v1.1→v1.2) with BC cross-ref pins. draft/active/total UNCHANGED (10/254/277) — G2–G6 stories not yet merged. TD-VSDD-097: Dim-1 CLEAR (016–022 are not sibling-pair artifacts; each covers a distinct xDome endpoint). Dim-2 DISCHARGED (story §Authority/AC/§ArchMap are downstream copy-targets of BC table_name/mechanism/arch-path; verified BC and story corrected consistently by PO then story-writer in prior bursts). Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. BC-INDEX v9.90→v9.91.
 
 **v9.84 (2026-08-30, D-2373):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1V-001 (MED contract-traceability) + F-B1V-002 (MED spec-accuracy) CLOSED. BC-2.16.002 v2.53→v2.54: EC-01-042 concrete AC-015/RG-PSG-044 anchors added (symmetric with EC-01-041 which carries AC-015/RG-PSG-044 FINAL-batch scope); §D8.3 worked-example numbers aligned to reachable test-matched scenario (page_size=10/LIMIT=5/partial-page=5/2 batches); volatile code-pin removed per TD-VSDD-091. BC-2.11.001 UNCHANGED (v1.31). No BC lifecycle/status/count changes: active_contracts 253 / draft_contracts 11 / total_contracts 277 ALL UNCHANGED. BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN; CI green). TD-VSDD-097 Dim-1 CLEAR (BC-2.16.002 v2.54 — EC-01-041/EC-01-042 sibling pair; no additional twin). Dim-2 CLEAR (EC-01-042 anchor + example numbers swept ADR-060 §D8.3 + story AC-015 in same burst). Dim-3 CLEAR (no new MUSTs; EC-01-042 anchor is AC-015/RG-PSG-044 — unchanged from v2.53). records-lint exit 0. BC-INDEX v9.83→v9.84.
 

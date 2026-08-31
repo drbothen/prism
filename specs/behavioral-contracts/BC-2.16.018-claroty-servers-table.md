@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -17,11 +17,11 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a4f5f7b"
+input-hash: "5213907"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/reference/api-specs/xdome_openapi_06.20.2026.json"
 introduced: "2026-08-24"
-modified: null
+modified: "2026-08-31"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -62,7 +62,7 @@ The `claroty_servers` table MUST be declared in `claroty.sensor.toml` with:
 
 ```toml
 [[tables]]
-table_name = "claroty_servers"
+table_name = "servers"  # bare name; TableRegistry derives the registered/queryable name as {sensor_id}_{table_name} = "claroty_servers"
 ocsf_class = "inventory_info"   # class_uid 5001 (existing arm)
 ```
 
@@ -216,7 +216,7 @@ No new error codes are required for this table. All failure modes are covered by
 - `crates/prism-spec-engine/src/pipeline.rs` — OffsetLimit POST-body injection
 - `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` — `"inventory_info"` arm
   (existing; resolves to class_uid 5001 per ADR-058 §I5(b) KF-02 fix)
-- `crates/prism-spec-engine/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
+- `crates/prism-bin/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
 - `.factory/reference/api-specs/xdome_openapi_06.20.2026.json §/api/v1/servers/` — endpoint
   authority (confirmed path `/api/v1/servers/`; Server fields_enum 17 fields)
 - `.factory/objectives/xdome-endpoint-expansion-plan.md §Gap Table G4` — table scope authority
@@ -262,4 +262,5 @@ S-CLAROTY-SERVERS-001; holdout evaluator exercises live monroe surface via HS-02
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_servers"` to `"servers"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name `"claroty_servers"`). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome servers queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G4. TOML table contract, 17-column Tier-1/Tier-2 classification per ADR-058 (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code]; 15 Tier-2 into raw_extensions). PK: server_name (String, REQUIRED, single-column). OCSF class: inventory_info/5001 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). Endpoint path `/api/v1/servers/` confirmed from OpenAPI spec. All 17 fields from Server fields_enum confirmed in schema-extract §Server. HS-027 holdout group registered with 3 P0 scenarios for S-CLAROTY-SERVERS-001. |

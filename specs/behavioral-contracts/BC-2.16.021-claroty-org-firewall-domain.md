@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -17,7 +17,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "2b1ff87"
+input-hash: "5213907"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
@@ -87,7 +87,7 @@ The `claroty_organization_firewall_groups` table MUST be declared in `claroty.se
 
 ```toml
 [[tables]]
-table_name = "claroty_organization_firewall_groups"
+table_name = "organization_firewall_groups"  # bare name; TableRegistry derives the registered/queryable name as {sensor_id}_{table_name} = "claroty_organization_firewall_groups"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm)
 ```
 
@@ -125,7 +125,7 @@ The `claroty_organization_firewall_policies` table MUST be declared in `claroty.
 
 ```toml
 [[tables]]
-table_name = "claroty_organization_firewall_policies"
+table_name = "organization_firewall_policies"  # bare name; TableRegistry derives the registered/queryable name as {sensor_id}_{table_name} = "claroty_organization_firewall_policies"
 ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claroty_organization_firewall_groups)
 ```
 
@@ -370,7 +370,7 @@ envelope key asymmetry for firewall paths is a spec-authoring concern (use corre
   extraction; Json column serialization into `raw_extensions`
 - `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` — `"entity_management"` arm
   (existing; resolves to class_uid 3004)
-- `crates/prism-spec-engine/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
+- `crates/prism-bin/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
 - `.factory/reference/api-specs/xdome_openapi_06.20.2026.json §/api/v1/organization_fw_groups/` and
   `§/api/v1/organization_fw_group_policies/` — endpoint authority (URL uses `_fw_` abbreviation;
   envelope keys use full `organization_firewall_` spelling)
@@ -422,5 +422,6 @@ S-CLAROTY-ORGPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 (firewall_groups) and §2 (firewall_policies) TOML bare table_names corrected: `"claroty_organization_firewall_groups"` → `"organization_firewall_groups"` and `"claroty_organization_firewall_policies"` → `"organization_firewall_policies"`; added derivation notes (`{sensor_id}_{table_name}` = registered/queryable name). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.1 | xdome-wave-c-remove-uncertainty | 2026-08-31 | research-agent | Remove-uncertainty pass (satisfies mandatory pre-delivery pass D-1110). Validated every TOML/API assumption against ground truth (endpoint-schema-extract.md OrganizationFirewallGroups + OrganizationFirewallGroupPolicies fields_enums; endpoint-spike-findings.md §Spike 3 Tables C/D; the xDome OpenAPI schema extract): all 11+13 `body_template` fields present in the respective field enums; endpoint paths, envelope keys, and `response_path` values confirmed — fw URL↔envelope-key asymmetry verified (`/api/v1/organization_fw_groups/` ↔ `$.organization_firewall_groups`; `/api/v1/organization_fw_group_policies/` ↔ `$.organization_firewall_policies`); `entity_management`/3004 arm confirmed present in `class_selector.rs::select_by_class_name`; 4 Json columns confirmed against §Spike 3 (device_conditions ×1 fw_groups; communication_conditions + related_alerts_ids + applied_group_pairs fw_policies); `last_update` vs `last_updated` datetime field-name asymmetry confirmed; `applied_group_pairs` (not `applied_zone_pairs`) confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A re-confirmed (no fw routes exist in prism-dtu-claroty). CORRECTION: §Invariants firewall_groups `available_columns` enumeration was missing `actor_user_name`, inconsistent with §PC3, TV-BC-2.16.021-003, and story AC-020 — added. BC-INDEX H1 title drift corrected (POLICY 7). input-hash refreshed (input files drifted since initial authoring). No content/mechanism defects found. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Firewall Domain (firewall_groups + firewall_policies) queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G5. Structural mirror of BC-2.16.020 for the firewall subsystem. Domain-pairing rationale references BC-2.16.020. TOML table contracts for both tables with URL vs envelope key asymmetry documented (path `/api/v1/organization_fw_groups/` → envelope `$.organization_firewall_groups`; path `/api/v1/organization_fw_group_policies/` → envelope `$.organization_firewall_policies`). Column Tier classification: firewall_groups (11 cols: 4 Tier-1 [firewall_group_name→name REQUIRED, firewall_group_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 including 1 Json: device_conditions); firewall_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 including 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs). Datetime field name asymmetry noted (last_update vs last_updated — same as Zone Domain). OCSF class: entity_management/3004 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-028 holdout group registered with 4 P0 scenarios for S-CLAROTY-ORGPOLICY-001. |
