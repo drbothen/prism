@@ -1635,3 +1635,304 @@ ocsf_column_naming = true
         );
     }
 }
+
+// =============================================================================
+// BC-2.16.016: Claroty xDome OT Activity Events Table — spec-parse Red Gate tests
+// S-CLAROTY-OT-EVENTS-001 RG-001 + RG-002
+//
+// RED GATE: Both tests panic at `.expect("claroty_ot_activity_events table must exist")`
+// because the [[tables]] block has not yet been added to claroty.sensor.toml.
+// They compile cleanly but assert-fail before the TOML block is added.
+//
+// BC: BC-2.16.016
+// Story: S-CLAROTY-OT-EVENTS-001
+// Tasks: Task 1 (spec_parser.rs inline tests)
+// =============================================================================
+
+#[cfg(test)]
+mod claroty_ot_activity_events_parse_tests {
+    use super::SpecLoader;
+
+    const CLAROTY_TOML: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../prism-sensors/specs/claroty.sensor.toml"
+    ));
+
+    // ── RG-001 ────────────────────────────────────────────────────────────────
+    /// BC-2.16.016 §Precondition P1 + AC-001:
+    ///   The `[[tables]]` block with `table_name = "ot_activity_events"` must parse
+    ///   without error and appear in the SensorSpec tables list.
+    ///
+    ///   Additional assertions (AC-001):
+    ///   - `ocsf_column_naming = true` on the claroty sensor (ADR-058 §D2)
+    ///   - `ocsf_class = "detection_finding"` on the table
+    ///   - exactly 21 ColumnSpec entries declared
+    ///   - `fetch_ot_activity_events` step exists and its `body_template` carries a
+    ///     `"fields"` array containing all 21 declared column names (BC-2.16.016 §TOML
+    ///     Contract §body_template)
+    ///
+    /// RED: panics at `.expect("claroty_ot_activity_events table must exist")` because
+    ///      the [[tables]] block has not been added to claroty.sensor.toml yet.
+    ///
+    /// BC-2.16.016 AC-001; ADR-058 §D2; S-CLAROTY-OT-EVENTS-001 RG-001.
+    #[test]
+    fn test_BC_2_16_016_claroty_ot_activity_events_toml_block_parses() {
+        let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+        assert!(
+            spec.ocsf_column_naming,
+            "RG-001: claroty sensor must carry ocsf_column_naming = true (ADR-058 §D2)"
+        );
+
+        let table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "ot_activity_events")
+            .expect("claroty_ot_activity_events table must exist");
+
+        assert_eq!(
+            table.table_name, "ot_activity_events",
+            "RG-001: table_name must be 'ot_activity_events'"
+        );
+
+        assert_eq!(
+            table.ocsf_class.as_str(),
+            "detection_finding",
+            "RG-001 (AC-001): ocsf_class must be 'detection_finding' \
+             (BC-2.16.016 §Postconditions OCSF class_uid 2004; ADR-058 §C2)"
+        );
+
+        assert_eq!(
+            table.columns.len(),
+            21,
+            "RG-001 (AC-001): ot_activity_events must declare exactly 21 ColumnSpec entries; \
+             got {}: {:?}. BC-2.16.016 §Postconditions §1 (4 Tier-1 + 17 Tier-2).",
+            table.columns.len(),
+            table.columns.iter().map(|c| &c.name).collect::<Vec<_>>()
+        );
+
+        // AC-001: body_template of fetch_ot_activity_events must contain all 21 field names.
+        // The Claroty xDome POST API requires a 'fields' projection; a missing column
+        // would silently omit data from the outgoing request (BC-2.16.016 §TOML Contract).
+        let fetch_step = table
+            .steps
+            .iter()
+            .find(|s| s.name == "fetch_ot_activity_events")
+            .expect(
+                "RG-001: fetch_ot_activity_events step must exist in ot_activity_events table; \
+                 body_template 21-field projection cannot be verified without this step",
+            );
+
+        let body_template_str = fetch_step.body_template.as_deref().expect(
+            "RG-001: fetch_ot_activity_events step must carry a body_template (AC-001); \
+             Claroty API requires a fields projection (minItems: 1)",
+        );
+
+        let body_template_json: serde_json::Value = serde_json::from_str(body_template_str)
+            .expect("RG-001: fetch_ot_activity_events body_template must be valid JSON (AC-001)");
+
+        let fields_array = body_template_json
+            .get("fields")
+            .and_then(|v| v.as_array())
+            .expect(
+                "RG-001: fetch_ot_activity_events body_template must contain a top-level \
+                 'fields' JSON array (AC-001); the Claroty xDome POST API requires it",
+            );
+
+        let actual_fields: std::collections::HashSet<&str> = fields_array
+            .iter()
+            .map(|v| {
+                v.as_str().expect(
+                    "RG-001: each element in body_template 'fields' array must be a JSON string",
+                )
+            })
+            .collect();
+
+        // Ground-truth 21-field projection: all 21 declared columns.
+        // BC-2.16.016 §Postconditions §1 + §TOML Contract §body_template.
+        let expected_fields: std::collections::HashSet<&str> = [
+            "event_id",
+            "detection_time",
+            "event_type",
+            "description",
+            "source_ip",
+            "dest_ip",
+            "protocol",
+            "dest_port",
+            "source_port",
+            "ip_protocol",
+            "source_asset_id",
+            "dest_asset_id",
+            "source_device_name",
+            "dest_device_name",
+            "source_device_type",
+            "dest_device_type",
+            "source_site_name",
+            "dest_site_name",
+            "source_username",
+            "related_alert_ids",
+            "mode",
+        ]
+        .iter()
+        .copied()
+        .collect();
+
+        assert_eq!(
+            actual_fields,
+            expected_fields,
+            "RG-001 LOAD-BEARING: fetch_ot_activity_events body_template 'fields' array must be \
+             EXACTLY the 21-field projection. Extra: {:?}, Missing: {:?}. \
+             BC-2.16.016 §TOML Contract §body_template.",
+            actual_fields
+                .difference(&expected_fields)
+                .collect::<Vec<_>>(),
+            expected_fields
+                .difference(&actual_fields)
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            fields_array.len(),
+            21,
+            "RG-001: fetch_ot_activity_events body_template 'fields' array must have exactly 21 \
+             elements (no duplicates, no extras); got {}. BC-2.16.016 §TOML Contract.",
+            fields_array.len()
+        );
+    }
+
+    // ── RG-002 ────────────────────────────────────────────────────────────────
+    /// BC-2.16.016 §Postconditions AC-002: exactly 4 Tier-1 columns with `ocsf_field`:
+    ///   - `event_id`       → `ocsf_field = "finding_info.uid"` (REQUIRED, Integer)
+    ///   - `detection_time` → `ocsf_field = "time"`             (Datetime)
+    ///   - `event_type`     → `ocsf_field = "activity_name"`    (String)
+    ///   - `description`    → `ocsf_field = "message"`          (String)
+    ///
+    /// Also asserts exactly 17 Tier-2 columns (no ocsf_field) with the correct names.
+    ///
+    /// RED: panics at `.expect("claroty_ot_activity_events table must exist")` because
+    ///      the [[tables]] block has not been added to claroty.sensor.toml yet.
+    ///
+    /// BC-2.16.016 AC-002; ADR-058 §C2; S-CLAROTY-OT-EVENTS-001 RG-002.
+    #[test]
+    fn test_BC_2_16_016_claroty_ot_activity_events_four_tier1_columns() {
+        let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+        let table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "ot_activity_events")
+            .expect("claroty_ot_activity_events table must exist");
+
+        let tier1: Vec<_> = table
+            .columns
+            .iter()
+            .filter(|c| c.ocsf_field.is_some())
+            .collect();
+
+        assert_eq!(
+            tier1.len(),
+            4,
+            "RG-002 (AC-002): expected exactly 4 Tier-1 columns with ocsf_field; \
+             got {}: {:?}. BC-2.16.016 §Postconditions §1.",
+            tier1.len(),
+            tier1.iter().map(|c| &c.name).collect::<Vec<_>>()
+        );
+
+        // ── event_id → finding_info.uid ───────────────────────────────────────
+        let event_id_col = tier1
+            .iter()
+            .find(|c| c.name == "event_id")
+            .expect("RG-002: Tier-1 column 'event_id' must exist (BC-2.16.016 §Postconditions)");
+        assert_eq!(
+            event_id_col.ocsf_field.as_deref(),
+            Some("finding_info.uid"),
+            "RG-002: column 'event_id' must declare ocsf_field = \"finding_info.uid\" \
+             (BC-2.16.016 AC-002; ADR-058 §C2 Option 4 dot-notation)"
+        );
+
+        // ── detection_time → time ─────────────────────────────────────────────
+        let detection_time_col = tier1.iter().find(|c| c.name == "detection_time").expect(
+            "RG-002: Tier-1 column 'detection_time' must exist (BC-2.16.016 §Postconditions)",
+        );
+        assert_eq!(
+            detection_time_col.ocsf_field.as_deref(),
+            Some("time"),
+            "RG-002: column 'detection_time' must declare ocsf_field = \"time\" \
+             (BC-2.16.016 AC-002; OCSF detection_finding time field)"
+        );
+
+        // ── event_type → activity_name ────────────────────────────────────────
+        let event_type_col = tier1
+            .iter()
+            .find(|c| c.name == "event_type")
+            .expect("RG-002: Tier-1 column 'event_type' must exist (BC-2.16.016 §Postconditions)");
+        assert_eq!(
+            event_type_col.ocsf_field.as_deref(),
+            Some("activity_name"),
+            "RG-002: column 'event_type' must declare ocsf_field = \"activity_name\" \
+             (BC-2.16.016 AC-002; OCSF detection_finding activity_name field)"
+        );
+
+        // ── description → message ─────────────────────────────────────────────
+        let description_col = tier1
+            .iter()
+            .find(|c| c.name == "description")
+            .expect("RG-002: Tier-1 column 'description' must exist (BC-2.16.016 §Postconditions)");
+        assert_eq!(
+            description_col.ocsf_field.as_deref(),
+            Some("message"),
+            "RG-002: column 'description' must declare ocsf_field = \"message\" \
+             (BC-2.16.016 AC-002; OCSF detection_finding message field)"
+        );
+
+        // ── Tier-2: exactly 17 columns ────────────────────────────────────────
+        let tier2: Vec<_> = table
+            .columns
+            .iter()
+            .filter(|c| c.ocsf_field.is_none())
+            .collect();
+
+        assert_eq!(
+            tier2.len(),
+            17,
+            "RG-002 (AC-002): expected exactly 17 Tier-2 columns without ocsf_field; \
+             got {}: {:?}. BC-2.16.016 §Postconditions §1.",
+            tier2.len(),
+            tier2.iter().map(|c| &c.name).collect::<Vec<_>>()
+        );
+
+        let tier2_names: std::collections::HashSet<&str> =
+            tier2.iter().map(|c| c.name.as_str()).collect();
+        let expected_tier2: std::collections::HashSet<&str> = [
+            "source_ip",
+            "dest_ip",
+            "protocol",
+            "dest_port",
+            "source_port",
+            "ip_protocol",
+            "source_asset_id",
+            "dest_asset_id",
+            "source_device_name",
+            "dest_device_name",
+            "source_device_type",
+            "dest_device_type",
+            "source_site_name",
+            "dest_site_name",
+            "source_username",
+            "related_alert_ids",
+            "mode",
+        ]
+        .iter()
+        .copied()
+        .collect();
+
+        assert_eq!(
+            tier2_names,
+            expected_tier2,
+            "RG-002 LOAD-BEARING: Tier-2 column set must match exactly. \
+             Extra: {:?}, Missing: {:?}. BC-2.16.016 §Postconditions §1.",
+            tier2_names.difference(&expected_tier2).collect::<Vec<_>>(),
+            expected_tier2.difference(&tier2_names).collect::<Vec<_>>()
+        );
+    }
+}
