@@ -317,6 +317,21 @@ path = "tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs"
 name = "bc_2_16_016_claroty_ot_activity_events_wire_shape"
 path = "tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs"
 
+# S-CLAROTY-DEVVULNREL-001 SAP-4 production-path gap closure:
+# Wire-shape tests for Claroty xDome Device Vulnerability Relations (BC-2.16.017).
+# Covers the production path SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch →
+# build_column_array (generic ColumnType::Json arm) that the prism-sensors RG-006/RG-009 tests
+# cannot reach (those tests invoke ColumnMapper::map_record directly, which has zero production callers).
+# BCs: BC-2.16.017, BC-2.11.001
+# Tests (2 total — both async adapter.fetch() with wiremock):
+#   test_BC_2_16_017_claroty_device_vulnerability_relations_wire_shape_class_uid_2002_mock
+#     (SAP-4-001: basic wire shape + native JSON array for device_vulnerability_relevance_reasons)
+#   test_BC_2_16_017_claroty_device_vulnerability_relations_wire_shape_native_json_array_and_null_passthrough
+#     (SAP-4-002: serialized-JSON explicit_nulls; empty [] as native array; null-not-absent for absent vulnerability_name)
+[[test]]
+name = "bc_2_16_017_claroty_device_vulnerability_relations_wire_shape"
+path = "tests/bc_2_16_017_claroty_device_vulnerability_relations_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
