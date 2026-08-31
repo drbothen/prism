@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.963"
+version: "2.964"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T18:30:00Z
+timestamp: 2026-08-31T19:00:00Z
 phase: 3
 total_stories: 319
+# D-2394: G3 (S-CLAROTY-DEVVULNREL-001) story-doc fix v1.6→v1.7 (MED-1 AC-003/§RGT test-name; LOW-1 BC pin; LOW-2 SS-16 wording). input-hash unchanged dd103fb. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.963→v2.964. D-2393 NOTE archived.
 # D-2393: Records-tier convergence round 2. OT-EVENTS v1.5→v1.6 (POL-39 de-pin §Authority/§References/§Token-Budget + first-json absolute-claim sweep). DEVVULNREL v1.5→v1.6 (POL-39 de-pin + crates_touched prism-spec-engine removed). SERVERS v1.5→v1.6 (POL-39 de-pin + crates_touched prism-spec-engine removed + RG-023 added). ORGPOLICY v1.3→v1.4 (POL-39 de-pin + crates_touched prism-spec-engine removed). ACLPOLICY v1.3→v1.4 (POL-39 de-pin). §BC-table Version cells synced per POL-40. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.962→v2.963. D-2392 NOTE archived.
 # D-2392: Records-tier convergence round. OT-EVENTS v1.4→v1.5 (SS-22 subsystems add + test-header §RG-table mapping sync). DEVVULNREL v1.4→v1.5 (RG names/mechanisms/§FSR story-doc sync). SERVERS v1.4→v1.5 (story-doc sync + BC-2.16.018 pin v1.1→v1.2). ORGPOLICY v1.2→v1.3, ACLPOLICY v1.2→v1.3 (column_name→name template + density). statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.961→v2.962. D-2391 NOTE archived.
 # D-2391: G2 (S-CLAROTY-OT-EVENTS-001) LOCAL fix-burst story-side reconciliation. story v1.3→v1.4 (F-OTE-MED-002 POL-39 de-pin; §BC-table sync to BC-2.16.016 v1.4). BC-2.16.016 pin v1.3→v1.4. status stays ready. total_stories 319 UNCHANGED. STORY-INDEX v2.960→v2.961. D-2390 NOTE archived.
@@ -1075,7 +1076,7 @@ xdome-endpoint-expansion-plan.md §Governing Directive.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [ready v1.6] | prism-sensors, prism-bin | 1 (BC-2.16.017 v1.2) | -- | 5 | S-CLAROTY-VULNS-001 |
+| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [ready v1.7] | prism-sensors, prism-bin | 1 (BC-2.16.017 v1.2) | -- | 5 | S-CLAROTY-VULNS-001 |
 
 ## Sensor-Critical Stories (Wave C — Claroty xDome Endpoint Expansion)
 
@@ -1674,6 +1675,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.964 | 2026-08-31 | state-manager D-2394: SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096 records-only micro-burst) — G3 (S-CLAROTY-DEVVULNREL-001) story-doc fix v1.6→v1.7: MED-1 AC-003/§RGT phantom test-name corrected to authoritative E2E + prism-sensors defense-in-depth (SAP-3 §rule-3); LOW-1 BC-2.16.017 version pin; LOW-2 SS-16 wording. input-hash unchanged dd103fb. Code HEAD unchanged @69db93dc6. LOCAL 3-CLEAN streak RESET; G3 re-gate PENDING. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.963→v2.964. |
+| v2.963 | 2026-08-31 | state-manager D-2393: SINGLE-COMMIT BURST (TD-VSDD-053) — Records-tier convergence round 2. OT-EVENTS v1.5→v1.6 (POL-39 de-pin). DEVVULNREL v1.5→v1.6. SERVERS v1.5→v1.6. ORGPOLICY v1.3→v1.4. ACLPOLICY v1.3→v1.4. §BC-table synced per POL-40. total_stories 319 UNCHANGED. STORY-INDEX v2.962→v2.963. |
 | v2.962 | 2026-08-31 | state-manager D-2392: SINGLE-COMMIT BURST (TD-VSDD-053) — Records-tier convergence round. OT-EVENTS v1.4→v1.5 (SS-22 subsystems add + test-header §RG-table mapping sync; code @88e182665). DEVVULNREL v1.4→v1.5 (RG names/mechanisms/§FSR story-doc sync + E-QUERY-038 authoritative E2E tests; code @69db93dc6). SERVERS v1.4→v1.5 (story-doc sync + BC-2.16.018 pin v1.1→v1.2 + count-null production coverage; code @981ff2245). ORGPOLICY v1.2→v1.3 (column_name→name template + density + E-QUERY-038 authoritative E2E; code @7e61e8889). ACLPOLICY v1.2→v1.3 (column_name→name template + density + RG-012 wire-shape; code @4b1ca209f). statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. All LOCAL streaks RESET (HEADs advanced). STORY-INDEX v2.961→v2.962. |
 | v2.961 | 2026-08-31 | state-manager D-2391: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) LOCAL fix-burst story-side reconciliation. S-CLAROTY-OT-EVENTS-001 v1.3→v1.4 (F-OTE-MED-002 POL-39 de-pin: volatile version pins removed from §Authority/§References prose; §BC-table Version column synced v1.3→v1.4; no behavioral content changes). BC-2.16.016 pin v1.3→v1.4. Code-side fixes (F-OTE-MED-001 TOML event_id comment, F-OTE-LOW-001 sibling refs) on feature branch @669eb8f51. status stays ready. total_stories 319 UNCHANGED. STORY-INDEX v2.960→v2.961. |
 | v2.960 | 2026-08-31 | state-manager D-2390: SINGLE-COMMIT BURST (TD-VSDD-053) — Shared G2–G6 spec-prose reconciliation. DEVVULNREL-001 v1.3→v1.4, SERVERS-001 v1.3→v1.4, ORGPOLICY-001 v1.1→v1.2, ACLPOLICY-001 v1.1→v1.2. BC cross-ref pins: 017 v1.1→v1.2, 018 v1.0→v1.1, 019 v1.0→v1.1, 020 v1.1→v1.2, 021 v1.1→v1.2, 022 v1.1→v1.2. crates_touched updated to include prism-bin (and prism-query for ACLPOLICY). statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.959→v2.960. |
