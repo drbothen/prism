@@ -733,6 +733,22 @@ async fn test_BC_2_16_018_claroty_servers_e2e_e_query_038_tier2_column() {
                  (server_status → ocsf_field=status_code). Got: {:?}",
                 avail
             );
+            // OCSF synthesized columns must also appear in available_columns
+            // (BC-2.16.018 AC-003 / AC-011 invariant: class_uid and _sensor are projected).
+            assert!(
+                avail.contains(&"class_uid".to_string()),
+                "RG-003-E2E: available_columns must include 'class_uid' \
+                 (OCSF synthesized column, always projected for ocsf_column_naming=true sensors). \
+                 BC-2.16.018 AC-003. Got: {:?}",
+                avail
+            );
+            assert!(
+                avail.contains(&"_sensor".to_string()),
+                "RG-003-E2E: available_columns must include '_sensor' \
+                 (OCSF synthesized sensor-identity column, always projected). \
+                 BC-2.16.018 AC-003. Got: {:?}",
+                avail
+            );
             // server_location is Tier-2 → MUST NOT appear in available_columns.
             assert!(
                 !avail.contains(&"server_location".to_string()),

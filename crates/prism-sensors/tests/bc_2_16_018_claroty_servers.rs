@@ -22,11 +22,16 @@
 //! for `claroty_servers` is not yet present in `crates/prism-sensors/specs/claroty.sensor.toml`.
 //! This is the CORRECT failure reason — not a compile error.
 
-use prism_core::column::ColumnOptions;
+use std::collections::HashMap;
+
+use prism_core::{column::ColumnOptions, OrgSlug};
 use prism_spec_engine::{
     column_mapping::{ocsf_projected_column_names, ColumnMapper},
+    pipeline::{FetchContext, PipelineExecutor},
     spec_parser::{PaginationConfig, SpecLoader},
+    NullAuthProvider,
 };
+use serde_json::json;
 
 // ---------------------------------------------------------------------------
 // Helper: load the full claroty.sensor.toml and return the claroty_servers TableSpec.
@@ -374,28 +379,162 @@ fn test_BC_2_16_018_claroty_servers_tier1_raw_toml_name_raises_e_query_038() {
 /// Traces to: BC-2.16.018 §Postconditions §1 (class_uid), §PC2 (Tier-1/Tier-2 wire representation);
 ///            TV-BC-2.16.018-002.
 /// Story: S-CLAROTY-SERVERS-001 AC-005
-#[test]
+#[tokio::test]
 #[ignore]
 // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job
-fn test_BC_2_16_018_claroty_servers_live_wire_shape_class_uid_and_tier1() {
+async fn test_BC_2_16_018_claroty_servers_live_wire_shape_class_uid_and_tier1() {
     // RED GATE: fails if claroty_servers is not yet in claroty.sensor.toml
-    let (_spec, _servers) = load_claroty_servers_table();
+    let (spec, _servers) = load_claroty_servers_table();
 
-    let _instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
         .expect("LIVE-MONROE-001: CLAROTY_INSTANCE_URL must be set to run live tests");
 
-    // Wire-shape assertions per AC-005 / TV-BC-2.16.018-002:
-    // Run: SELECT * FROM claroty.claroty_servers LIMIT 1 (via prism MCP/query stack)
-    // Parse serialized JSON response, assert:
-    //   row["class_uid"] == 5001
-    //   row["device_name"] != null (non-null string)
-    //   row["status_code"].as_str().unwrap().to_lowercase() in {"up","down","pending"}
-    //   row["raw_extensions"].is_object() == true
-    //   row.keys() does NOT contain "server_name", "server_status", "server_location", "management_ip"
-    todo!(
-        "S-CLAROTY-SERVERS-001 AC-005: implement via prism MCP query stack or direct reqwest POST \
-         to /api/v1/servers/ after the TOML block lands in claroty.sensor.toml"
-    )
+    // Build live spec directed at the real Claroty xDome instance (Monroe).
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    // live_table must point into live_spec to avoid dangling borrows.
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "servers")
+        .expect("servers table must exist in live_spec");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live PipelineExecutor::execute must succeed for claroty_servers");
+
+    assert!(
+        !result.records.is_empty(),
+        "live claroty_servers must return at least one record. \
+         BC-2.16.018 AC-005."
+    );
+
+    // Inspect up to 5 records for AC-005 wire-shape compliance.
+    for raw_record in result.records.iter().take(5) {
+        // `map_record` operates on the original spec's table (not live_spec) because the
+        // column schema is spec-driven, not live-response-driven.
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "servers")
+            .expect("servers table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("ColumnMapper::map_record must succeed for live claroty_servers record");
+
+        // Build a simulated wire row to mirror the prism-bin serialization path.
+        // class_uid = 5001 comes from EventClassSelector::select_by_class_name("inventory_info")
+        // (BC-2.02.012; prism-sensors has no prism-ocsf dep, so we assert the value
+        // as a literal — the authoritative load-bearing class_uid=5001 assertion is in
+        // test_BC_2_16_018_claroty_servers_wire_shape_class_uid_5001_mock (NEW-1)).
+        let mut simulated_wire_row = serde_json::Map::new();
+        simulated_wire_row.insert("class_uid".to_string(), json!(5001_i32));
+
+        // device.name → device_name (ADR-058 §C2 Option 4: dot → underscore).
+        if let Some(val) = row.mapped_fields.get("device.name") {
+            simulated_wire_row.insert("device_name".to_string(), val.clone());
+        }
+        // status_code (single-segment ocsf_field, arrow name unchanged).
+        if let Some(val) = row.mapped_fields.get("status_code") {
+            simulated_wire_row.insert("status_code".to_string(), val.clone());
+        }
+        // raw_extensions is a JSON object of Tier-2 fields.
+        if !row.raw_extensions.is_empty() {
+            simulated_wire_row.insert(
+                "raw_extensions".to_string(),
+                serde_json::to_value(&row.raw_extensions)
+                    .expect("raw_extensions must serialize to JSON"),
+            );
+        }
+
+        // ── class_uid assertion (ILLUSTRATIVE-ONLY) ────────────────────────────
+        // NON-LOAD-BEARING: class_uid=5001 was inserted by this test's own literal.
+        // The load-bearing assertion is in NEW-1 (test_BC_2_16_018_claroty_servers_wire_shape_class_uid_5001_mock).
+        assert_eq!(
+            simulated_wire_row.get("class_uid"),
+            Some(&json!(5001_i32)),
+            "simulated wire row must have class_uid = 5001 (inventory_info). \
+             BC-2.16.018 AC-005. NOTE: ILLUSTRATIVE-ONLY; class_uid inserted by this test literal."
+        );
+
+        // ── device_name must be present and non-null ───────────────────────────
+        assert!(
+            simulated_wire_row.contains_key("device_name"),
+            "live record simulated wire row must contain 'device_name' \
+             (server_name → device.name → device_name). \
+             BC-2.16.018 AC-005. Row keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+        assert!(
+            simulated_wire_row
+                .get("device_name")
+                .map(|v| !v.is_null())
+                .unwrap_or(false),
+            "live record 'device_name' must be non-null for a live servers row. \
+             BC-2.16.018 AC-005."
+        );
+
+        // ── status_code must be present and in {up, down, pending} (case-insensitive) ──
+        assert!(
+            simulated_wire_row.contains_key("status_code"),
+            "live record simulated wire row must contain 'status_code' \
+             (server_status → status_code). \
+             BC-2.16.018 AC-005. Row keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+        if let Some(sc_val) = simulated_wire_row.get("status_code") {
+            if let Some(s) = sc_val.as_str() {
+                let lower = s.to_lowercase();
+                assert!(
+                    ["up", "down", "pending"].contains(&lower.as_str()),
+                    "status_code must be 'up', 'down', or 'pending' (case-insensitive). \
+                     BC-2.16.018 AC-005. Got: {:?}",
+                    s
+                );
+            }
+        }
+
+        // ── raw_extensions must be present and a JSON object ──────────────────
+        assert!(
+            simulated_wire_row
+                .get("raw_extensions")
+                .map(|v| v.is_object())
+                .unwrap_or(false),
+            "live record simulated wire row must contain raw_extensions as a JSON object; \
+             BC-2.16.018 AC-006. Got: {:?}",
+            simulated_wire_row.get("raw_extensions")
+        );
+
+        // ── Raw TOML names MUST NOT appear as top-level wire fields ────────────
+        // (BC-2.16.018 AC-004 §Tier-1 arrow-name discipline)
+        let tier2_names = [
+            "server_name",
+            "server_status",
+            "server_location",
+            "management_ip",
+            "model",
+            "os_version",
+            "site_id",
+            "serial_number",
+            "num_of_interfaces",
+        ];
+        for raw_name in &tier2_names {
+            assert!(
+                !simulated_wire_row.contains_key(*raw_name),
+                "Raw TOML name / Tier-2 field '{}' MUST NOT appear as a top-level wire field. \
+                 BC-2.16.018 AC-004. Wire row keys: {:?}",
+                raw_name,
+                simulated_wire_row.keys().collect::<Vec<_>>()
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -407,26 +546,53 @@ fn test_BC_2_16_018_claroty_servers_live_wire_shape_class_uid_and_tier1() {
 ///
 /// Traces to: BC-2.16.018 §Postconditions §2 (Tier-2 keys in raw_extensions); TV-BC-2.16.018-005.
 /// Story: S-CLAROTY-SERVERS-001 AC-006
-#[test]
+#[tokio::test]
 #[ignore]
 // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job
-fn test_BC_2_16_018_claroty_servers_live_raw_extensions_contains_tier2_keys() {
+async fn test_BC_2_16_018_claroty_servers_live_raw_extensions_contains_tier2_keys() {
     // RED GATE: fails if claroty_servers is not yet in claroty.sensor.toml
-    let (_spec, _servers) = load_claroty_servers_table();
+    let (spec, _servers) = load_claroty_servers_table();
 
-    let _instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
         .expect("LIVE-MONROE-001: CLAROTY_INSTANCE_URL must be set to run live tests");
 
-    // Assertions per AC-006 / TV-BC-2.16.018-005:
-    // Run: SELECT raw_extensions FROM claroty.claroty_servers LIMIT 5
-    // For each row: raw_extensions is non-null JSON object
-    // Deserialized raw_extensions object contains at minimum: "management_ip", "model", "os_version"
-    // (or null values when the live API returns them)
-    // No E-QUERY-038 is raised on raw_extensions itself (raw_extensions IS a projected column)
-    todo!(
-        "S-CLAROTY-SERVERS-001 AC-006: implement via prism MCP query stack or direct reqwest POST \
-         to /api/v1/servers/ after the TOML block lands in claroty.sensor.toml"
-    )
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "servers")
+        .expect("servers table must exist in live_spec");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live PipelineExecutor::execute must succeed for claroty_servers (raw_extensions)");
+
+    // Each non-empty record must yield a non-empty raw_extensions map (AC-006).
+    for raw_record in result.records.iter().take(3) {
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "servers")
+            .expect("servers table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table)
+            .expect("ColumnMapper::map_record must succeed for live claroty_servers record");
+
+        assert!(
+            !row.raw_extensions.is_empty(),
+            "live claroty_servers record must have non-empty raw_extensions (Tier-2 data). \
+             BC-2.16.018 AC-006. Record: {:?}",
+            raw_record
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

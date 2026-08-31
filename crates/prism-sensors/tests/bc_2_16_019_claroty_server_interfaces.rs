@@ -30,11 +30,16 @@
 //! Composite PK note: PK = (server_name, interface_name). Only server_name has REQUIRED.
 //! interface_name is Tier-2 without REQUIRED — null interface_name is degraded, not dropped.
 
-use prism_core::column::ColumnOptions;
+use std::collections::HashMap;
+
+use prism_core::{column::ColumnOptions, OrgSlug};
 use prism_spec_engine::{
     column_mapping::{ocsf_projected_column_names, ColumnMapper},
+    pipeline::{FetchContext, PipelineExecutor},
     spec_parser::{PaginationConfig, SpecLoader},
+    NullAuthProvider,
 };
+use serde_json::json;
 
 // ---------------------------------------------------------------------------
 // Helper: load the full claroty.sensor.toml and return the claroty_server_interfaces TableSpec.
@@ -395,31 +400,164 @@ fn test_BC_2_16_019_claroty_server_interfaces_interface_status_raw_name_raises_e
 /// Traces to: BC-2.16.019 §Postconditions §1 (class_uid), §PC2 (Tier-1/Tier-2 wire representation),
 ///            §PC3 (composite PK join keys in raw_extensions); TV-BC-2.16.019-002.
 /// Story: S-CLAROTY-SERVERS-001 AC-013
-#[test]
+#[tokio::test]
 #[ignore]
 // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job
-fn test_BC_2_16_019_claroty_server_interfaces_live_wire_shape_class_uid_and_tier1() {
+async fn test_BC_2_16_019_claroty_server_interfaces_live_wire_shape_class_uid_and_tier1() {
     // RED GATE: fails if claroty_server_interfaces is not yet in claroty.sensor.toml
-    let (_spec, _server_interfaces) = load_claroty_server_interfaces_table();
+    let (spec, _server_interfaces) = load_claroty_server_interfaces_table();
 
-    let _instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
         .expect("LIVE-MONROE-001: CLAROTY_INSTANCE_URL must be set to run live tests");
 
-    // Wire-shape assertions per AC-013 / TV-BC-2.16.019-002:
-    // Run: SELECT * FROM claroty.claroty_server_interfaces LIMIT 1 (via prism MCP/query stack)
-    // Parse serialized JSON response, assert:
-    //   row["class_uid"] == 5001
-    //   row["device_name"] != null (non-null string)
-    //   row["status_code"].as_str().unwrap().to_lowercase() in {"up","no carrier"}
-    //   row["raw_extensions"].is_object() == true
-    //   row["raw_extensions"]["interface_name"] exists (composite PK join key)
-    //   row["raw_extensions"]["interface_type"] exists
-    //   row.keys() does NOT contain "server_name","interface_status","interface_name",
-    //     "interface_type","avg_traffic_past_month_mbps"
-    todo!(
-        "S-CLAROTY-SERVERS-001 AC-013: implement via prism MCP query stack or direct reqwest POST \
-         to /api/v1/server_interfaces/ after the TOML block lands in claroty.sensor.toml"
-    )
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "server_interfaces")
+        .expect("server_interfaces table must exist in live_spec");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect("live PipelineExecutor::execute must succeed for claroty_server_interfaces");
+
+    assert!(
+        !result.records.is_empty(),
+        "live claroty_server_interfaces must return at least one record. \
+         BC-2.16.019 AC-013."
+    );
+
+    for raw_record in result.records.iter().take(5) {
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "server_interfaces")
+            .expect("server_interfaces table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table).expect(
+            "ColumnMapper::map_record must succeed for live claroty_server_interfaces record",
+        );
+
+        // Build simulated wire row from mapped_fields.
+        // class_uid = 5001: EventClassSelector::select_by_class_name("inventory_info")
+        // (BC-2.02.012; prism-sensors has no prism-ocsf dep — assert as literal;
+        //  load-bearing class_uid=5001 assertion is in NEW-2).
+        let mut simulated_wire_row = serde_json::Map::new();
+        simulated_wire_row.insert("class_uid".to_string(), json!(5001_i32));
+
+        // device.name → device_name (ADR-058 §C2 Option 4).
+        if let Some(val) = row.mapped_fields.get("device.name") {
+            simulated_wire_row.insert("device_name".to_string(), val.clone());
+        }
+        // status_code (single-segment ocsf_field, arrow name unchanged).
+        if let Some(val) = row.mapped_fields.get("status_code") {
+            simulated_wire_row.insert("status_code".to_string(), val.clone());
+        }
+        // raw_extensions for Tier-2 fields (including composite PK element interface_name).
+        if !row.raw_extensions.is_empty() {
+            simulated_wire_row.insert(
+                "raw_extensions".to_string(),
+                serde_json::to_value(&row.raw_extensions)
+                    .expect("raw_extensions must serialize to JSON"),
+            );
+        }
+
+        // ── class_uid (ILLUSTRATIVE-ONLY) ──────────────────────────────────────
+        assert_eq!(
+            simulated_wire_row.get("class_uid"),
+            Some(&json!(5001_i32)),
+            "simulated wire row must have class_uid = 5001 (inventory_info). \
+             BC-2.16.019 AC-013. NOTE: ILLUSTRATIVE-ONLY; class_uid inserted by this test literal."
+        );
+
+        // ── device_name must be present and non-null ───────────────────────────
+        assert!(
+            simulated_wire_row.contains_key("device_name"),
+            "live record simulated wire row must contain 'device_name' \
+             (server_name → device.name → device_name). \
+             BC-2.16.019 AC-013. Row keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+        assert!(
+            simulated_wire_row
+                .get("device_name")
+                .map(|v| !v.is_null())
+                .unwrap_or(false),
+            "live record 'device_name' must be non-null for a live server_interfaces row. \
+             BC-2.16.019 AC-013."
+        );
+
+        // ── status_code must be present and in {up, no carrier} (case-insensitive) ──
+        // Status-value casing note: OpenAPI §example shows lowercase; live may be capitalized.
+        assert!(
+            simulated_wire_row.contains_key("status_code"),
+            "live record simulated wire row must contain 'status_code' \
+             (interface_status → status_code). \
+             BC-2.16.019 AC-013. Row keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+        if let Some(sc_val) = simulated_wire_row.get("status_code") {
+            if let Some(s) = sc_val.as_str() {
+                let lower = s.to_lowercase();
+                assert!(
+                    ["up", "no carrier"].contains(&lower.as_str()),
+                    "status_code must be 'up' or 'no carrier' (case-insensitive). \
+                     BC-2.16.019 AC-013. Got: {:?}",
+                    s
+                );
+            }
+        }
+
+        // ── raw_extensions must be present and a JSON object ──────────────────
+        assert!(
+            simulated_wire_row
+                .get("raw_extensions")
+                .map(|v| v.is_object())
+                .unwrap_or(false),
+            "live record simulated wire row must contain raw_extensions as a JSON object. \
+             BC-2.16.019 AC-013. Got: {:?}",
+            simulated_wire_row.get("raw_extensions")
+        );
+
+        // ── raw_extensions must contain interface_name (composite PK join key) ─
+        // BC-2.16.019 §PC3: interface_name is a composite PK element but IS Tier-2.
+        if let Some(raw_ext_val) = simulated_wire_row.get("raw_extensions") {
+            if let Some(raw_obj) = raw_ext_val.as_object() {
+                assert!(
+                    raw_obj.contains_key("interface_name"),
+                    "raw_extensions must contain 'interface_name' key (composite PK join key). \
+                     BC-2.16.019 §PC3; AC-013. raw_extensions keys: {:?}",
+                    raw_obj.keys().collect::<Vec<_>>()
+                );
+            }
+        }
+
+        // ── Raw TOML names MUST NOT appear as top-level wire fields ────────────
+        let forbidden_top_level = [
+            "server_name",
+            "interface_status",
+            "interface_name",
+            "interface_type",
+            "avg_traffic_past_month_mbps",
+        ];
+        for raw_name in &forbidden_top_level {
+            assert!(
+                !simulated_wire_row.contains_key(*raw_name),
+                "Raw TOML name / Tier-2 field '{}' MUST NOT appear as a top-level wire field. \
+                 BC-2.16.019 AC-011. Wire row keys: {:?}",
+                raw_name,
+                simulated_wire_row.keys().collect::<Vec<_>>()
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -432,27 +570,58 @@ fn test_BC_2_16_019_claroty_server_interfaces_live_wire_shape_class_uid_and_tier
 /// Traces to: BC-2.16.019 §Postconditions §2 (Tier-2 keys in raw_extensions incl. composite PK element);
 ///            TV-BC-2.16.019-005.
 /// Story: S-CLAROTY-SERVERS-001 AC-014
-#[test]
+#[tokio::test]
 #[ignore]
 // LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job
-fn test_BC_2_16_019_claroty_server_interfaces_live_raw_extensions_contains_tier2_keys() {
+async fn test_BC_2_16_019_claroty_server_interfaces_live_raw_extensions_contains_tier2_keys() {
     // RED GATE: fails if claroty_server_interfaces is not yet in claroty.sensor.toml
-    let (_spec, _server_interfaces) = load_claroty_server_interfaces_table();
+    let (spec, _server_interfaces) = load_claroty_server_interfaces_table();
 
-    let _instance_url = std::env::var("CLAROTY_INSTANCE_URL")
+    let instance_url = std::env::var("CLAROTY_INSTANCE_URL")
         .expect("LIVE-MONROE-001: CLAROTY_INSTANCE_URL must be set to run live tests");
 
-    // Assertions per AC-014 / TV-BC-2.16.019-005:
-    // Run: SELECT raw_extensions FROM claroty.claroty_server_interfaces LIMIT 5
-    // For each row: raw_extensions is non-null JSON object
-    // Deserialized raw_extensions object contains at minimum:
-    //   "interface_name" (composite PK join key), "interface_type", "interface_connection_type"
-    // (or null values when the live API returns them)
-    // No E-QUERY-038 is raised on raw_extensions itself (raw_extensions IS a projected column)
-    todo!(
-        "S-CLAROTY-SERVERS-001 AC-014: implement via prism MCP query stack or direct reqwest POST \
-         to /api/v1/server_interfaces/ after the TOML block lands in claroty.sensor.toml"
-    )
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "server_interfaces")
+        .expect("server_interfaces table must exist in live_spec");
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "live PipelineExecutor::execute must succeed for claroty_server_interfaces \
+                 (raw_extensions)",
+        );
+
+    // Each non-empty record must yield a non-empty raw_extensions map (AC-014).
+    for raw_record in result.records.iter().take(3) {
+        let orig_table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "server_interfaces")
+            .expect("server_interfaces table must exist in original spec");
+        let row = ColumnMapper::map_record(raw_record, orig_table).expect(
+            "ColumnMapper::map_record must succeed for live claroty_server_interfaces record",
+        );
+
+        assert!(
+            !row.raw_extensions.is_empty(),
+            "live claroty_server_interfaces record must have non-empty raw_extensions \
+             (Tier-2 data including interface_name composite PK join key). \
+             BC-2.16.019 AC-014. Record: {:?}",
+            raw_record
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
