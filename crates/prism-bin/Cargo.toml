@@ -305,10 +305,13 @@ name = "bc_2_16_015_claroty_vulnerabilities_wire_shape"
 path = "tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs"
 
 # S-CLAROTY-OT-EVENTS-001: Red Gate wire-shape tests for BC-2.16.016.
-# Three tests:
+# Six tests:
 #   NEW-1: SID-1 non-ignored mock wire-shape (class_uid=2004, Tier-1 columns, raw_extensions)
-#   EC-002-WIRE: related_alert_ids native JSON array (not stringified) at wire level
-#   SAP-3: E-QUERY-038 end-to-end via QueryEngine::execute() for Tier-2 source_ip
+#   EC-002-WIRE (RG-010): related_alert_ids native JSON array (not stringified) at wire level
+#   SAP-3 (RG-003): E-QUERY-038 end-to-end via QueryEngine::execute() for Tier-2 source_ip
+#   RG-009: raw_toml_name_detection_time_raises_e_query_038 (AC-005 raw-TOML-name E-QUERY-038 arm)
+#   RG-011: ac007_absent_event_id_null_finding_info_uid_production_path (AC-007 production path)
+#   RG-012: ac008_absent_detection_time_null_time_production_path (AC-008 production path)
 # BCs: BC-2.16.016
 [[test]]
 name = "bc_2_16_016_claroty_ot_activity_events_wire_shape"

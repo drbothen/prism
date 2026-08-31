@@ -7,7 +7,7 @@
 //! | ID           | Test name | Assertion |
 //! |--------------|-----------|-----------|
 //! | NEW-1        | test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_mock | class_uid=2004, finding_info_uid, time, activity_name, message, raw_extensions as JSON object, no Tier-2 top-level keys (RecordBatch-level assertions) |
-//! | EC-002-WIRE  | test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array | Wire-level: related_alert_ids=[1,2,3] survives as native JSON array (not stringified) inside raw_extensions JSON object |
+//! | EC-002-WIRE / RG-010 | test_BC_2_16_016_claroty_ot_activity_events_ec002_related_alert_ids_native_json_array | Wire-level: related_alert_ids=[1,2,3] survives as native JSON array (not stringified) inside raw_extensions JSON object |
 //! | RG-003 (SAP-3) | test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038 | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() — authoritative end-to-end reachability gate |
 //! | AC-005/EC-009  | test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038 | E-QUERY-038 when querying raw TOML name `detection_time` (projected as Arrow name `time` under ocsf_column_naming=true) — F-COE1-P1-OBS-001 closure |
 //! | AC-007 (MED-2) | test_BC_2_16_016_claroty_ot_activity_events_ac007_absent_event_id_null_finding_info_uid_production_path | Production-path fetch: absent event_id → finding_info_uid=null (wire), row survives with time+raw_extensions populated. SAP-3 reachability gate. |

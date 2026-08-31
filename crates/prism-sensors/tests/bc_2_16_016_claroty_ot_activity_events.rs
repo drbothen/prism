@@ -2,6 +2,10 @@
 //! Red Gate test suite for BC-2.16.016 — Claroty xDome OT Activity Events Table.
 //!
 //! Covers S-CLAROTY-OT-EVENTS-001 acceptance criteria AC-003..AC-009.
+//! Note on AC-005 split: AC-005's mandatory E-QUERY-038 arm (SELECT detection_time MUST
+//! raise E-QUERY-038) is covered by RG-009 in prism-bin (test
+//! `test_BC_2_16_016_claroty_ot_activity_events_raw_toml_name_detection_time_raises_e_query_038`);
+//! this file covers AC-005's live/#[ignore] half only (RG-004 / RG-005).
 //! BC-5.38.001 density check: 10 RGTs / 9 ACs = 1.11 (≥ 0.5 threshold — PASS).
 //! (Additional coverage: EC-002 non-empty array test and EC-004 mode-absent test; added in v1.2).
 //!
