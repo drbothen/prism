@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -16,11 +16,11 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "f51c2c6"
+input-hash: "2e91a4e"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: null
+modified: 2026-08-30
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -74,11 +74,7 @@ ocsf_class = "detection_finding"   # class_uid 2004 (existing arm; same as alert
 name = "fetch_ot_activity_events"
 method = "POST"
 path_template = "/api/v1/ot_activity_events/"
-body_template = '{"fields": ["event_id", "detection_time", "event_type", "description", \
-  "source_ip", "dest_ip", "protocol", "dest_port", "source_port", "ip_protocol", \
-  "source_asset_id", "dest_asset_id", "source_device_name", "dest_device_name", \
-  "source_device_type", "dest_device_type", "source_site_name", "dest_site_name", \
-  "source_username", "related_alert_ids", "mode"]}'
+body_template = '{"fields": ["event_id", "detection_time", "event_type", "description", "source_ip", "dest_ip", "protocol", "dest_port", "source_port", "ip_protocol", "source_asset_id", "dest_asset_id", "source_device_name", "dest_device_name", "source_device_type", "dest_device_type", "source_site_name", "dest_site_name", "source_username", "related_alert_ids", "mode"]}'
 response_path = "$.ot_activity_events"
 variables_produced = []
 [tables.steps.pagination]
@@ -242,4 +238,5 @@ S-CLAROTY-OT-EVENTS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | f-1-remove-uncertainty | 2026-08-30 | product-owner | F-1 pre-TDD remove-uncertainty fix — TOML literal-string body_template corrected to single-line double-quoted string; zero semantic change; 21 fields unchanged. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome OT activity events queryable surface contract per xdome-endpoint-expansion-plan.md Wave A G2 and spike-findings §Spike 2. TOML table contract, 21-column Tier-1/Tier-2 classification per ADR-058, Option B OCSF class rationale (detection_finding/2004 over network_activity/4001 per plan governing constraint), SAP-2 N/A documentation (no DTU), D-2200 deferred DTU anchor. |

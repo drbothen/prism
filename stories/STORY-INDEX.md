@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.952"
+version: "2.953"
 status: draft
 producer: state-manager
-timestamp: 2026-08-30T21:00:00Z
+timestamp: 2026-08-30T23:55:00Z
 phase: 3
 total_stories: 319
+# D-2380: S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 spec-readiness CLEAN 2026-08-30; remove-uncertainty CLEAN; F-1 body_template TOML literal-string syntax fixed; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added; implementer notes carried). total_stories 319 UNCHANGED. STORY-INDEX v2.952→v2.953. D-2377 NOTE archived.
 # D-2375: PR #243 squash-merged (S-ENGINE-LIMIT-EARLY-STOP-001 MERGED); S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; STORY-INDEX v2.950→v2.951. D-2373 NOTE archived.
 # D-2372: F-B1-001 substantively closed; LIMIT story pin v1.40→v1.41 (AC-015/RG-PSG-044 anchoring test_early_stop_multi_batch_partial_page_is_truncated; 7-locus discriminator reconciliation; 59 RGTs/15 ACs; input-hash b8cad49; BC-2.16.002 v2.53; feature HEAD 704aac24a). total_stories 319 UNCHANGED. STORY-INDEX v2.948→v2.949. D-2367 NOTE archived.
 # D-2367: cursor-stub S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 v1.1→v1.2 (F-P4-LENSC1-001 MED Title cell corrected to verbatim H1; OBS input-hash comment + ADR cite refreshed to ADR-060 v1.16). LIMIT story v1.40 / BC-2.16.002 v2.52 / BC-2.11.001 v1.31 UNCHANGED. total_stories 319 UNCHANGED. STORY-INDEX v2.947→v2.948. D-2366 NOTE archived.
@@ -1053,7 +1054,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v2.0] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.8) | -- | 5 | -- |
-| S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
+| S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [ready v1.1] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.1) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 current) | -- | 3 | -- |
 | S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040/EC-01-041/EC-01-042, RG-PSG-034..044) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5) + partial-final-page discriminator (ADR-060 §D8.2/§D8.3; AC-014/RG-PSG-039/040) + multi-batch fan-out discriminator (ADR-060 §D8.2/§D8.3; `|| !is_last_batch`; AC-015/RG-PSG-044) + OffsetLimit-only conservative early-stop (ADR-060 §D8.4 revert; RG-PSG-041 sentinel); 59 RGTs / 15 ACs ≈ 3.93 [merged c5be059fe; PR #243] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.54; trace: BC-2.11.001 v1.31, BC-2.16.015 v1.8) | -- | 8 | -- |
@@ -1667,6 +1668,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.953 | 2026-08-30 | state-manager D-2380: G2 SPEC-READINESS BURST (TD-VSDD-053) — S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 remove-uncertainty CLEAN 2026-08-30; F-1 BC body_template TOML literal-string syntax fixed; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added). G2 implementation-ready. total_stories 319 UNCHANGED. STORY-INDEX v2.952→v2.953. |
 | v2.952 | 2026-08-30 | state-manager D-2377: POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. S-CLAROTY-VULNS-001 story v1.9→v2.0 (BC-2.16.015 version-pin drift fixed per POL-39; §Behavioral Contracts Version column updated v1.6→v1.8; input-hash refreshed 0aafc8d→f695bf5). Feature HEAD fee0c64d7 UNCHANGED. total_stories 319 UNCHANGED. STORY-INDEX v2.951→v2.952. |
 | v2.951 | 2026-08-30 | state-manager D-2375: SINGLE-COMMIT BURST (TD-VSDD-053) — POST-MERGE state burst for S-ENGINE-LIMIT-EARLY-STOP-001. PR #243 squash-merged to origin/develop @c5be059fe (human-authorized; adversary re-verify CLEAN strict=yes zero findings on frozen HEAD 704aac24a). S-ENGINE-LIMIT-EARLY-STOP-001 status: draft→merged. POL-14: BC-2.16.002 already active (no promotion needed). BC-2.16.015 draft — promoted by S-CLAROTY-VULNS-001 merge per POL-14 (not this story). total_stories 319 UNCHANGED. STORY-INDEX v2.950→v2.951. |
 | v2.950 | 2026-08-30 | state-manager D-2373: SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1V-001 (MED contract-traceability) + F-B1V-002 (MED spec-accuracy) CLOSED. LIMIT story v1.41→v1.42 (BC-2.16.002 v2.54; input-hash 6a22a8d; TD-VSDD-091 SHA cleanup; AC-015/RG-PSG-044 anchors unchanged; 59 RGTs/15 ACs unchanged). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN; CI green). BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). total_stories 319 UNCHANGED. STORY-INDEX v2.949→v2.950. |

@@ -1,18 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.026"
+version: "8.027"
 status: current
-timestamp: 2026-08-30T23:45:00Z
+timestamp: 2026-08-30T23:55:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2379 (2026-08-30): DOCUMENTATION BURST (TD-VSDD-053) — live-tenant-validation runbook created; per-story xDome merge gate documented. VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 disposition pending. STATE v8.911→v8.912. [D-2378 historical]**
+> **D-2380 (2026-08-30): G2 SPEC-READINESS BURST (TD-VSDD-053) — S-CLAROTY-OT-EVENTS-001 draft→ready v1.1; BC-2.16.016 v1.1; G2 implementation-ready. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. STATE v8.912→v8.913. [D-2379 historical]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2379 (2026-08-30 — DOCUMENTATION BURST; live-tenant-validation runbook created; per-story xDome merge gate canonical; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending; DEADLINE 2026-08-31)
+## §RESUME SNAPSHOT — D-2380 (2026-08-30 — G2 SPEC-READINESS BURST; S-CLAROTY-OT-EVENTS-001 ready v1.1; BC-2.16.016 v1.1; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending; DEADLINE 2026-08-31)
+
+### RESUME IN ONE BREATH
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2380 G2 spec-readiness burst: S-CLAROTY-OT-EVENTS-001 promoted draft→ready v1.1 (BC-2.16.016 v1.1; remove-uncertainty CLEAN; F-1 body_template TOML literal-string syntax fixed). G2 TDD unblocked. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional by Monday 2026-08-31 (human-directed); FULL G2–G6 endpoint expansion in scope. Critical path: (DONE) S-ENGINE-LIMIT-EARLY-STOP-001 merged → (DONE) G2 spec-readiness → (IN PROGRESS) OBS-1 disposition + 3-CLEAN merge S-CLAROTY-VULNS-001 (G1) → live xDome tenant validation → G2–G6 TDD.
+
+### CONVERGENCE BAR (human-directed)
+CODE zero findings any severity; SPEC substantively clean (no behavioral/correctness/contract findings); ONLY pure housekeeping deferrable as tracked follow-ups. Standing "no pragmatic convergence / fix all issues" in force; deadline governs sequencing, not the bar.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **LIMIT (MERGED):** PR #243 squash-merged @c5be059fe (D-2375). DONE. Local worktree pending devops cleanup.
+- **VULNS-001:** RESUME NEXT-ACTION = disposition OBS-1 (stale test-enumeration comment prism-bin/Cargo.toml wire-shape [[test]] header — lists 3 tests, file has 8; fix = records-only TD-VSDD-096 micro-burst advancing HEAD + streak reset; waive = human authorization required) → continue PR-LEVEL cascade toward 3-consecutive-CLEAN(strict) on frozen HEAD → merge. After merge: POL-14 (BC-2.16.015 draft→active; BC-2.16.002 already active from LIMIT merge). THEN: live xDome tenant validation per .factory/ops/live-tenant-validation-runbook.md (merge gate — Variant-2 MCP-driven minimum).
+- **G2–G6:** RESUME NEXT-ACTION = after VULNS-001 merged + live validated, begin G2 TDD delivery (S-CLAROTY-OT-EVENTS-001 ready v1.1; BC-2.16.016 v1.1; gating spikes resolved D-2380). G3–G6 stories drafted; full expansion plan D-2357.
+
+### CONVERGENCE STATE
+S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. G2 spec-readiness: S-CLAROTY-OT-EVENTS-001 ready v1.1 / BC-2.16.016 v1.1 (D-2380). S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (not CLEAN(strict)) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = `51bb3bc1` (PR #244 heartbeat-doc squash-merge D-2378). LOCAL develop = origin/develop = `51bb3bc1` (divergence RESOLVED).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED + remote branch deleted; local worktree pending devops cleanup.
+- `feature/S-CLAROTY-VULNS-001`: `73bea7c1c` (PUSHED; rebased onto c5be059fe + F-VULNS-IDNULL-LOW-001 CLOSED; PR-LEVEL pass-1 CLEAN(strict) + pass-2 LOW OBS-1 pending + pass-3 CLEAN(strict); streak 1/3; 1 commit behind origin/develop; OBS-1 disposition pending)
+- S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (verify status on resume)
+- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### DEFERRED HOUSEKEEPING (non-blocking, tracked)
+(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; post-merge. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Validator gate ensuring every >=1-BC story has holdout scenarios at materialization; post-Monday. (4) BC-bump propagation checklist enhancement (D-2377 PROCESS-GAP): enhance BC-bump burst to grep STORY-INDEX for traces_to dependent stories; attach to S-MAINT-ANTIPIN-SWEEP-001 OR register S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001; post-Monday. [Note: develop divergence from D-2377 RESOLVED — PR #244 merge @51bb3bc1.]
+
+### HEARTBEAT (permanent)
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
+
+### DECISION DELTA
+D-2380 (G2 spec-readiness burst — S-CLAROTY-OT-EVENTS-001 ready v1.1; BC-2.16.016 v1.1; BC-INDEX v9.84→v9.85; STORY-INDEX v2.952→v2.953) recorded. D-2379 historical.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) Live xDome tenant validation is a per-story merge gate (D-2310 lesson); canonical runbook: .factory/ops/live-tenant-validation-runbook.md (Path B via ~/Dev/test-soc/live-soc). (f) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures in prior session — all recovered; heartbeat is backstop.
+
+---
+
+## §RESUME SNAPSHOT — D-2379 (2026-08-30 — DOCUMENTATION BURST; live-tenant-validation runbook created; per-story xDome merge gate canonical; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending; DEADLINE 2026-08-31) [SUPERSEDED by D-2380]
 
 ### RESUME IN ONE BREATH
 Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2379 documentation burst: live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md); per-story xDome merge gate canonical. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending.
@@ -34,22 +75,8 @@ S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 PR-LEVEL on
 ### HEADS (backup boundary)
 - `develop`: origin/develop = `51bb3bc1` (PR #244 heartbeat-doc squash-merge D-2378). LOCAL develop = origin/develop = `51bb3bc1` (divergence RESOLVED).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
-- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED + remote branch deleted; local worktree pending devops cleanup.
-- `feature/S-CLAROTY-VULNS-001`: `73bea7c1c` (PUSHED; rebased onto c5be059fe + F-VULNS-IDNULL-LOW-001 CLOSED; PR-LEVEL pass-1 CLEAN(strict) + pass-2 LOW OBS-1 pending + pass-3 CLEAN(strict); streak 1/3; 1 commit behind origin/develop; OBS-1 disposition pending)
-- S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (verify status on resume)
-- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
-
-### DEFERRED HOUSEKEEPING (non-blocking, tracked)
-(1) test doc-comment on test_early_stop_multi_batch_partial_page_is_truncated — re-anchor to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; post-merge. (2) Holdout harness/fixture reconciliation (seeded 5/20 vs literal 10-record fixture); post-Monday. (3) Validator gate ensuring every >=1-BC story has holdout scenarios at materialization; post-Monday. (4) BC-bump propagation checklist enhancement (D-2377 PROCESS-GAP): enhance BC-bump burst to grep STORY-INDEX for traces_to dependent stories; attach to S-MAINT-ANTIPIN-SWEEP-001 OR register S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001; post-Monday. [Note: develop divergence from D-2377 RESOLVED — PR #244 merge @51bb3bc1.]
-
-### HEARTBEAT (permanent)
-Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
-
-### DECISION DELTA
-D-2379 (documentation burst — live-tenant-validation runbook created; per-story merge gate canonical; origin test-soc/live-soc Path B) recorded. D-2378 historical.
-
-### STANDING DECISIONS (carry forward)
-(a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) Live xDome tenant validation is a per-story merge gate (D-2310 lesson); canonical runbook: .factory/ops/live-tenant-validation-runbook.md (Path B via ~/Dev/test-soc/live-soc). (f) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures in prior session — all recovered; heartbeat is backstop.
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED; remote branch deleted; local worktree pending devops cleanup
+- `feature/S-CLAROTY-VULNS-001`: `73bea7c1c` — rebased onto c5be059fe + F-VULNS-IDNULL-LOW-001 CLOSED; PR-LEVEL pass-1 CLEAN(strict) + pass-2 LOW OBS-1 pending + pass-3 CLEAN(strict); streak 1/3; 1 commit behind origin/develop; OBS-1 disposition pending; PUSHED
 
 ---
 

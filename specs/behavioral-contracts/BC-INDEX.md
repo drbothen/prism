@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.84"
+version: "9.85"
 status: draft
 producer: state-manager
-timestamp: 2026-08-30T00:00:00Z
+timestamp: 2026-08-30T23:55:00Z
+# NOTE: D-2380 — BC-INDEX v9.84→v9.85: BC-2.16.016 pin v1.0→v1.1 (G2 spec-readiness; remove-uncertainty CLEAN 2026-08-30; F-1 body_template TOML literal-string syntax fixed; story S-CLAROTY-OT-EVENTS-001 promoted draft→ready). draft/active/total UNCHANGED (11/253/277). D-2373 NOTE archived.
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric with EC-01-041; worked-example numbers aligned; volatile code-pin removed). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2372 NOTE archived.
 # NOTE: D-2372 — BC-INDEX v9.82→v9.83: F-B1-001 substantively closed; BC-2.16.002 pin v2.52→v2.53 (EC-01-041 FINAL-batch qualified; EC-01-042 NEW non-final fan-out batch discriminator); BC-2.11.001 UNCHANGED v1.31 (transitive coverage verified). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). draft/active/total UNCHANGED (11/253/277). D-2366 NOTE archived.
 # NOTE: D-2366 — BC-INDEX v9.81→v9.82: LOCAL cascade pass-2 spec-only fix-burst (F-P3-LENSC2-001 MED TD-VSDD-097 Dim-2) — BC-2.16.002 pin v2.51→v2.52 (§Postconditions PaginationConfig::None conservative-bucket + EC-01-041 mode scope); BC-2.11.001 pin v1.30→v1.31 (EC-11-094 mode scope). Feature HEAD 1c1159c68 FROZEN (no code change). BC-5.39.001 LOCAL streak RESET 1/3→0/3 (spec perimeter changed; frozen-HEAD rule). draft/active/total UNCHANGED (11/253/277). D-2358 NOTE archived.
@@ -366,7 +367,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.8 |
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.1 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |

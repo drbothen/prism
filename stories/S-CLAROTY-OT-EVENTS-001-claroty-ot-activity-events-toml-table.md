@@ -6,12 +6,12 @@ level: "L4"
 wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: draft
-# BC status: active BCs authored (BC-2.16.016 v1.0 draft); promote to ready after remove-uncertainty pass.
+status: ready
+# BC status: BC-2.16.016 v1.1 draft; remove-uncertainty CLEAN 2026-08-30 (F-1 fixed); promoted to ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.0"
-modified: "2026-08-24"
+version: "1.1"
+modified: "2026-08-30"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -20,7 +20,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "48810ab"
+input-hash: "cfc9e16"
 # input-hash: run `compute-input-hash <this-file> --update` after writing
 traces_to: "BC-2.16.016"
 points: 5
@@ -47,7 +47,7 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.016
-  # BC-2.16.016 v1.0 — Claroty xDome OT Activity Events Table: TOML table contract
+  # BC-2.16.016 v1.1 — Claroty xDome OT Activity Events Table: TOML table contract
   # (§Postconditions §1), 21-column Tier-1/Tier-2 classification (§Postconditions §2,
   # 4 Tier-1 + 17 Tier-2), Option B OCSF class rationale (§Postconditions §3),
   # SAP-2 DTU parity N/A (§Postconditions §4), EC-016-016-001..006 edge cases.
@@ -79,13 +79,13 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.016 v1.0 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
+**BC-2.16.016 v1.1 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
 block structure: `table_name = "claroty_ot_activity_events"`, `ocsf_class = "detection_finding"`,
 step name `"fetch_ot_activity_events"`, `path_template = "/api/v1/ot_activity_events/"`,
 `response_path = "$.ot_activity_events"`, pagination `type = "offset_limit"` / `page_size = 1000`,
 and the 21-field `body_template`. Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.016 v1.0 §Postconditions §2 — Column Tier Classification** governs Arrow field naming:
+**BC-2.16.016 v1.1 §Postconditions §2 — Column Tier Classification** governs Arrow field naming:
 - Tier-1: `event_id` (`ocsf_field = "finding_info.uid"` → `finding_info_uid`, Integer, REQUIRED),
   `detection_time` (`ocsf_field = "time"` → `time`, Datetime),
   `event_type` (`ocsf_field = "activity_name"` → `activity_name`, String),
@@ -94,7 +94,7 @@ and the 21-field `body_template`. Read §Postconditions §1 in full before autho
   Network 5-tuple (`source_ip`, `dest_ip`, `protocol`, `dest_port`, `source_port`, `ip_protocol`)
   is Tier-2 by DELIBERATE design — see §Postconditions §3 Option B rationale.
 
-**BC-2.16.016 v1.0 §Postconditions §3 — Option B OCSF Class Rationale**: `detection_finding`
+**BC-2.16.016 v1.1 §Postconditions §3 — Option B OCSF Class Rationale**: `detection_finding`
 (class_uid 2004) is used — NOT `network_activity` (class_uid 4001). Authority: spike-findings
 §Spike 2 §Decision. The governing constraint "NO new OCSF class_selector arms required
 (pragmatic mappings)" in xdome-endpoint-expansion-plan.md §Current Coverage is a design
@@ -102,7 +102,7 @@ constraint, not a suggestion. The existing `detection_finding` arm covers this t
 `related_alert_ids` signals that these events are part of the detection workflow, confirming
 Option B as the semantically correct choice.
 
-**BC-2.16.016 v1.0 §Postconditions §4 — SAP-2 N/A**: No DTU exists for
+**BC-2.16.016 v1.1 §Postconditions §4 — SAP-2 N/A**: No DTU exists for
 `claroty_ot_activity_events`. SAP-2 DTU-parity probe is explicitly not applicable for this
 delivery. Near-term tests run against the live monroe sensor only. DTU creation is deferred
 per D-2200. Once the deferred DTU story executes, BC-2.16.016 MUST be amended with DTU
@@ -180,7 +180,7 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.0 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; EC-016-016-001..006 edge cases |
+| BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | v1.1 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 21-column Tier-1/Tier-2 (4 Tier-1, 17 Tier-2); §Postconditions §3 Option B OCSF class rationale; §Postconditions §4 SAP-2 N/A; EC-016-016-001..006 edge cases |
 
 ## Acceptance Criteria
 
@@ -257,6 +257,12 @@ returns rows where `raw_extensions` is a non-null JSON object. The deserialized 
 at minimum `source_ip` and `dest_ip` keys (values may be null if network info absent for some events).
 No E-QUERY-038 is raised on `raw_extensions` itself.
 
+Additionally, when `related_alert_ids` data is present in any fetched row, the `raw_extensions` JSON
+object MUST contain `related_alert_ids` as a native JSON array (e.g., `[1, 2, 3]` or `[]`) — NOT
+as a stringified JSON string (e.g., `"[1,2,3]"`) — matching EC-002 (EC-016-016-002). This is the
+first production use of `column_type = "json"` in this sensor; validate array pass-through at the
+wire level explicitly.
+
 **Test:** `test_BC_2_16_016_claroty_ot_activity_events_live_raw_extensions_contains_network_fields`
 (`#[ignore]` — requires `CLAROTY_INSTANCE_URL`)
 
@@ -296,7 +302,7 @@ ensures the constant is present in test file for adversarial review verification
 
 | ID | Test name | Test type | What it gates |
 |----|-----------|-----------|---------------|
-| RG-001 | `test_BC_2_16_016_claroty_ot_activity_events_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 21 column entries returned for claroty_ot_activity_events |
+| RG-001 | `test_BC_2_16_016_claroty_ot_activity_events_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 21 column entries returned for claroty_ot_activity_events; `related_alert_ids` ColumnType::Json confirmed (first json column_type use; not stringified) |
 | RG-002 | `test_BC_2_16_016_claroty_ot_activity_events_four_tier1_columns` | Unit (ColumnSpec inspection) | AC-002: exactly 4 Tier-1 columns (ocsf_field == Some); event_id REQUIRED; detection_time→time; event_type→activity_name; description→message |
 | RG-003 | `test_BC_2_16_016_claroty_ot_activity_events_tier2_source_ip_raises_e_query_038` | Integration (plan-time validation) | AC-003: SELECT source_ip raises E-QUERY-038; available_columns excludes source_ip; includes raw_extensions |
 | RG-004 | `test_BC_2_16_016_claroty_ot_activity_events_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-004: wire JSON contains class_uid=2004; finding_info_uid, time, activity_name, message present; raw_extensions present with network fields; no Tier-2 standalone keys |
@@ -360,7 +366,7 @@ Architecture section references:
 |------|-----------------|
 | This story spec | ~7,500 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables as pattern reference) | ~5,500 |
-| BC-2.16.016 v1.0 (full) | ~5,000 |
+| BC-2.16.016 v1.1 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | spike-findings §Spike 2 (OCSF class decision; column set; 2 excluded fields) | ~2,500 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
@@ -394,7 +400,7 @@ by reading only the `alerts` table block first as the canonical pattern, then th
 
 - [ ] **Task 9 (SAP-1 self-check):** Confirm no new `tracing::*!(event_type = ...)` emissions added (TOML-only change + unit tests). If any new emission appears, add a BC-2.16.002 catalog row per PG-LP11-001.
 
-- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm non-`#[ignore]` Red Gate tests pass (RG-001, RG-002, RG-003, RG-006, RG-007, RG-008). Confirm `claroty.sensor.toml` has 5 tables total (existing 4 + `claroty_ot_activity_events`). After `just check` passes, hold for story-level holdout gate before pushing to origin.
+- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm non-`#[ignore]` Red Gate tests pass (RG-001, RG-002, RG-003, RG-006, RG-007, RG-008). Confirm `claroty.sensor.toml` contains the `claroty_ot_activity_events` table and all prior tables remain intact (count-agnostic: 5 or 6 tables depending on whether S-CLAROTY-VULNS-001 G1 has already merged). After `just check` passes, hold for story-level holdout gate before pushing to origin.
 
 ## Previous Story Intelligence
 
@@ -511,7 +517,7 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 ## References
 
-- BC-2.16.016 v1.0 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 21-column Tier-1/Tier-2; §Postconditions §3 Option B rationale; §Postconditions §4 SAP-2 N/A; EC-016-016-001..006
+- BC-2.16.016 v1.1 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 21-column Tier-1/Tier-2; §Postconditions §3 Option B rationale; §Postconditions §4 SAP-2 N/A; EC-016-016-001..006
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — underscore-flattened Arrow names; §D — per-sensor ocsf_column_naming flag
 - ADR-028 §D8-B — implicit iso8601 default for datetime columns without timestamp_formats
 - spike-findings §Spike 2 — OCSF class decision (Option B over Option A); 21-column set; 2 excluded fields (dest_network, source_network); Tier-1/Tier-2 classification authority
@@ -525,4 +531,5 @@ MUST NOT gain a new dependency on `prism-sensors` (direction is prism-sensors �
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-OT-EVENTS-001 (Wave A G2). BC-2.16.016 v1.0 traceability; 21-column Tier-1/Tier-2 spec; 9 ACs; 8 RGTs; density 0.89; SAC-1 compliant; SAP-2 explicitly N/A (no DTU; D-2200 deferred); Option B OCSF class locked; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; 2 deliberately excluded fields documented. |
+| 1.1 | 2026-08-30 | story-writer | G2 propagation + promote: F-1 downstream-copy sweep — no body_template copy present in story (confirmed). Status promoted draft→ready (pre-TDD remove-uncertainty CLEAN 2026-08-30; F-1 fixed in BC v1.1). All BC refs updated v1.0→v1.1. Task 10 reworded count-agnostic (5 or 6 tables, G1 merge-order dependent). AC-006 + RG-001 explicit JSON-array assertion added for related_alert_ids (first json column_type use; must not stringify; matches EC-002). |
+| 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-OT-EVENTS-001 (Wave A G2). BC-2.16.016 v1.1 traceability; 21-column Tier-1/Tier-2 spec; 9 ACs; 8 RGTs; density 0.89; SAC-1 compliant; SAP-2 explicitly N/A (no DTU; D-2200 deferred); Option B OCSF class locked; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline; 2 deliberately excluded fields documented. |

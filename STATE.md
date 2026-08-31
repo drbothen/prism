@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.912"
+version: "8.913"
 producer: state-manager
-timestamp: 2026-08-30T23:45:00Z
+timestamp: 2026-08-30T23:55:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,12 +18,12 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "51bb3bc1"
 # NOTE: D-2378 — PR #244 (CLAUDE.md §Orchestrator Auto-Recovery Heartbeat doc) squash-merged to origin/develop @51bb3bc1 (human-authorized). Local develop reconciled via reset --keep to origin/develop; local == origin/develop == 51bb3bc1; develop divergence RESOLVED. D-2376 NOTE archived.
-bc_index_version: "9.84"
-# NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors; worked-example numbers aligned; volatile code-pin removed). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN). D-2372 NOTE archived.
+bc_index_version: "9.85"
+# NOTE: D-2380 — BC-INDEX v9.84→v9.85: BC-2.16.016 pin v1.0→v1.1 (G2 spec-readiness; remove-uncertainty CLEAN 2026-08-30; F-1 body_template TOML literal-string syntax fixed; story S-CLAROTY-OT-EVENTS-001 promoted draft→ready). draft/active/total UNCHANGED (11/253/277). D-2373 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.952"
-# NOTE: D-2377 — STORY-INDEX v2.951→v2.952: S-CLAROTY-VULNS-001 story v1.9→v2.0 (F-VULNS-REBASE-LOW-001 CLOSED; BC-2.16.015 version-pin drift fixed; input-hash refreshed 0aafc8d→f695bf5). D-2375 NOTE archived.
+story_index_version: "2.953"
+# NOTE: D-2380 — STORY-INDEX v2.952→v2.953: S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 (status draft→ready; BC-2.16.016 pin v1.0→v1.1; G2 spec-readiness CLEAN 2026-08-30). total_stories 319 UNCHANGED. D-2377 NOTE archived.
 arch_index_version: "2.357"
 # NOTE: D-2373 — ARCH-INDEX v2.356→v2.357: ADR-060 v1.17→v1.18 (F-B1V-002: §D8.3 worked example (d) corrected to reachable/test-matched numbers page_size=10/LIMIT=5/partial-page=5/2 batches). D-2372 NOTE archived.
 workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2379 DOCUMENTATION BURST (TD-VSDD-053) — live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md v1.0); per-story xDome merge gate documented; pointer added to SESSION-HANDOFF.md STANDING DECISIONS + STATE.md Session Resume Checkpoint. D-2379 recorded. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.911→v8.912."
+current_step: "D-2380 G2 SPEC-READINESS BURST (TD-VSDD-053) — S-CLAROTY-OT-EVENTS-001 implementation-ready: BC-2.16.016 v1.0→v1.1 (F-1 fixed), story draft→ready v1.1. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. G2 TDD unblocked pending VULNS-001 merge. D-2380 recorded. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.912→v8.913."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-30 D-2379: documentation burst — live-tenant-validation runbook created; per-story xDome merge gate documented. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.911→v8.912. |
+| **Last Updated** | 2026-08-30 D-2380: G2 spec-readiness burst — S-CLAROTY-OT-EVENTS-001 draft→ready v1.1; BC-2.16.016 v1.0→v1.1; G2 implementation-ready. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.912→v8.913. |
 
 ## Phase Progress
 
@@ -226,6 +226,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | D-2378 | state-manager | 2026-08-30 | **SINGLE-COMMIT BURST (TD-VSDD-053) — PR #244 (CLAUDE.md §Orchestrator Auto-Recovery Heartbeat doc) squash-merged to origin/develop @51bb3bc1 (human-authorized). Local develop reconciled via reset --keep to origin/develop; local == origin/develop == 51bb3bc1; develop divergence RESOLVED (prior LOCAL-ONLY heartbeat commit 194a77665 is now on origin as squash 51bb3bc1). VULNS-001 PR-LEVEL cascade on frozen 73bea7c1c (rebased onto c5be059fe + F-VULNS-IDNULL-LOW-001 closed): pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment in prism-bin/Cargo.toml wire-shape [[test]] header — lists 3 tests, file has 8) + pass-3 CLEAN(strict). BC-5.39.001 streak 1/3 on frozen 73bea7c1c; OBS-1 disposition pending orchestrator/human decision. All passes CLEAN(PR-merge) (zero CRIT/HIGH/MED). VULNS-001 1 commit behind origin/develop (PR #244 heartbeat-doc squash only, no conflict expected). Records-only (no spec/code/index change). TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.910→v8.911.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2379 | state-manager | 2026-08-30 | **DOCUMENTATION BURST (TD-VSDD-053) — live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md v1.0). Per-story Claroty xDome merge gate documented (D-2310 lesson; canonical procedure replaces per-session re-discovery; origin test-soc/live-soc Path B; AD-017 secrets-opaque). Pointer added to SESSION-HANDOFF.md §STANDING DECISIONS item (f) + STATE.md Session Resume Checkpoint STANDING DECISIONS. D-2379 recorded. Records-only; no spec/code/index change. TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.911→v8.912.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2377 | state-manager | 2026-08-30 | **POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. story-writer bumped S-CLAROTY-VULNS-001 v1.9→v2.0: BC-2.16.015 version-pin drift fixed (POL-39-compliant; 6 narrative prose pins removed; §Behavioral Contracts Version column updated v1.6→v1.8 per structural-citation exception; EC-016-015-007/008 scope notes added). input-hash refreshed 0aafc8d→f695bf5 (BC-2.16.015 v1.8 now in inputs; validate-input-hash block cleared). Feature HEAD fee0c64d7 UNCHANGED — spec-only fix; zero AC/task/contract content changed. PR-LEVEL cascade pass-1 on rebased HEAD fee0c64d7 was CLEAN(PR-merge)=yes / CLEAN(strict)=no (this LOW finding); after this spec fix the perimeter is re-gated toward 3-CLEAN on frozen fee0c64d7. PROCESS-GAP [OBS] DISPOSED: BC-2.16.015 v1.7/v1.8 bursts did not run POL-25 multi-cite propagation sweep against dependent story S-CLAROTY-VULNS-001, leaving the stale version pin. Concrete follow-up: enhance BC-bump burst checklist to enumerate ALL traces_to/bcs-dependent stories via STORY-INDEX grep before declaring BC-bump complete. Target: attach to S-MAINT-ANTIPIN-SWEEP-001 scope expansion OR register new S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001. Recorded in Blocking Issues PROCESS-GAP with target post-Monday 2026-08-31. STORY-INDEX v2.951→v2.952. TD-VSDD-097 N/A (spec-only story update; no new MUSTs, no sibling-pair artifacts, no downstream copy targets). Count-propagation sweep: no BC/VP/ADR count changes; STORY-INDEX story_index_version bumped. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.909→v8.910.** | wave-5-e-demo-fidelity | 2026-08-30 |
+| D-2380 | state-manager | 2026-08-30 | **G2 SPEC-READINESS BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) IMPLEMENTATION-READY. Remove-uncertainty CLEAN 2026-08-30 (validated against xDome OpenAPI ground truth). F-1 FIXED: BC-2.16.016 v1.0→v1.1 (§Postconditions §1 body_template corrected TOML literal-string syntax; 21 fields unchanged; zero semantic change; input-hash 2e91a4e). Story S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 PROMOTED draft→ready: 8 BC-pin sites synced to v1.1; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added (first production column_type="json"); input-hash cfc9e16. G2–G6 gating spikes resolved: endpoint-spike-findings.md §Spike 3/4 + G2 §Spike 2 (D-2357). Sibling stories S-CLAROTY-DEVVULNREL-001/SERVERS-001/ORGPOLICY-001/ACLPOLICY-001 (G3–G6) drafted. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. TD-VSDD-097: Dim-1 N/A (BC-2.16.016 is not a sibling-pair artifact). Dim-2 N/A (no copy-source sections changed). Dim-3 N/A (no new MUSTs introduced). Count-propagation sweep: draft/active/total contracts 11/253/277 UNCHANGED (BC-2.16.016 remains draft — promotes active on story merge per POL-14); version pin update only. STORY-INDEX story_index_version bumped. BC-INDEX bc_index_version bumped. ARCH-INDEX/VP-INDEX UNCHANGED (no ADR/VP edits). records-lint exit 0. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.912→v8.913.** | wave-5-e-demo-fidelity | 2026-08-30 |
 
 ## Skip Log
 
@@ -256,16 +257,16 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2379 DOCUMENTATION BURST — live-tenant-validation runbook created; per-story xDome merge gate documented; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending) [supersedes D-2378]
+## Session Resume Checkpoint (D-2380 G2 SPEC-READINESS BURST — S-CLAROTY-OT-EVENTS-001 draft→ready v1.1; BC-2.16.016 v1.1; G2 implementation-ready; VULNS-001 PR-LEVEL streak 1/3 on frozen 73bea7c1c; OBS-1 pending) [supersedes D-2379]
 
 ### RESUME IN ONE BREATH
-Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2379 documentation burst: live-tenant-validation runbook created (.factory/ops/live-tenant-validation-runbook.md); per-story xDome merge gate canonical. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending. NEXT: resolve OBS-1 → complete 3-CLEAN → merge VULNS-001 (live xDome validation required per runbook) → G2.
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. D-2380 G2 spec-readiness burst: S-CLAROTY-OT-EVENTS-001 promoted draft→ready v1.1 (BC-2.16.016 v1.1; remove-uncertainty CLEAN; F-1 fixed). G2 TDD unblocked. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (stale test-enumeration comment) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending. NEXT: resolve OBS-1 → complete 3-CLEAN → merge VULNS-001 (live xDome validation required per runbook) → begin G2 TDD.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** verify heartbeat cron via CronList; if absent/expired re-arm per .factory/ops/vsdd-heartbeat-autorecovery.md (authoritative rule: CLAUDE.md §Orchestrator Auto-Recovery Heartbeat).
 1. Disposition OBS-1 (stale test-enumeration comment in prism-bin/Cargo.toml wire-shape [[test]] header — lists 3 tests, file has 8): if fix → records-only TD-VSDD-096 micro-burst, advance HEAD 73bea7c1c, reset streak to 0/3; if waive → human authorization required, carry as known deferral.
 2. After OBS-1 disposed: continue PR-LEVEL cascade toward 3-consecutive-CLEAN(strict) on frozen HEAD → merge VULNS-001 → state-manager post-merge burst (POL-14: BC-2.16.015 draft→active).
-3. G2–G6: after VULNS merged, begin G2 network_activity ADR per full G2–G6 expansion plan (D-2357).
+3. G2–G6: after VULNS merged, begin G2 TDD delivery (S-CLAROTY-OT-EVENTS-001 ready v1.1; BC-2.16.016 v1.1; gating spikes resolved D-2380). G3–G6 stories drafted; full expansion plan D-2357.
 4. DEFERRED HOUSEKEEPING (non-blocking, post-Monday): (a) test doc-comment re-anchor on test_early_stop_multi_batch_partial_page_is_truncated; (b) holdout harness/fixture reconciliation; (c) validator gate for holdout-at-materialization; (d) BC-bump propagation checklist enhancement (D-2377 PROCESS-GAP).
 
 **CONVERGENCE STATE:** S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 PR-LEVEL on frozen 73bea7c1c: pass-1 CLEAN(strict) + pass-2 LOW OBS-1 (not CLEAN(strict)) + pass-3 CLEAN(strict); streak 1/3; OBS-1 disposition pending.
