@@ -1,0 +1,124 @@
+# AC-001 + AC-002: Table registration and column schema
+# Story: S-CLAROTY-DEVVULNREL-001 (Wave B G3)
+# Traces to: BC-2.16.017 §Postconditions §1 (TOML Table Contract), §2 (Tier-1/Tier-2 column classification)
+#
+# Tool: prism_describe — client_id: monroe
+# Result: claroty_device_vulnerability_relations registered with 5 visible columns
+#         (2 Tier-1 OCSF-named + raw_extensions Tier-2 aggregate + class_uid + _sensor)
+#
+# AC-001 evidence: table claroty_device_vulnerability_relations is present in monroe's schema;
+#   OCSF class = vulnerability_finding (description field); sensor_type = claroty.
+#   7 total tables registered for monroe (7 table(s) hint in pql_hints).
+# AC-002 evidence: exactly 2 columns have OCSF field mappings (Tier-1):
+#   finding_info_title → finding_info.title (string, nullable=true) — REQUIRED per TOML
+#   time              → time (datetime, nullable=true) — device_vulnerability_detection_date raw name
+#   raw_extensions aggregates all 11 Tier-2 source columns (device_uid, device_name,
+#   device_asset_id, vulnerability_id, vulnerability_cvss_v3_score, vulnerability_is_known_exploited,
+#   vulnerability_epss_score, device_vulnerability_resolution_date, device_vulnerability_relevance_reasons,
+#   patch_install_date, device_site_name).
+# class_uid (integer, nullable=false) and _sensor are synthesized by the engine.
+#
+# NOTE: prism_describe returns 5 visible columns. The 13-column TOML spec collapses
+# to 5 query-surface columns under ocsf_column_naming=true (2 Tier-1 + raw_extensions
+# + class_uid + _sensor). The 11 Tier-2 columns are accessible via raw_extensions only.
+# This is the correct ADR-058 §B2 behavior.
+#
+# Capture time: 2026-08-31T22:29:29.396960+00:00
+# Binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 a89326a06...)
+# Config: /Users/jmagady/Dev/test-soc/.prism-live/ (monroe client)
+# Credentials: opaque per AD-017
+
+--- WIRE RESPONSE: prism_describe (client: monroe) ---
+{
+  "_meta": {
+    "data_source": "monroe",
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T22:29:29.396960+00:00",
+    "safety_flags": [],
+    "tool": "prism_describe",
+    "total_results": 0,
+    "trust_level": "internal"
+  },
+  "content": [
+    {
+      "text": "0 results found",
+      "type": "text"
+    }
+  ],
+  "results": {
+    "client_id": "monroe",
+    "pql_hints": [
+      "Use 'SELECT * FROM <table> LIMIT 25' to query any of the 7 table(s) above.",
+      "Consult prismql://reference for full PQL grammar and operator reference.",
+      "No enrichment UDFs are registered for this client — enrichment is not available."
+    ],
+    "tables": [
+      ... [claroty_alerts, claroty_audit_logs, claroty_device_alert_relations omitted for brevity] ...,
+      {
+        "columns": [
+          {
+            "col_type": "string",
+            "description": "finding_info.title",
+            "name": "finding_info_title",
+            "nullable": true
+          },
+          {
+            "col_type": "datetime",
+            "description": "time",
+            "name": "time",
+            "nullable": true
+          },
+          {
+            "col_type": "json",
+            "description": "JSON object containing un-mapped source columns: device_uid, device_name, device_asset_id, vulnerability_id, vulnerability_cvss_v3_score, vulnerability_is_known_exploited, vulnerability_epss_score, device_vulnerability_resolution_date, device_vulnerability_relevance_reasons, patch_install_date, device_site_name",
+            "name": "raw_extensions",
+            "nullable": true
+          },
+          {
+            "col_type": "integer",
+            "description": "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices).",
+            "name": "class_uid",
+            "nullable": false
+          },
+          {
+            "col_type": "string",
+            "description": "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').",
+            "name": "_sensor",
+            "nullable": false
+          }
+        ],
+        "description": "vulnerability_finding",
+        "example_note": null,
+        "example_query": "SELECT class_uid, COUNT(*) FROM claroty_device_vulnerability_relations GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+        "name": "claroty_device_vulnerability_relations",
+        "sensor_type": "claroty"
+      },
+      ... [claroty_devices, claroty_ot_activity_events, claroty_vulnerabilities omitted for brevity] ...
+    ]
+  }
+}
+--- Exit 0 ---
+
+--- EVIDENCE SUMMARY ---
+AC-001 PASS: claroty_device_vulnerability_relations is registered for client monroe.
+  OCSF class = "vulnerability_finding" (confirmed by description field).
+  sensor_type = "claroty". 5 query-surface Arrow columns exposed.
+  Traces to BC-2.16.017 §Postconditions §1 (TOML Table Contract).
+
+AC-002 PASS: Exactly 2 Tier-1 columns have OCSF field mappings:
+  - finding_info_title (string, nullable=true): description="finding_info.title"
+    → vulnerability_name TOML column, ocsf_field="finding_info.title", options=["REQUIRED"]
+    → Arrow name: ocsf_field_to_arrow_name("finding_info.title") = "finding_info_title" (ADR-058 §C)
+  - time (datetime, nullable=true): description="time"
+    → device_vulnerability_detection_date TOML column, ocsf_field="time"
+    → Arrow name: ocsf_field_to_arrow_name("time") = "time" (identity transform)
+  raw_extensions (json, nullable=true): aggregates ALL 11 Tier-2 source columns:
+    device_uid, device_name, device_asset_id, vulnerability_id,
+    vulnerability_cvss_v3_score, vulnerability_is_known_exploited, vulnerability_epss_score,
+    device_vulnerability_resolution_date, device_vulnerability_relevance_reasons,
+    patch_install_date, device_site_name
+  class_uid (integer, nullable=false) and _sensor (string, nullable=false): synthesized.
+  Traces to BC-2.16.017 §Postconditions §2 (Tier-1/Tier-2 classification).
+--- End ---

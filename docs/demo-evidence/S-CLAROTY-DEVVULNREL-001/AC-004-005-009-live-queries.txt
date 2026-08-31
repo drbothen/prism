@@ -1,0 +1,194 @@
+# AC-004 + AC-005 (success paths) + AC-009 (relevance_reasons live observation)
+# Story: S-CLAROTY-DEVVULNREL-001 (Wave B G3)
+# Traces to: BC-2.16.017 §Postconditions §1 (class_uid=2002 wire shape, response envelope),
+#            §2 (Tier-1 finding_info_title + time; Tier-2 raw_extensions),
+#            §3 (composite PK: device_uid + vulnerability_id in raw_extensions),
+#            EC-016-017-002/003 (nullable resolution_date + patch_install_date)
+#
+# Tool: query — clients: ["monroe"]
+# LIVE DATA CONFIRMED: The monroe device_vulnerability_relations dataset has 3+ rows.
+# class_uid=2002, finding_info_title (CVE IDs), time, and raw_extensions with all Tier-2
+# keys are present in the live wire output.
+#
+# Capture time: 2026-08-31T22:29:31+00:00
+# Binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 a89326a06...)
+# Config: /Users/jmagady/Dev/test-soc/.prism-live/ (monroe client)
+# Credentials: opaque per AD-017
+
+--- QUERY 1: SELECT * FROM claroty_device_vulnerability_relations LIMIT 3 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": true,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T22:29:31.021068+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 3,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "3 results found", "type": "text"}],
+  "results": {
+    "is_truncated": true,
+    "normalized_pql": "SELECT * FROM claroty_device_vulnerability_relations LIMIT 3",
+    "returned_results": 3,
+    "rows": [
+      {
+        "_client": "monroe",
+        "_sensor": "claroty",
+        "_source_table": "claroty_device_vulnerability_relations",
+        "_source_type": "live",
+        "class_uid": 2002,
+        "finding_info_title": "CVE-2024-38213",
+        "raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":6.5,\"vulnerability_epss_score\":0.13626,\"vulnerability_id\":\"ABCQDNLZ\",\"vulnerability_is_known_exploited\":true}",
+        "time": "2024-10-16T17:19:30Z"
+      },
+      {
+        "_client": "monroe",
+        "_sensor": "claroty",
+        "_source_table": "claroty_device_vulnerability_relations",
+        "_source_type": "live",
+        "class_uid": 2002,
+        "finding_info_title": "CVE-2024-38193",
+        "raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":7.8,\"vulnerability_epss_score\":0.28529,\"vulnerability_id\":\"ABEASJGT\",\"vulnerability_is_known_exploited\":true}",
+        "time": "2024-10-16T17:19:30Z"
+      },
+      {
+        "_client": "monroe",
+        "_sensor": "claroty",
+        "_source_table": "claroty_device_vulnerability_relations",
+        "_source_type": "live",
+        "class_uid": 2002,
+        "finding_info_title": "CVE-2024-38107",
+        "raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":7.8,\"vulnerability_epss_score\":0.01635,\"vulnerability_id\":\"ABFLWBIP\",\"vulnerability_is_known_exploited\":true}",
+        "time": "2024-10-16T17:19:30Z"
+      }
+    ],
+    "total_available": 3
+  }
+}
+--- Exit 0 (3 live rows returned) ---
+
+--- QUERY 2: SELECT raw_extensions FROM claroty_device_vulnerability_relations LIMIT 3 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": true,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T22:29:32.147997+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 3,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "3 results found", "type": "text"}],
+  "results": {
+    "is_truncated": true,
+    "normalized_pql": "SELECT raw_extensions FROM claroty_device_vulnerability_relations LIMIT 3",
+    "returned_results": 3,
+    "rows": [
+      {"raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":6.5,\"vulnerability_epss_score\":0.13626,\"vulnerability_id\":\"ABCQDNLZ\",\"vulnerability_is_known_exploited\":true}"},
+      {"raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":7.8,\"vulnerability_epss_score\":0.28529,\"vulnerability_id\":\"ABEASJGT\",\"vulnerability_is_known_exploited\":true}"},
+      {"raw_extensions": "{\"device_asset_id\":\"JLSGFBK\",\"device_name\":\"10.216.103.63\",\"device_site_name\":\"TR_PDMZ\",\"device_uid\":\"00020bd4-f2fd-453b-9351-5b560dff0f55\",\"device_vulnerability_relevance_reasons\":null,\"device_vulnerability_resolution_date\":null,\"patch_install_date\":null,\"vulnerability_cvss_v3_score\":7.8,\"vulnerability_epss_score\":0.01635,\"vulnerability_id\":\"ABFLWBIP\",\"vulnerability_is_known_exploited\":true}"}
+    ],
+    "total_available": 3
+  }
+}
+--- Exit 0 (SELECT raw_extensions accepted without E-QUERY-038; 3 rows returned) ---
+
+--- QUERY 3: SELECT time FROM claroty_device_vulnerability_relations LIMIT 1 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": true,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T22:29:34.517215+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 1,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "1 result found", "type": "text"}],
+  "results": {
+    "is_truncated": true,
+    "normalized_pql": "SELECT time FROM claroty_device_vulnerability_relations LIMIT 1",
+    "returned_results": 1,
+    "rows": [{"time": "2024-10-16T17:19:30Z"}],
+    "total_available": 1
+  }
+}
+--- Exit 0 (time is valid Arrow field name; no E-QUERY-038) ---
+
+--- QUERY 4: SELECT finding_info_title FROM claroty_device_vulnerability_relations LIMIT 2 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": true,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-08-31T22:29:36.752051+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 2,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "2 results found", "type": "text"}],
+  "results": {
+    "is_truncated": true,
+    "normalized_pql": "SELECT finding_info_title FROM claroty_device_vulnerability_relations LIMIT 2",
+    "returned_results": 2,
+    "rows": [
+      {"finding_info_title": "CVE-2024-38213"},
+      {"finding_info_title": "CVE-2024-38193"}
+    ],
+    "total_available": 2
+  }
+}
+--- Exit 0 (finding_info_title is valid Tier-1 Arrow name; returns real CVE IDs) ---
+
+--- SUMMARY ---
+AC-004 PASS (live data confirmed):
+  SELECT * returns 3 rows from live monroe sensor.
+  Wire shape confirmed:
+  1. class_uid = 2002 (vulnerability_finding OCSF class) PRESENT ✓
+  2. finding_info_title PRESENT: "CVE-2024-38213", "CVE-2024-38193", "CVE-2024-38107" ✓
+  3. time PRESENT: "2024-10-16T17:19:30Z" (Tier-1 OCSF Arrow name for device_vulnerability_detection_date) ✓
+  4. raw_extensions PRESENT as JSON string (non-null) ✓
+  5. raw_extensions CONTAINS device_uid AND vulnerability_id (composite PK join keys) ✓
+     - device_uid: "00020bd4-f2fd-453b-9351-5b560dff0f55"
+     - vulnerability_id: "ABCQDNLZ", "ABEASJGT", "ABFLWBIP" (opaque Claroty IDs)
+  6. Tier-2 columns NOT at row root: device_uid, vulnerability_cvss_v3_score, vulnerability_id,
+     device_name, device_site_name are ABSENT as standalone keys at row top level ✓
+  Also present in raw_extensions:
+  - vulnerability_cvss_v3_score: 6.5, 7.8, 7.8 (CVSS v3 risk triage values)
+  - vulnerability_epss_score: 0.13626, 0.28529, 0.01635 (EPSS exploit probability)
+  - vulnerability_is_known_exploited: true (CISA KEV indicator — all 3 rows are KEV)
+  - device_vulnerability_resolution_date: null (EC-016-017-002: open vulnerabilities)
+  - patch_install_date: null (EC-016-017-003: unpatched devices)
+  Traces to BC-2.16.017 §PC1 (class_uid=2002), §PC2 (Tier-1/Tier-2), §PC3 (composite PK).
+
+AC-005 PASS (success paths):
+  SELECT raw_extensions: accepted without E-QUERY-038; 3 rows with Tier-2 aggregate ✓
+    - device_uid and vulnerability_id: present in all 3 rows ✓
+    - vulnerability_cvss_v3_score, vulnerability_is_known_exploited: present ✓
+  SELECT time: accepted without E-QUERY-038; returns "2024-10-16T17:19:30Z" ✓
+  SELECT finding_info_title: accepted; returns real CVE IDs (CVE-2024-38213, CVE-2024-38193) ✓
+  Traces to BC-2.16.017 §PC2 (Tier-1 queryable by OCSF Arrow name).
+
+AC-009 live observation:
+  device_vulnerability_relevance_reasons = null in all 3 live rows.
+  The empty-array [] passthrough scenario (EC-016-017-004) does not appear in the live
+  capture at this time; that scenario is covered by the mock-based unit test
+  test_BC_2_16_017_...empty_relevance_reasons_array_serialized (RG-009) and the
+  mock-based wire-shape test test_BC_2_16_017_...wire_shape_native_json_array_and_null_passthrough
+  (RG-010) which assert the serialization at wire level.
+  Null passthrough for device_vulnerability_relevance_reasons IS observed live ✓.
+  Traces to BC-2.16.017 EC-016-017-004.
+--- End ---
