@@ -219,6 +219,14 @@ fn test_BC_2_16_018_claroty_servers_tier1_columns_two_with_ocsf_field() {
 /// circular dependency from prism-sensors (prism-query already depends on prism-sensors in
 /// production). This spec-level test is the correct coverage layer for the prism-sensors crate.
 ///
+/// SAP-3 rule-3 defense-in-depth disclaimer: the AUTHORITATIVE end-to-end E-QUERY-038 gate
+/// that fires via the real `QueryEngine::execute()` parser surface is:
+///   `crates/prism-bin/tests/bc_2_16_018_claroty_servers_wire_shape.rs` →
+///   `test_BC_2_16_018_claroty_servers_e2e_e_query_038_tier2_column`
+/// That test uses `QueryEngine::execute("SELECT server_location FROM claroty_servers LIMIT 1")`
+/// end-to-end and asserts PrismError::ColumnNotFound with the correct available_columns set.
+/// This prism-sensors test is SAP-3 defense-in-depth only.
+///
 /// Traces to: BC-2.16.018 §Postconditions §2 (Tier-2 not exposed as standalone Arrow column);
 ///            EC-016-018-005 (Tier-2 column query → E-QUERY-038).
 /// Story: S-CLAROTY-SERVERS-001 AC-003

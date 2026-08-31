@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Production-path wire-shape and SAP-4 null-passthrough tests for BC-2.16.019 —
-//! Claroty xDome Collection Server Interfaces Table.
+//! Production-path wire-shape, SAP-3 end-to-end E-QUERY-038, and null-passthrough tests
+//! for BC-2.16.019 — Claroty xDome Collection Server Interfaces Table.
 //!
 //! # SAP-4 Coverage Gap Closure
 //!
@@ -15,10 +15,12 @@
 //!
 //! # Tests in this file
 //!
-//! | ID      | Test name | Assertion |
-//! |---------|-----------|-----------|
-//! | NEW-2   | test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock | class_uid=5001, device_name, status_code, raw_extensions; no Tier-2 top-level keys |
+//! | ID          | Test name | Assertion |
+//! |-------------|-----------|-----------|
+//! | NEW-2       | test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock | class_uid=5001, device_name, status_code, raw_extensions; no Tier-2 top-level keys |
 //! | RG-015-WIRE | test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire | null interface_name → row not dropped; device_name non-null; null-not-absent in raw_extensions |
+//! | RG-011-E2E  | test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column | E-QUERY-038 via QueryEngine::execute() for interface_name (Tier-2 composite PK); authoritative SAP-3 gate |
+//! | RG-016-PROD | test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows | SpecDrivenSensorAdapter::fetch returns Ok+zero rows for {"server_interfaces":[],"count":null} (EC-016-019-005) |
 //!
 //! # SID-1 compliance (NEW-2)
 //!
@@ -36,6 +38,20 @@
 //! - A record with `interface_name = null` MUST NOT be dropped (row-not-dropped invariant)
 //! - `server_name` IS present → `device_name` is non-null → row is well-formed
 //! - `raw_extensions` MUST contain `"interface_name": null` (null-not-absent in raw_extensions)
+//!
+//! # RG-011-E2E: authoritative SAP-3 E-QUERY-038 gate
+//!
+//! RG-011 in prism-sensors calls `ocsf_projected_column_names()` directly (defense-in-depth).
+//! This test fires the E-QUERY-038 plan-time gate end-to-end via `QueryEngine::execute()` —
+//! the real public surface that LLM agents reach. No HTTP requests are issued; the gate fires
+//! at plan-time before any fan-out.
+//!
+//! # RG-016-PROD: count=null empty-page-halt production-path coverage (MEDIUM-1 closure)
+//!
+//! `test_BC_2_16_019_claroty_server_interfaces_nullable_count_uses_empty_page_halt` in
+//! prism-sensors (RG-016) constructs `{"server_interfaces":[],"count":null}` and discards it
+//! — it is a structural assertion only (paper-test). RG-016-PROD serves that payload via
+//! wiremock to the production `SpecDrivenSensorAdapter::fetch` path and asserts Ok+zero-rows.
 //!
 //! BC: BC-2.16.019
 //! Story: S-CLAROTY-SERVERS-001
@@ -55,6 +71,13 @@ use std::sync::Arc;
 use arrow::array::Array;
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
 use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_ocsf::OcsfNormalizer;
+use prism_query::{
+    cache::CacheConfig,
+    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
+    scoping::ClientRegistry,
+    table_registry::TableRegistry,
+};
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter, SensorError, adapter::QueryParams,
     adapter::SensorSpec as SensorAdapterSpec, auth::SensorAuth,
@@ -71,6 +94,57 @@ use wiremock::{
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+/// Minimal no-op `CredentialStore` for constructing `QueryEngine` in SAP-3 tests.
+/// The E-QUERY-038 gate fires at plan-time before any credential lookup.
+struct NoopCredentialStore;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStore for NoopCredentialStore {
+    async fn get(
+        &self,
+        _tenant: &prism_core::OrgSlug,
+        _sensor_id: &str,
+        _name: &prism_credentials::namespace::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, PrismError> {
+        Ok(None)
+    }
+
+    async fn set(
+        &self,
+        _tenant: &prism_core::OrgSlug,
+        _sensor_id: &str,
+        _name: &prism_credentials::namespace::CredentialName,
+        _value: secrecy::SecretString,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
+
+    async fn delete(
+        &self,
+        _tenant: &prism_core::OrgSlug,
+        _sensor_id: &str,
+        _name: &prism_credentials::namespace::CredentialName,
+    ) -> Result<bool, PrismError> {
+        Ok(false)
+    }
+
+    async fn list(
+        &self,
+        _tenant: &prism_core::OrgSlug,
+    ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError> {
+        Ok(vec![])
+    }
+
+    async fn exists(
+        &self,
+        _tenant: &prism_core::OrgSlug,
+        _sensor_id: &str,
+        _name: &prism_credentials::namespace::CredentialName,
+    ) -> Result<bool, PrismError> {
+        Ok(false)
+    }
+}
 
 /// Build a `SpecDrivenSensorAdapter` from the production `claroty.sensor.toml`
 /// directed at the given mock server URI.
@@ -556,5 +630,223 @@ async fn test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_
         row1.get("class_uid"),
         Some(&serde_json::json!(5001_i32)),
         "RG-015-WIRE: row 1 class_uid must equal 5001. BC-2.16.019 AC-010."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-011-E2E: Authoritative SAP-3 E-QUERY-038 gate (HIGH-1 closure)
+// ---------------------------------------------------------------------------
+
+/// SAP-3 authoritative reachability test: querying a Tier-2 column directly via
+/// `QueryEngine::execute()` raises `PrismError::ColumnNotFound` (E-QUERY-038) with
+/// correct `available_columns`.
+///
+/// ## Why this test is AUTHORITATIVE (not defense-in-depth)
+///
+/// `test_BC_2_16_019_claroty_server_interfaces_tier2_column_raises_e_query_038` (RG-011,
+/// prism-sensors) calls `ocsf_projected_column_names()` directly — valid defense-in-depth,
+/// but SAP-3 rule 1 requires at least one test that reaches the arm **end-to-end from the
+/// public parser surface**. This test uses `QueryEngine::execute()` as the entry point:
+/// parser → planner → `check_query_column_availability` → E-QUERY-038.
+/// No HTTP requests are issued; the gate fires at plan-time before any fan-out.
+///
+/// ## Column under test
+///
+/// `interface_name` is a Tier-2 column (no `ocsf_field`) that is ALSO a composite PK element
+/// (server_name, interface_name). Despite its PK role, it is NOT a queryable top-level Arrow
+/// column — it lives inside `raw_extensions` (BC-2.16.019 §PC3).
+///
+/// ## Available columns contract (BC-2.16.019 AC-011)
+///
+/// - `available_columns` ⊇ {`raw_extensions`, `device_name`, `status_code`}  (Tier-2 aggregate + Tier-1)
+/// - `available_columns` ∌ `interface_name`                                   (Tier-2 — inside raw_extensions)
+///
+/// BC-2.16.019 AC-011; EC-016-019-004; SAP-3; ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
+/// Story: S-CLAROTY-SERVERS-001 RG-011-E2E (HIGH-1 fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "RG-011-E2E: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+    let spec =
+        SpecLoader::parse(&spec_content).expect("RG-011-E2E: claroty.sensor.toml must parse");
+
+    // TableRegistry::register_sensor populates OCSF-projected column names for sensors
+    // with ocsf_column_naming = true (S-ADR058-OCSF-ROUTING-001).
+    // For claroty_server_interfaces:
+    //   Tier-1: device_name (server_name → device.name), status_code (interface_status → status_code)
+    //   Tier-2: aggregated as "raw_extensions" — including interface_name (composite PK element)
+    //   "interface_name" (Tier-2) → NOT in projected columns → E-QUERY-038
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("RG-011-E2E: register_sensor must not fail for production claroty.sensor.toml");
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    // interface_name is Tier-2 (composite PK element, no ocsf_field) → E-QUERY-038 at plan-time.
+    // Table registered as "claroty_server_interfaces" ({sensor_id}_{table_name}).
+    let result = engine
+        .execute(
+            "SELECT interface_name FROM claroty_server_interfaces LIMIT 1",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // LOAD-BEARING SAP-3 assertion: must fail at plan-time with E-QUERY-038.
+    assert!(
+        result.is_err(),
+        "RG-011-E2E LOAD-BEARING: QueryEngine::execute must return Err when \
+         Tier-2 column 'interface_name' (composite PK element) is queried directly. \
+         Got Ok. BC-2.16.019 AC-011; SAP-3."
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::ColumnNotFound(details) => {
+            assert_eq!(
+                details.column, "interface_name",
+                "RG-011-E2E: ColumnNotFound.column must be 'interface_name'. \
+                 Got: {:?}. BC-2.16.019 AC-011.",
+                details.column
+            );
+            let avail = &details.available_columns;
+
+            // Tier-2 aggregate must be listed as available.
+            assert!(
+                avail.contains(&"raw_extensions".to_string()),
+                "RG-011-E2E: available_columns must include 'raw_extensions' \
+                 (ADR-058 §J6; interface_name accessible via raw_extensions). Got: {:?}",
+                avail
+            );
+            // Tier-1 OCSF projected columns must be available.
+            assert!(
+                avail.contains(&"device_name".to_string()),
+                "RG-011-E2E: available_columns must include 'device_name' \
+                 (server_name → ocsf_field=device.name → arrow name). Got: {:?}",
+                avail
+            );
+            assert!(
+                avail.contains(&"status_code".to_string()),
+                "RG-011-E2E: available_columns must include 'status_code' \
+                 (interface_status → ocsf_field=status_code). Got: {:?}",
+                avail
+            );
+            // interface_name is Tier-2 → MUST NOT appear in available_columns.
+            assert!(
+                !avail.contains(&"interface_name".to_string()),
+                "RG-011-E2E: 'interface_name' is Tier-2 and MUST NOT appear in \
+                 available_columns (it belongs inside raw_extensions, despite being a \
+                 composite PK element). Got: {:?}",
+                avail
+            );
+        }
+        other => {
+            panic!(
+                "RG-011-E2E LOAD-BEARING: QueryEngine::execute must return \
+                 PrismError::ColumnNotFound (E-QUERY-038) for Tier-2 column 'interface_name' \
+                 (composite PK element). \
+                 Got: {:?}. BC-2.16.019 AC-011; SAP-3.",
+                other
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RG-016-PROD: count=null empty-page-halt production-path test (MEDIUM-1 closure)
+// ---------------------------------------------------------------------------
+
+/// Production-path empty-page-halt test (MEDIUM-1 closure, EC-016-019-005):
+/// `SpecDrivenSensorAdapter::fetch()` for `claroty_server_interfaces` with a mock
+/// response of `{"server_interfaces":[],"count":null}` MUST return `Ok` with zero rows
+/// — no panic, no error.
+///
+/// ## Why this test exists
+///
+/// `test_BC_2_16_019_claroty_server_interfaces_nullable_count_uses_empty_page_halt` (RG-016,
+/// prism-sensors) is a PAPER-TEST — it constructs `{"server_interfaces":[],"count":null}`
+/// and DISCARDS it (`_`-bound). The structural assertion is correct but the behavioral
+/// claim (PipelineExecutor halts without dereferencing null count) is NEVER exercised.
+///
+/// This test closes the gap by serving that exact payload via wiremock.
+///
+/// ## Behavioral contract (EC-016-019-005)
+///
+/// OffsetLimit pagination halts when the response array is empty — it does NOT dereference
+/// `count`. `count=null` MUST NOT cause a panic, `unwrap`, or `Err` return.
+///
+/// BC-2.16.019 §PC1 (pagination note); EC-016-019-005; TD-VSDD-059 (paper-fix closure).
+/// Story: S-CLAROTY-SERVERS-001 RG-016-PROD (MEDIUM-1 fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows()
+ {
+    let mock_server = MockServer::start().await;
+
+    // Serve the exact payload RG-016 in prism-sensors documented but never tested:
+    //   {"server_interfaces": [], "count": null}
+    wiremock::Mock::given(method("POST"))
+        .and(path("/api/v1/server_interfaces/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_interfaces": [],
+            "count": serde_json::Value::Null
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_server_interfaces".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-server-interfaces-count-null-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth =
+        BearerStaticSensorAuth::new("mock-bearer-token-server-interfaces-count-null-test");
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    // LOAD-BEARING assertion: Ok, not panic, not Err.
+    assert!(
+        result.is_ok(),
+        "RG-016-PROD LOAD-BEARING: fetch() MUST return Ok (not panic, not Err) \
+         when the API returns empty server_interfaces array with count=null (EC-016-019-005). \
+         OffsetLimit pagination must halt on empty page without dereferencing count. \
+         Got Err: {:?}",
+        result.err()
+    );
+
+    let batches = result.unwrap();
+    let total_rows: usize = batches.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 0,
+        "RG-016-PROD: empty server_interfaces array with count=null MUST produce ZERO rows. \
+         Got {} rows. BC-2.16.019 §PC1; EC-016-019-005.",
+        total_rows
     );
 }
