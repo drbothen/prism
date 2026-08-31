@@ -417,18 +417,128 @@ async fn test_BC_2_16_016_claroty_ot_activity_events_wire_shape_class_uid_2004_m
         );
     }
 
-    // ── Wire-shape assertion 8: at least one Tier-2 field inside raw_extensions ──
+    // ── Wire-shape assertion 8: specific Tier-2 key+value assertions ──────────
+    // MEDIUM-2 closure: replaces the prior any()-style membership check with
+    // load-bearing value assertions so a silent-null or wrong-value regression
+    // in any expected Tier-2 field is caught at wire level.
+    // Source values come from the mock fixture defined above.
+    // BC-2.16.016 AC-005; ADR-058 §J6; CLAUDE.md §Wire-shape assertion discipline.
     let raw_ext_obj = raw_ext_json
         .as_object()
         .expect("raw_extensions must be a JSON object (asserted above)");
-    let has_tier2 = tier2_names
-        .iter()
-        .any(|name| raw_ext_obj.contains_key(*name));
+
+    assert_eq!(
+        raw_ext_obj.get("source_ip"),
+        Some(&serde_json::json!("192.168.10.1")),
+        "MEDIUM-2 LOAD-BEARING: raw_extensions must contain \
+         source_ip='192.168.10.1' (mock fixture value). \
+         A missing or null source_ip is a silent regression in the \
+         Tier-2 aggregation path. BC-2.16.016 AC-005; ADR-058 §J6."
+    );
+    assert_eq!(
+        raw_ext_obj.get("dest_ip"),
+        Some(&serde_json::json!("192.168.20.1")),
+        "MEDIUM-2 LOAD-BEARING: raw_extensions must contain \
+         dest_ip='192.168.20.1' (mock fixture value). \
+         BC-2.16.016 AC-005; ADR-058 §J6."
+    );
+    assert_eq!(
+        raw_ext_obj.get("protocol"),
+        Some(&serde_json::json!("TCP")),
+        "MEDIUM-2 LOAD-BEARING: raw_extensions must contain \
+         protocol='TCP' (mock fixture value). \
+         BC-2.16.016 AC-005; ADR-058 §J6."
+    );
+    assert_eq!(
+        raw_ext_obj.get("dest_port"),
+        Some(&serde_json::json!(102_i64)),
+        "MEDIUM-2 LOAD-BEARING: raw_extensions must contain \
+         dest_port=102 (Integer column → JSON number, mock fixture value). \
+         BC-2.16.016 AC-005; ADR-058 §J6."
+    );
+
+    // ── Wire-level Tier-1 value assertions (MEDIUM-1 closure) ──────────────
+    // Per CLAUDE.md §Wire-shape assertion discipline: tests covering
+    // MCP-visible surfaces must assert on the serialized JSON output, not
+    // only on pre-serialization Arrow structures.
+    // These value-level assertions catch silent-null regressions that
+    // RecordBatch-level column-presence checks (assertions 2-5 above) cannot.
+    // BC-2.16.016 AC-004; Story: S-CLAROTY-OT-EVENTS-001 MEDIUM-1 closure.
+    let mut tier1_wire_buf: Vec<u8> = Vec::new();
+    let mut tier1_writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut tier1_wire_buf);
+    tier1_writer
+        .write(first_batch)
+        .expect("MEDIUM-1: arrow_json write must not fail for ot_activity_events RecordBatch");
+    tier1_writer
+        .finish()
+        .expect("MEDIUM-1: arrow_json finish must not fail");
+
+    let tier1_rows: Vec<serde_json::Value> =
+        serde_json::from_slice::<Vec<serde_json::Value>>(&tier1_wire_buf)
+            .expect("MEDIUM-1: arrow_json output must deserialize as a JSON array of row objects");
+
+    let tier1_row0 = &tier1_rows[0];
+
+    // finding_info_uid: event_id=1001 → Integer column → Arrow Int64 →
+    // JSON integer 1001 in wire output.
+    assert_eq!(
+        tier1_row0.get("finding_info_uid"),
+        Some(&serde_json::json!(1001_i64)),
+        "MEDIUM-1 LOAD-BEARING: 'finding_info_uid' must be JSON integer 1001 \
+         in wire output (mock fixture event_id=1001). \
+         A null here is a silent-null regression in the Integer→finding_info_uid path. \
+         BC-2.16.016 AC-004; CLAUDE.md §Wire-shape assertion discipline."
+    );
+
+    // time: detection_time="2024-06-15T14:30:00Z" → Datetime column →
+    // Arrow Timestamp(Microsecond, Some("UTC")) → arrow_json v58 serializes
+    // timestamps with UTC timezone as ISO-8601 strings.
+    let time_wire = tier1_row0.get("time").expect(
+        "MEDIUM-1 LOAD-BEARING: 'time' key must be present in wire output \
+         (mock fixture provides detection_time='2024-06-15T14:30:00Z'). \
+         BC-2.16.016 AC-004.",
+    );
     assert!(
-        has_tier2,
-        "NEW-1: raw_extensions object must contain at least one Tier-2 field. \
-         BC-2.16.016 AC-005. raw_extensions keys: {:?}",
-        raw_ext_obj.keys().collect::<Vec<_>>()
+        !time_wire.is_null(),
+        "MEDIUM-1 LOAD-BEARING: 'time' must be non-null in wire output \
+         (mock fixture detection_time='2024-06-15T14:30:00Z' was provided). \
+         A null here is a silent-null regression in the Datetime→time path. \
+         BC-2.16.016 AC-004; ADR-052 D1."
+    );
+    let time_str = time_wire.as_str().expect(
+        "MEDIUM-1: 'time' must serialize as a JSON string \
+         (Timestamp(Microsecond, UTC) → ISO-8601 string per arrow-json v58). \
+         BC-2.16.016 AC-004.",
+    );
+    assert!(
+        time_str.starts_with("2024-06-15T14:30:00"),
+        "MEDIUM-1 LOAD-BEARING: 'time' must represent the expected fixture \
+         detection_time='2024-06-15T14:30:00Z'. Got: {:?}. \
+         BC-2.16.016 AC-004.",
+        time_str
+    );
+
+    // activity_name: event_type="network_connection" → String column → JSON string.
+    assert_eq!(
+        tier1_row0.get("activity_name"),
+        Some(&serde_json::json!("network_connection")),
+        "MEDIUM-1 LOAD-BEARING: 'activity_name' must be JSON string \
+         'network_connection' in wire output (mock fixture event_type). \
+         BC-2.16.016 AC-004; CLAUDE.md §Wire-shape assertion discipline."
+    );
+
+    // message: description="A mock OT activity event for wire-shape testing"
+    // → String column → JSON string in wire output.
+    assert_eq!(
+        tier1_row0.get("message"),
+        Some(&serde_json::json!(
+            "A mock OT activity event for wire-shape testing"
+        )),
+        "MEDIUM-1 LOAD-BEARING: 'message' must be the expected description \
+         string in wire output (mock fixture description). \
+         BC-2.16.016 AC-004; CLAUDE.md §Wire-shape assertion discipline."
     );
 }
 
