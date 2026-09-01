@@ -1207,3 +1207,360 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Wave C G5 — claroty_organization_zones
+# POST /api/v1/organization_zones/ → envelope key: organization_zones
+# OCSF class: entity_management (class_uid 3004; existing arm in class_selector.rs)
+# PK: zone_name (String, REQUIRED, single-column) → Arrow name
+# DTU status: NONE — SAP-2 probe N/A per D-2200; near-term tests against live monroe only
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "organization_zones"
+ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claroty_audit_logs)
+
+  # Tier-1: zone_name → name (REQUIRED; primary key; OCSF entity_management name field)
+  [[tables.columns]]
+  name = "zone_name"
+  column_type = "string"
+  ocsf_field = "name"
+  options = ["REQUIRED"]
+
+  # Tier-1: zone_description → comment (free-text description of the zone)
+  [[tables.columns]]
+  name = "zone_description"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # Tier-1: enabled → status_code (zone active/inactive operational state)
+  [[tables.columns]]
+  name = "enabled"
+  column_type = "boolean"
+  ocsf_field = "status_code"
+
+  # Tier-1: updated_by → actor_user_name (email/username of analyst who last modified zone)
+  [[tables.columns]]
+  name = "updated_by"
+  column_type = "string"
+  ocsf_field = "actor.user.name"
+
+  # Tier-2: "Custom", "Recommended", or other zone source tag
+  [[tables.columns]]
+  name = "zone_source"
+  column_type = "string"
+
+  # Tier-2: zone priority order — numeric comparison operators supported
+  [[tables.columns]]
+  name = "priority"
+  column_type = "integer"
+
+  # Tier-2: array of device filter condition objects (determines zone membership) — MUST be json, not string
+  [[tables.columns]]
+  name = "device_conditions"
+  column_type = "json"
+
+  # Tier-2: count of devices currently matched by device_conditions
+  [[tables.columns]]
+  name = "attributed_devices"
+  column_type = "integer"
+
+  # Tier-2: exportable subset of attributed_devices count
+  [[tables.columns]]
+  name = "exportable_attributed_devices"
+  column_type = "integer"
+
+  # Tier-2: zone creation timestamp; ISO 8601; ADR-028 §D8-B implicit iso8601 default
+  [[tables.columns]]
+  name = "created_time"
+  column_type = "datetime"
+
+  # Tier-2: last modification timestamp; NOTE: last_update (NO trailing 'd') for zones table
+  # (zone_policies uses last_updated WITH trailing 'd' — per BC-2.16.020 §PC2 asymmetry note)
+  [[tables.columns]]
+  name = "last_update"
+  column_type = "datetime"
+
+  [[tables.steps]]
+  name = "fetch_organization_zones"
+  method = "POST"
+  path_template = "/api/v1/organization_zones/"
+  body_template = '{"fields": ["zone_name", "zone_description", "zone_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"]}'
+  response_path = "$.organization_zones"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Wave C G5 — claroty_organization_zone_policies
+# POST /api/v1/organization_zone_policies/ → envelope key: organization_zone_policies
+# OCSF class: entity_management (class_uid 3004; existing arm)
+# PK: policy_name (String, REQUIRED, single-column) → Arrow name
+# DTU status: NONE — SAP-2 probe N/A per D-2200
+# NOTE: field name is last_updated (WITH trailing 'd') for zone_policies — different from zones' last_update
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "organization_zone_policies"
+ocsf_class = "entity_management"   # class_uid 3004
+
+  # Tier-1: policy_name → name (REQUIRED; primary key)
+  [[tables.columns]]
+  name = "policy_name"
+  column_type = "string"
+  ocsf_field = "name"
+  options = ["REQUIRED"]
+
+  # Tier-1: policy_action → activity_name ("Allow" / "Deny")
+  [[tables.columns]]
+  name = "policy_action"
+  column_type = "string"
+  ocsf_field = "activity_name"
+
+  # Tier-1: policy_notes → comment (analyst notes for the policy)
+  [[tables.columns]]
+  name = "policy_notes"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # Tier-1: updated_by → actor_user_name (email/username of analyst who last modified policy)
+  [[tables.columns]]
+  name = "updated_by"
+  column_type = "string"
+  ocsf_field = "actor.user.name"
+
+  # Tier-2: "Custom", "Recommended", or other policy source tag
+  [[tables.columns]]
+  name = "policy_source"
+  column_type = "string"
+
+  # Tier-2: array of src/dst zone condition objects — MUST be json, not string
+  [[tables.columns]]
+  name = "communication_conditions"
+  column_type = "json"
+
+  # Tier-2: count of devices matching this policy
+  [[tables.columns]]
+  name = "matching_devices"
+  column_type = "integer"
+
+  # Tier-2: whether Claroty generates alerts when policy triggers
+  [[tables.columns]]
+  name = "should_generate_alerts"
+  column_type = "boolean"
+
+  # Tier-2: alert category when policy triggers (e.g. "Unknown Communication")
+  [[tables.columns]]
+  name = "alert_use_case"
+  column_type = "string"
+
+  # Tier-2: array of triggered alert IDs — MUST be json, not string
+  [[tables.columns]]
+  name = "related_alerts_ids"
+  column_type = "json"
+
+  # Tier-2: array of {src_zone, dst_zone} pair objects covered by this policy — MUST be json, not string
+  # NOTE: applied_zone_pairs (zone domain) — firewall_policies use applied_group_pairs instead
+  [[tables.columns]]
+  name = "applied_zone_pairs"
+  column_type = "json"
+
+  # Tier-2: policy creation timestamp; ISO 8601; ADR-028 §D8-B implicit iso8601 default
+  [[tables.columns]]
+  name = "created_time"
+  column_type = "datetime"
+
+  # Tier-2: last modification timestamp; NOTE: last_updated (WITH trailing 'd') for zone_policies
+  [[tables.columns]]
+  name = "last_updated"
+  column_type = "datetime"
+
+  [[tables.steps]]
+  name = "fetch_organization_zone_policies"
+  method = "POST"
+  path_template = "/api/v1/organization_zone_policies/"
+  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_zone_pairs", "created_time", "last_updated", "updated_by"]}'
+  response_path = "$.organization_zone_policies"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Wave C G5 — claroty_organization_firewall_groups
+# CRITICAL: URL uses abbreviated _fw_groups; envelope key uses full organization_firewall_groups
+# path_template = "/api/v1/organization_fw_groups/"   ← abbreviated _fw_ in URL
+# response_path  = "$.organization_firewall_groups"   ← full spelling (NOT $.organization_fw_groups)
+# Using $.organization_fw_groups in response_path causes silent empty results (EC-016-021-006)
+# OCSF class: entity_management (class_uid 3004; existing arm)
+# PK: firewall_group_name (String, REQUIRED, single-column) → Arrow name
+# DTU status: NONE — SAP-2 probe N/A per D-2200
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "organization_firewall_groups"
+ocsf_class = "entity_management"   # class_uid 3004
+
+  # Tier-1: firewall_group_name → name (REQUIRED; primary key)
+  [[tables.columns]]
+  name = "firewall_group_name"
+  column_type = "string"
+  ocsf_field = "name"
+  options = ["REQUIRED"]
+
+  # Tier-1: firewall_group_description → comment
+  [[tables.columns]]
+  name = "firewall_group_description"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # Tier-1: enabled → status_code (firewall group active/inactive)
+  [[tables.columns]]
+  name = "enabled"
+  column_type = "boolean"
+  ocsf_field = "status_code"
+
+  # Tier-1: updated_by → actor_user_name
+  [[tables.columns]]
+  name = "updated_by"
+  column_type = "string"
+  ocsf_field = "actor.user.name"
+
+  # Tier-2: "Custom", "Recommended", or other source tag
+  [[tables.columns]]
+  name = "firewall_group_source"
+  column_type = "string"
+
+  # Tier-2: firewall group priority order
+  [[tables.columns]]
+  name = "priority"
+  column_type = "integer"
+
+  # Tier-2: array of device filter condition objects — MUST be json, not string
+  [[tables.columns]]
+  name = "device_conditions"
+  column_type = "json"
+
+  # Tier-2: count of devices matched by device_conditions
+  [[tables.columns]]
+  name = "attributed_devices"
+  column_type = "integer"
+
+  # Tier-2: exportable subset of attributed_devices count
+  [[tables.columns]]
+  name = "exportable_attributed_devices"
+  column_type = "integer"
+
+  # Tier-2: group creation timestamp; ISO 8601; ADR-028 §D8-B implicit iso8601 default
+  [[tables.columns]]
+  name = "created_time"
+  column_type = "datetime"
+
+  # Tier-2: last modification timestamp; NOTE: last_update (NO trailing 'd') for fw_groups
+  [[tables.columns]]
+  name = "last_update"
+  column_type = "datetime"
+
+  [[tables.steps]]
+  name = "fetch_organization_firewall_groups"
+  method = "POST"
+  path_template = "/api/v1/organization_fw_groups/"
+  body_template = '{"fields": ["firewall_group_name", "firewall_group_description", "firewall_group_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"]}'
+  response_path = "$.organization_firewall_groups"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Wave C G5 — claroty_organization_firewall_policies
+# URL: /api/v1/organization_fw_group_policies/ (abbreviated _fw_group_policies)
+# Envelope: $.organization_firewall_policies (full spelling) — same URL vs envelope asymmetry
+# OCSF class: entity_management (class_uid 3004; same as claroty_organization_firewall_groups)
+# PK: policy_name (String, REQUIRED, single-column) → Arrow name
+# DTU status: NONE — SAP-2 probe N/A per D-2200
+# NOTE: Json column is applied_group_pairs (NOT applied_zone_pairs — that belongs to zone_policies)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "organization_firewall_policies"
+ocsf_class = "entity_management"   # class_uid 3004
+
+  # Tier-1: policy_name → name (REQUIRED; primary key)
+  [[tables.columns]]
+  name = "policy_name"
+  column_type = "string"
+  ocsf_field = "name"
+  options = ["REQUIRED"]
+
+  # Tier-1: policy_action → activity_name ("Allow" / "Deny")
+  [[tables.columns]]
+  name = "policy_action"
+  column_type = "string"
+  ocsf_field = "activity_name"
+
+  # Tier-1: policy_notes → comment
+  [[tables.columns]]
+  name = "policy_notes"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # Tier-1: updated_by → actor_user_name
+  [[tables.columns]]
+  name = "updated_by"
+  column_type = "string"
+  ocsf_field = "actor.user.name"
+
+  # Tier-2: "Custom", "Recommended", or other source tag
+  [[tables.columns]]
+  name = "policy_source"
+  column_type = "string"
+
+  # Tier-2: array of src/dst firewall-group condition objects — MUST be json, not string
+  [[tables.columns]]
+  name = "communication_conditions"
+  column_type = "json"
+
+  # Tier-2: count of devices matching this firewall policy
+  [[tables.columns]]
+  name = "matching_devices"
+  column_type = "integer"
+
+  # Tier-2: whether Claroty generates alerts when this policy triggers
+  [[tables.columns]]
+  name = "should_generate_alerts"
+  column_type = "boolean"
+
+  # Tier-2: alert category when policy triggers
+  [[tables.columns]]
+  name = "alert_use_case"
+  column_type = "string"
+
+  # Tier-2: array of triggered alert IDs — MUST be json, not string
+  [[tables.columns]]
+  name = "related_alerts_ids"
+  column_type = "json"
+
+  # Tier-2: array of {src_group, dst_group} pair objects — MUST be json, not string
+  # NOTE: applied_group_pairs (firewall domain) — zone_policies use applied_zone_pairs instead
+  [[tables.columns]]
+  name = "applied_group_pairs"
+  column_type = "json"
+
+  # Tier-2: policy creation timestamp; ISO 8601; ADR-028 §D8-B implicit iso8601 default
+  [[tables.columns]]
+  name = "created_time"
+  column_type = "datetime"
+
+  # Tier-2: last modification timestamp; NOTE: last_updated (WITH trailing 'd') for fw_policies
+  [[tables.columns]]
+  name = "last_updated"
+  column_type = "datetime"
+
+  [[tables.steps]]
+  name = "fetch_organization_firewall_policies"
+  method = "POST"
+  path_template = "/api/v1/organization_fw_group_policies/"
+  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_group_pairs", "created_time", "last_updated", "updated_by"]}'
+  response_path = "$.organization_firewall_policies"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

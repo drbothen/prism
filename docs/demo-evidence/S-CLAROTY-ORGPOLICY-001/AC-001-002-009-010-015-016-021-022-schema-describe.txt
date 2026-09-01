@@ -1,0 +1,187 @@
+# AC-001 + AC-002 + AC-009 + AC-010 + AC-015 + AC-016 + AC-021 + AC-022:
+# Table registration and column schema (product schema only — no tenant row data)
+# Story: S-CLAROTY-ORGPOLICY-001 (Wave C G5)
+# Traces to: BC-2.16.020 §Postconditions §1 (org zones TOML), §2 (org zone_policies TOML),
+#            §3 (zones Tier-1/Tier-2), §4 (zone_policies Tier-1/Tier-2)
+#            BC-2.16.021 §Postconditions §1 (fw_groups TOML), §2 (fw_policies TOML),
+#            §3 (fw_groups Tier-1/Tier-2), §4 (fw_policies Tier-1/Tier-2)
+#
+# Tool: prism_describe — client_id: monroe
+# Prism binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 e7acb234...)
+# Config dir: /Users/jmagady/Dev/test-soc/.prism-live/
+# Spec file: /Users/jmagady/Dev/test-soc/.prism-live/specs/claroty.sensor.toml (G5 tables active)
+# Capture time: 2026-09-01T14:21:04Z
+#
+# EVIDENCE FOR AC-001:
+#   claroty_organization_zones is present in monroe schema; description=entity_management;
+#   sensor_type=claroty; 7 Arrow columns exposed (4 Tier-1 + raw_extensions + class_uid + _sensor).
+# EVIDENCE FOR AC-002:
+#   Exactly 4 Tier-1 columns with OCSF field descriptions:
+#     name (string, description="name", nullable=true) ← zone_name, REQUIRED
+#     comment (string, description="comment", nullable=true) ← zone_description
+#     status_code (boolean, description="status_code", nullable=true) ← enabled
+#     actor_user_name (string, description="actor.user.name", nullable=true) ← updated_by
+#   raw_extensions (json) aggregates 7 Tier-2 source columns:
+#     zone_source, priority, device_conditions, attributed_devices,
+#     exportable_attributed_devices, created_time, last_update
+#   class_uid (integer, nullable=false), _sensor (string, nullable=false) are synthesized.
+#
+# EVIDENCE FOR AC-009:
+#   claroty_organization_zone_policies is present in monroe schema; description=entity_management;
+#   7 Arrow columns exposed (4 Tier-1 + raw_extensions + class_uid + _sensor).
+# EVIDENCE FOR AC-010:
+#   Exactly 4 Tier-1 columns:
+#     name (string, description="name", nullable=true) ← policy_name, REQUIRED
+#     activity_name (string, description="activity_name", nullable=true) ← policy_action
+#     comment (string, description="comment", nullable=true) ← policy_notes
+#     actor_user_name (string, description="actor.user.name", nullable=true) ← updated_by
+#   raw_extensions (json) aggregates 9 Tier-2 source columns:
+#     policy_source, communication_conditions, matching_devices, should_generate_alerts,
+#     alert_use_case, related_alerts_ids, applied_zone_pairs, created_time, last_updated
+#     (Note: last_updated with trailing 'd' — distinct from zones' last_update)
+#
+# EVIDENCE FOR AC-015:
+#   claroty_organization_firewall_groups is present in monroe schema; description=entity_management;
+#   7 Arrow columns exposed. The URL uses /api/v1/organization_fw_groups/ (abbreviated _fw_);
+#   the envelope key is $.organization_firewall_groups (full spelling). Both differ by design
+#   (BC-2.16.021 §Invariants fw URL↔envelope-key asymmetry).
+# EVIDENCE FOR AC-016:
+#   Exactly 4 Tier-1 columns:
+#     name (string, description="name", nullable=true) ← firewall_group_name, REQUIRED
+#     comment (string, description="comment", nullable=true) ← firewall_group_description
+#     status_code (boolean, description="status_code", nullable=true) ← enabled
+#     actor_user_name (string, description="actor.user.name", nullable=true) ← updated_by
+#   raw_extensions (json) aggregates 7 Tier-2 source columns:
+#     firewall_group_source, priority, device_conditions, attributed_devices,
+#     exportable_attributed_devices, created_time, last_update
+#
+# EVIDENCE FOR AC-021:
+#   claroty_organization_firewall_policies is present in monroe schema; description=entity_management;
+#   7 Arrow columns exposed. URL: /api/v1/organization_fw_group_policies/ (abbreviated);
+#   envelope: $.organization_firewall_policies (full spelling).
+# EVIDENCE FOR AC-022:
+#   Exactly 4 Tier-1 columns:
+#     name (string, description="name", nullable=true) ← policy_name, REQUIRED
+#     activity_name (string, description="activity_name", nullable=true) ← policy_action
+#     comment (string, description="comment", nullable=true) ← policy_notes
+#     actor_user_name (string, description="actor.user.name", nullable=true) ← updated_by
+#   raw_extensions (json) aggregates 9 Tier-2 source columns:
+#     policy_source, communication_conditions, matching_devices, should_generate_alerts,
+#     alert_use_case, related_alerts_ids, applied_group_pairs, created_time, last_updated
+#     (Note: applied_group_pairs NOT applied_zone_pairs — BC-2.16.021 §Invariants EC-016-021-010)
+#
+# Table count note: pql_hints says "13 table(s)" for monroe, confirming all 4 G5 tables
+# are registered alongside the 9 pre-existing Claroty tables (4 base + 3 Wave A/B + 2 Wave C G4).
+
+--- WIRE RESPONSE: prism_describe (client: monroe) [org-policy tables excerpt] ---
+
+claroty_organization_zones entry:
+{
+  "name": "claroty_organization_zones",
+  "description": "entity_management",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_organization_zones GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "columns": [
+    { "name": "name",             "col_type": "string",  "description": "name",           "nullable": true  },
+    { "name": "comment",          "col_type": "string",  "description": "comment",         "nullable": true  },
+    { "name": "status_code",      "col_type": "boolean", "description": "status_code",     "nullable": true  },
+    { "name": "actor_user_name",  "col_type": "string",  "description": "actor.user.name", "nullable": true  },
+    { "name": "raw_extensions",   "col_type": "json",    "description": "JSON object containing un-mapped source columns: zone_source, priority, device_conditions, attributed_devices, exportable_attributed_devices, created_time, last_update", "nullable": true },
+    { "name": "class_uid",        "col_type": "integer", "description": "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices).", "nullable": false },
+    { "name": "_sensor",          "col_type": "string",  "description": "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').", "nullable": false }
+  ]
+}
+
+claroty_organization_zone_policies entry:
+{
+  "name": "claroty_organization_zone_policies",
+  "description": "entity_management",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_organization_zone_policies GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "columns": [
+    { "name": "name",             "col_type": "string",  "description": "name",           "nullable": true  },
+    { "name": "activity_name",    "col_type": "string",  "description": "activity_name",  "nullable": true  },
+    { "name": "comment",          "col_type": "string",  "description": "comment",         "nullable": true  },
+    { "name": "actor_user_name",  "col_type": "string",  "description": "actor.user.name", "nullable": true  },
+    { "name": "raw_extensions",   "col_type": "json",    "description": "JSON object containing un-mapped source columns: policy_source, communication_conditions, matching_devices, should_generate_alerts, alert_use_case, related_alerts_ids, applied_zone_pairs, created_time, last_updated", "nullable": true },
+    { "name": "class_uid",        "col_type": "integer", "description": "OCSF event class identifier ...", "nullable": false },
+    { "name": "_sensor",          "col_type": "string",  "description": "Sensor identifier.", "nullable": false }
+  ]
+}
+
+claroty_organization_firewall_groups entry:
+{
+  "name": "claroty_organization_firewall_groups",
+  "description": "entity_management",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_organization_firewall_groups GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "columns": [
+    { "name": "name",             "col_type": "string",  "description": "name",           "nullable": true  },
+    { "name": "comment",          "col_type": "string",  "description": "comment",         "nullable": true  },
+    { "name": "status_code",      "col_type": "boolean", "description": "status_code",     "nullable": true  },
+    { "name": "actor_user_name",  "col_type": "string",  "description": "actor.user.name", "nullable": true  },
+    { "name": "raw_extensions",   "col_type": "json",    "description": "JSON object containing un-mapped source columns: firewall_group_source, priority, device_conditions, attributed_devices, exportable_attributed_devices, created_time, last_update", "nullable": true },
+    { "name": "class_uid",        "col_type": "integer", "description": "OCSF event class identifier ...", "nullable": false },
+    { "name": "_sensor",          "col_type": "string",  "description": "Sensor identifier.", "nullable": false }
+  ]
+}
+
+claroty_organization_firewall_policies entry:
+{
+  "name": "claroty_organization_firewall_policies",
+  "description": "entity_management",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_organization_firewall_policies GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "columns": [
+    { "name": "name",             "col_type": "string",  "description": "name",           "nullable": true  },
+    { "name": "activity_name",    "col_type": "string",  "description": "activity_name",  "nullable": true  },
+    { "name": "comment",          "col_type": "string",  "description": "comment",         "nullable": true  },
+    { "name": "actor_user_name",  "col_type": "string",  "description": "actor.user.name", "nullable": true  },
+    { "name": "raw_extensions",   "col_type": "json",    "description": "JSON object containing un-mapped source columns: policy_source, communication_conditions, matching_devices, should_generate_alerts, alert_use_case, related_alerts_ids, applied_group_pairs, created_time, last_updated", "nullable": true },
+    { "name": "class_uid",        "col_type": "integer", "description": "OCSF event class identifier ...", "nullable": false },
+    { "name": "_sensor",          "col_type": "string",  "description": "Sensor identifier.", "nullable": false }
+  ]
+}
+
+Full pql_hints note: "Use 'SELECT * FROM <table> LIMIT 25' to query any of the 13 table(s) above."
+(13 tables confirms all 4 G5 org-policy tables are registered alongside the 9 pre-existing tables)
+
+--- SUMMARY ---
+AC-001 PASS: claroty_organization_zones registered in monroe schema. description=entity_management.
+  7 Arrow columns: name, comment, status_code, actor_user_name, raw_extensions, class_uid, _sensor.
+  Traces to BC-2.16.020 §Postconditions §1.
+
+AC-002 PASS: claroty_organization_zones has exactly 4 columns with OCSF field descriptions
+  (name, comment, status_code, actor.user.name) = 4 Tier-1 columns. raw_extensions description
+  enumerates 7 Tier-2 source columns (zone_source, priority, device_conditions, attributed_devices,
+  exportable_attributed_devices, created_time, last_update).
+  Traces to BC-2.16.020 §Postconditions §3.
+
+AC-009 PASS: claroty_organization_zone_policies registered in monroe schema. description=entity_management.
+  7 Arrow columns. raw_extensions enumerates 9 Tier-2 source columns including last_updated
+  (with trailing 'd' — distinct from zones' last_update per BC-2.16.020 §PC2 note).
+  Traces to BC-2.16.020 §Postconditions §2.
+
+AC-010 PASS: claroty_organization_zone_policies has exactly 4 Tier-1 columns (name, activity_name,
+  comment, actor_user_name). raw_extensions enumerates 9 Tier-2 source columns including
+  applied_zone_pairs (3 Json columns: communication_conditions, related_alerts_ids, applied_zone_pairs).
+  Traces to BC-2.16.020 §Postconditions §4.
+
+AC-015 PASS: claroty_organization_firewall_groups registered in monroe schema. description=entity_management.
+  7 Arrow columns. URL↔envelope asymmetry: path_template=/api/v1/organization_fw_groups/ (abbreviated);
+  response_path=$.organization_firewall_groups (full spelling). Both are distinct strings as required.
+  Traces to BC-2.16.021 §Postconditions §1.
+
+AC-016 PASS: claroty_organization_firewall_groups has exactly 4 Tier-1 columns (name, comment,
+  status_code, actor_user_name). raw_extensions enumerates 7 Tier-2 source columns (device_conditions
+  is the 1 Json column).
+  Traces to BC-2.16.021 §Postconditions §3.
+
+AC-021 PASS: claroty_organization_firewall_policies registered in monroe schema. description=entity_management.
+  7 Arrow columns. URL: /api/v1/organization_fw_group_policies/; envelope: $.organization_firewall_policies.
+  Traces to BC-2.16.021 §Postconditions §2.
+
+AC-022 PASS: claroty_organization_firewall_policies has exactly 4 Tier-1 columns (name, activity_name,
+  comment, actor_user_name). raw_extensions enumerates 9 Tier-2 source columns including
+  applied_group_pairs (NOT applied_zone_pairs per BC-2.16.021 §Invariants EC-016-021-010).
+  Traces to BC-2.16.021 §Postconditions §4.
