@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.971"
+version: "2.972"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T23:59:59Z
+timestamp: 2026-09-01T00:00:00Z
 phase: 3
 total_stories: 320
+# D-2407: G4 (S-CLAROTY-SERVERS-001) POST-MERGE BURST (TD-VSDD-053) — PR #248 @157596490 squash-merged (D-2400 blanket authority). POL-14 BC-2.16.018+BC-2.16.019 draft→active. pin [ready v1.8]→[merged 157596490; PR #248]. total_stories 320 UNCHANGED. STORY-INDEX v2.971→v2.972. D-2405 NOTE archived.
 # D-2405: G4 (S-CLAROTY-SERVERS-001) rebase + pre-PR front-loaded review fixes (TD-VSDD-053) — feature rebased onto develop@12cecb12, HEAD a24d0dea7→3b7ef5c3d; 8 findings ALL FIXED (CR-001..006, F-001..004); story v1.7→v1.8; pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. STORY-INDEX v2.970→v2.971. D-2404 NOTE archived.
 # D-2404: G3 (S-CLAROTY-DEVVULNREL-001) POST-MERGE BURST (TD-VSDD-053) — PR #247 @12cecb12 squash-merged (D-2400 blanket authority 2026-08-31). POL-14 BC-2.16.017 draft→active. pin [ready v1.8]→[merged 12cecb12; PR #247]. total_stories 320 UNCHANGED. STORY-INDEX v2.969→v2.970. D-2402 NOTE archived.
 # D-2402: G3 (S-CLAROTY-DEVVULNREL-001) consistency-gate fix burst (TD-VSDD-053) — rebased onto develop@3d724a069; story v1.7→v1.8; pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. STORY-INDEX v2.968→v2.969. D-2401 NOTE archived.
@@ -1096,7 +1097,7 @@ Directive. SAP-2 probe N/A for all Wave C tables (D-2200).
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [ready v1.8] | prism-sensors, prism-bin | 2 (BC-2.16.018 v1.3, BC-2.16.019 v1.2) | -- | 5 | -- |
+| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [merged 157596490; PR #248] | prism-sensors, prism-bin | 2 (BC-2.16.018 v1.3, BC-2.16.019 v1.2) | -- | 5 | -- |
 | S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [ready v1.5] | prism-sensors, prism-bin | 2 (BC-2.16.020 v1.2, BC-2.16.021 v1.2) | -- | 8 | -- |
 | S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [ready v1.4] | prism-sensors, prism-spec-engine, prism-bin, prism-query | 1 (BC-2.16.022 v1.2) | -- | 5 | -- |
 
@@ -1679,6 +1680,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.972 | 2026-09-01 | state-manager D-2407: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G4 (S-CLAROTY-SERVERS-001) PR #248 @157596490 squash-merged (D-2400 blanket authority). POL-14 BC-2.16.018+BC-2.16.019 draft→active. STORY-INDEX pin [ready v1.8]→[merged 157596490; PR #248]. total_stories 320 UNCHANGED. story_index_version 2.971→2.972. records-lint exit 0. |
 | v2.970 | 2026-08-31 | state-manager D-2404: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G3 (S-CLAROTY-DEVVULNREL-001) PR #247 @12cecb12 squash-merged (D-2400 blanket authority 2026-08-31). POL-14 BC-2.16.017 draft→active. STORY-INDEX pin [ready v1.8]→[merged 12cecb12; PR #247]. total_stories 320 UNCHANGED. story_index_version 2.969→2.970. records-lint exit 0. |
 | v2.969 | 2026-08-31 | state-manager D-2402: G3 (S-CLAROTY-DEVVULNREL-001) consistency-gate fix burst (TD-VSDD-053) — rebased onto develop@3d724a069; story v1.7→v1.8; STORY-INDEX pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. story_index_version 2.968→2.969. records-lint exit 0. |
 | v2.968 | 2026-08-31 | state-manager D-2401: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) MERGED (PR #246 @3d724a069). POL-14: BC-2.16.016 draft→active. S-CLAROTY-OT-EVENTS-001 status ready→merged; pin [ready v1.9]→[merged v1.9 PR #246 @3d724a069]. D-2400 blanket authority. total_stories 320 UNCHANGED. STORY-INDEX v2.967→v2.968. records-lint exit 0. |

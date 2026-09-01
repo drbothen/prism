@@ -2,14 +2,14 @@
 document_type: behavioral-contract
 level: L3
 version: "1.3"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
 phase: 3
 origin: brownfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: draft
+lifecycle_status: active
 inputs:
   - ".factory/objectives/xdome-endpoint-expansion-plan.md"
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
@@ -17,7 +17,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "5213907"
+input-hash: "150e0ec"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/reference/api-specs/xdome_openapi_06.20.2026.json"
 introduced: "2026-08-24"
