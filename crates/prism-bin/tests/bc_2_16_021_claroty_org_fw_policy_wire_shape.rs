@@ -77,7 +77,7 @@ use std::sync::Arc;
 
 use arrow::array::Array;
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
     cache::CacheConfig,
@@ -97,6 +97,37 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
 };
+
+// ---------------------------------------------------------------------------
+// SAP-2 marker — no DTU clone exists for these org firewall policy tables
+// ---------------------------------------------------------------------------
+
+/// SAP-2 compliance: no DTU clone exists for claroty_organization_firewall_groups
+/// or claroty_organization_firewall_policies. Parity check deferred to
+/// S-CLAROTY-ORGPOLICY-DTU-001 (D-2200 tracking entry).
+#[allow(dead_code)]
+const SAP2_STATUS: &str = "N/A: no DTU clone exists for claroty_organization_firewall_groups and \
+     claroty_organization_firewall_policies; deferred to D-2200 (S-CLAROTY-ORGPOLICY-DTU-001)";
+
+/// SAP-2 marker test: confirms SAP2_STATUS is properly documented as N/A
+/// (no DTU clone exists) with a D-2200 deferral anchor.
+///
+/// BC-2.16.021; Story: S-CLAROTY-ORGPOLICY-001
+#[test]
+fn test_BC_2_16_021_claroty_org_fw_policy_wire_shape_sap2_na_documented() {
+    assert!(
+        SAP2_STATUS.starts_with("N/A:"),
+        "SAP2_STATUS must begin with 'N/A:' to document the absence of a DTU clone. \
+         BC-2.16.021 CR-001. Got: {:?}",
+        SAP2_STATUS
+    );
+    assert!(
+        SAP2_STATUS.contains("D-2200"),
+        "SAP2_STATUS must cite D-2200 (S-CLAROTY-ORGPOLICY-DTU-001 deferral anchor). \
+         BC-2.16.021 CR-001. Got: {:?}",
+        SAP2_STATUS
+    );
+}
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -499,6 +530,29 @@ async fn test_BC_2_16_021_claroty_organization_firewall_groups_wire_shape_serial
         Some(&serde_json::json!("Named-FW-Group")),
         "SAP4-021-FG-2: row0 'name' must be 'Named-FW-Group'. BC-2.16.021 AC-019."
     );
+    // ── CR-004: all Tier-1 column values for row0 ────────────────────────────
+    assert_eq!(
+        json_rows[0].get("comment"),
+        Some(&serde_json::json!("Has all required fields")),
+        "SAP4-021-FG-2 CR-004: row0 'comment' must match mock fixture value \
+         (firewall_group_description='Has all required fields' → comment). \
+         BC-2.16.021 AC-019; catches firewall_group_description→comment rename."
+    );
+    // enabled=true → column_type=boolean → Arrow BooleanArray → JSON boolean true
+    assert_eq!(
+        json_rows[0].get("status_code"),
+        Some(&serde_json::json!(true)),
+        "SAP4-021-FG-2 CR-004: row0 'status_code' must be JSON boolean true \
+         (enabled=true, column_type=boolean → BooleanArray serializes as JSON true). \
+         BC-2.16.021 AC-019; catches enabled→status_code Arrow-name rename."
+    );
+    assert_eq!(
+        json_rows[0].get("actor_user_name"),
+        Some(&serde_json::json!("admin@example.com")),
+        "SAP4-021-FG-2 CR-004: row0 'actor_user_name' must be 'admin@example.com' \
+         (updated_by → actor.user.name → Arrow actor_user_name). \
+         BC-2.16.021 AC-019; catches updated_by→actor.user.name→actor_user_name rename."
+    );
 
     let row1_name = json_rows[1].get("name");
     assert!(
@@ -840,6 +894,28 @@ async fn test_BC_2_16_021_claroty_organization_firewall_policies_wire_shape_seri
         json_rows[0].get("name"),
         Some(&serde_json::json!("Named-FW-Policy-001")),
         "SAP4-021-FP-4: row0 'name' must be 'Named-FW-Policy-001'. BC-2.16.021 AC-025."
+    );
+    // ── CR-004: all Tier-1 column values for row0 ────────────────────────────
+    assert_eq!(
+        json_rows[0].get("activity_name"),
+        Some(&serde_json::json!("Allow")),
+        "SAP4-021-FP-4 CR-004: row0 'activity_name' must be 'Allow' \
+         (policy_action='Allow' → activity_name). \
+         BC-2.16.021 AC-025; catches policy_action→activity_name Arrow-name rename."
+    );
+    assert_eq!(
+        json_rows[0].get("comment"),
+        Some(&serde_json::json!("Fully specified FW policy")),
+        "SAP4-021-FP-4 CR-004: row0 'comment' must be 'Fully specified FW policy' \
+         (policy_notes → comment). \
+         BC-2.16.021 AC-025; catches policy_notes→comment Arrow-name rename."
+    );
+    assert_eq!(
+        json_rows[0].get("actor_user_name"),
+        Some(&serde_json::json!("admin@example.com")),
+        "SAP4-021-FP-4 CR-004: row0 'actor_user_name' must be 'admin@example.com' \
+         (updated_by → actor.user.name → Arrow actor_user_name). \
+         BC-2.16.021 AC-025; catches updated_by→actor.user.name→actor_user_name rename."
     );
 
     let row1_name = json_rows[1].get("name");

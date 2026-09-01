@@ -64,7 +64,7 @@ use std::sync::Arc;
 
 use arrow::array::Array;
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
     cache::CacheConfig,
@@ -84,6 +84,37 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
 };
+
+// ---------------------------------------------------------------------------
+// SAP-2 marker — no DTU clone exists for these org zone policy tables
+// ---------------------------------------------------------------------------
+
+/// SAP-2 compliance: no DTU clone exists for claroty_organization_zones
+/// or claroty_organization_zone_policies. Parity check deferred to
+/// S-CLAROTY-ORGPOLICY-DTU-001 (D-2200 tracking entry).
+#[allow(dead_code)]
+const SAP2_STATUS: &str = "N/A: no DTU clone exists for claroty_organization_zones and \
+     claroty_organization_zone_policies; deferred to D-2200 (S-CLAROTY-ORGPOLICY-DTU-001)";
+
+/// SAP-2 marker test: confirms SAP2_STATUS is properly documented as N/A
+/// (no DTU clone exists) with a D-2200 deferral anchor.
+///
+/// BC-2.16.020; Story: S-CLAROTY-ORGPOLICY-001
+#[test]
+fn test_BC_2_16_020_claroty_org_zone_policy_wire_shape_sap2_na_documented() {
+    assert!(
+        SAP2_STATUS.starts_with("N/A:"),
+        "SAP2_STATUS must begin with 'N/A:' to document the absence of a DTU clone. \
+         BC-2.16.020 CR-001. Got: {:?}",
+        SAP2_STATUS
+    );
+    assert!(
+        SAP2_STATUS.contains("D-2200"),
+        "SAP2_STATUS must cite D-2200 (S-CLAROTY-ORGPOLICY-DTU-001 deferral anchor). \
+         BC-2.16.020 CR-001. Got: {:?}",
+        SAP2_STATUS
+    );
+}
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -540,6 +571,29 @@ async fn test_BC_2_16_020_claroty_organization_zones_wire_shape_serialized_json_
         "SAP4-020-Z-2: row0 'name' must be 'Zone With Name' (zone_name → Arrow name). \
          BC-2.16.020 AC-007."
     );
+    // ── CR-004: all Tier-1 column values for row0 ────────────────────────────
+    assert_eq!(
+        row0.get("comment"),
+        Some(&serde_json::json!("Has all required fields")),
+        "SAP4-020-Z-2 CR-004: row0 'comment' must match mock fixture value \
+         (zone_description='Has all required fields' → comment). \
+         BC-2.16.020 AC-007; catches zone_description→comment Arrow-name rename."
+    );
+    // enabled=true → Boolean column_type → Arrow BooleanArray → JSON boolean true
+    assert_eq!(
+        row0.get("status_code"),
+        Some(&serde_json::json!(true)),
+        "SAP4-020-Z-2 CR-004: row0 'status_code' must be JSON boolean true \
+         (enabled=true, column_type=boolean → BooleanArray serializes as JSON true). \
+         BC-2.16.020 AC-007; catches enabled→status_code Arrow-name rename."
+    );
+    assert_eq!(
+        row0.get("actor_user_name"),
+        Some(&serde_json::json!("analyst@example.com")),
+        "SAP4-020-Z-2 CR-004: row0 'actor_user_name' must match mock fixture value \
+         (updated_by='analyst@example.com' → actor.user.name → Arrow actor_user_name). \
+         BC-2.16.020 AC-007; catches updated_by→actor.user.name→actor_user_name rename."
+    );
 
     // ── Row 1: zone_name absent → "name": null (NOT absent) ──────────────────
     // NULL-NOT-ABSENT LOAD-BEARING: with explicit_nulls=true, Arrow null cell MUST
@@ -881,6 +935,28 @@ async fn test_BC_2_16_020_claroty_organization_zone_policies_wire_shape_serializ
         json_rows[0].get("name"),
         Some(&serde_json::json!("Named-Policy-001")),
         "SAP4-020-ZP-4: row0 'name' must be 'Named-Policy-001'. BC-2.16.020 AC-013."
+    );
+    // ── CR-004: all Tier-1 column values for row0 ────────────────────────────
+    assert_eq!(
+        json_rows[0].get("activity_name"),
+        Some(&serde_json::json!("Allow")),
+        "SAP4-020-ZP-4 CR-004: row0 'activity_name' must be 'Allow' \
+         (policy_action='Allow' → activity_name). \
+         BC-2.16.020 AC-013; catches policy_action→activity_name Arrow-name rename."
+    );
+    assert_eq!(
+        json_rows[0].get("comment"),
+        Some(&serde_json::json!("A fully-specified policy")),
+        "SAP4-020-ZP-4 CR-004: row0 'comment' must be 'A fully-specified policy' \
+         (policy_notes → comment). \
+         BC-2.16.020 AC-013; catches policy_notes→comment Arrow-name rename."
+    );
+    assert_eq!(
+        json_rows[0].get("actor_user_name"),
+        Some(&serde_json::json!("admin@example.com")),
+        "SAP4-020-ZP-4 CR-004: row0 'actor_user_name' must be 'admin@example.com' \
+         (updated_by → actor.user.name → Arrow actor_user_name). \
+         BC-2.16.020 AC-013; catches updated_by→actor.user.name→actor_user_name rename."
     );
 
     // Row 1: policy_name absent → "name": null (LOAD-BEARING null-not-absent)
