@@ -1,18 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.037"
+version: "8.038"
 status: current
-timestamp: 2026-09-01T17:00:00Z
+timestamp: 2026-09-01T19:35:20Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2413 (2026-09-01): SESSION WRAP — G6 FIX-A spec edits committed. BC-2.16.022 v1.2→v1.3 (EC-016-022-011 filter_by selector; AC-003; RG-013). Story v1.5→v1.6. HS-001 v1.0→v1.1 (raw_extensions verdict-A). bc_index 9.97→9.98. story_index 2.975→2.976. HOLDOUT-INDEX v1.32→v1.33. G6 binary (29695e0b9) LOCAL-ONLY — deploy to test-soc + re-holdout NEXT. STATE v8.941→v8.942. SESSION-HANDOFF v8.036→v8.037. [D-2412 historical: G5 MERGED.]**
+> **D-2414 (2026-09-01): G6 (S-CLAROTY-ACLPOLICY-001) live holdout HUMAN-ACCEPTED (SETUP-FAILURE quiescent data — monroe zero org ACL policies; API HTTP 404 legitimate; FIX-A HTTP 422 GONE; binary @29695e0b9 correct; structural/plan-gate ALL PASS). HS-029 scenarios PRESERVED single-use. HOLDOUT-INDEX v1.33→v1.34. NEXT: G6 demo → PR → merge. STATE v8.942→v8.943. SESSION-HANDOFF v8.037→v8.038. [D-2413 historical: G6 FIX-A applied.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2413 (2026-09-01 — G6 FIX-A APPLIED; re-holdout pending; SAFE TO CLEAR) [supersedes D-2412]
+## §RESUME SNAPSHOT — D-2414 (2026-09-01 — G6 LIVE HOLDOUT HUMAN-ACCEPTED; demo + PR pending; SAFE TO CLEAR) [supersedes D-2413]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E, v1 Claroty xDome. G1–G5 MERGED (develop @07e64f4e). G6 (S-CLAROTY-ACLPOLICY-001) is the LAST sensor story: live holdout HUMAN-ACCEPTED (SETUP-FAILURE quiescent — monroe has zero org ACL policies; API HTTP 404 legitimate; FIX-A HTTP 422 GONE; binary @29695e0b9 correct). VERY NEXT ACTION: G6 demo (live-output-free per D-2410) → force-push G6 feature to origin → PR → ORCHESTRATOR merge under D-2400 blanket authority.
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional (human-directed). G6 → demo → PR → merge → LIVE xDome tenant validation (v1 release gate).
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `07e64f4e` (G1–G5 merged; G5=PR #249). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- G1–G5: MERGED; worktrees REMOVABLE.
+- `feature/S-CLAROTY-ACLPOLICY-001` (G6): `29695e0b9` LOCAL-ONLY, NOT pushed (holdout ACCEPTED D-2414; FIX-A applied; story v1.6; rebased onto merged develop 07e64f4e; just check 6009 pass).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (G6, exact order)
+1. demo-recorder: G6 demo (live-output-free per D-2410b) — mock/synthetic + product schema/error-message artifacts only; NO live result rows committed.
+2. pr-manager: force-push G6 @29695e0b9 to origin → create PR targeting develop → CI → pr-reviewer (front-loaded review already CLEAN at @0f60b931a; FIX-A rebased delta is minimal — expect ~1 cycle) → ORCHESTRATOR merge under D-2400 standing authority.
+3. state-manager: post-merge burst (POL-14 BC-2.16.022 draft→active; develop_head update; STORY-INDEX row [ready]→[merged]; bc_index draft_contracts 4→3, active_contracts 260→261).
+4. After G6 merges: git-history PURGE of G2/G3/G4 live-output files (docs/demo-evidence/S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS}-001/*-live-queries.txt) via git filter-repo — D-2410c AUTHORIZED, but the develop force-push MUST be re-confirmed with the human at execution. Then LIVE xDome v1 release validation on monroe.
+
+### CONVERGENCE STATE
+G1 MERGED. G2 MERGED. G3 MERGED. G4 MERGED. G5 MERGED (develop@07e64f4e). G6 @29695e0b9 LOCAL-ONLY NEXT=demo+PR+merge.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2414 (G6 live holdout HUMAN-ACCEPTED; SETUP-FAILURE quiescent data; HS-029 PRESERVED; HOLDOUT-INDEX v1.33→v1.34). D-2413 historical: G6 FIX-A applied; BC-2.16.022 v1.3 + story v1.6 + HS-001 v1.1.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2357 G2–G6 in v1 scope. (d) D-2396 convergence bar in effect. (e) D-2400 BLANKET MERGE AUTHORITY (human-directed 2026-08-31) — still in force for G6. (f) Live xDome tenant validation per-story merge gate; canonical runbook: .factory/ops/live-tenant-validation-runbook.md. (g) SAP-4/POL-42 in force. (h) Holdout gate BLOCKING at story level before demo/push — G6 SATISFIED (SETUP-FAILURE ACCEPTED D-2414). **(i) D-2410 LIVE-ONLY TESTING until G6 merged: NO DTU-clone builds, NO dtu-validator runs, NO SAP-2-against-clone gating; validate exclusively via live monroe instance. Consistent with D-2200 DTU deferral + POST-v1 de-scope. (human-directed 2026-09-01)** **(j) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004 "acceptable as-is" call): demo evidence uses mock/synthetic + product schema/error-message artifacts only; live query RESULT rows / real tenant data (device_uid, device_name, IPs, serials, CVE IDs) must NOT be committed. Applies to all remaining stories. (human-directed 2026-09-01)** **(k) D-2410 GIT-HISTORY PURGE AUTHORIZED post-G6-merge: git filter-repo on develop to remove already-committed live output in merged G2/G3/G4 demo-evidence; force-push develop — RE-CONFIRMED with human at execution; target = post-G6-merge, pre-live-release-validation. (human-directed 2026-09-01)**
+
+### WORKTREE INVENTORY
+ACTIVE = .worktrees/S-CLAROTY-ACLPOLICY-001 (G6 @29695e0b9). REMOVABLE-POST-CLEANUP (merged, deferred batch): S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-ENGINE-H2-LARGE-RESPONSE-001 (P2 parked). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (PARKED-DIRTY do-NOT-touch).
+
+### CODIFICATION NOTE
+S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 (draft, post-v1, maintenance) filed for the two 3-strike defect classes (SAP2_STATUS-missing; non-real live-test stubs) — both marked [codified] in cycles/wave-5-e-demo-fidelity/lessons.md (D-2411).
+
+---
+
+## §RESUME SNAPSHOT — D-2413 (2026-09-01 — G6 FIX-A APPLIED; re-holdout pending; SAFE TO CLEAR) [SUPERSEDED by D-2414]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, v1 Claroty xDome. G1–G5 MERGED (develop @07e64f4e). G6 (S-CLAROTY-ACLPOLICY-001) is the LAST sensor story: live holdout FAILED on a real API-contract defect (HTTP 422 — organization_acl_policies body_template omitted the mandatory selector), FIX-A applied (code @29695e0b9 LOCAL-ONLY + spec BC-2.16.022 v1.3 / story v1.6 / HS-001 v1.1). VERY NEXT ACTION: rebuild+redeploy the G6 binary to test-soc, ensure the login keychain is UNLOCKED, then RE-RUN the G6 live holdout vs monroe.
