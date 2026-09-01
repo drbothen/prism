@@ -1,0 +1,58 @@
+# Error-Paths Evidence — E-QUERY-038 plan-time gates
+# Source: prism-query integration tests (plan-time, synthetic — no live tenant data)
+# Story: S-CLAROTY-ACLPOLICY-001 (Wave C G6)
+# BC: BC-2.16.022 §Invariants; EC-016-022-003; EC-016-022-004; TV-BC-2.16.022-003
+#
+# This file contains product error messages only (E-QUERY-038 error text, available_columns
+# lists). These are product-defined behaviors, not tenant data.
+# Per human-directed policy D-2410b + D-2410j: no live tenant data.
+
+# AC-005 / RG-005:
+# Query: SELECT policy_source FROM claroty.claroty_organization_acl_policies LIMIT 1
+# Result: E-QUERY-038 (column-not-found, plan time)
+# Error:
+#   column 'policy_source' not found in table 'claroty_organization_acl_policies';
+#   available: [_sensor, actor_user_name, class_uid, comment, metadata_uid, name, raw_extensions]
+#
+# Proof: Tier-2 column policy_source is NOT exposed as a standalone Arrow column.
+# available_columns contains: raw_extensions (Tier-2 aggregate), metadata_uid, name,
+# actor_user_name, comment (all 4 Tier-1 Arrow names), class_uid, _sensor.
+# available_columns does NOT contain: policy_source (Tier-2 raw name).
+#
+# Traces to: BC-2.16.022 §Invariants "Tier-2 columns NOT exposed as standalone Arrow columns",
+#            EC-016-022-003
+#
+# Same applies for all Tier-2 columns:
+#   SELECT policy_acl_type ...       → E-QUERY-038 (Tier-2)
+#   SELECT policy_acl ...            → E-QUERY-038 (Tier-2)
+#   SELECT applied_models ...        → E-QUERY-038 (Tier-2; note: accessible via raw_extensions)
+#   SELECT matching_devices ...      → E-QUERY-038 (Tier-2)
+#   SELECT policy_creation_date ...  → E-QUERY-038 (Tier-2)
+#   SELECT policy_last_updated ...   → E-QUERY-038 (Tier-2)
+
+# AC-006 / RG-006 (WIRE-SHAPE rename):
+# Query: SELECT policy_id FROM claroty.claroty_organization_acl_policies LIMIT 1
+# Result: E-QUERY-038 (column-not-found, plan time)
+# Error:
+#   column 'policy_id' not found in table 'claroty_organization_acl_policies';
+#   available: [_sensor, actor_user_name, class_uid, comment, metadata_uid, name, raw_extensions]
+#
+# Proof: Raw TOML column name 'policy_id' is NOT the Arrow column name.
+# The OCSF mapping policy_id → metadata.uid produces Arrow column 'metadata_uid'.
+# available_columns contains: metadata_uid (the correct Arrow form).
+# available_columns does NOT contain: policy_id (raw TOML name).
+#
+# This is an ASYMMETRIC rename (more than simple underscore substitution):
+#   TOML name: policy_id
+#   ocsf_field: "metadata.uid"
+#   Arrow name: metadata_uid  (ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid")
+#
+# Traces to: BC-2.16.022 §Invariants "raw Tier-1 TOML name rejected; Arrow name accepted",
+#            EC-016-022-004, TV-BC-2.16.022-003
+
+# TEST RESULTS (plan-time integration tests, prism-query::bc_2_16_022_test):
+#
+#   test_BC_2_16_022_claroty_org_acl_policies_policy_source_tier2_e_query_038  PASS
+#   test_BC_2_16_022_claroty_org_acl_policies_policy_id_raw_name_not_projected_metadata_uid_is  PASS
+#
+#   Summary: 2 tests run: 2 passed, 1755 skipped
