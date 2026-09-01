@@ -1,0 +1,99 @@
+# AC-001 + AC-002 + AC-009 + AC-010: Table registration and column schema
+# Story: S-CLAROTY-SERVERS-001 (Wave C G4)
+# Traces to: BC-2.16.018 §Postconditions §1 (TOML Table Contract), §2 (Tier-1/Tier-2 column classification)
+#            BC-2.16.019 §Postconditions §1 (TOML Table Contract), §2 (Tier-1/Tier-2 column classification)
+#
+# Tool: prism_describe — client_id: monroe
+# Prism binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 411dd2d2...)
+# Config dir: /Users/jmagady/Dev/test-soc/.prism-live/
+# Spec file: /Users/jmagady/Dev/test-soc/.prism-live/specs/claroty.sensor.toml (G4 tables active)
+# Capture time: 2026-09-01T04:32:43Z
+#
+# AC-001 evidence: claroty_servers is present in monroe schema; description=inventory_info;
+#   sensor_type=claroty; 5 Arrow columns exposed.
+# AC-002 evidence: exactly 2 Tier-1 columns with OCSF field descriptions:
+#   device_name  → device.name  (string, nullable=true)
+#   status_code  → status_code  (string, nullable=true)
+#   raw_extensions aggregates all 15 Tier-2 source columns:
+#     server_location, site_id, model, os_version, serial_number, num_of_interfaces,
+#     management_ip, idrac_ip, management_mac, uptime_days, avg_traffic_past_month_mbps,
+#     avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, num_of_open_incidents, notes
+#   class_uid (integer, nullable=false) and _sensor (string, nullable=false) are synthesized.
+#
+# AC-009 evidence: claroty_server_interfaces is present in monroe schema; description=inventory_info;
+#   separate from claroty_servers (distinct _source_table, endpoint /api/v1/server_interfaces/);
+#   5 Arrow columns exposed.
+# AC-010 evidence: exactly 2 Tier-1 columns with OCSF field descriptions:
+#   device_name  → device.name  (string, nullable=true)
+#   status_code  → status_code  (string, nullable=true)
+#   raw_extensions aggregates all 8 Tier-2 source columns:
+#     interface_name, interface_type, interface_connection_type, site_id,
+#     avg_traffic_past_month_mbps, avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, notes
+#   class_uid (integer, nullable=false) and _sensor (string, nullable=false) are synthesized.
+#
+# NOTE: Both tables are registered with ocsf_class=inventory_info, which maps to class_uid 5001.
+# The 17-column claroty_servers TOML spec collapses to 5 Arrow columns under
+# ocsf_column_naming=true (ADR-058 §B2): 2 Tier-1 + raw_extensions + class_uid + _sensor.
+# The 10-column claroty_server_interfaces TOML spec collapses to the same 5 Arrow columns.
+# Tier-2 columns are accessible only via raw_extensions.
+
+--- WIRE RESPONSE: prism_describe (client: monroe) [relevant table excerpts] ---
+
+claroty_servers entry:
+{
+  "name": "claroty_servers",
+  "description": "inventory_info",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_servers GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "example_note": null,
+  "columns": [
+    { "name": "device_name",     "col_type": "string",  "description": "device.name",  "nullable": true  },
+    { "name": "status_code",     "col_type": "string",  "description": "status_code",  "nullable": true  },
+    { "name": "raw_extensions",  "col_type": "json",    "description": "JSON object containing un-mapped source columns: server_location, site_id, model, os_version, serial_number, num_of_interfaces, management_ip, idrac_ip, management_mac, uptime_days, avg_traffic_past_month_mbps, avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, num_of_open_incidents, notes", "nullable": true },
+    { "name": "class_uid",       "col_type": "integer", "description": "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices).", "nullable": false },
+    { "name": "_sensor",         "col_type": "string",  "description": "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').", "nullable": false }
+  ]
+}
+
+claroty_server_interfaces entry:
+{
+  "name": "claroty_server_interfaces",
+  "description": "inventory_info",
+  "sensor_type": "claroty",
+  "example_query": "SELECT class_uid, COUNT(*) FROM claroty_server_interfaces GROUP BY class_uid ORDER BY COUNT(*) DESC LIMIT 10",
+  "example_note": null,
+  "columns": [
+    { "name": "device_name",     "col_type": "string",  "description": "device.name",  "nullable": true  },
+    { "name": "status_code",     "col_type": "string",  "description": "status_code",  "nullable": true  },
+    { "name": "raw_extensions",  "col_type": "json",    "description": "JSON object containing un-mapped source columns: interface_name, interface_type, interface_connection_type, site_id, avg_traffic_past_month_mbps, avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, notes", "nullable": true },
+    { "name": "class_uid",       "col_type": "integer", "description": "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices).", "nullable": false },
+    { "name": "_sensor",         "col_type": "string",  "description": "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').", "nullable": false }
+  ]
+}
+
+Full pql_hints note: "Use 'SELECT * FROM <table> LIMIT 25' to query any of the 9 table(s) above."
+(9 tables confirms both G4 tables are registered alongside the 7 pre-existing Claroty tables)
+
+--- SUMMARY ---
+AC-001 PASS: claroty_servers registered in monroe schema. prism_describe lists claroty_servers
+  with description=inventory_info. 5 Arrow columns: device_name, status_code, raw_extensions,
+  class_uid, _sensor. Traces to BC-2.16.018 §Postconditions §1.
+
+AC-002 PASS: claroty_servers has exactly 2 columns with OCSF field descriptions (device.name,
+  status_code) = 2 Tier-1 columns. raw_extensions description enumerates 15 Tier-2 source
+  columns (server_location, site_id, model, os_version, serial_number, num_of_interfaces,
+  management_ip, idrac_ip, management_mac, uptime_days, avg_traffic_past_month_mbps,
+  avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, num_of_open_incidents, notes).
+  Traces to BC-2.16.018 §Postconditions §2.
+
+AC-009 PASS: claroty_server_interfaces registered in monroe schema. prism_describe lists
+  claroty_server_interfaces with description=inventory_info. 5 Arrow columns: device_name,
+  status_code, raw_extensions, class_uid, _sensor. Separate table from claroty_servers.
+  Traces to BC-2.16.019 §Postconditions §1.
+
+AC-010 PASS: claroty_server_interfaces has exactly 2 columns with OCSF field descriptions
+  (device.name, status_code) = 2 Tier-1 columns. raw_extensions description enumerates 8
+  Tier-2 source columns (interface_name, interface_type, interface_connection_type, site_id,
+  avg_traffic_past_month_mbps, avg_traffic_past_week_mbps, avg_traffic_past_hour_mbps, notes)
+  — including composite PK element interface_name (Tier-2 per BC-2.16.019 §3).
+  Traces to BC-2.16.019 §Postconditions §2.
