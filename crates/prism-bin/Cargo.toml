@@ -378,6 +378,21 @@ path = "tests/bc_2_16_018_claroty_servers_wire_shape.rs"
 name = "bc_2_16_019_claroty_server_interfaces_wire_shape"
 path = "tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs"
 
+# S-CLAROTY-ORGPOLICY-001: SAP-4 production-path wire-shape tests for Claroty org policy tables
+# (zones, zone_policies) exercising SpecDrivenSensorAdapter::fetch → build_column_array
+# ColumnType::Json arm → serialized wire output. Closes the ColumnMapper::map_record-only
+# coverage gap identified in SAP-4 standing probe. BCs: BC-2.16.020, BC-2.11.001
+[[test]]
+name = "bc_2_16_020_claroty_org_zone_policy_wire_shape"
+path = "tests/bc_2_16_020_claroty_org_zone_policy_wire_shape.rs"
+
+# S-CLAROTY-ORGPOLICY-001: SAP-4 production-path wire-shape tests for Claroty org policy tables
+# (firewall_groups, firewall_policies) including URL↔envelope asymmetry (EC-016-021-006).
+# BCs: BC-2.16.021, BC-2.11.001
+[[test]]
+name = "bc_2_16_021_claroty_org_fw_policy_wire_shape"
+path = "tests/bc_2_16_021_claroty_org_fw_policy_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"

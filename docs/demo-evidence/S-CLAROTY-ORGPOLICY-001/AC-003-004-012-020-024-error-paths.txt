@@ -1,0 +1,90 @@
+# AC-003 + AC-004 + AC-012 + AC-020 + AC-024: E-QUERY-038 error path evidence
+# Story: S-CLAROTY-ORGPOLICY-001 (Wave C G5)
+# Traces to: BC-2.16.020 §Invariants EC-016-020-005,006; BC-2.16.021 §Invariants EC-016-021-005,007,010
+#
+# Tool: query (prism_query equivalent) — client_id: monroe
+# Prism binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 e7acb234...)
+# Config dir: /Users/jmagady/Dev/test-soc/.prism-live/
+# Capture time: 2026-09-01T14:27:20Z (live validation session)
+#
+# NOTE: These are error-path queries; the ERROR MESSAGES themselves are product behavior
+# (not tenant data). The available_columns list is the product-defined column list for each
+# table — identical to prism_describe output, not live row content.
+
+--- claroty_organization_zones: Tier-2 column rejection ---
+
+Query: SELECT zone_source FROM claroty_organization_zones LIMIT 1
+
+ERROR: [validation] - E-QUERY-038: column 'zone_source' not found in table
+'claroty_organization_zones' for client 'monroe'; available: [_sensor, actor_user_name,
+class_uid, comment, name, raw_extensions, status_code]. Call prism_describe('<client_id>')
+to see available columns, or use the available_columns field in this error to correct the
+column name.
+
+AC-003 PASS: E-QUERY-038 raised. available_columns contains raw_extensions, name, comment,
+  status_code, actor_user_name. Does NOT contain zone_source (Tier-2 column).
+  Traces to BC-2.16.020 §Invariants, EC-016-020-005.
+
+--- claroty_organization_zones: raw Tier-1 TOML name rejection ---
+
+Query: SELECT zone_name FROM claroty_organization_zones LIMIT 1
+
+ERROR: [validation] - E-QUERY-038: column 'zone_name' not found in table
+'claroty_organization_zones' for client 'monroe'; available: [_sensor, actor_user_name,
+class_uid, comment, name, raw_extensions, status_code].
+
+AC-004 PASS: E-QUERY-038 raised for raw TOML Tier-1 name. available_columns contains 'name'
+  (Arrow form) but NOT 'zone_name' (raw TOML column name). Arrow name is the accepted form.
+  Traces to BC-2.16.020 §Invariants, TV-BC-2.16.020-003.
+
+--- claroty_organization_zone_policies: applied_zone_pairs Tier-2 rejection ---
+
+Query: SELECT applied_zone_pairs FROM claroty_organization_zone_policies LIMIT 1
+
+ERROR: [validation] - E-QUERY-038: column 'applied_zone_pairs' not found in table
+'claroty_organization_zone_policies' for client 'monroe'; available: [_sensor, activity_name,
+actor_user_name, class_uid, comment, name, raw_extensions].
+
+AC-012 PASS: E-QUERY-038 raised. available_columns contains raw_extensions, name, activity_name,
+  comment, actor_user_name. Does NOT contain applied_zone_pairs (Tier-2 Json column, only
+  accessible via raw_extensions). Traces to BC-2.16.020 §Invariants, EC-016-020-006.
+
+--- claroty_organization_firewall_groups: Tier-2 column rejection ---
+
+Query: SELECT firewall_group_source FROM claroty_organization_firewall_groups LIMIT 1
+
+ERROR: [validation] - E-QUERY-038: column 'firewall_group_source' not found in table
+'claroty_organization_firewall_groups' for client 'monroe'; available: [_sensor, actor_user_name,
+class_uid, comment, name, raw_extensions, status_code].
+
+AC-020 PASS: E-QUERY-038 raised. available_columns contains raw_extensions, name, comment,
+  status_code, actor_user_name. Does NOT contain firewall_group_source (Tier-2 column).
+  Traces to BC-2.16.021 §Invariants.
+
+--- claroty_organization_firewall_policies: applied_group_pairs Tier-2 rejection ---
+
+Query: SELECT applied_group_pairs FROM claroty_organization_firewall_policies LIMIT 1
+
+ERROR: [validation] - E-QUERY-038: column 'applied_group_pairs' not found in table
+'claroty_organization_firewall_policies' for client 'monroe'; available: [_sensor, activity_name,
+actor_user_name, class_uid, comment, name, raw_extensions].
+
+AC-024 PASS: E-QUERY-038 raised. available_columns contains raw_extensions, name, activity_name,
+  comment, actor_user_name. Does NOT contain applied_group_pairs (Tier-2 Json column, distinct
+  from applied_zone_pairs which belongs to zone_policies table).
+  Confirms TOML uses applied_group_pairs (NOT applied_zone_pairs) in firewall_policies block.
+  Traces to BC-2.16.021 §Invariants, EC-016-021-007,010.
+
+--- fw URL↔envelope-key asymmetry confirmation ---
+
+Query: SELECT name FROM claroty_organization_firewall_groups LIMIT 5
+
+Result: 1 row returned, total_available=1.
+
+AC-017 PASS: Non-empty result confirms response_path=$.organization_firewall_groups correctly
+  extracts from the xDome response envelope. The URL path uses /api/v1/organization_fw_groups/
+  (abbreviated _fw_groups) while the response_path uses the full organization_firewall_groups
+  spelling. If the abbreviated $.organization_fw_groups had been used in response_path, the
+  result would have been empty with no runtime error (EC-016-021-006 silent empty-result defect).
+  The non-empty result is the evidence that the correct (full-spelling) response_path is in effect.
+  Traces to BC-2.16.021 §Invariants, EC-016-021-005/006.
