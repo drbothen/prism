@@ -10,8 +10,8 @@ status: ready
 # BC status: BC-2.16.020 v1.1 draft + BC-2.16.021 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.5"
-modified: "2026-08-31"
+version: "1.6"
+modified: "2026-09-01"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -22,7 +22,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "6ed7941"
+input-hash: "b68ddba"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.020"
 # traces_to covers primary BC (Zone Domain); BC-2.16.021 (Firewall Domain) is the companion BC; both wired via behavioral_contracts
@@ -316,7 +316,7 @@ MUST contain `raw_extensions`, `name`, `comment`, `status_code`, `actor_user_nam
 Same applies for any other Tier-2 column (`priority`, `device_conditions`,
 `attributed_devices`, `created_time`, `last_update`).
 
-**Test:** `test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038`
+**Test:** `test_BC_2_16_020_claroty_organization_zones_e2e_e_query_038_tier2_column` (RG-003, prism-bin, via QueryEngine::execute — authoritative); sensor-side `test_BC_2_16_020_claroty_organization_zones_tier2_column_raises_e_query_038` is defense-in-depth per SAP-3 rule 3
 
 ### AC-004 (WIRE-SHAPE rename): SELECT zone_name (raw Tier-1 TOML name) raises E-QUERY-038; `available_columns` contains `name` but NOT `zone_name` (traces to BC-2.16.020 invariant — raw Tier-1 TOML name rejected; Arrow name `name` is the accepted form; TV-BC-2.16.020-003)
 
@@ -429,7 +429,7 @@ A PrismQL query `SELECT applied_zone_pairs FROM claroty.claroty_organization_zon
 raises E-QUERY-038 at plan time. The error's `available_columns` MUST contain `raw_extensions`,
 `name`, `activity_name`, `comment`, `actor_user_name` but MUST NOT contain `applied_zone_pairs`.
 
-**Test:** `test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038`
+**Test:** `test_BC_2_16_020_claroty_organization_zone_policies_e2e_e_query_038_tier2_column` (RG-012, prism-bin, via QueryEngine::execute — authoritative); sensor-side `test_BC_2_16_020_claroty_organization_zone_policies_applied_zone_pairs_raises_e_query_038` is defense-in-depth per SAP-3 rule 3
 
 ### AC-013: Missing REQUIRED `policy_name` → null row, no hard error (traces to BC-2.16.020 invariant; EC-016-020-002)
 
@@ -528,7 +528,7 @@ raises E-QUERY-038 at plan time. The error's `available_columns` MUST contain `r
 
 Same applies for `priority`, `device_conditions`, `attributed_devices`, etc.
 
-**Test:** `test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_query_038`
+**Test:** `test_BC_2_16_021_claroty_organization_firewall_groups_e2e_e_query_038_tier2_column` (RG-020, prism-bin, via QueryEngine::execute — authoritative); sensor-side `test_BC_2_16_021_claroty_organization_firewall_groups_tier2_column_raises_e_query_038` is defense-in-depth per SAP-3 rule 3
 
 ### — claroty_organization_firewall_policies (BC-2.16.021) —
 
@@ -587,7 +587,7 @@ Additionally, the TOML spec for `claroty_organization_firewall_policies` MUST de
 zone-domain column name `applied_zone_pairs` in the firewall_policies block would silently
 request the wrong field from the xDome API (EC-016-021-010).
 
-**Test:** `test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_raises_e_query_038`
+**Test:** `test_BC_2_16_021_claroty_organization_firewall_policies_e2e_e_query_038_tier2_column` (RG-024, prism-bin, via QueryEngine::execute — authoritative); sensor-side `test_BC_2_16_021_claroty_organization_firewall_policies_applied_group_pairs_raises_e_query_038` is defense-in-depth per SAP-3 rule 3
 (also verifies TOML has `applied_group_pairs` not `applied_zone_pairs` in the column block)
 
 ### AC-025: Missing REQUIRED `policy_name` → null row, no hard error; count null in firewall envelope → empty-page halt (traces to BC-2.16.021 invariant; EC-016-021-002; EC-016-021-004)
@@ -1322,6 +1322,7 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-09-01 | story-writer | §Acceptance Criteria AC-003/AC-012/AC-020/AC-024 §Test citations corrected to cite authoritative prism-bin end-to-end tests (RG-003/RG-012/RG-020/RG-024, via QueryEngine::execute); sensor-side equivalents noted as defense-in-depth per SAP-3 rule 3. input-hash updated to b68ddba (BC input drift). No AC coverage or BC-trace changes. |
 | 1.5 | 2026-08-31 | story-writer | §Red Gate Tests RG-004 type label corrected from "Integration (plan-time)" to "Unit (ocsf_projected_column_names helper; defense-in-depth per SAP-3 rule 3)"; What-it-gates note appended that RG-003 (`test_BC_2_16_020_claroty_organization_zones_e2e_e_query_038_tier2_column`, prism-bin end-to-end) is the authoritative E-QUERY-038 gate that transitively covers the raw Tier-1 name case — RG-004 is defense-in-depth per SAP-3 rule 3. No AC coverage or BC-trace changes. |
 | 1.4 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC version pins from §Authority (BC-2.16.020 §Postconditions §1..§4 + BC-2.16.021 §Postconditions §1..§4 headings), §Token Budget (both BC rows), and §References; §Behavioral Contracts table Version columns synced to v1.2 per POL-40 current-state pin. FIX 2 (crates_touched): Removed prism-spec-engine — delivered tests live in crates/prism-sensors/tests/ and crates/prism-bin/tests/ (no prism-spec-engine file modified per worktree verification). |
 | 1.3 | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 48 `column_name =` occurrences (11+13+11+13 across 4 tables) changed to `name =`; AC-024 body prose and §Architecture Compliance Rules updated accordingly. FIX B: §Red Gate Tests — RG-003/012/020/024 test names corrected to `…e2e_e_query_038_tier2_column` form (delivered ground truth); RG-027 (single combined wire-shape row) replaced with 8 authoritative fetch-path tests (RG-027..RG-034) across two delivered files (`bc_2_16_020_claroty_org_zone_policy_wire_shape.rs` + `bc_2_16_021_claroty_org_fw_policy_wire_shape.rs`); density updated 27→34 RGTs, ratio 1.04→1.31. FIX C: §File Structure Requirements prism-bin CREATE entry split from 1 combined file to 2 BC-scoped files; Cargo.toml MODIFY note updated to two `[[test]]` entries. |

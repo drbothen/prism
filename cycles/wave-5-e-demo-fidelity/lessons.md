@@ -4997,3 +4997,45 @@ Never confuse the container encoding (always Utf8/string) with the content encod
 **Corrective action taken:** HS-001 and HS-003 amended v1.0→v1.1 by product-owner. Both scenarios consumed at satisfaction 1.00. Gate treated as PASS.
 
 **Source:** D-2406 G4 live holdout gate VERDICT-A adjudication. Related: D-2403 G3 Tier-1-join-key scenario-authoring lesson.
+
+---
+
+## D-2408 RECURRENCE-WATCH: Two Defect Classes at 2 Occurrences Each
+
+**Category:** Process / Defect Pattern Watch
+
+**Date:** 2026-09-01
+
+**Decision:** D-2408
+
+**Summary:** Two defect classes that were fixed in prior xDome stories recurred at G5 (S-CLAROTY-ORGPOLICY-001). Each class is now at 2 occurrences. Per the 3-recurrence codification threshold, if either class occurs a third time, the orchestrator MUST codify a standing rule, pre-emption check, or automated gate before proceeding.
+
+### Defect Class A: SAP2_STATUS constant + assertion missing in test files
+
+**Occurrence 1:** G4 (S-CLAROTY-SERVERS-001) pre-PR front-loaded review (D-2405) — `F-001`: SAP2_STATUS constant and its assertion were absent from all 4 new test files. Fixed before PR opened.
+
+**Occurrence 2:** G5 (S-CLAROTY-ORGPOLICY-001) pre-PR front-loaded review (D-2408) — `CR-001` (HIGH): SAP2_STATUS constant and its assertion were absent from all 4 new test files. Fixed before PR opened.
+
+**Pattern:** Each new batch of sensor test files added for a new xDome story table arrives without SAP2_STATUS boilerplate. The G4 fix established the correct pattern but was not propagated to G5's stubs at stub-authoring time.
+
+**Root cause:** The stub-architect template for prism-sensors tests does not include SAP2_STATUS boilerplate. The test-writer receives the stubs and adds tests but does not add the constant/assertion when SAP2_STATUS is absent. The oversight is caught at pre-PR review, not at stub time.
+
+**Pre-emption for G6:** G6 (S-CLAROTY-ACLPOLICY-001) pre-PR review MUST explicitly check all new test files for SAP2_STATUS constant+assertion presence as a named probe.
+
+**3-recurrence gate:** If G6 (or any future story) arrives at pre-PR review with SAP2_STATUS missing (occurrence 3), the orchestrator MUST immediately codify SAP2_STATUS into the stub-architect template and/or the test-writer standing discipline (equivalent to SAP-1/SAP-2 probes).
+
+### Defect Class B: Non-real live-test stubs (panic!() / todo!() bodies)
+
+**Occurrence 1:** G2 (S-CLAROTY-OT-EVENTS-001) PR review cycle — `NEW-MEDIUM-1`: live `#[ignore]` test bodies contained `panic!("not yet implemented")` instead of real env-gated assertions following the BC-2.16.015 sibling pattern. Fixed before merge.
+
+**Occurrence 2:** G5 (S-CLAROTY-ORGPOLICY-001) pre-PR front-loaded review (D-2408) — `CR-002` (HIGH): 5 live `#[ignore]` test bodies contained `todo!()` instead of real env-gated assertions. Fixed before PR opened.
+
+**Pattern:** Live integration tests (marked `#[ignore]`, gated on `MONROE_LIVE_TEST=1`) are stubbed with `panic!()` or `todo!()` during initial authoring. The stub passes compilation and the CI gate (because `#[ignore]` tests don't run in CI), making the gap invisible until pre-PR review.
+
+**Root cause:** Stub-architect and/or test-writer do not apply SID-1 discipline (CLAUDE.md §Standing Adversary Probes) at authoring time. SID-1 prohibits `#[ignore]` tests without real bodies. The omission is caught at pre-PR review.
+
+**Pre-emption for G6:** G6 (S-CLAROTY-ACLPOLICY-001) pre-PR review MUST explicitly check all `#[ignore]` test bodies for non-stub real-env-gated assertions as a named probe.
+
+**3-recurrence gate:** If G6 (or any future story) arrives at pre-PR review with todo!()/panic!() live-test bodies (occurrence 3), the orchestrator MUST codify a SID-1 pre-stub-authoring check into stub-architect and test-writer standing disciplines, and add this as an explicit review criterion in the pre-PR review dispatch.
+
+**Source:** D-2408 G5 rebase + pre-PR front-loaded review fixes.
