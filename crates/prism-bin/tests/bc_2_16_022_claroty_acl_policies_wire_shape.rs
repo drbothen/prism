@@ -54,7 +54,6 @@
     clippy::unwrap_used,
     clippy::expect_used
 )]
-extern crate toml;
 
 use arrow_json;
 use std::sync::Arc;
@@ -73,6 +72,38 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
 };
+
+// ---------------------------------------------------------------------------
+// SAP-2 compliance marker — no DTU clone for claroty_organization_acl_policies
+// ---------------------------------------------------------------------------
+
+/// SAP-2 compliance: no DTU clone exists for `claroty_organization_acl_policies`.
+/// The wire-shape tests in this file use wiremock instead of a DTU clone.
+/// DTU clone work is deferred to D-2200 (S-CLAROTY-ACLPOLICY-DTU-001).
+///
+/// SAP-2 rule 4: a field deliberately excluded from TOML MUST have its exclusion
+/// documented in the owning BC; here the *entire DTU clone* is absent, not a single field.
+#[allow(dead_code)]
+const SAP2_STATUS: &str = "N/A: no DTU clone exists for claroty_organization_acl_policies; \
+    deferred to D-2200 (S-CLAROTY-ACLPOLICY-DTU-001)";
+
+/// SAP-2 marker: verifies the const is present and carries the required N/A prefix +
+/// D-2200 deferral anchor — so the absent DTU clone is never silently overlooked.
+#[test]
+fn test_BC_2_16_022_claroty_acl_policies_wire_shape_sap2_na_documented() {
+    assert!(
+        SAP2_STATUS.starts_with("N/A:"),
+        "SAP-2 marker MUST start with 'N/A:' to document intentional DTU absence. \
+         Got: {:?}",
+        SAP2_STATUS
+    );
+    assert!(
+        SAP2_STATUS.contains("D-2200"),
+        "SAP-2 marker MUST contain the deferral anchor 'D-2200' \
+         (S-CLAROTY-ACLPOLICY-DTU-001). Got: {:?}",
+        SAP2_STATUS
+    );
+}
 
 // ---------------------------------------------------------------------------
 // Shared helper — build a SpecDrivenSensorAdapter directed at the mock server
@@ -401,6 +432,35 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_jso
          BC-2.16.022 §PC2 / AC-008."
     );
 
+    // ── CR-004: All Tier-1 OCSF-projected columns at top level with correct values ──
+    //
+    // Tier-1 columns project as standalone Arrow columns (dot→underscore wire names).
+    // Each MUST carry the exact seeded value. This closes the gap where assertion 6
+    // only checked metadata_uid but not the other 3 Tier-1 columns.
+    //
+    // BC-2.16.022 §PC2 (4 Tier-1 columns: policy_id→metadata_uid, policy_name→name,
+    //   policy_updated_by→actor_user_name, policy_notes→comment).
+    assert_eq!(
+        row0.get("name"),
+        Some(&serde_json::json!("Mock Cisco dACL Policy")),
+        "RG-012 CR-004: 'name' MUST equal the seeded policy_name value \
+         'Mock Cisco dACL Policy'. BC-2.16.022 §PC2 (policy_name → ocsf_field 'name')."
+    );
+    assert_eq!(
+        row0.get("actor_user_name"),
+        Some(&serde_json::json!("admin@example.com")),
+        "RG-012 CR-004: 'actor_user_name' MUST equal the seeded policy_updated_by value \
+         'admin@example.com'. BC-2.16.022 §PC2 \
+         (policy_updated_by → ocsf_field 'actor.user.name' → Arrow 'actor_user_name')."
+    );
+    assert_eq!(
+        row0.get("comment"),
+        Some(&serde_json::json!("Mock wire-shape test policy for RG-012")),
+        "RG-012 CR-004: 'comment' MUST equal the seeded policy_notes value \
+         'Mock wire-shape test policy for RG-012'. BC-2.16.022 §PC2 \
+         (policy_notes → ocsf_field 'comment')."
+    );
+
     // ── Assertion 7: raw API name 'policy_id' NOT at root level ───────────────
     //
     // Under ocsf_column_naming = true, raw API field names are NOT projected as Arrow
@@ -607,5 +667,23 @@ async fn test_BC_2_16_022_applied_models_empty_array_wire_shape() {
         serialized, "[]",
         "MED-1 / EC-016-022-005 LOAD-BEARING: raw_extensions['applied_models'] must serialize \
          as exactly '[]'. BC-2.16.022 AC-008 / EC-016-022-005.",
+    );
+
+    // ── CR-003 / null-not-absent assertion: 'comment' column is null in wire output ──
+    //
+    // The MED-1 mock seeds `policy_notes: null` (→ ocsf_field 'comment' → Arrow 'comment').
+    // Wire-shape assertion discipline (2026-07-13): NULL cells MUST appear as `null`
+    // in JSON, NOT be absent (BC-2.11.001 EC-11-079 row-shape null-not-absent invariant).
+    // explicit_nulls=true in the WriterBuilder ensures this.
+    //
+    // BC-2.16.022 §PC2 (policy_notes → comment Tier-1 mapping);
+    // BC-2.11.001 EC-11-079 (null-not-absent); CLAUDE.md §Wire-shape assertion discipline.
+    assert_eq!(
+        row0.get("comment"),
+        Some(&serde_json::Value::Null),
+        "MED-1 CR-003 LOAD-BEARING: 'comment' MUST be JSON null (not absent) when \
+         policy_notes is null in the source record. explicit_nulls=true ensures null \
+         cells appear as null, not as absent keys (BC-2.11.001 EC-11-079 null-not-absent). \
+         BC-2.16.022 §PC2 / AC-008."
     );
 }

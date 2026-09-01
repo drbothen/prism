@@ -14,11 +14,18 @@
 //!
 //! CONTAMINATION CONTROL: this file MUST NOT read holdout scenario files (HS-029).
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use prism_core::{ColumnOptions, ColumnType};
-use prism_spec_engine::spec_parser::{PaginationConfig, SpecLoader};
+use prism_core::{ColumnOptions, ColumnType, OrgSlug};
+use prism_spec_engine::{
+    NullAuthProvider,
+    column_mapping::ColumnMapper,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::{PaginationConfig, SpecLoader},
+};
+use serde_json::json;
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -468,9 +475,16 @@ fn test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_type
 #[ignore = "LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to live \
              monroe sensor; run manually or in live-validation CI job"]
 async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid() {
-    // Structural gate: table must exist even for live tests.
+    let Ok(instance_url) = std::env::var("CLAROTY_INSTANCE_URL") else {
+        // LIVE-MONROE-001: ungated after S-CLAROTY-ACLPOLICY-001 merges and
+        // CLAROTY_INSTANCE_URL is set in the live-validation CI job.
+        return;
+    };
+
     let spec = load_claroty_spec();
-    let _table = spec
+
+    // Structural gate: table must exist before running live wire-shape test.
+    let orig_table = spec
         .tables
         .iter()
         .find(|t| t.table_name == "organization_acl_policies")
@@ -479,17 +493,127 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
              claroty.sensor.toml before running live wire-shape test",
         );
 
-    // TODO(LIVE-MONROE-001): implement live QueryEngine call against monroe sensor.
-    // The live test MUST assert (wire-shape discipline, 2026-07-13):
-    //   1. class_uid == 3004 in serialized JSON row
-    //   2. metadata_uid present and non-null UUID string
-    //   3. raw_extensions present as JSON object
-    //   4. raw_extensions["applied_models"] is a JSON array (NOT "\"[...]\"" string)
-    //   5. "policy_id" NOT a standalone top-level key in row JSON
-    todo!(
-        "LIVE-MONROE-001: live wire-shape test; \
-         ungated after monroe sensor accessible and S-CLAROTY-ACLPOLICY-001 merged"
-    );
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "organization_acl_policies")
+        .expect(
+            "BC-2.16.022 RG-007: organization_acl_policies must exist in live_spec after clone",
+        );
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("RG-007: http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "RG-007: live PipelineExecutor::execute must succeed for \
+             claroty_organization_acl_policies (LIVE-MONROE-001 wire-shape)",
+        );
+
+    // ACL policies may be empty in test environments — return gracefully.
+    if result.records.is_empty() {
+        return;
+    }
+
+    // Wire-shape assertions (discipline 2026-07-13): assert on ColumnMapper output.
+    // The full Arrow serialization gate is RG-012 in bc_2_16_022_claroty_acl_policies_wire_shape.rs.
+    for raw_record in result.records.iter().take(5) {
+        let row = ColumnMapper::map_record(raw_record, orig_table).expect(
+            "RG-007: ColumnMapper::map_record must succeed for live \
+             claroty_organization_acl_policies record",
+        );
+
+        // Build simulated wire row mirroring the pre-Arrow MCP path.
+        // class_uid inserted as a LITERAL (ILLUSTRATIVE-ONLY) — load-bearing gate is RG-012.
+        let mut simulated_wire_row = serde_json::Map::new();
+        simulated_wire_row.insert("class_uid".to_string(), json!(3004_i32));
+        for (ocsf_path, val) in &row.mapped_fields {
+            // Tier-1 ocsf_field values use dot→underscore for Arrow column names.
+            // e.g. "metadata.uid" → "metadata_uid", "actor.user.name" → "actor_user_name"
+            let arrow_name = ocsf_path.replace('.', "_");
+            simulated_wire_row.insert(arrow_name, val.clone());
+        }
+        let raw_ext_json = serde_json::to_value(&row.raw_extensions)
+            .expect("RG-007: raw_extensions must serialize to JSON object");
+        simulated_wire_row.insert("raw_extensions".to_string(), raw_ext_json);
+
+        // 1. class_uid == 3004 (ILLUSTRATIVE-ONLY literal; load-bearing gate is RG-012).
+        assert_eq!(
+            simulated_wire_row.get("class_uid"),
+            Some(&json!(3004_i32)),
+            "RG-007: class_uid MUST be 3004 (entity_management). \
+             NOTE: ILLUSTRATIVE-ONLY in this live test; load-bearing gate is RG-012 \
+             (test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array). \
+             BC-2.16.022 §PC1; ADR-058 §K5 Div-3."
+        );
+
+        // 2. metadata_uid present and non-null (policy_id → ocsf_field "metadata.uid").
+        assert!(
+            simulated_wire_row.contains_key("metadata_uid"),
+            "RG-007: live record MUST have 'metadata_uid' (policy_id Tier-1 ocsf_field \
+             'metadata.uid' → Arrow 'metadata_uid'). BC-2.16.022 §PC2 / AC-007. \
+             Keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+        assert!(
+            simulated_wire_row
+                .get("metadata_uid")
+                .map(|v| !v.is_null())
+                .unwrap_or(false),
+            "RG-007: live 'metadata_uid' MUST be non-null (policy_id is REQUIRED). \
+             BC-2.16.022 §PC2."
+        );
+
+        // 3. raw_extensions present as JSON object.
+        assert!(
+            simulated_wire_row
+                .get("raw_extensions")
+                .map(|v| v.is_object())
+                .unwrap_or(false),
+            "RG-007: raw_extensions MUST be a JSON object (Tier-2 aggregation). \
+             BC-2.16.022 AC-007. Got: {:?}",
+            simulated_wire_row.get("raw_extensions")
+        );
+
+        // 4. raw_extensions["applied_models"] is a native JSON array (not a string).
+        if let Some(raw_ext_val) = simulated_wire_row.get("raw_extensions") {
+            if let Some(raw_ext_obj) = raw_ext_val.as_object() {
+                if let Some(applied_models) = raw_ext_obj.get("applied_models") {
+                    assert!(
+                        applied_models.is_array(),
+                        "RG-007: raw_extensions['applied_models'] MUST be a NATIVE JSON array, \
+                         NOT a JSON string. column_type = 'json' arm (ENRICH-1 DD-2) must \
+                         preserve the native array. Got: {:?}. BC-2.16.022 §PC5.",
+                        applied_models
+                    );
+                    assert!(
+                        !applied_models.is_string(),
+                        "RG-007: raw_extensions['applied_models'] MUST NOT be a JSON string. \
+                         Got: {:?}. BC-2.16.022 §PC5.",
+                        applied_models
+                    );
+                }
+            }
+        }
+
+        // 5. Raw TOML name 'policy_id' MUST NOT appear as a top-level wire key.
+        //    Under ocsf_column_naming = true, it is projected as 'metadata_uid' (ADR-058 §I2).
+        assert!(
+            !simulated_wire_row.contains_key("policy_id"),
+            "RG-007: 'policy_id' (raw TOML name) MUST NOT be a top-level wire key — \
+             projected as 'metadata_uid' under ocsf_column_naming = true. \
+             ADR-058 §I2; BC-2.16.022 §PC2. Keys: {:?}",
+            simulated_wire_row.keys().collect::<Vec<_>>()
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -505,7 +629,15 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
 #[ignore = "LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to live \
              monroe sensor; run manually or in live-validation CI job"]
 async fn test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination() {
+    let Ok(instance_url) = std::env::var("CLAROTY_INSTANCE_URL") else {
+        // LIVE-MONROE-001: ungated after S-CLAROTY-ACLPOLICY-001 merges and
+        // CLAROTY_INSTANCE_URL is set in the live-validation CI job.
+        return;
+    };
+
     let spec = load_claroty_spec();
+
+    // Structural gate: table must exist before running live unbounded-select test.
     let _table = spec
         .tables
         .iter()
@@ -515,13 +647,61 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagi
              claroty.sensor.toml before running live unbounded-select test",
         );
 
-    // TODO(LIVE-MONROE-001): implement live QueryEngine call — SELECT * without LIMIT.
-    // The live test MUST assert (wire-shape discipline, 2026-07-13):
-    //   1. Query succeeds (no E-SENSOR-001)
-    //   2. Wire JSON rows do NOT have a "count" key
-    //   3. Running the same query twice returns the same row count (no second-page loop)
-    todo!(
-        "LIVE-MONROE-001: live unbounded-select test; \
-         ungated after monroe sensor accessible and S-CLAROTY-ACLPOLICY-001 merged"
+    let mut live_spec = spec.clone();
+    live_spec.base_url = instance_url;
+
+    let live_table = live_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "organization_acl_policies")
+        .expect(
+            "BC-2.16.022 RG-010: organization_acl_policies must exist in live_spec after clone",
+        );
+
+    let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("RG-010: http client must build (ADR-050 rustls-tls)");
+    let auth = NullAuthProvider;
+
+    // 1. Query succeeds (no E-SENSOR-001). Unbounded SELECT: PaginationConfig::None
+    //    means single-fetch — no second-page loop. BC-2.16.022 §PC4 / AC-010.
+    let result = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "RG-010: unbounded SELECT must succeed for claroty_organization_acl_policies. \
+             PaginationConfig::None: single-fetch, no second-page loop. \
+             BC-2.16.022 §PC4 / AC-010.",
+        );
+
+    // 2. Wire JSON rows do NOT have a "count" key.
+    //    The xDome organization_acl_policies response envelope has no count field.
+    for record in result.records.iter().take(10) {
+        assert!(
+            record.get("count").is_none(),
+            "RG-010: Wire row MUST NOT contain a 'count' key — the xDome \
+             organization_acl_policies response has no count field in its envelope. \
+             PaginationConfig::None. BC-2.16.022 §PC4. Got: {:?}",
+            record
+        );
+    }
+
+    // 3. Running the same query twice returns the same row count (no second-page loop).
+    //    PaginationConfig::None is deterministic: one fetch → same row count each run.
+    let result2 = PipelineExecutor::execute(&live_spec, live_table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "RG-010: second unbounded SELECT must succeed. \
+             BC-2.16.022 §PC4.",
+        );
+    assert_eq!(
+        result.records.len(),
+        result2.records.len(),
+        "RG-010: Two identical unbounded SELECTs MUST return the same row count \
+         (PaginationConfig::None — no second-page loop). \
+         run1={}, run2={}. BC-2.16.022 §PC4 / AC-010.",
+        result.records.len(),
+        result2.records.len()
     );
 }

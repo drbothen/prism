@@ -6385,6 +6385,14 @@ ocsf_column_naming = true
     /// - Post-TOML-add (before ENRICH-1 fix): raw_extensions["applied_models"] is
     ///   a string → `is_array()` fails → FAILS.
     /// - Post-TOML-add + ENRICH-1 fix: applied_models preserved as array → PASSES.
+    ///
+    /// SAP-3 rule-3 (defense-in-depth): This test calls `pipeline_result_to_record_batch`
+    /// directly with a synthetic `PipelineResult`. It is intentionally defense-in-depth —
+    /// it does NOT reach this arm end-to-end from the product surface (HTTP fetch boundary).
+    /// The authoritative end-to-end gate is
+    /// `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array`
+    /// (RG-012, BC-2.16.022 AC-007) in
+    /// `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs`.
     #[test]
     fn test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string() {
         use arrow::array::StringArray;
@@ -6500,6 +6508,14 @@ ocsf_column_naming = true
     /// BC-2.11.001 EC-11-079 row-shape). Arrow `is_null()` verifies the cell-level null.
     ///
     /// Red Gate: `.find().expect()` panics when table absent from claroty.sensor.toml.
+    ///
+    /// SAP-3 rule-3 (defense-in-depth): This test calls `pipeline_result_to_record_batch`
+    /// directly with a synthetic `PipelineResult`. It is intentionally defense-in-depth —
+    /// it does NOT reach this arm end-to-end from the product surface (HTTP fetch boundary).
+    /// The authoritative end-to-end gate is
+    /// `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array`
+    /// (RG-012, BC-2.16.022 AC-007) in
+    /// `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs`.
     #[test]
     fn test_BC_2_16_022_null_metadata_uid_when_policy_id_absent() {
         use arrow::array::StringArray;
@@ -6598,6 +6614,14 @@ ocsf_column_naming = true
     /// Wire-shape assertion: parse the raw_extensions JSON string and check key presence.
     ///
     /// Red Gate: `.find().expect()` panics when table absent from claroty.sensor.toml.
+    ///
+    /// SAP-3 rule-3 (defense-in-depth): This test calls `pipeline_result_to_record_batch`
+    /// directly with a synthetic `PipelineResult`. It is intentionally defense-in-depth —
+    /// it does NOT reach this arm end-to-end from the product surface (HTTP fetch boundary).
+    /// The authoritative end-to-end gate is
+    /// `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array`
+    /// (RG-012, BC-2.16.022 AC-007) in
+    /// `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs`.
     #[test]
     fn test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions() {
         use arrow::array::StringArray;
