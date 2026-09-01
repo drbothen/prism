@@ -992,16 +992,18 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
  {
     let mock_server = MockServer::start().await;
 
-    // Catch-all POST mock for all 7 Claroty table endpoints.
+    // Catch-all POST mock for all 9 Claroty table endpoints.
     // source_table = "claroty" → queried_table_name = None → all tables execute.
-    // The response MUST include all seven response_path keys ($.alerts, $.audit_log,
+    // The response MUST include all nine response_path keys ($.alerts, $.audit_log,
     // $.devices, $.devices_alerts, $.vulnerabilities, $.ot_activity_events,
-    // $.devices_vulnerabilities) as empty arrays:
+    // $.devices_vulnerabilities, $.servers, $.server_interfaces) as empty arrays:
     // extract_at_path returns Err for missing keys (not empty-array), which would
     // short-circuit the table loop via `?`.
     // S-CLAROTY-VULNS-001 added $.vulnerabilities (5th table — Wave A G1).
     // S-CLAROTY-OT-EVENTS-001 added $.ot_activity_events (6th table — Wave A G2).
     // S-CLAROTY-DEVVULNREL-001 added $.devices_vulnerabilities (7th table — Wave B G3).
+    // S-CLAROTY-SERVERS-001 added $.servers (8th table — Wave C G4) and
+    //   $.server_interfaces (9th table — Wave C G4).
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "alerts": [],
@@ -1015,7 +1017,11 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
             // S-CLAROTY-DEVVULNREL-001: device_vulnerability_relations uses response_path
             // "$.devices_vulnerabilities" — must be present (empty array) or extract_at_path
             // returns Err and short-circuits the table loop (see test comment above).
-            "devices_vulnerabilities": []
+            "devices_vulnerabilities": [],
+            // S-CLAROTY-SERVERS-001: servers table uses response_path "$.servers".
+            "servers": [],
+            // S-CLAROTY-SERVERS-001: server_interfaces table uses response_path "$.server_interfaces".
+            "server_interfaces": []
         })))
         .mount(&mock_server)
         .await;
