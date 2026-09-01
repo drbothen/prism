@@ -1669,6 +1669,12 @@ ocsf_class = "entity_management"
   # response_path: "$.organization_acl_policies" — sole key in GetOrganizationAclPoliciesResponse.
   # body_template: policy_acl_syntax is a REQUIRED request field (OpenAPI required: ["policy_acl_syntax"]).
   #   Hardcoded "Cisco dACL" for v1; NOT in fields projection enum.
+  #   filter_by: server-side cross-field validator (NOT captured in OpenAPI required:[]) mandates
+  #     at least one of policy_id, policy_name, or filter_by. filter_by.field="policy_id",
+  #     operation="is_not_null" is the API-supported enumerate-all selector (policy_id is the
+  #     system UUID PK). Without this, the live Claroty API returns HTTP 422:
+  #     "At least one of policy_id, policy_name, or filter_by must be provided".
+  #     FIX-A for G6 live-holdout defect. Cite: BC-2.16.022 §PC1 + EC-016-022-011.
   #   fields: all 11 OrganizationAclPolicy fields_enum values (policy_acl_syntax excluded from fields).
   # pagination.type = "none": GetOrganizationAclPoliciesRequest declares additionalProperties:false
   #   with NO offset/limit fields. Injecting them causes a 422 API error.
@@ -1676,7 +1682,7 @@ ocsf_class = "entity_management"
   name = "fetch_organization_acl_policies"
   method = "POST"
   path_template = "/api/v1/organization_acl_policies/"
-  body_template = '{"policy_acl_syntax": "Cisco dACL", "fields": ["policy_id", "policy_name", "policy_source", "applied_models", "matching_devices", "policy_acl_type", "policy_acl", "policy_creation_date", "policy_last_updated", "policy_updated_by", "policy_notes"]}'
+  body_template = '{"policy_acl_syntax":"Cisco dACL","filter_by":{"field":"policy_id","operation":"is_not_null"},"fields":["policy_id","policy_name","policy_source","applied_models","matching_devices","policy_acl_type","policy_acl","policy_creation_date","policy_last_updated","policy_updated_by","policy_notes"]}'
   response_path = "$.organization_acl_policies"
   variables_produced = []
   [tables.steps.pagination]

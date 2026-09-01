@@ -459,6 +459,82 @@ fn test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_type
 }
 
 // ---------------------------------------------------------------------------
+// RG-005 / FIX-A regression — body_template contains filter_by field=policy_id
+//                              operation=is_not_null (live-holdout defect EC-016-022-011)
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.022 §PC1 + EC-016-022-011 — body_template MUST contain
+/// `filter_by: {field: "policy_id", operation: "is_not_null"}`.
+///
+/// The live Claroty xDome API enforces a server-side cross-field validator
+/// (NOT captured by OpenAPI required:[]) that demands at least one of
+/// policy_id, policy_name, or filter_by. Without filter_by, every request
+/// returns HTTP 422: "At least one of policy_id, policy_name, or filter_by
+/// must be provided". filter_by.field="policy_id", operation="is_not_null"
+/// is the enumerate-all selector (policy_id is the system UUID PK).
+///
+/// FIX-A for G6 live-holdout defect. Load-bearing regression test — if
+/// filter_by is ever removed from body_template this test will catch it.
+///
+/// Red Gate: `.expect()` panics when table absent from claroty.sensor.toml.
+#[test]
+fn test_BC_2_16_022_claroty_org_acl_policies_body_template_has_filter_by_policy_id_is_not_null() {
+    let spec = load_claroty_spec();
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "organization_acl_policies")
+        .expect(
+            "BC-2.16.022 EC-016-022-011 RED GATE: claroty_organization_acl_policies must exist \
+             in claroty.sensor.toml to test filter_by contract.",
+        );
+
+    let step = table
+        .steps
+        .first()
+        .expect("BC-2.16.022 EC-016-022-011: table must have at least one step");
+
+    let body_template_str = step
+        .body_template
+        .as_deref()
+        .expect("BC-2.16.022 EC-016-022-011: body_template must be present");
+
+    let body: serde_json::Value = serde_json::from_str(body_template_str)
+        .expect("BC-2.16.022 EC-016-022-011: body_template must be valid JSON");
+
+    // BC-2.16.022 §PC1 + EC-016-022-011: "filter_by" key must be present.
+    let filter_by = body.get("filter_by").expect(
+        "BC-2.16.022 EC-016-022-011 FIX-A REGRESSION: body_template MUST contain 'filter_by' \
+         key. The live Claroty xDome API server-side cross-field validator requires at least one \
+         of policy_id, policy_name, or filter_by — without it HTTP 422 is returned. \
+         filter_by.field=\"policy_id\", operation=\"is_not_null\" is the enumerate-all selector.",
+    );
+
+    // filter_by["field"] must be "policy_id".
+    let field_val = filter_by
+        .get("field")
+        .expect("BC-2.16.022 EC-016-022-011: body_template filter_by MUST have 'field' key");
+    assert_eq!(
+        field_val, "policy_id",
+        "BC-2.16.022 EC-016-022-011: body_template filter_by 'field' MUST be 'policy_id' \
+         (system UUID PK; enumerate-all selector). Got: '{}'",
+        field_val
+    );
+
+    // filter_by["operation"] must be "is_not_null".
+    let operation_val = filter_by
+        .get("operation")
+        .expect("BC-2.16.022 EC-016-022-011: body_template filter_by MUST have 'operation' key");
+    assert_eq!(
+        operation_val, "is_not_null",
+        "BC-2.16.022 EC-016-022-011: body_template filter_by 'operation' MUST be 'is_not_null' \
+         (enumerate-all selector for policy_id UUID PK). Got: '{}'",
+        operation_val
+    );
+}
+
+// ---------------------------------------------------------------------------
 // RG-007 / AC-007 — Live Variant-1 wire-shape test (#[ignore])
 // ---------------------------------------------------------------------------
 
