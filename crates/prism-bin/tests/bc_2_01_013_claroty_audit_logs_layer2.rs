@@ -992,20 +992,30 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
  {
     let mock_server = MockServer::start().await;
 
-    // Catch-all POST mock for all 5 Claroty table endpoints.
+    // Catch-all POST mock for all 7 Claroty table endpoints.
     // source_table = "claroty" → queried_table_name = None → all tables execute.
-    // The response MUST include all six response_path keys ($.alerts, $.audit_log,
-    // $.devices, $.devices_alerts, $.vulnerabilities, $.ot_activity_events) as empty arrays:
+    // The response MUST include all seven response_path keys ($.alerts, $.audit_log,
+    // $.devices, $.devices_alerts, $.vulnerabilities, $.ot_activity_events,
+    // $.devices_vulnerabilities) as empty arrays:
     // extract_at_path returns Err for missing keys (not empty-array), which would
     // short-circuit the table loop via `?`.
+    // S-CLAROTY-VULNS-001 added $.vulnerabilities (5th table — Wave A G1).
+    // S-CLAROTY-OT-EVENTS-001 added $.ot_activity_events (6th table — Wave A G2).
+    // S-CLAROTY-DEVVULNREL-001 added $.devices_vulnerabilities (7th table — Wave B G3).
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "alerts": [],
             "audit_log": [],
             "devices": [],
             "devices_alerts": [],
+            // S-CLAROTY-VULNS-001: vulnerabilities table uses response_path "$.vulnerabilities".
             "vulnerabilities": [],
-            "ot_activity_events": []
+            // S-CLAROTY-OT-EVENTS-001: ot_activity_events table uses response_path "$.ot_activity_events".
+            "ot_activity_events": [],
+            // S-CLAROTY-DEVVULNREL-001: device_vulnerability_relations uses response_path
+            // "$.devices_vulnerabilities" — must be present (empty array) or extract_at_path
+            // returns Err and short-circuits the table loop (see test comment above).
+            "devices_vulnerabilities": []
         })))
         .mount(&mock_server)
         .await;

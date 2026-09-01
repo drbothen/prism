@@ -888,3 +888,119 @@ ocsf_class = "detection_finding"
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: claroty_device_vulnerability_relations
+# Wave B G3 — POST /api/v1/device_vulnerability_relations/ → envelope key: devices_vulnerabilities
+# (note: envelope key "devices_vulnerabilities" diverges from table name —
+#   response_path = "$.devices_vulnerabilities" exactly; NOT "$.device_vulnerability_relations")
+# OCSF class: vulnerability_finding (class_uid 2002; existing arm in class_selector.rs;
+#   same arm used by claroty_vulnerabilities — no new arm required per BC-2.16.017 §PC3)
+# Composite PK: (vulnerability_name, device_uid) — see BC-2.16.017 §PC3
+#   vulnerability_name carries REQUIRED; device_uid does NOT (null device_uid is valid)
+# DTU status: NONE — SAP-2 probe N/A per BC-2.16.017 §PC5 + D-2200 (no DTU route for
+#   device_vulnerability_relations; DTU creation deferred to xdome-endpoint-expansion-plan.md
+#   §Deferred DTU-Creation Stories)
+# 201 of 214 DeviceVulnerability enum fields deferred per BC-2.16.017 §PC4 Groups A/B/C
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "device_vulnerability_relations"
+ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm; same as claroty_vulnerabilities)
+
+  # Tier-1: vulnerability_name → finding_info.title → Arrow "finding_info_title" (REQUIRED)
+  # ocsf_field_to_arrow_name("finding_info.title") = "finding_info_title" (ADR-058 §C)
+  [[tables.columns]]
+  name = "vulnerability_name"
+  column_type = "string"
+  ocsf_field = "finding_info.title"
+  options = ["REQUIRED"]
+
+  # Tier-1: device_vulnerability_detection_date → time → Arrow "time"
+  # ocsf_field_to_arrow_name("time") = "time" (ADR-058 §C)
+  # timestamp_formats omitted — ADR-028 §D8-B implicit iso8601 default applies
+  [[tables.columns]]
+  name = "device_vulnerability_detection_date"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # Tier-2: composite PK join key to claroty_devices (device_uid → claroty_devices.uid)
+  # No REQUIRED option — null device_uid is valid per BC-2.16.017 §Invariants
+  [[tables.columns]]
+  name = "device_uid"
+  column_type = "string"
+
+  # Tier-2: human-readable device name
+  [[tables.columns]]
+  name = "device_name"
+  column_type = "string"
+
+  # Tier-2: alternative device asset identifier
+  [[tables.columns]]
+  name = "device_asset_id"
+  column_type = "string"
+
+  # Tier-2: opaque Claroty vulnerability ID (CJYASHKR format); joins to claroty_vulnerabilities
+  # via its `id` field (vulnerability_name → name is the BC-2.16.017 §PC3 composite-PK join key;
+  # vulnerability_id → id is the opaque-ID alternative join per endpoint-spike-findings.md §Spike-1)
+  [[tables.columns]]
+  name = "vulnerability_id"
+  column_type = "string"
+
+  # Tier-2: CVSS v3 base score — primary risk-triage field (0.0–10.0)
+  [[tables.columns]]
+  name = "vulnerability_cvss_v3_score"
+  column_type = "float"
+
+  # Tier-2: CISA KEV indicator (true = known exploited in the wild)
+  [[tables.columns]]
+  name = "vulnerability_is_known_exploited"
+  column_type = "boolean"
+
+  # Tier-2: EPSS exploit probability score (0.0–1.0)
+  [[tables.columns]]
+  name = "vulnerability_epss_score"
+  column_type = "float"
+
+  # Tier-2: nullable — absent when vulnerability is still open on this device (EC-016-017-002)
+  # timestamp_formats omitted — ADR-028 §D8-B implicit iso8601 default applies
+  [[tables.columns]]
+  name = "device_vulnerability_resolution_date"
+  column_type = "datetime"
+
+  # Tier-2: array of strings describing relevance classification (e.g. ["Software", "Configuration"])
+  # column_type = "json" — value stored as Value::Array in raw_extensions; serializes as "[]" when empty
+  # (EC-016-017-004: empty array "[]" must NOT be null; wire-shape discipline applies)
+  [[tables.columns]]
+  name = "device_vulnerability_relevance_reasons"
+  column_type = "json"
+
+  # Tier-2: nullable — absent when device has not been patched (EC-016-017-003)
+  # timestamp_formats omitted — ADR-028 §D8-B implicit iso8601 default applies
+  [[tables.columns]]
+  name = "patch_install_date"
+  column_type = "datetime"
+
+  # Tier-2: physical or logical site/location of the device
+  [[tables.columns]]
+  name = "device_site_name"
+  column_type = "string"
+
+  # POST-for-read step with offset pagination
+  # response_path: "$.devices_vulnerabilities" — key in GetDeviceVulnerabilitiesResponse envelope
+  # body_template: fields projection is REQUIRED by GetDeviceVulnerabilitiesParameters (minItems: 1);
+  #   all 13 declared column names are valid DeviceVulnerability__fields_enum values
+  #   (verified 2026-08-31 against xDome OpenAPI GetDeviceVulnerabilitiesParameters schema).
+  # OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time
+  #   (pipeline.rs::build_request — BC-2.16.002 §Postconditions OffsetLimit Pagination Dispatch).
+  # NOTE: include_count NOT set — OpenAPI default false; offset-0-only; short-page halt (page_record_count < page_size) is the
+  #   termination mechanism; empty-page is the degenerate case (BC-2.16.017 §PC1 Envelope note, EC-016-017-005, AC-007).
+  [[tables.steps]]
+  name = "fetch_device_vulnerability_relations"
+  method = "POST"
+  path_template = "/api/v1/device_vulnerability_relations/"
+  body_template = '{"fields": ["vulnerability_name", "device_uid", "device_name", "device_asset_id", "vulnerability_id", "vulnerability_cvss_v3_score", "vulnerability_is_known_exploited", "vulnerability_epss_score", "device_vulnerability_detection_date", "device_vulnerability_resolution_date", "device_vulnerability_relevance_reasons", "patch_install_date", "device_site_name"]}'
+  response_path = "$.devices_vulnerabilities"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000
