@@ -8,26 +8,26 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-ORGPOLICY-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.020-claroty-org-zone-domain.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "f660fcc"
+input-hash: "a91185c"
 traces_to: "BC-2.16.020"
 behavioral_contracts:
   - BC-2.16.020
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-ORGPOLICY-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-09-01"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
@@ -71,10 +71,13 @@ BC-2.16.020 §Postconditions 1 and 3:
 3. The `name` value in at least one row is a non-null, non-empty string — evidence that real
    zone data was retrieved from the live sensor.
 
-4. The returned rows carry a `raw_extensions` column containing a JSON object with at least one
-   zone-specific Tier-2 key (e.g., `zone_source`, `priority`, `device_conditions`,
+4. The returned rows carry a `raw_extensions` column containing a non-null JSON-serialized STRING
+   (Arrow Utf8 per ADR-058 §I2) that, when parsed via `serde_json::from_str`, contains at least
+   one zone-specific Tier-2 key (e.g., `zone_source`, `priority`, `device_conditions`,
    `attributed_devices`, or `last_update`) — evidence that Tier-2 columns were aggregated
-   correctly.
+   correctly. The wire-level value is a string (`"raw_extensions":"{...}"`), NOT a native JSON
+   object; a native object is structurally wrong per ADR-058 §I2 (D-2381 native-JSON rule applies
+   only to column_type="json" values INSIDE raw_extensions, not the container).
 
 5. The rows do NOT carry a column named `zone_name` as a standalone Arrow field — if `zone_name`
    appears as a top-level column instead of `name`, the Tier-1 OCSF rename was not applied.
@@ -86,7 +89,7 @@ BC-2.16.020 §Postconditions 1 and 3:
 **Then** the response is not an error
 **And** the response wire JSON contains a row with a column `class_uid` equal to `3004`
 **And** the response wire JSON contains a row with a column `name` that is a non-null, non-empty string
-**And** the response wire JSON contains a row with a column `raw_extensions` that is a JSON object with at least one zone-specific Tier-2 key
+**And** the response wire JSON contains a row with a column `raw_extensions` that is a non-null JSON-serialized string (Arrow Utf8 per ADR-058 §I2) whose parsed content contains at least one zone-specific Tier-2 key
 **And** the response wire JSON does NOT contain a top-level column named `zone_name`
 
 ---
@@ -116,7 +119,7 @@ BC-2.16.020 §Postconditions 1 and 3:
 |-------|--------------|-----------------|
 | BC-2.16.020 | §Postconditions 1: ocsf_class = "entity_management" → class_uid 3004 | Assertion 1: class_uid = 3004 in wire output |
 | BC-2.16.020 | §Postconditions 3 Tier-1: zone_name → ocsf_field = "name" → Arrow field name REQUIRED | Assertion 2: name column present and non-null; not zone_name |
-| BC-2.16.020 | §Postconditions 3 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion 3: raw_extensions JSON object with zone-specific keys present |
+| BC-2.16.020 | §Postconditions 3 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion 3: raw_extensions present as serialized JSON string (Arrow Utf8, ADR-058 §I2) whose parsed object contains zone-specific Tier-2 keys |
 | BC-2.16.020 | §Postconditions 1: POST /api/v1/organization_zones/, response_path = $.organization_zones | End-to-end: table successfully queries live sensor |
 
 ---
@@ -139,11 +142,17 @@ BC-2.16.020 §Postconditions 1 and 3:
 5. Assert no top-level column named `zone_name` exists in the first row. If `zone_name` appears
    as a standalone Arrow column, record FAIL on "Tier-1 rename applied" dimension.
 
-6. Inspect the first row's column list for `raw_extensions`. Assert it is a JSON object (not
-   null, not a string) containing at least one key that belongs to the Tier-2 column set
-   (`zone_source`, `priority`, `device_conditions`, `attributed_devices`,
-   `exportable_attributed_devices`, `created_time`, `last_update`). If `raw_extensions` is
-   absent or null, record FAIL on "raw_extensions Tier-2 aggregation" dimension.
+6. Inspect the first row's column list for `raw_extensions`. Per ADR-058 §I2, raw_extensions is
+   an Arrow Utf8 column; the wire emits it as a JSON-serialized STRING (`"raw_extensions":"{...}"`),
+   NOT a native JSON object. Assert: (a) the value is a non-null string; (b) parsing the string
+   via `serde_json::from_str` succeeds; (c) the parsed object contains at least one key belonging
+   to the Tier-2 column set (`zone_source`, `priority`, `device_conditions`, `attributed_devices`,
+   `exportable_attributed_devices`, `created_time`, `last_update`).
+   If `raw_extensions` is absent or null, record FAIL on "raw_extensions Tier-2 aggregation"
+   dimension.
+   If `raw_extensions` is present as a native JSON object (not a string), record PARTIAL (0.5) —
+   data is present but the encoding is structurally wrong per ADR-058 §I2; D-2381 native-JSON rule
+   applies only to column_type="json" values INSIDE raw_extensions, not the container itself.
 
 7. Do NOT assert specific zone name values or specific Tier-2 field values — the live sensor's
    content varies; structural assertions are sufficient.
@@ -173,10 +182,14 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   not applied).
 
 - **raw_extensions present with Tier-2 keys** (weight: 0.20): Does at least one returned row
-  carry a `raw_extensions` JSON object with at least one zone-specific Tier-2 key?
-  Full credit (1.0): raw_extensions present, is a JSON object, contains at least one Tier-2 key.
-  Partial credit (0.5): raw_extensions present but null or empty object.
-  Zero credit (0.0): raw_extensions column absent.
+  carry a `raw_extensions` value that is a non-null JSON-serialized string (Arrow Utf8, ADR-058
+  §I2) whose parsed object contains at least one zone-specific Tier-2 key?
+  Full credit (1.0): raw_extensions present as a non-null string; `serde_json::from_str` succeeds;
+  parsed object contains ≥1 Tier-2 key from the zone column set.
+  Partial credit (0.5): raw_extensions present as a native JSON object (structurally wrong per
+  ADR-058 §I2 — D-2406 adjudication; data is accessible but wire encoding is wrong); OR present
+  as a string that parses to an empty object.
+  Zero credit (0.0): raw_extensions column absent or null.
 
 ---
 
@@ -218,7 +231,8 @@ assertion threshold.
 | false_negative_threshold | Zero: if name is absent, the OCSF Tier-1 column mapping is broken |
 
 **Known-good corpus:** monroe Claroty xDome with ≥1 organization zone — expected: non-error
-response, class_uid=3004, name non-null string, raw_extensions with zone Tier-2 keys.
+response, class_uid=3004, name non-null string, raw_extensions as non-null serialized JSON string
+(Arrow Utf8) with zone Tier-2 keys in the parsed object.
 
 **Known-problematic corpus:** An environment where the `claroty_organization_zones` TOML table
 block was not added — expected: "table not found" error or E-QUERY-038. This is the failure
@@ -230,4 +244,5 @@ mode BC-2.16.020 §Postconditions 1 guards against.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | xdome-wave-c-g5-hs-raw-extensions-correction | 2026-09-01 | product-owner | Correct raw_extensions encoding expectation per ADR-058 §I2 and D-2406 adjudication. raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized STRING on the wire (`"raw_extensions":"{...}"`), not a native JSON object. Removes "not a string" / "native object" / "JSON object" wording from §Scenario point 4, §BDD supplement, §Behavioral Contract Linkage, §Verification Approach step 6, and §Evaluation Rubric. PARTIAL credit assigned when raw_extensions is a native object (structurally wrong per ADR-058 §I2). D-2381 native-JSON rule applies only to column_type="json" values INSIDE raw_extensions, not the container. Mirrors G4 HS-001/HS-003 v1.1 amendment. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-028 group for S-CLAROTY-ORGPOLICY-001. Wire-shape assertion: class_uid=3004 and name Tier-1 REQUIRED column (from zone_name→entity_management name) present in live monroe sensor output. BC-2.16.020 §Postconditions 1 and 3. SINGLE-USE. |

@@ -1,14 +1,49 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.034"
+version: "8.035"
 status: current
-timestamp: 2026-08-31T23:59:00Z
+timestamp: 2026-09-01T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2401 (2026-08-31): POST-MERGE BURST — G2 (S-CLAROTY-OT-EVENTS-001) MERGED PR #246 @3d724a069 (D-2400 blanket authority). BC-2.16.016 draft→active (POL-14). develop_head 6972ac2e→3d724a069. STATE v8.930→v8.931. SESSION-HANDOFF v8.033→v8.034. [D-2400 historical: BLANKET MERGE AUTHORITY GRANT. D-2399 historical: G2 live holdout gate HUMAN-ACCEPTED.]**
+> **D-2409+D-2410 (2026-09-01): G5 (S-CLAROTY-ORGPOLICY-001) LIVE-TENANT HOLDOUT GATE PASS mean 1.00 (all 4 HS-028 P0 consumed; VERDICT-A per D-2406; demo @2194812e8 live-output-free) + THREE NEW STANDING DIRECTIVES (LIVE-ONLY testing until G6 merged; no live-test output in repo superseding SEC-004; git-history purge authorized post-G6-merge). STATE v8.938→v8.939. HOLDOUT-INDEX v1.31→v1.32. SESSION-HANDOFF v8.034→v8.035. [D-2408 historical: G5 rebase + pre-PR fixes.]**
+
+---
+
+## §RESUME SNAPSHOT — D-2409+D-2410 (2026-09-01 — G5 HOLDOUT GATE PASS; 3 NEW STANDING DIRECTIVES; G5 @2194812e8 POST-DEMO; G6 rebased on G5 branch; SAFE TO CLEAR) [supersedes D-2408]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. G1–G4 MERGED (BCs active; develop@157596490). D-2400 BLANKET MERGE AUTHORITY in force for G5–G6. G5 (S-CLAROTY-ORGPOLICY-001) @2194812e8 POST-DEMO: holdout GATE PASS mean 1.00 all 4 must_pass (D-2409; all 4 HS-028 consumed; VERDICT-A same as D-2406). Demo committed live-output-free. NEXT = PR → pr-reviewer → ORCHESTRATOR-authorized merge (D-2400 blanket grant) → post-merge burst. G6 (S-CLAROTY-ACLPOLICY-001 @1a6873a13) rebased onto G5 branch — parallel review in flight; rebase onto merged develop before holdout/PR. THREE NEW STANDING DIRECTIVES D-2410 now in force (see STANDING DECISIONS below).
+
+### GOVERNING OBJECTIVE
+Claroty xDome fully functional (human-directed). G5 → G6 → LIVE xDome tenant validation (v1 release gate).
+
+### PER-WORKSTREAM NEXT-ACTIONS
+- **G1–G4:** MERGED. BCs active. Worktrees REMOVABLE.
+- **G5 (S-CLAROTY-ORGPOLICY-001):** @2194812e8 POST-DEMO. Holdout PASS mean 1.00 (D-2409). NEXT: PR → pr-reviewer → ORCHESTRATOR merge → post-merge burst (POL-14 BC-2.16.020+BC-2.16.021 draft→active).
+- **G6 (S-CLAROTY-ACLPOLICY-001):** @1a6873a13 rebased on G5 branch (parallel review). After G5 merges: rebase onto develop → final consistency sweep → live holdout (NO DTU per D-2410) → demo (live-output-free per D-2410) → PR → merge.
+
+### CONVERGENCE STATE
+G1 MERGED. G2 MERGED. G3 MERGED. G4 MERGED (develop@157596490). G5 @2194812e8 POST-DEMO NEXT=PR. G6 @1a6873a13 NEXT=post-G5-rebase+review+holdout+PR.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `157596490` (D-2407 G4 PR #248 squash-merge 2026-09-01).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- G1–G4: MERGED; worktrees REMOVABLE.
+- `feature/S-CLAROTY-ORGPOLICY-001` (G5): `2194812e8` LOCAL-ONLY POST-DEMO (holdout PASS; NEXT = PR)
+- `feature/S-CLAROTY-ACLPOLICY-001` (G6): `1a6873a13` LOCAL-ONLY (rebased onto G5 branch; parallel review)
+- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2410 (3 new human-directed standing directives: LIVE-ONLY testing; no live output in repo; git-history purge authorized post-G6). D-2409 (G5 holdout GATE PASS mean 1.00; VERDICT-A; HOLDOUT-INDEX v1.31→v1.32). D-2408 (G5 rebase + pre-PR fixes; historical). SESSION-HANDOFF v8.034→v8.035.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2357 G2–G6 in v1 scope. (d) D-2396 convergence bar in effect. (e) D-2400 BLANKET MERGE AUTHORITY (human-directed 2026-08-31) — still in force for G5–G6. (f) Live xDome tenant validation per-story merge gate; canonical runbook: .factory/ops/live-tenant-validation-runbook.md. (g) SAP-4/POL-42 in force. (h) Holdout gate BLOCKING at story level before demo/push. **(i) D-2410 LIVE-ONLY TESTING until G6 merged: NO DTU-clone builds, NO dtu-validator runs, NO SAP-2-against-clone gating; validate exclusively via live monroe instance. Consistent with D-2200 DTU deferral + POST-v1 de-scope. (human-directed 2026-09-01)** **(j) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004 "acceptable as-is" call): demo evidence uses mock/synthetic + product schema/error-message artifacts only; live query RESULT rows / real tenant data (device_uid, device_name, IPs, serials, CVE IDs) must NOT be committed. Applies to all remaining stories. (human-directed 2026-09-01)** **(k) D-2410 GIT-HISTORY PURGE AUTHORIZED post-G6-merge: git filter-repo on develop to remove already-committed live output in merged G2/G3/G4 demo-evidence; force-push develop — RE-CONFIRMED with human at execution; target = post-G6-merge, pre-live-release-validation. (human-directed 2026-09-01)**
 
 ---
 

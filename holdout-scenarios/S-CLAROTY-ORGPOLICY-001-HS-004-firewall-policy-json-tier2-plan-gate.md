@@ -10,24 +10,24 @@ epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-ORGPOLICY-001"
 version: "1.0"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "967aa52"
+input-hash: "f0cbf03"
 traces_to: "BC-2.16.021"
 behavioral_contracts:
   - BC-2.16.021
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-ORGPOLICY-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-09-01"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null

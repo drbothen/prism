@@ -8,26 +8,26 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-ORGPOLICY-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "967aa52"
+input-hash: "f0cbf03"
 traces_to: "BC-2.16.021"
 behavioral_contracts:
   - BC-2.16.021
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-ORGPOLICY-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-09-01"
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
@@ -71,9 +71,13 @@ envelope key asymmetry documented in BC-2.16.021 §PC1:
    mapping of `firewall_group_name` (source: `ocsf_field = "name"` → Arrow `name`, REQUIRED).
    The rows do NOT carry a standalone column named `firewall_group_name`.
 
-4. The returned rows carry a `raw_extensions` column containing a JSON object with at least one
-   firewall-group-specific Tier-2 key (e.g., `firewall_group_source`, `priority`,
-   `device_conditions`, `attributed_devices`, or `last_update`).
+4. The returned rows carry a `raw_extensions` column containing a non-null JSON-serialized STRING
+   (Arrow Utf8 per ADR-058 §I2) that, when parsed via `serde_json::from_str`, contains at least
+   one firewall-group-specific Tier-2 key (e.g., `firewall_group_source`, `priority`,
+   `device_conditions`, `attributed_devices`, or `last_update`). The wire-level value is a string
+   (`"raw_extensions":"{...}"`), NOT a native JSON object; a native object is structurally wrong
+   per ADR-058 §I2 (D-2381 native-JSON rule applies only to column_type="json" values INSIDE
+   raw_extensions, not the container).
 
 **BDD supplement:**
 
@@ -84,7 +88,7 @@ envelope key asymmetry documented in BC-2.16.021 §PC1:
 **And** the response wire JSON contains a row with a column `class_uid` equal to `3004`
 **And** the response wire JSON contains a row with a column `name` that is a non-null, non-empty string
 **And** the response wire JSON does NOT contain a top-level column named `firewall_group_name`
-**And** the response wire JSON contains a row with a column `raw_extensions` containing a JSON object with at least one firewall-group Tier-2 key
+**And** the response wire JSON contains a row with a column `raw_extensions` that is a non-null JSON-serialized string (Arrow Utf8 per ADR-058 §I2) whose parsed content contains at least one firewall-group Tier-2 key
 
 ---
 
@@ -110,7 +114,7 @@ envelope key asymmetry documented in BC-2.16.021 §PC1:
 | BC-2.16.021 | §Postconditions 1: ocsf_class = "entity_management" → class_uid 3004 | Assertion: class_uid = 3004 in wire output |
 | BC-2.16.021 | §Postconditions 1: URL /api/v1/organization_fw_groups/ with response_path $.organization_firewall_groups (URL vs envelope key asymmetry) | Assertion: non-empty result set (empty = possible response_path bug or setup failure) |
 | BC-2.16.021 | §Postconditions 3 Tier-1: firewall_group_name → ocsf_field = "name" → Arrow field name REQUIRED | Assertion: name column present and non-null; firewall_group_name absent as standalone |
-| BC-2.16.021 | §Postconditions 3 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion: raw_extensions JSON object with firewall-group Tier-2 keys present |
+| BC-2.16.021 | §Postconditions 3 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion: raw_extensions present as serialized JSON string (Arrow Utf8, ADR-058 §I2) whose parsed object contains firewall-group Tier-2 keys |
 
 ---
 
@@ -135,9 +139,15 @@ envelope key asymmetry documented in BC-2.16.021 §PC1:
 5. Inspect the row's column list. Assert `name` is present and non-null. Assert `firewall_group_name`
    is NOT a standalone column. Record appropriately.
 
-6. Inspect `raw_extensions`. Assert it is a JSON object with at least one Tier-2 key from
-   (`firewall_group_source`, `priority`, `device_conditions`, `attributed_devices`,
-   `exportable_attributed_devices`, `created_time`, `last_update`).
+6. Inspect `raw_extensions`. Per ADR-058 §I2, raw_extensions is an Arrow Utf8 column; the wire
+   emits it as a JSON-serialized STRING (`"raw_extensions":"{...}"`), NOT a native JSON object.
+   Assert: (a) the value is a non-null string; (b) parsing the string via `serde_json::from_str`
+   succeeds; (c) the parsed object contains at least one Tier-2 key from (`firewall_group_source`,
+   `priority`, `device_conditions`, `attributed_devices`, `exportable_attributed_devices`,
+   `created_time`, `last_update`).
+   If `raw_extensions` is present as a native JSON object (not a string), record PARTIAL (0.5) —
+   data is present but the encoding is structurally wrong per ADR-058 §I2; D-2381 native-JSON rule
+   applies only to column_type="json" values INSIDE raw_extensions, not the container itself.
 
 ---
 
@@ -161,11 +171,15 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   Partial credit (0.5): name present but null.
   Zero credit (0.0): name absent OR firewall_group_name appears as standalone.
 
-- **raw_extensions with Tier-2 keys** (weight: 0.15): raw_extensions present as JSON object
-  with at least one firewall-group Tier-2 key.
-  Full credit (1.0): present with ≥1 Tier-2 key.
-  Partial credit (0.5): present but empty object.
-  Zero credit (0.0): absent.
+- **raw_extensions with Tier-2 keys** (weight: 0.15): raw_extensions present as a non-null
+  JSON-serialized string (Arrow Utf8, ADR-058 §I2) whose parsed object contains at least one
+  firewall-group Tier-2 key.
+  Full credit (1.0): present as non-null string; `serde_json::from_str` succeeds; parsed object
+  contains ≥1 Tier-2 key from the firewall-group column set.
+  Partial credit (0.5): present as a native JSON object (structurally wrong per ADR-058 §I2 —
+  D-2406 adjudication; data is accessible but wire encoding is wrong); OR present as a string
+  that parses to an empty object.
+  Zero credit (0.0): absent or null.
 
 ---
 
@@ -206,7 +220,8 @@ or the response_path correction.
 | false_negative_threshold | Zero: zero rows from wrong response_path is caught by SUSPICIOUS-FAIL classification |
 
 **Known-good corpus:** monroe with ≥1 firewall group and correct response_path — expected:
-non-empty result, class_uid=3004, name non-null string, raw_extensions with firewall Tier-2 keys.
+non-empty result, class_uid=3004, name non-null string, raw_extensions as non-null serialized JSON
+string (Arrow Utf8) with firewall-group Tier-2 keys in the parsed object.
 
 **Known-problematic corpus:** A claroty.sensor.toml where `response_path = "$.organization_fw_groups"`
 (abbreviated) is used — expected: zero rows with no error (silent data loss). This is the failure
@@ -218,4 +233,5 @@ mode BC-2.16.021 §Invariants guards against.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | xdome-wave-c-g5-hs-raw-extensions-correction | 2026-09-01 | product-owner | Correct raw_extensions encoding expectation per ADR-058 §I2 and D-2406 adjudication. raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized STRING on the wire (`"raw_extensions":"{...}"`), not a native JSON object. Removes "not a string" / "native object" / "JSON object" wording from §Scenario point 4, §BDD supplement, §Behavioral Contract Linkage, §Verification Approach step 6, and §Evaluation Rubric. PARTIAL credit assigned when raw_extensions is a native object (structurally wrong per ADR-058 §I2). D-2381 native-JSON rule applies only to column_type="json" values INSIDE raw_extensions, not the container. Mirrors G4 HS-001/HS-003 v1.1 amendment. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-028 group for S-CLAROTY-ORGPOLICY-001. Wire-shape assertion: class_uid=3004, firewall_group_name→name Tier-1 REQUIRED rename, raw_extensions aggregation. URL vs envelope key asymmetry (path _fw_groups vs envelope organization_firewall_groups) explicitly verified via non-empty result set check. BC-2.16.021 §Postconditions 1 and 3. SINGLE-USE. |
