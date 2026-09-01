@@ -992,8 +992,8 @@ ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm; same as c
   #   (verified 2026-08-31 against xDome OpenAPI GetDeviceVulnerabilitiesParameters schema).
   # OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time
   #   (pipeline.rs::build_request — BC-2.16.002 §Postconditions OffsetLimit Pagination Dispatch).
-  # NOTE: include_count NOT set — OpenAPI default false; offset-0-only; empty-page halt is the
-  #   primary termination mechanism (BC-2.16.017 §PC1 Envelope note, EC-016-017-005, AC-007).
+  # NOTE: include_count NOT set — OpenAPI default false; offset-0-only; short-page halt (page_record_count < page_size) is the
+  #   termination mechanism; empty-page is the degenerate case (BC-2.16.017 §PC1 Envelope note, EC-016-017-005, AC-007).
   [[tables.steps]]
   name = "fetch_device_vulnerability_relations"
   method = "POST"
