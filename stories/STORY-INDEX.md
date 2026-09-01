@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.969"
+version: "2.970"
 status: draft
 producer: state-manager
-timestamp: 2026-08-31T23:59:30Z
+timestamp: 2026-08-31T23:59:59Z
 phase: 3
 total_stories: 320
+# D-2404: G3 (S-CLAROTY-DEVVULNREL-001) POST-MERGE BURST (TD-VSDD-053) — PR #247 @12cecb12 squash-merged (D-2400 blanket authority 2026-08-31). POL-14 BC-2.16.017 draft→active. pin [ready v1.8]→[merged 12cecb12; PR #247]. total_stories 320 UNCHANGED. STORY-INDEX v2.969→v2.970. D-2402 NOTE archived.
 # D-2402: G3 (S-CLAROTY-DEVVULNREL-001) consistency-gate fix burst (TD-VSDD-053) — rebased onto develop@3d724a069; story v1.7→v1.8; pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. STORY-INDEX v2.968→v2.969. D-2401 NOTE archived.
 # D-2399: G2 live holdout gate EXECUTED (monroe, Variant-2). HS-002 PASS 1.00 (consumed), HS-003 PASS 1.00 (consumed), HS-001 SETUP-FAILURE (quiescent OT — NOT consumed). Human ACCEPTED (Option-1). DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 REGISTERED. total_stories 319→320. D-2398 NOTE archived.
 # D-2394: G3 (S-CLAROTY-DEVVULNREL-001) story-doc fix v1.6→v1.7 (MED-1 AC-003/§RGT test-name; LOW-1 BC pin; LOW-2 SS-16 wording). input-hash unchanged dd103fb. statuses UNCHANGED (all ready). total_stories 319 UNCHANGED. STORY-INDEX v2.963→v2.964. D-2393 NOTE archived.
@@ -1078,7 +1079,7 @@ xdome-endpoint-expansion-plan.md §Governing Directive.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [ready v1.8] | prism-sensors, prism-bin | 1 (BC-2.16.017 v1.2) | -- | 5 | S-CLAROTY-VULNS-001 |
+| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [merged 12cecb12; PR #247] | prism-sensors, prism-bin | 1 (BC-2.16.017 v1.2) | -- | 5 | S-CLAROTY-VULNS-001 |
 
 ## Sensor-Critical Stories (Wave C — Claroty xDome Endpoint Expansion)
 
@@ -1677,6 +1678,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.970 | 2026-08-31 | state-manager D-2404: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G3 (S-CLAROTY-DEVVULNREL-001) PR #247 @12cecb12 squash-merged (D-2400 blanket authority 2026-08-31). POL-14 BC-2.16.017 draft→active. STORY-INDEX pin [ready v1.8]→[merged 12cecb12; PR #247]. total_stories 320 UNCHANGED. story_index_version 2.969→2.970. records-lint exit 0. |
 | v2.969 | 2026-08-31 | state-manager D-2402: G3 (S-CLAROTY-DEVVULNREL-001) consistency-gate fix burst (TD-VSDD-053) — rebased onto develop@3d724a069; story v1.7→v1.8; STORY-INDEX pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. story_index_version 2.968→2.969. records-lint exit 0. |
 | v2.968 | 2026-08-31 | state-manager D-2401: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) MERGED (PR #246 @3d724a069). POL-14: BC-2.16.016 draft→active. S-CLAROTY-OT-EVENTS-001 status ready→merged; pin [ready v1.9]→[merged v1.9 PR #246 @3d724a069]. D-2400 blanket authority. total_stories 320 UNCHANGED. STORY-INDEX v2.967→v2.968. records-lint exit 0. |
 | v2.967 | 2026-08-31 | state-manager D-2399: SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) live holdout gate EXECUTED (monroe, Variant-2 read-only). HS-002 PASS 1.00 (consumed: Tier-2 source_ip E-QUERY-038 + raw_extensions queryable). HS-003 PASS 1.00 (consumed: SELECT time OCSF name accepted; SELECT detection_time E-QUERY-038). HS-001 SETUP-FAILURE (quiescent OT network — 0 events; NOT consumed; kept for future re-run). Human ACCEPTED (Option-1): gate PASSED on 2/3-at-ceiling + structural corroboration. DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 REGISTERED (post-v1, engine-defects, prism-query; E-QUERY-037 sensor-qualified table ref; post-v1 grammar reconciliation). total_stories 319→320. STORY-INDEX v2.966→v2.967. records-lint exit 0. |
