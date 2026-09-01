@@ -41,8 +41,9 @@
 //! # SID-1 compliance
 //!
 //! This is a NON-#[ignore] test (SID-1: no-ignored-test rationalization prohibition).
-//! RG-007/RG-010 (`#[ignore]` + `todo!()` in prism-spec-engine) remain as live-only
-//! stubs; this test provides the non-live wire-shape coverage they cannot.
+//! RG-007/RG-010 in prism-spec-engine are `#[ignore]` live-only tests; they are fully
+//! implemented (~160 and ~90 lines of real assertions respectively) and are NOT stubs or
+//! `todo!()` placeholders. This file provides the non-live wire-shape coverage they cannot.
 //!
 //! BC: BC-2.16.022
 //! Story: S-CLAROTY-ACLPOLICY-001 RG-012
@@ -256,6 +257,59 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_jso
             "RG-012: fetch() must succeed when the mock server returns a valid \
              organization_acl_policies response. BC-2.16.022 AC-007.",
         );
+
+    // ── HIGH-1 fix: assert on the actual emitted POST body, not just the TOML template ──
+    //
+    // AC-002 story MUST: a test MUST assert that the serialized POST body does NOT contain
+    // `offset` or `limit` keys. AC-003/EC-016-022-011/FIX-A: body MUST contain
+    // `policy_acl_syntax == "Cisco dACL"` and `filter_by.field == "policy_id"`,
+    // `filter_by.operation == "is_not_null"`. AC-010 non-live: exactly one request (single-fetch
+    // no pagination loop; PaginationConfig::None).
+    //
+    // These assertions are LOAD-BEARING: they would fail if pipeline.rs::build_request
+    // injected offset/limit on the PaginationConfig::None arm, or if filter_by were absent
+    // from the outbound POST body. A template-text assertion (RG-002 / RG-013) cannot
+    // catch injection that happens downstream of the template. This is the gate that
+    // would have caught the FIX-A defect (HTTP 422 from missing filter_by) before live.
+    //
+    // BC-2.16.022 §Invariants; EC-016-022-007; AC-002; AC-003; AC-010 (non-live half).
+    let reqs = mock_server.received_requests().await.unwrap_or_default();
+    assert_eq!(
+        reqs.len(),
+        1,
+        "RG-012 LOAD-BEARING (AC-010 non-live): exactly one POST request MUST be sent — \
+         PaginationConfig::None means single-fetch with no pagination loop. \
+         Got {} requests. BC-2.16.022 §PC4 / AC-010.",
+        reqs.len()
+    );
+    let sent: serde_json::Value =
+        serde_json::from_slice(&reqs[0].body).expect("RG-012: outbound POST body must be JSON");
+    assert!(
+        sent.get("offset").is_none() && sent.get("limit").is_none(),
+        "RG-012 LOAD-BEARING (AC-002): PaginationConfig::None MUST NOT inject 'offset' or \
+         'limit' into the POST body — GetOrganizationAclPoliciesRequest declares \
+         additionalProperties:false with no offset/limit fields; injecting them causes HTTP 422. \
+         BC-2.16.022 §Invariants; EC-016-022-007. Sent body: {}",
+        sent
+    );
+    assert_eq!(
+        sent["policy_acl_syntax"], "Cisco dACL",
+        "RG-012 LOAD-BEARING (AC-003): POST body MUST contain \
+         'policy_acl_syntax' == 'Cisco dACL' — REQUIRED field in \
+         GetOrganizationAclPoliciesRequest (OpenAPI required:[\"policy_acl_syntax\"]). \
+         BC-2.16.022 §PC1."
+    );
+    assert_eq!(
+        sent["filter_by"]["field"], "policy_id",
+        "RG-012 LOAD-BEARING (EC-016-022-011 / FIX-A): POST body filter_by.field MUST be \
+         'policy_id' — the enumerate-all selector. Without filter_by the live API returns \
+         HTTP 422. BC-2.16.022 §PC1 + EC-016-022-011."
+    );
+    assert_eq!(
+        sent["filter_by"]["operation"], "is_not_null",
+        "RG-012 LOAD-BEARING (EC-016-022-011 / FIX-A): POST body filter_by.operation MUST be \
+         'is_not_null'. BC-2.16.022 §PC1 + EC-016-022-011."
+    );
 
     assert!(
         !batches.batches.is_empty(),
@@ -473,6 +527,32 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_jso
          serialized JSON row under ocsf_column_naming = true — it is projected as \
          'metadata_uid' instead. ADR-058 §I2; BC-2.16.022 §PC2.",
     );
+
+    // ── MEDIUM-1 fix: AC-007 item 7 — the 5 remaining Tier-2 field names ABSENT at root ──
+    //
+    // AC-007 §7: all 7 Tier-2 API field names MUST NOT appear as standalone top-level keys
+    // in the serialized JSON row. `applied_models` is asserted absent above (assertion 1).
+    // The remaining 5 Tier-2 field names are: policy_source, policy_acl, matching_devices,
+    // policy_creation_date, policy_last_updated (ADR-058 §J6: Tier-2 → raw_extensions only).
+    //
+    // These assertions are LOAD-BEARING on the RG-012 path. BC-2.16.022 AC-007 §7.
+    for tier2_raw_name in &[
+        "policy_source",
+        "policy_acl",
+        "matching_devices",
+        "policy_creation_date",
+        "policy_last_updated",
+    ] {
+        assert!(
+            row0.get(tier2_raw_name).is_none(),
+            "RG-012 LOAD-BEARING (AC-007 §7 MEDIUM-1 fix): Tier-2 field '{}' MUST NOT \
+             appear as a standalone top-level key in the serialized JSON row — it is \
+             aggregated into raw_extensions (ADR-058 §J6). \
+             Got row keys: {:?}. BC-2.16.022 AC-007.",
+            tier2_raw_name,
+            row0.as_object().map(|o| o.keys().collect::<Vec<_>>())
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

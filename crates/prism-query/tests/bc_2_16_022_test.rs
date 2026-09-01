@@ -205,7 +205,9 @@ mod tests {
                      'claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
                     d.table
                 );
-                // Wire-shape: ALL Tier-1/synthesized columns must be in available_columns.
+                // Structured-error field assertion (L-3 relabel): ALL Tier-1/synthesized
+                // columns must be in available_columns. These assertions check Rust error
+                // struct fields (d.available_columns), not serialized MCP response bytes.
                 // BC-2.16.022 §Invariants: `available_columns` MUST contain the full set —
                 // raw_extensions, metadata_uid, name, actor_user_name, comment, class_uid,
                 // _sensor. A regression silently dropping any member of this set would pass
@@ -230,8 +232,9 @@ mod tests {
                         d.available_columns
                     );
                 }
-                // Wire-shape: "policy_source" must NOT be in available_columns.
-                // Raw Tier-2 TOML column names are NOT projected as standalone Arrow columns.
+                // Structured-error field assertion: "policy_source" must NOT be in
+                // available_columns. Raw Tier-2 TOML column names are NOT projected as
+                // standalone Arrow columns.
                 assert!(
                     !d.available_columns.contains(&"policy_source".to_string()),
                     "BC-2.16.022 AC-005: E-QUERY-038 available_columns MUST NOT contain \
@@ -313,8 +316,9 @@ mod tests {
                      'claroty_organization_acl_policies' (fully-qualified). Got: '{}'",
                     d.table
                 );
-                // Wire-shape: "metadata_uid" must be in available_columns.
-                // This tells the LLM agent to use "metadata_uid" instead of "policy_id".
+                // Structured-error field assertion: "metadata_uid" must be in
+                // available_columns. This tells the LLM agent to use "metadata_uid"
+                // instead of "policy_id".
                 // ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid".
                 assert!(
                     d.available_columns.contains(&"metadata_uid".to_string()),
@@ -324,8 +328,9 @@ mod tests {
                      available_columns: {:?}",
                     d.available_columns
                 );
-                // Wire-shape: "policy_id" must NOT be in available_columns.
-                // Raw API field names are NOT projected under ocsf_column_naming = true.
+                // Structured-error field assertion: "policy_id" must NOT be in
+                // available_columns. Raw API field names are NOT projected under
+                // ocsf_column_naming = true.
                 assert!(
                     !d.available_columns.contains(&"policy_id".to_string()),
                     "BC-2.16.022 AC-006: E-QUERY-038 available_columns MUST NOT contain \

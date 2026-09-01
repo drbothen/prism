@@ -19,10 +19,18 @@
 # ARROW SCHEMA (ocsf_column_naming = true, inherited at sensor level)
 # Exposed top-level Arrow columns (prism_describe output shape):
 #
-#   metadata_uid   (string, nullable=false)  Tier-1 REQUIRED — OCSF metadata.uid
+#   metadata_uid   (string, nullable=true)   Tier-1 REQUIRED — OCSF metadata.uid
 #                  TOML: name="policy_id", column_type="string", ocsf_field="metadata.uid",
 #                        options=["REQUIRED"]
 #                  Arrow name: ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid"
+#                  NULLABILITY NOTE: options=["REQUIRED"] controls spec-engine null-row
+#                  push-down eligibility, NOT Arrow field nullability. spec_driven_adapter
+#                  pushes Field::new(&arrow_name, ..., true) for all Tier-1 columns;
+#                  prism_describe emits ColumnDescriptor { nullable: true } unconditionally
+#                  for Tier-1. RG-009 asserts meta_uid_arr.is_null(0) == true when policy_id
+#                  is absent — confirming nullable=true is the correct Arrow schema value.
+#                  (class_uid and _sensor remain nullable=false — those are synthesized
+#                  columns, not TOML-declared Tier-1 fields, and are correct as-is.)
 #
 #   name           (string, nullable=true)   Tier-1 — OCSF name (display label)
 #                  TOML: name="policy_name", column_type="string", ocsf_field="name"

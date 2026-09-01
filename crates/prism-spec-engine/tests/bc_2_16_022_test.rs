@@ -547,6 +547,19 @@ fn test_BC_2_16_022_claroty_org_acl_policies_body_template_has_filter_by_policy_
 ///
 /// #[ignore] — LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to
 /// monroe live sensor. Run manually or in live-validation CI job.
+///
+/// # O-3 (systemic) — NullAuthProvider warning
+///
+/// This test builds a real `reqwest::Client` against `CLAROTY_INSTANCE_URL` but passes
+/// `NullAuthProvider`, while BC-2.16.022 §Preconditions requires a configured Claroty
+/// bearer token. If run against live monroe with the env var set, the unauthenticated
+/// request WILL be rejected and `.expect("live PipelineExecutor::execute must succeed")`
+/// will panic. This is the same pattern in the G4/G5 sibling wire-shape tests (systemic).
+/// Before ungating in live-validation CI, inject a real auth provider with a valid token.
+/// See `.factory/ops/live-tenant-validation-runbook.md` for the CI auth-injection procedure.
+/// Note: the double-gate (`#[ignore]` AND env-var early return) prevents accidental live
+/// execution in normal CI; the auth gap only manifests when both gates are deliberately
+/// bypassed.
 #[tokio::test]
 #[ignore = "LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to live \
              monroe sensor; run manually or in live-validation CI job"]
@@ -621,15 +634,10 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
             .expect("RG-007: raw_extensions must serialize to JSON object");
         simulated_wire_row.insert("raw_extensions".to_string(), raw_ext_json);
 
-        // 1. class_uid == 3004 (ILLUSTRATIVE-ONLY literal; load-bearing gate is RG-012).
-        assert_eq!(
-            simulated_wire_row.get("class_uid"),
-            Some(&json!(3004_i32)),
-            "RG-007: class_uid MUST be 3004 (entity_management). \
-             NOTE: ILLUSTRATIVE-ONLY in this live test; load-bearing gate is RG-012 \
-             (test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array). \
-             BC-2.16.022 §PC1; ADR-058 §K5 Div-3."
-        );
+        // 1. class_uid == 3004 — assertion removed per MEDIUM-1 fix (O-1 tautology):
+        //    The live test inserts json!(3004_i32) and then immediately asserts it equals
+        //    json!(3004_i32) — always true, cannot fail. The load-bearing gate is RG-012.
+        //    Prefer deleting a tautology over annotating it (MEDIUM-1 / O-1 review finding).
 
         // 2. metadata_uid present and non-null (policy_id → ocsf_field "metadata.uid").
         assert!(
@@ -701,6 +709,15 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
 /// Wire output must NOT contain a "count" key (no count field in xDome response envelope).
 ///
 /// #[ignore] — LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var.
+///
+/// # O-3 (systemic) — NullAuthProvider warning
+///
+/// Same NullAuthProvider gap as RG-007: this test passes `NullAuthProvider` while
+/// BC-2.16.022 §Preconditions requires a configured Claroty bearer token. An
+/// unauthenticated request against live monroe will fail. Before ungating in
+/// live-validation CI, inject a real auth provider per the procedure in
+/// `.factory/ops/live-tenant-validation-runbook.md`. The same gap exists in the
+/// G4/G5 sibling wire-shape tests (systemic — tracked separately).
 #[tokio::test]
 #[ignore = "LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to live \
              monroe sensor; run manually or in live-validation CI job"]
@@ -751,17 +768,21 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagi
              BC-2.16.022 §PC4 / AC-010.",
         );
 
-    // 2. Wire JSON rows do NOT have a "count" key.
-    //    The xDome organization_acl_policies response envelope has no count field.
-    for record in result.records.iter().take(10) {
-        assert!(
-            record.get("count").is_none(),
-            "RG-010: Wire row MUST NOT contain a 'count' key — the xDome \
-             organization_acl_policies response has no count field in its envelope. \
-             PaginationConfig::None. BC-2.16.022 §PC4. Got: {:?}",
-            record
-        );
-    }
+    // 2. No "count" key in response envelope — MEDIUM-2 fix:
+    //    The prior per-record assertion (`record.get("count").is_none()`) was at the wrong
+    //    nesting level: `count` (if it existed) would be a sibling of `organization_acl_policies`
+    //    in the wire envelope, not inside each extracted record. The assertion was also vacuous
+    //    with 0 policies (loop body never executed) and trivially true for any well-formed record.
+    //
+    //    The load-bearing non-live gate is in RG-012
+    //    (test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array):
+    //    `reqs.len() == 1` asserts single-fetch / no pagination loop (AC-010 non-live half).
+    //    The structural proof that the Claroty response envelope has no "count" sibling is
+    //    response_path = "$.organization_acl_policies" — PipelineExecutor extracts only the
+    //    inner array, so a count at the envelope level never reaches result.records regardless.
+    //
+    // LIVE AC-010 check: stability assertion below proves no second-page loop fired.
+    // BC-2.16.022 §PC4 / AC-010.
 
     // 3. Running the same query twice returns the same row count (no second-page loop).
     //    PaginationConfig::None is deterministic: one fetch → same row count each run.

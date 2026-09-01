@@ -1675,6 +1675,11 @@ ocsf_class = "entity_management"
   #     system UUID PK). Without this, the live Claroty API returns HTTP 422:
   #     "At least one of policy_id, policy_name, or filter_by must be provided".
   #     FIX-A for G6 live-holdout defect. Cite: BC-2.16.022 §PC1 + EC-016-022-011.
+  #   L-4 durable anchor: the enumerate-all semantics of filter_by {field:policy_id,
+  #     operation:is_not_null} are accepted by the live API (D-2414 verified 0-policy tenant),
+  #     but "accepted" ≠ "enumerates all". Re-validate under S-CLAROTY-ACLPOLICY-DTU-001
+  #     (D-2200) when the DTU route lands: seed a multi-policy fixture and assert the filter
+  #     returns all records, not a subset.
   #   fields: all 11 OrganizationAclPolicy fields_enum values (policy_acl_syntax excluded from fields).
   # pagination.type = "none": GetOrganizationAclPoliciesRequest declares additionalProperties:false
   #   with NO offset/limit fields. Injecting them causes a 422 API error.

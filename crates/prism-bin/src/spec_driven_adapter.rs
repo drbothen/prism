@@ -6371,20 +6371,23 @@ ocsf_column_naming = true
     /// field is a JSON array, the raw_extensions JSON blob MUST contain
     /// `applied_models` as a native JSON array — NOT a stringified array.
     ///
-    /// This test exposes the ENRICH-1 DD-2 bug (lines 1155-1169): the current
-    /// raw_extensions builder converts ALL serde_json::Value::Array values to
-    /// `serde_json::Value::String(...)` regardless of `column_type`. After the
-    /// implementer's fix, arrays for `column_type = "json"` columns MUST be
-    /// preserved as native JSON arrays.
+    /// ## L-1/O-4 correction — pre-existing arm, no fix made in this PR
+    ///
+    /// The `ColumnType::Json` arm of the raw_extensions builder (the branch that preserves
+    /// `Value::Array` for json-typed columns) was introduced by PR #245 (S-CLAROTY-VULNS-001)
+    /// and PRE-EXISTS on `develop`. No fix to that arm was made by S-CLAROTY-ACLPOLICY-001.
+    /// This test is a **per-table regression guard** for the pre-existing arm: the Red Gate
+    /// state is table-absence — before `organization_acl_policies` is added to
+    /// `claroty.sensor.toml`, `.find().expect()` panics and the test FAILS. Once the table is
+    /// present, the pre-existing Json arm handles it correctly and the test PASSES.
     ///
     /// Wire-shape assertion (2026-07-13): assert on the serialized raw_extensions
     /// JSON, which is the exact form consumed by MCP clients via DataFusion.
     ///
     /// Red Gate mechanism:
     /// - Pre-TOML-add: `.find().expect()` panics (table absent) → FAILS.
-    /// - Post-TOML-add (before ENRICH-1 fix): raw_extensions["applied_models"] is
-    ///   a string → `is_array()` fails → FAILS.
-    /// - Post-TOML-add + ENRICH-1 fix: applied_models preserved as array → PASSES.
+    /// - Post-TOML-add: pre-existing `ColumnType::Json` arm of the raw_extensions builder
+    ///   preserves applied_models as a native array → PASSES.
     ///
     /// SAP-3 rule-3 (defense-in-depth): This test calls `pipeline_result_to_record_batch`
     /// directly with a synthetic `PipelineResult`. It is intentionally defense-in-depth —
