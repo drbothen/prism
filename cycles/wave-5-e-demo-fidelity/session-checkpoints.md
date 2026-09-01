@@ -643,3 +643,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2386 2026-08-31):** develop: origin/develop = local develop = `51bb3bc1` (D-2378 divergence RESOLVED); feature/S-CLAROTY-VULNS-001 (G1): `423fc7659` LOCAL-ONLY (origin stale at `5aae6f0b3`; force-push-with-lease required); feature/S-CLAROTY-OT-EVENTS-001 (G2): `98b8234dc` LOCAL-ONLY (MED-1+MED-2+LOW-1 fixes applied; BC-2.16.016 v1.2 + story v1.2; LOCAL 3-CLEAN RESET; fresh re-gate PENDING); feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED squash `c5be059f`; S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (P2 non-gating, parked); Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
 
 **NOTE: Superseded by D-2387 — S-CLAROTY-VULNS-001 G1 PR #245 squash-merged develop@6972ac2e (human-authorized 2026-08-31). BC-2.16.015 draft→active per POL-14. develop_head 51bb3bc1→6972ac2e. STATE v8.918→v8.919.**
+
+---
+
+## Archived: D-2414 — 2026-09-01; STATE v8.942→v8.943 — G6 LIVE HOLDOUT GATE HUMAN-ACCEPTED (SETUP-FAILURE quiescent); NEXT: demo → PR → merge
+
+**RESUME IN ONE BREATH:** Phase 3 Wave-5-E, v1 Claroty xDome. G1–G5 MERGED (develop @07e64f4e). G6 (S-CLAROTY-ACLPOLICY-001) is the LAST sensor story: live holdout HUMAN-ACCEPTED (SETUP-FAILURE quiescent — monroe has zero org ACL policies; API HTTP 404 legitimate; FIX-A HTTP 422 GONE; binary @29695e0b9 correct). VERY NEXT ACTION: G6 demo (live-output-free per D-2410) → force-push feature to origin → PR → ORCHESTRATOR merge (D-2400 blanket grant) → post-merge state-manager burst.
+
+**HEADS (D-2414 2026-09-01):** develop: origin/develop = local develop = `07e64f4e` (D-2412 G5 PR #249 squash-merge); feature/S-CLAROTY-ACLPOLICY-001 (G6): `29695e0b9` LOCAL-ONLY (FIX-A applied; holdout ACCEPTED D-2414; story v1.6; demo + PR pending); G1–G5: MERGED; worktrees REMOVABLE; feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED squash `c5be059f`; S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (parked); Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2415 — S-CLAROTY-ACLPOLICY-001 G6 PR #250 squash-merged develop@672b10b6 (D-2400 blanket authority 2026-09-01). BC-2.16.022 draft→active per POL-14. G1–G6 ALL MERGED; v1 Claroty xDome 14-table sensor COMPLETE. STATE v8.943→v8.944.**

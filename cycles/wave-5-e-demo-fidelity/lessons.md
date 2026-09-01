@@ -5093,3 +5093,31 @@ Occurrences:
 **Rule (codified):** Any `#[ignore]`'d test function whose name contains `_live_` MUST have a real env-gated body at authoring time: read `SENSOR_INSTANCE_URL` (or equivalent), skip gracefully if absent, execute a real query if present. A bare `todo!()` or `panic!()` body is forbidden under SID-1 regardless of whether the live environment is available at authoring time. A CI gate (AC-003 of S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001) will mechanically enforce this once the story ships.
 
 **Source:** D-2411 G6 rebase + pre-PR front-loaded review fixes. Related: D-2408 (G5 CR-002), D-2408 RECURRENCE-WATCH entry above (now CODIFIED).
+
+---
+
+### [reminder] G6 cycle-2 cascade: sibling-sweep miss on evidence-report.md twin (TD-VSDD-097 Dim-1)
+
+**Date recorded:** 2026-09-01
+**D-NNN anchor:** D-2415 (G6 post-merge burst)
+**Story:** S-CLAROTY-ACLPOLICY-001
+**Tags:** [sibling-sweep] [TD-VSDD-097] [dim-1] [evidence-report] [within-cascade-miss]
+**Classification:** WITHIN-CASCADE REMINDER — TD-VSDD-097 Dim-1 sibling-pair miss caught by cycle-2 adversary (not a new 3x-recurrence; no new follow-up story required; NOT a new codification trigger).
+
+**Description:**
+
+During the G6 PR-LEVEL cascade, the first fix-burst (cycle-1 → fix-burst @133faf98a) closed H-1 (paper-fix: nullable=false comment in test file) correctly. Cycle-2 then raised MEDIUM-3-RESIDUAL: the `evidence-report.md` file (parallel demo-evidence artifact containing the schema describe output) still retained the pre-correction `nullable=false` statement, while the source test file had been corrected to `nullable=true`. The `evidence-report.md` document is a Dim-1 sibling under TD-VSDD-097 — it was created alongside the primary test file as a schema-describe companion and covers the same table surface.
+
+The residual fix-burst @03f204239 corrected `evidence-report.md`, and cycle-3 returned CLEAN(strict)=yes / CLEAN(PR-merge)=yes.
+
+**Root cause:**
+
+The fixer in fix-burst @133faf98a ran a content-text grep limited to `*.rs` files (the test files themselves). It did not sweep the `docs/demo-evidence/` directory for any parallel evidence artifacts that restate the same schema fields. TD-VSDD-097 Dim-1 requires explicitly naming and sweeping sibling-pair artifacts — but `evidence-report.md` was not recognized as a sibling at fix-burst time.
+
+**Rule reinforcement (not new codification):**
+
+When fixing any test assertion about column schema properties (nullable, type, name), the sweep MUST include `docs/demo-evidence/**/*.md` and `docs/demo-evidence/**/*.txt` for the same story. These files are Dim-1 siblings under TD-VSDD-097 when they restate schema fields from the test. The adversary will catch residuals; the fixer should prevent them in the first place.
+
+This pattern is already covered by TD-VSDD-097 Dim-1. This lesson records the concrete instance for recall and future sibling-awareness but does NOT trigger a new codification story (single occurrence in this cascade, not a 3x recurrence threshold event).
+
+**Source:** D-2415 G6 post-merge burst. G6 PR-LEVEL cascade cycle-2 MEDIUM-3-RESIDUAL finding; residual fix-burst @03f204239; cycle-3 CLEAN.
