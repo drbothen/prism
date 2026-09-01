@@ -8,26 +8,26 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-SERVERS-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.019-claroty-server-interfaces-table.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "6c96259"
+input-hash: "700d52d"
 traces_to: "BC-2.16.019"
 behavioral_contracts:
   - BC-2.16.019
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-SERVERS-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: 2026-09-01
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
@@ -47,7 +47,7 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-CLAROTY-SERVERS-001 (HS-027
 **BC Traced:** BC-2.16.019 §Postconditions 1 (separate endpoint POST `/api/v1/server_interfaces/`
 registered as `claroty_server_interfaces`; ocsf_class = "inventory_info" → class_uid 5001),
 §Postconditions 2 Tier-1 plan-gate (interface_status raw col.name rejected; status_code Arrow name
-accepted), §Postconditions 2 Tier-2 (raw_extensions JSON with interface-specific keys), and
+accepted), §Postconditions 2 Tier-2 (raw_extensions JSON string with interface-specific keys), and
 §Postconditions 3 Composite PK (server_name + interface_name uniquely identify rows)
 **Gate:** Story-level holdout gate (HS-027) — runs after LOCAL 3-CLEAN convergence, before demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
 
@@ -68,9 +68,13 @@ This scenario validates the `claroty_server_interfaces` table, covering four beh
    response's `available_columns` includes `status_code` — confirming the Tier-1 rename
    `interface_status → status_code` is enforced at the plan gate.
 
-4. A `SELECT raw_extensions` query returns a JSON object with at least one of the expected
-   Tier-2 interface keys (`interface_name`, `interface_type`, `interface_connection_type`) —
-   confirming the 8 Tier-2 columns are aggregated into `raw_extensions`.
+4. A `SELECT raw_extensions FROM claroty_server_interfaces` query returns a JSON-serialized
+   STRING (Arrow Utf8; per ADR-058 §I2, raw_extensions is physically stored as an Arrow Utf8
+   column and emitted on the wire as a serialized JSON string). When parsed via
+   serde_json::from_str, the resulting object contains at least one of the expected Tier-2
+   interface keys (`interface_name`, `interface_type`, `interface_connection_type`) — confirming
+   the 8 Tier-2 columns are aggregated correctly. Note: D-2381's native-JSON rule applies only
+   to values INSIDE the raw_extensions object, NOT to the raw_extensions container itself.
 
 **BDD supplement:**
 
@@ -83,7 +87,7 @@ This scenario validates the `claroty_server_interfaces` table, covering four beh
 **And** the error response `available_columns` includes `status_code`
 **When** `SELECT raw_extensions FROM claroty.claroty_server_interfaces LIMIT 1` is issued
 **Then** the response is not an error
-**And** the `raw_extensions` JSON object contains at least one interface Tier-2 key
+**And** the `raw_extensions` value is a non-null JSON-serialized string (Arrow Utf8) whose parsed object contains at least one interface Tier-2 key (ADR-058 §I2)
 
 ---
 
@@ -108,7 +112,7 @@ This scenario validates the `claroty_server_interfaces` table, covering four beh
 | BC-2.16.019 | §Postconditions 1: POST /api/v1/server_interfaces/, table registered as claroty_server_interfaces | Call 1: table queryable at all (separate endpoint registration) |
 | BC-2.16.019 | §Postconditions 1: ocsf_class = "inventory_info" → class_uid 5001 | Call 1: class_uid = 5001 in wire output |
 | BC-2.16.019 | §Postconditions 2 Tier-1: interface_status → ocsf_field = "status_code" → Arrow status_code; raw col.name rejected | Call 2: SELECT interface_status → E-QUERY-038 with status_code in available_columns |
-| BC-2.16.019 | §Postconditions 2 Tier-2: 8 Tier-2 columns aggregate into raw_extensions JSON object | Call 3: SELECT raw_extensions returns JSON with interface Tier-2 keys |
+| BC-2.16.019 | §Postconditions 2 Tier-2: 8 Tier-2 columns aggregate into raw_extensions JSON string (Arrow Utf8) | Call 3: SELECT raw_extensions returns a JSON-serialized string whose parsed object contains interface Tier-2 keys (ADR-058 §I2) |
 | BC-2.16.019 | §Postconditions 3: Composite PK (server_name → device_name, interface_name) | Validated structurally by Tier-2 raw_extensions containing interface_name key |
 
 ---
@@ -133,15 +137,20 @@ This scenario validates the `claroty_server_interfaces` table, covering four beh
   contains `status_code`. If `available_columns` is absent or does not contain `status_code`,
   record PARTIAL on the "available_columns suggests correct name" dimension.
 
-**Call 3:** Issue `SELECT raw_extensions FROM claroty.claroty_server_interfaces LIMIT 1`.
+**Call 3:** Issue `SELECT raw_extensions FROM claroty_server_interfaces LIMIT 1`.
 
 - Parse the wire-level response. Assert it is a non-error rows response.
-- Inspect the first row's `raw_extensions` column. Assert it is a JSON object (not null, not a
-  bare string) containing at least one of: `interface_name`, `interface_type`,
-  `interface_connection_type`, `site_id`, `avg_traffic_past_month_mbps`, `avg_traffic_past_week_mbps`,
-  `avg_traffic_past_hour_mbps`, or `notes`.
-- If `raw_extensions` is absent, null, or an empty object, record FAIL on the "Tier-2 aggregation
-  into raw_extensions" dimension.
+- Inspect the first row's `raw_extensions` column. Assert it is a non-null JSON-serialized STRING
+  (Arrow Utf8). Per ADR-058 §I2, raw_extensions is physically stored as an Arrow Utf8 column and
+  emitted on the wire as a serialized JSON string — a string value here is CORRECT, not a defect.
+  D-2381's native-JSON rule governs only values inside the raw_extensions object, not the container
+  itself. Parse the string value via serde_json::from_str and assert the parsed object contains at
+  least one of: `interface_name`, `interface_type`, `interface_connection_type`, `site_id`,
+  `avg_traffic_past_month_mbps`, `avg_traffic_past_week_mbps`, `avg_traffic_past_hour_mbps`,
+  or `notes`.
+- If `raw_extensions` is absent or null, record FAIL on the "Tier-2 aggregation into raw_extensions"
+  dimension. If raw_extensions is present but is a native JSON object (not a string), record
+  PARTIAL (0.5) — structurally wrong per ADR-058 §I2 but the data is present.
 
 ---
 
@@ -172,8 +181,11 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   Zero credit (0.0): available_columns absent, or interface_status did not trigger E-QUERY-038.
 
 - **raw_extensions Tier-2 aggregation** (weight: 0.10): Are Tier-2 columns aggregated correctly?
-  Full credit (1.0): raw_extensions is a JSON object with at least one interface Tier-2 key.
-  Partial credit (0.5): raw_extensions present but empty object.
+  Per ADR-058 §I2, raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized string on
+  the wire (not a native JSON object).
+  Full credit (1.0): raw_extensions is a non-null string; parsed object contains at least one
+  interface Tier-2 key.
+  Partial credit (0.5): raw_extensions present but is an empty string or empty parsed object.
   Zero credit (0.0): raw_extensions absent or null.
 
 ---
@@ -221,7 +233,8 @@ for in Call 3, or the exact assertion threshold.
 
 **Known-good corpus:** A correctly-implemented claroty_server_interfaces table using the separate
 `/api/v1/server_interfaces/` endpoint with `ocsf_field = "status_code"` on `interface_status` —
-expected: class_uid=5001, interface_status rejected, status_code and raw_extensions resolve.
+expected: class_uid=5001, interface_status rejected, status_code and raw_extensions resolve as a
+JSON-serialized string (Arrow Utf8) whose parsed object contains interface Tier-2 keys.
 
 **Known-problematic corpus A (endpoint confusion):** An implementation that registered server_interfaces
 under the wrong endpoint (e.g., routing through `/api/v1/servers/`) — expected: zero rows or
@@ -237,4 +250,5 @@ Call 2 returns a row with `interface_status` column (failure mode BC-2.16.019 §
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | G4-holdout-raw-extensions-correction | 2026-08-31 | product-owner | Corrected raw_extensions wire-encoding expectation in Call 3 verification (architect verdict-A, mirrors G3 HS-002 / D-2403 precedent). Per ADR-058 §I2, raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized string on the wire — not a native JSON object. Removed "not a bare string" assertion from Scenario §4 and Verification Approach Call 3. Updated BDD supplement, Behavioral Contract Linkage, and Evaluation Rubric to expect a non-null JSON-serialized string whose parsed object contains interface Tier-2 keys. D-2381 native-JSON rule governs only values inside raw_extensions, not the container itself. Used bare table name in Call 3 SQL example. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-027 group for S-CLAROTY-SERVERS-001. Tests BC-2.16.019: separate /api/v1/server_interfaces/ endpoint registration, class_uid=5001, interface_status → status_code Tier-1 plan-gate, raw_extensions Tier-2 aggregation. SINGLE-USE. |

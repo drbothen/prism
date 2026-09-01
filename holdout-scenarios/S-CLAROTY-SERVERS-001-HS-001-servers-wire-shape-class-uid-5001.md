@@ -8,26 +8,26 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-SERVERS-001"
-version: "1.0"
+version: "1.1"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.018-claroty-servers-table.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "9311257"
+input-hash: "6ca4e11"
 traces_to: "BC-2.16.018"
 behavioral_contracts:
   - BC-2.16.018
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-CLAROTY-SERVERS-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: 2026-09-01
+last_eval_satisfaction: 1.00
 staleness_check: null
 stale_reason: null
 retired: null
@@ -68,9 +68,14 @@ against the live Claroty xDome (monroe) sensor, and that the wire output matches
 3. The `device_name` value in at least one row is a non-null, non-empty string — evidence
    that real server data was retrieved from the live sensor.
 
-4. The returned rows carry a `raw_extensions` column containing a JSON object with at least
-   one server inventory key (e.g., `server_location`, `model`, `management_ip`, or
-   `num_of_interfaces`) — evidence that Tier-2 columns were aggregated correctly.
+4. The returned rows carry a `raw_extensions` column containing a JSON-serialized STRING
+   (Arrow Utf8; per ADR-058 §I2, raw_extensions is physically stored as an Arrow Utf8 column
+   and emitted on the wire as a serialized JSON string, e.g.
+   `"raw_extensions":"{\"model\":\"MCS R640\",...}"`). When parsed via serde_json::from_str,
+   the resulting object contains at least one server inventory key (e.g., `server_location`,
+   `model`, `management_ip`, or `num_of_interfaces`) — evidence that Tier-2 columns were
+   aggregated correctly. Note: D-2381's native-JSON rule applies only to values INSIDE the
+   raw_extensions object, NOT to the raw_extensions container itself.
 
 **BDD supplement:**
 
@@ -79,7 +84,7 @@ against the live Claroty xDome (monroe) sensor, and that the wire output matches
 **Then** the response is not an error
 **And** the response wire JSON contains a row with a column `class_uid` equal to `5001`
 **And** the response wire JSON contains a row with a column `device_name` that is a non-null, non-empty string
-**And** the response wire JSON contains a row with a column `raw_extensions` that is a JSON object with at least one server inventory key
+**And** the response wire JSON contains a row with a column `raw_extensions` that is a non-null JSON-serialized string (Arrow Utf8) whose parsed object contains at least one server inventory key (ADR-058 §I2)
 
 ---
 
@@ -108,7 +113,7 @@ against the live Claroty xDome (monroe) sensor, and that the wire output matches
 |-------|--------------|-----------------|
 | BC-2.16.018 | §Postconditions 1: ocsf_class = "inventory_info" → class_uid 5001 | Assertion 1: class_uid = 5001 in wire output |
 | BC-2.16.018 | §Postconditions 2 Tier-1: server_name → ocsf_field = "device.name" → Arrow field device_name REQUIRED | Assertion 2: device_name column present and non-null |
-| BC-2.16.018 | §Postconditions 2 Tier-2: 15 scalar Tier-2 columns aggregate into raw_extensions | Assertion 3: raw_extensions JSON object with inventory keys present |
+| BC-2.16.018 | §Postconditions 2 Tier-2: 15 scalar Tier-2 columns aggregate into raw_extensions | Assertion 3: raw_extensions is a JSON-serialized string (Arrow Utf8) whose parsed object contains inventory keys (ADR-058 §I2) |
 | BC-2.16.018 | §Postconditions 1: POST /api/v1/servers/, response_path = $.servers, offset_limit pagination | End-to-end: table successfully queries live sensor |
 
 ---
@@ -127,9 +132,16 @@ against the live Claroty xDome (monroe) sensor, and that the wire output matches
 4. Inspect the first row's column list for `device_name`. Assert its value is a non-null, non-empty
    string. If the column is absent, record FAIL on "device_name present" dimension.
 
-5. Inspect the first row's column list for `raw_extensions`. Assert it is a JSON object (not null,
-   not a string) containing at least one key that belongs to the Tier-2 column set. If `raw_extensions`
-   is absent or null, record FAIL on "raw_extensions Tier-2 aggregation" dimension.
+5. Inspect the first row's column list for `raw_extensions`. Assert it is a non-null JSON-serialized
+   STRING (Arrow Utf8). Per ADR-058 §I2, raw_extensions is physically stored as an Arrow Utf8 column
+   and emitted on the wire as a serialized JSON string — a string value here is CORRECT, not a
+   defect. D-2381's native-JSON rule governs only values inside the raw_extensions object, not the
+   container itself. Parse the string value via serde_json::from_str and assert the parsed object
+   contains at least one key from the Tier-2 column set (e.g., `server_location`, `model`,
+   `management_ip`, `num_of_interfaces`). If `raw_extensions` is absent or null, record FAIL on
+   "raw_extensions Tier-2 aggregation" dimension. If raw_extensions is present but is a native JSON
+   object (not a string), record PARTIAL (0.5) — structurally wrong per ADR-058 §I2 but the data
+   is present.
 
 6. Do NOT assert specific device_name values or specific Tier-2 field values — the live sensor's
    content varies; structural assertions are sufficient.
@@ -158,10 +170,13 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   Zero credit (0.0): device_name column absent (ocsf_field_to_arrow_name transform not applied).
 
 - **raw_extensions present with Tier-2 keys** (weight: 0.15): Does at least one returned row
-  carry a `raw_extensions` JSON object with at least one server inventory key?
-  Full credit (1.0): raw_extensions present, is a JSON object, contains at least one Tier-2 key.
-  Partial credit (0.5): raw_extensions present but null or empty object.
-  Zero credit (0.0): raw_extensions column absent.
+  carry a `raw_extensions` JSON-serialized string (Arrow Utf8) whose parsed object contains at
+  least one server inventory key? Per ADR-058 §I2, raw_extensions is an Arrow Utf8 column emitted
+  as a serialized JSON string on the wire.
+  Full credit (1.0): raw_extensions present, is a non-null string, parsed object contains at
+  least one Tier-2 key.
+  Partial credit (0.5): raw_extensions present but is an empty string or empty parsed object.
+  Zero credit (0.0): raw_extensions column absent or null.
 
 ---
 
@@ -203,7 +218,8 @@ threshold.
 | false_negative_threshold | Zero: if device_name is absent, the OCSF Tier-1 column mapping is broken |
 
 **Known-good corpus:** monroe Claroty xDome with ≥1 collection server — expected: non-error
-response, class_uid=5001, device_name non-null string, raw_extensions with inventory keys.
+response, class_uid=5001, device_name non-null string, raw_extensions as a JSON-serialized string
+(Arrow Utf8) whose parsed object contains inventory keys.
 
 **Known-problematic corpus:** An environment where the `claroty_servers` TOML table block was
 not added — expected: "table not found" error or E-QUERY-038. This is the failure mode
@@ -215,4 +231,5 @@ BC-2.16.018 §Postconditions 1 guards against.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | G4-holdout-raw-extensions-correction | 2026-08-31 | product-owner | Corrected raw_extensions wire-encoding expectation (architect verdict-A, mirrors G3 HS-002 / D-2403 precedent). Per ADR-058 §I2, raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized string on the wire — not a native JSON object. Removed "not a string" assertion from Scenario §4 and Verification Approach §5. Updated BDD supplement, Behavioral Contract Linkage, and Evaluation Rubric to expect a non-null JSON-serialized string whose parsed object contains Tier-2 keys. D-2381 native-JSON rule governs only values inside raw_extensions, not the container itself. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring. HS-027 group for S-CLAROTY-SERVERS-001. Wire-shape assertion: class_uid=5001 and device_name Tier-1 column present in live monroe sensor output. BC-2.16.018 §Postconditions 1 and 2. SINGLE-USE. |

@@ -4957,3 +4957,43 @@ HS-DEVVULNREL-001-002 v1.0 was authored with dimension 2: "SELECT raw_extensions
 **Corrective action taken:** HS-002 amended v1.0→v1.1 by product-owner (VERDICT-A): dimension 2 corrected to "SELECT finding_info_title returns finding_info_title as a top-level Tier-1 column with a non-null string value" — the correct assertion for a Tier-1 REQUIRED column. Scenario consumed at satisfaction 0.75 (three dimensions correct; one dimension was over-specified; adjudicated as scenario error, not implementation gap). Gate treated as PASS. Mean satisfaction 0.92.
 
 **Transferable rule for scenario authoring:** Before authoring any dimension that asserts "column X is in raw_extensions" for a sensor TOML table with `ocsf_column_naming = true`, verify: does column X have an `ocsf_field` key? If YES → it is Tier-1 → it is a top-level Arrow column and is NEVER in raw_extensions → the correct assertion is "SELECT <arrow_field_name> returns a non-null value at the row top level." If NO → it is Tier-2 → it aggregates into raw_extensions → "SELECT raw_extensions returns JSON object with X key" is the correct assertion.
+
+---
+
+### [scenario-authoring] 2026-09-01 D-2406 — raw_extensions is an Arrow Utf8 column emitted as a JSON-serialized STRING on the MCP wire (ADR-058 §I2); holdout assertions MUST parse the string, NOT assert object type directly
+
+**Date recorded:** 2026-09-01
+**D-NNN anchor:** D-2406 (G4 live holdout gate; VERDICT-A adjudication; second occurrence across G3+G4 — TRACK RECURRENCE; if third occurs escalate to gate/rule per 3-recurrence threshold)
+**Story:** S-CLAROTY-SERVERS-001
+**Tags:** [scenario-authoring] [raw_extensions] [adr-058] [wire-encoding] [holdout] [arrow-utf8]
+**Classification:** SCENARIO-AUTHORING — raw_extensions wire-encoding expectation; OBSERVATION over-specified in both HS-001 v1.0 and HS-003 v1.0 (raw_extensions asserted as native JSON object; ADR-058 §I2 specifies it is Arrow Utf8 emitted as serialized JSON string on the wire).
+
+**Description:**
+
+HS-001 v1.0 (claroty_servers SELECT * wire shape) and HS-003 v1.0 (claroty_server_interfaces separate endpoint) were authored with an assertion that `raw_extensions` is "a JSON object" or "not a bare string." On live evaluation against monroe, `raw_extensions` was correctly returned as a JSON-serialized STRING (Arrow Utf8) — e.g., `"raw_extensions":"{\"model\":\"MCS R640\",...}"`. Both scenarios would have scored PARTIAL (0.5) on the raw_extensions dimension under the v1.0 rubric, but were amended v1.0→v1.1 by the product-owner (pre-consumption) to expect the correct wire encoding. At evaluation all 3 HS-027 scenarios scored 1.00 (GATE PASS mean 1.00).
+
+OBSERVATION adjudicated VERDICT-A (architect): raw_extensions wire encoding is a JSON-serialized STRING (Arrow Utf8) per ADR-058 §I2 — INTENDED, not a defect; consistent across all merged xDome stories (G1 S-CLAROTY-VULNS-001 via HS-024, G2/G3, and now G4). D-2381's native-JSON rule governs only values INSIDE the raw_extensions object, NOT the raw_extensions container itself. This distinction was missed by the product-owner when authoring G4 scenarios.
+
+**Root cause:** ADR-058 §I2 specifies that `raw_extensions` is stored as an Arrow `Utf8` column and emitted on the MCP wire as a serialized JSON string. The product-owner scenario authors did not apply §I2 when writing holdout assertions for raw_extensions, confusing (a) the wire-level encoding of the raw_extensions container with (b) the column_type=json rule for CONTENTS of raw_extensions (D-2381 native-JSON rule). This is the same confusion that produced HS-002 v1.0 authoring error in G3 (D-2403), though that error was in a different dimension (Tier-1 vs Tier-2 column tiers, not wire encoding).
+
+**Rule:** Holdout scenarios and wire-shape tests for `raw_extensions` MUST assert a non-null STRING value at the wire level. The correct assertion chain is:
+1. `raw_extensions` is present and non-null.
+2. `raw_extensions` is a STRING (Arrow Utf8 encoding per ADR-058 §I2) — NOT a native JSON object.
+3. `serde_json::from_str(raw_extensions_value)` succeeds and produces an object.
+4. The parsed object contains at least one expected Tier-2 key.
+
+An assertion like `!is_string()` / `is_object()` on raw_extensions fails on a correct implementation. An assertion like `raw_extensions.as_str().is_some()` (then parse) is correct. The e2e_smoke test (AC-005, merged in G1–G4) enforces this via `.as_str()` — holdout scenarios must mirror this assertion form.
+
+D-2381 native-JSON rule context: the rule "raw_extensions column values must not be double-serialized quoted strings" refers to INDIVIDUAL VALUES inside the raw_extensions object (e.g., `{"key":"value"}` must be a true JSON value, not `{\"key\":\"\\\"value\\\"\"}`). It does NOT govern the raw_extensions container itself — the container is always a Utf8 string by ADR-058 §I2 design.
+
+**Transferable rule for scenario authoring:** Before asserting any behavior of `raw_extensions` in a holdout scenario, apply this decision tree:
+- raw_extensions CONTAINER wire encoding: STRING (Arrow Utf8) — assert `.as_str()`, then parse with `serde_json::from_str` → assert parsed object has expected Tier-2 keys.
+- raw_extensions CONTENT column_type=json values (INSIDE the object): assert the PARSED value is a native JSON structure (array or object), NOT a quoted string — D-2381 rule.
+- raw_extensions CONTENT column_type=String values (INSIDE the object): are plain strings — no parse step needed.
+Never confuse the container encoding (always Utf8/string) with the content encoding (varies by column_type inside raw_extensions).
+
+**Recurrence note:** This is the SECOND raw_extensions wire-encoding scenario-authoring miss across G3 (D-2403 Tier-1/Tier-2 confusion) and G4 (D-2406 Utf8 container confusion). These are different error dimensions on the same raw_extensions surface. The 3-recurrence threshold for escalation to a gate or standing rule applies: if a THIRD miss of any raw_extensions dimension occurs in a future story holdout scenario, escalate immediately to the orchestrator for codification as a mandatory pre-authoring checklist item or automated gate.
+
+**Corrective action taken:** HS-001 and HS-003 amended v1.0→v1.1 by product-owner. Both scenarios consumed at satisfaction 1.00. Gate treated as PASS.
+
+**Source:** D-2406 G4 live holdout gate VERDICT-A adjudication. Related: D-2403 G3 Tier-1-join-key scenario-authoring lesson.
