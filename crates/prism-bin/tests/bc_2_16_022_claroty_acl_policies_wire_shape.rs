@@ -528,16 +528,18 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_jso
          'metadata_uid' instead. ADR-058 §I2; BC-2.16.022 §PC2.",
     );
 
-    // ── MEDIUM-1 fix: AC-007 item 7 — the 5 remaining Tier-2 field names ABSENT at root ──
+    // ── MEDIUM-1 fix: AC-007 item 7 — the 6 remaining Tier-2 field names ABSENT at root ──
     //
     // AC-007 §7: all 7 Tier-2 API field names MUST NOT appear as standalone top-level keys
     // in the serialized JSON row. `applied_models` is asserted absent above (assertion 1).
-    // The remaining 5 Tier-2 field names are: policy_source, policy_acl, matching_devices,
-    // policy_creation_date, policy_last_updated (ADR-058 §J6: Tier-2 → raw_extensions only).
+    // The remaining 6 Tier-2 field names are: policy_source, policy_acl_type, policy_acl,
+    // matching_devices, policy_creation_date, policy_last_updated
+    // (ADR-058 §J6: Tier-2 → raw_extensions only).
     //
     // These assertions are LOAD-BEARING on the RG-012 path. BC-2.16.022 AC-007 §7.
     for tier2_raw_name in &[
         "policy_source",
+        "policy_acl_type",
         "policy_acl",
         "matching_devices",
         "policy_creation_date",

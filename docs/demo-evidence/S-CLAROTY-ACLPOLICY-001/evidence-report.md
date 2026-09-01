@@ -68,7 +68,14 @@ from `claroty.sensor.toml`), no tenant row data.
   (class_uid 3004; existing arm in `class_selector.rs`).
 
 - Table exposes 7 top-level Arrow columns:
-  - `metadata_uid` (string, nullable=false) — Tier-1 REQUIRED, OCSF rename of `policy_id` via `metadata.uid`
+  - `metadata_uid` (string, nullable=true) — Tier-1 REQUIRED, OCSF rename of `policy_id` via `metadata.uid`
+    (NULLABILITY NOTE: options=["REQUIRED"] controls spec-engine null-row push-down eligibility,
+    NOT Arrow field nullability. `spec_driven_adapter` pushes `Field::new(&arrow_name, ..., true)`
+    for all Tier-1 columns; `prism_describe` emits `ColumnDescriptor { nullable: true }`
+    unconditionally for Tier-1. RG-009 asserts `is_null(0)==true` when `policy_id` is absent —
+    confirming `nullable=true` is the correct Arrow schema value.
+    `class_uid` and `_sensor` remain `nullable=false` — they are synthesized columns, not
+    TOML-declared Tier-1 fields, and are correct as-is.)
   - `name` (string) — Tier-1, OCSF rename of `policy_name` via `name`
   - `actor_user_name` (string) — Tier-1, OCSF rename of `policy_updated_by` via `actor.user.name`
   - `comment` (string) — Tier-1, OCSF rename of `policy_notes` via `comment`
