@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.97"
+version: "9.98"
 status: draft
 producer: state-manager
-timestamp: 2026-09-01T00:00:00Z
+timestamp: 2026-09-01T17:00:00Z
+# NOTE: D-2413 — BC-INDEX v9.97→v9.98: SESSION-WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.16.022 pin v1.2→v1.3 (G6 FIX-A: EC-016-022-011 filter_by selector contract + AC-003 + RG-013; stays draft — G6 not merged). draft_contracts 4 / active_contracts 260 / total_contracts 277 ALL UNCHANGED. D-2412 NOTE archived.
 # NOTE: D-2412 — BC-INDEX v9.96→v9.97: POL-14 BC auto-promotion — BC-2.16.020 (claroty_org_zone_domain) + BC-2.16.021 (claroty_org_firewall_domain) draft→active; S-CLAROTY-ORGPOLICY-001 merged PR #249 @07e64f4e (D-2400 blanket authority 2026-09-01). draft_contracts 6→4 / active_contracts 258→260 / total_contracts 277 UNCHANGED. D-2407 NOTE archived.
 # NOTE: D-2407 — BC-INDEX v9.95→v9.96: POL-14 BC auto-promotion — BC-2.16.018 (claroty_servers) + BC-2.16.019 (claroty_server_interfaces) draft→active; S-CLAROTY-SERVERS-001 merged PR #248 @157596490 (D-2400 blanket authority 2026-08-31). draft_contracts 8→6 / active_contracts 256→258 / total_contracts 277 UNCHANGED. D-2404 NOTE archived.
 # NOTE: D-2404 — BC-INDEX v9.94→v9.95: POL-14 BC auto-promotion — BC-2.16.017 (claroty_device_vulnerability_relations) draft→active; S-CLAROTY-DEVVULNREL-001 merged PR #247 @12cecb12 (D-2400 blanket authority 2026-08-31). draft_contracts 9→8 / active_contracts 255→256 / total_contracts 277 UNCHANGED. D-2401 NOTE archived.
@@ -380,7 +381,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active (v1.2 current) |
 | BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.2 |
 | BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.2 |
-| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.2 |
+| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.3 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
@@ -535,6 +536,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v9.98 (2026-09-01, D-2413):** state-manager | SESSION-WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.16.022 (claroty_org_acl_policies) pin v1.2→v1.3 (G6 FIX-A: EC-016-022-011 filter_by.policy_id selector contract + AC-003 filter_by in body_template + RG-013 anchor; stays draft — G6 not merged). HOLDOUT-INDEX v1.32→v1.33 (HS-029 HS-001 v1.0→v1.1 — raw_extensions verdict-A per ADR-058 §I2; gate ATTEMPTED FAILED HTTP 422 — body_template missing mandatory selector; FIX-A applied; scenarios NOT consumed). STORY-INDEX v2.975→v2.976 (ACLPOLICY pin [ready v1.5]→[ready v1.6]; BC-2.16.022 pin v1.2→v1.3). draft_contracts 4 / active_contracts 260 / total_contracts 277 ALL UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (BC-2.16.022 is endpoint-distinct — claroty_org_acl_policies vs all sibling xDome table BCs; no cross-contamination). Dim-2 DISCHARGED (story §TOML body_template + §PC1 description co-updated by product-owner/story-writer in same FIX-A burst). Dim-3 DISCHARGED (EC-016-022-011 filter_by MUST anchored to RG-013 + AC-003 in story v1.6). Count-propagation sweep: bc_index_version 9.97→9.98; story_index_version 2.975→2.976; total BC/VP/story/ADR counts UNCHANGED. records-lint exit 0. BC-INDEX v9.97→v9.98.
 
 **v9.96 (2026-09-01, D-2407):** state-manager | POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — POL-14 BC auto-promotion. BC-2.16.018 (claroty_servers) + BC-2.16.019 (claroty_server_interfaces) lifecycle_status/status draft→active; input-hash 5213907→150e0ec (both); anchor story S-CLAROTY-SERVERS-001 merged PR #248 @157596490 (D-2400 blanket authority). draft_contracts 8→6 / active_contracts 256→258 / total_contracts 277 UNCHANGED. TD-VSDD-097: N/A (post-merge records/index only; no new MUSTs/spec/code). Count-propagation sweep: bc_index_version 9.95→9.96; story_index_version 2.971→2.972; develop_head 12cecb12→157596490; STATE.md 8.936→8.937. records-lint exit 0. BC-INDEX v9.95→v9.96.
 

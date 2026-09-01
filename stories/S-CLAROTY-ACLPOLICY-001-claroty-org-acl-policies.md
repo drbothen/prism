@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.022 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-09-01"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,7 +21,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "11f1c65"
+input-hash: "aca45fc"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.022"
 points: 5
@@ -125,7 +125,12 @@ risk_mitigations: []
 `{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name),
 `ocsf_class = "entity_management"`, step name `"fetch_organization_acl_policies"`,
 `method = "POST"`, `path_template = "/api/v1/organization_acl_policies/"`,
-`body_template` containing `"policy_acl_syntax": "Cisco dACL"` and all 11 contracted
+`body_template` containing `"policy_acl_syntax": "Cisco dACL"`,
+`"filter_by": {"field": "policy_id", "operation": "is_not_null"}` (mandatory server-side
+selector — the live Claroty API enforces a cross-field selector validator requiring at least
+one of `policy_id`/`policy_name`/`filter_by` in the request body; omitting all three causes
+HTTP 422 per BC-2.16.022 §PC1 + EC-016-022-011; `filter_by` is_not_null on `policy_id`
+satisfies the validator for the enumerate-all case), and all 11 contracted
 fields (REQUIRED per OpenAPI schema — `required: ["policy_acl_syntax"]`),
 `response_path = "$.organization_acl_policies"`, and `pagination.type = "none"`.
 
@@ -156,6 +161,7 @@ only. The response returns all ACL policies in a single HTTP response; no loop.
 **BC-2.16.022 §Invariants** — critical mandatory invariants:
 - `PaginationConfig::None` MUST NOT inject `offset`/`limit` (API 422 if violated)
 - `policy_acl_syntax = "Cisco dACL"` MUST appear in `body_template` (API error if absent)
+- `filter_by = {"field": "policy_id", "operation": "is_not_null"}` MUST appear in `body_template` (EC-016-022-011: live API cross-field selector validator requires at least one of policy_id/policy_name/filter_by; omitting filter_by → HTTP 422 for enumerate-all queries)
 - Tier-2 columns NOT exposed as standalone Arrow columns (E-QUERY-038 at plan time)
 - `applied_models` MUST be declared `column_type = "json"` (not `"string"`)
 - `response_path = "$.organization_acl_policies"` (plural, no count field in envelope)
@@ -246,7 +252,7 @@ files). The gate is BLOCKING: unsatisfied scenarios reset the LOCAL streak per B
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | v1.2 | §Postconditions §1 TOML contract (POST /api/v1/organization_acl_policies/, response_path $.organization_acl_policies, pagination type=none, mandatory policy_acl_syntax="Cisco dACL", 11 cols, NO count field in envelope); §Postconditions §2 Tier-1/Tier-2 column classification (4 Tier-1: policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment; 7 Tier-2 incl. 1 Json: applied_models); §Postconditions §3 PK rationale (policy_id UUID-format stable→metadata.uid; policy_name human-editable→name not PK); §Postconditions §4 Pagination-None vs Offset-Limit differentiation; §Postconditions §5 Json column serialization behavior (applied_models as JSON array not string; empty [] not null); §Postconditions §6 SAP-2 N/A; EC-016-022-001..010. All 11 ACs trace to this BC. |
+| BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 TOML contract (POST /api/v1/organization_acl_policies/, response_path $.organization_acl_policies, pagination type=none, mandatory policy_acl_syntax="Cisco dACL", mandatory filter_by={field:policy_id,operation:is_not_null} per live API cross-field selector validator, 11 cols, NO count field in envelope); §Postconditions §2 Tier-1/Tier-2 column classification (4 Tier-1: policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment; 7 Tier-2 incl. 1 Json: applied_models); §Postconditions §3 PK rationale (policy_id UUID-format stable→metadata.uid; policy_name human-editable→name not PK); §Postconditions §4 Pagination-None vs Offset-Limit differentiation; §Postconditions §5 Json column serialization behavior (applied_models as JSON array not string; empty [] not null); §Postconditions §6 SAP-2 N/A; EC-016-022-001..011. All 11 ACs trace to this BC. |
 
 ## Acceptance Criteria
 
@@ -288,20 +294,30 @@ envelope definition).
   (`#[ignore]` — live Variant-1; `SELECT * FROM claroty.claroty_organization_acl_policies`
   with no LIMIT; assert no E-SENSOR-001 raised; assert wire JSON rows lack a `count` key)
 
-### AC-003: policy_acl_syntax="Cisco dACL" present in body_template; TOML authoring test asserts the literal string is present (traces to BC-2.16.022 postcondition 1 — Mandatory request parameter; BC-2.16.022 invariant)
+### AC-003: policy_acl_syntax="Cisco dACL" and filter_by={field:policy_id,operation:is_not_null} present in body_template; TOML authoring tests assert both literal values are present (traces to BC-2.16.022 postcondition 1 — Mandatory request parameters; BC-2.16.022 invariant; EC-016-022-011)
 
 The `body_template` string in the TOML step MUST contain `"policy_acl_syntax": "Cisco dACL"`
 as a literal key-value pair in the POST body JSON. This field is REQUIRED by the
 `GetOrganizationAclPoliciesRequest` OpenAPI schema — omitting it causes the Claroty API to
 return an error (EC-016-022-002).
 
+Additionally, the `body_template` MUST contain `"filter_by": {"field": "policy_id", "operation": "is_not_null"}`.
+The live Claroty API enforces a server-side cross-field selector validator that requires at
+least one of `policy_id`, `policy_name`, or `filter_by` in the request body; omitting all three
+causes the API to return HTTP 422 (EC-016-022-011). For the enumerate-all pattern used in this
+TOML block, `filter_by` with `is_not_null` on `policy_id` satisfies the validator.
+
 A unit test parses the TOML block and deserializes the `body_template` JSON string. The
 test asserts:
 1. The key `"policy_acl_syntax"` is present in the `body_template` object
 2. Its value is `"Cisco dACL"` (exact string — case-sensitive)
+3. The key `"filter_by"` is present in the `body_template` object with `field = "policy_id"` and `operation = "is_not_null"` (EC-016-022-011)
 
-**Test:** `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_policy_acl_syntax`
-(unit — parse TOML; deserialize body_template; assert policy_acl_syntax key = "Cisco dACL")
+**Tests:**
+- `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_policy_acl_syntax`
+  (unit — parse TOML; deserialize body_template; assert policy_acl_syntax key = "Cisco dACL")
+- `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_filter_by_policy_id_is_not_null`
+  (unit — parse TOML; deserialize body_template; assert filter_by.field = "policy_id" and filter_by.operation = "is_not_null"; gates EC-016-022-011 mandatory selector requirement)
 
 ### AC-004: Four Tier-1 columns declared with correct ocsf_field; Arrow names are metadata_uid (policy_id REQUIRED), name, actor_user_name, comment (traces to BC-2.16.022 postcondition 2 — Column Tier Classification)
 
@@ -443,9 +459,10 @@ cells are null; no E-SPEC-018 raised)
 | RG-010 | `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination` | Live Variant-1 (`#[ignore]`) | AC-002 + AC-010: SELECT * (no LIMIT) succeeds; no E-SENSOR-001; no count column in wire JSON; result stable across two runs |
 | RG-011 | `test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-011: policy_creation_date and policy_last_updated parse ISO-8601 correctly; absent fields produce null cell not E-SPEC-018 |
 | RG-012 | `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array` | Integration (prism-bin, wire-shape serialization assertion via SpecDrivenSensorAdapter::fetch — authoritative production path) | Wire-level assertion: `applied_models` Json column serializes as JSON-typed array (not string) in wire output; `applied_models` key absent from root-level wire envelope; fetch path is authoritative (no DTU for ACL policies per D-2200) |
+| RG-013 | `test_BC_2_16_022_claroty_org_acl_policies_body_template_has_filter_by_policy_id_is_not_null` | Unit (prism-spec-engine/tests/bc_2_16_022_test.rs — SpecLoader::parse + body_template parse) | AC-003 assertion 3 / EC-016-022-011: body_template JSON contains filter_by with field="policy_id" and operation="is_not_null"; gates mandatory server-side cross-field selector validator requirement |
 
-**BC-5.38.001 density check:** 13 Red Gate tests / 11 acceptance criteria = 1.18 ≥ 0.5 threshold. PASS.
-(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function. RG-012 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only. RG-008 sub-case (`test_BC_2_16_022_applied_models_empty_array_wire_shape`) is a supplemental integration test covering EC-016-022-005 — counted toward density numerator only.)
+**BC-5.38.001 density check:** 14 Red Gate tests / 11 acceptance criteria = 1.27 ≥ 0.5 threshold. PASS.
+(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function. RG-012 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only. RG-008 sub-case (`test_BC_2_16_022_applied_models_empty_array_wire_shape`) is a supplemental integration test covering EC-016-022-005 — counted toward density numerator only. RG-013 covers AC-003 assertion 3 / EC-016-022-011 — filter_by selector mandatory presence.)
 
 ## Architecture Mapping
 
@@ -495,6 +512,7 @@ Architecture section references:
 | EC-010 | `policy_updated_by` absent in a row | Null `actor_user_name` Arrow cell; not an error (EC-016-022-010) |
 | EC-011 | `policy_creation_date` or `policy_last_updated` contains non-ISO-8601 non-null value | E-SPEC-018 TimestampParseFailure; null demoted with warning; row continues |
 | EC-012 | API returns non-200 HTTP for POST /api/v1/organization_acl_policies/ | E-SENSOR-001 with sensor=claroty, status, body; no partial results (single-fetch endpoint; no prior pages accumulated) |
+| EC-013 | `body_template` omits `filter_by` key (no server-side selector provided — policy_id, policy_name, and filter_by all absent from request body) | API returns HTTP 422; E-SENSOR-001 raised; entire query fails (EC-016-022-011: live API cross-field selector validator; enumerate-all pattern requires filter_by={field:policy_id,operation:is_not_null}) |
 
 ## TOML Column-Block Specification
 
@@ -507,7 +525,8 @@ The complete `[[tables]]` block as specified by BC-2.16.022 §PC1/§PC2:
 # PK: policy_id (String, REQUIRED, single-column) → Arrow metadata_uid (metadata.uid)
 # PAGINATION: type = "none" — NON-PAGINATED SINGLE-FETCH (only Claroty table of this kind)
 #   MUST NOT inject offset/limit into POST body (GetOrganizationAclPoliciesRequest has no these fields)
-# MANDATORY body field: policy_acl_syntax = "Cisco dACL" (REQUIRED per OpenAPI schema)
+# MANDATORY body fields: policy_acl_syntax = "Cisco dACL" (REQUIRED per OpenAPI schema)
+#                        filter_by = {"field":"policy_id","operation":"is_not_null"} (live API cross-field selector validator; EC-016-022-011)
 # DTU status: NONE — SAP-2 probe N/A; near-term tests against live monroe only (D-2200 deferred)
 [[tables]]
 table_name = "organization_acl_policies"           # registered/queryable name = {sensor_id}_{table_name} = "claroty_organization_acl_policies"
@@ -577,7 +596,7 @@ column_type = "datetime"
 name = "fetch_organization_acl_policies"
 method = "POST"
 path_template = "/api/v1/organization_acl_policies/"
-body_template = '{"policy_acl_syntax": "Cisco dACL", "fields": ["policy_id", "policy_name", "policy_source", "applied_models", "matching_devices", "policy_acl_type", "policy_acl", "policy_creation_date", "policy_last_updated", "policy_updated_by", "policy_notes"]}'
+body_template = '{"policy_acl_syntax": "Cisco dACL", "filter_by": {"field": "policy_id", "operation": "is_not_null"}, "fields": ["policy_id", "policy_name", "policy_source", "applied_models", "matching_devices", "policy_acl_type", "policy_acl", "policy_creation_date", "policy_last_updated", "policy_updated_by", "policy_notes"]}'
 response_path = "$.organization_acl_policies"
 variables_produced = []
 
@@ -823,7 +842,7 @@ present:
 3. **`policy_acl_syntax` is NOT in the fields list.** The `"fields"` array in
    `body_template` contains the column field names. `policy_acl_syntax` is a separate
    request-level parameter that appears at the same JSON level as `"fields"`, not inside it.
-   The body_template must be: `{"policy_acl_syntax": "Cisco dACL", "fields": [...]}`.
+   The body_template must be: `{"policy_acl_syntax": "Cisco dACL", "filter_by": {"field": "policy_id", "operation": "is_not_null"}, "fields": [...]}` (both `policy_acl_syntax` and `filter_by` are required by the live API's cross-field selector validator; EC-016-022-011).
 
 4. **Verify baseline table count at implementation time.** The baseline is 4 tables at
    develop@3f1e66179. If sibling expansion stories (VULNS-001, OT-EVENTS-001, DEVVULNREL-001,
@@ -885,6 +904,7 @@ reasoning path. Deferred to live-validation milestone if not complete before hol
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | fix-a-filter-by-selector-propagation | 2026-09-01 | story-writer | FIX-A propagation from BC-2.16.022 v1.3: §Authority body_template description updated to include mandatory filter_by={field:policy_id,operation:is_not_null} (BC-2.16.022 §PC1 + EC-016-022-011); §Invariants note added for filter_by MUST; AC-003 heading and body extended with assertion 3 for filter_by presence and new Test citation; §Red Gate Tests RG-013 added (test_BC_2_16_022_claroty_org_acl_policies_body_template_has_filter_by_policy_id_is_not_null, prism-spec-engine/tests/bc_2_16_022_test.rs, AC-003/EC-016-022-011); density check 13→14 RGTs (1.18→1.27 ratio); §TOML Column-Block Specification body_template updated to include filter_by; §Edge Cases EC-013 added for filter_by omission; §Behavioral Contracts table BC-2.16.022 synced v1.2→v1.3 + EC-016-022-011 noted. |
 | 1.5 | story-doc-consistency-g6-low001-obs001 | 2026-09-01 | story-writer | LOW-001: §File Structure Requirements RG-005/006 row corrected — stale `crates/prism-sensors/tests/ or prism-spec-engine/tests/` attribution and "defense-in-depth; authoritative in prism-bin" text removed; replaced with `crates/prism-query/tests/bc_2_16_022_test.rs` AUTHORITATIVE via QueryEngine::execute (per SAP-3 rule 3). OBS-001: §Red Gate Tests RG-008 scope narrowed to non-empty applied_models sub-case (native JSON array, not stringified); RG-008 sub-case row added for `test_BC_2_16_022_applied_models_empty_array_wire_shape` (EC-016-022-005, prism-bin §bc_2_16_022_claroty_acl_policies_wire_shape); §AC-008 §Test wording split into two named tests (non-empty unit test + empty-array integration test) to eliminate false implication that both sub-cases run in RG-008; density check updated 12→13 RGTs. |
 | 1.4 | story-doc-governance-sweep-g3-g4-g5-g6 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC-2.16.022 version pins from §Authority (§Postconditions §1..§4 + §Invariants headings) and §Token Budget row; §Behavioral Contracts table Version synced to v1.2 per POL-40 current-state pin. FIX 3 (§Red Gate Tests + §Architecture Compliance): Synced 8 RG rows to delivered test names and crate paths (RG-004/007/010 name rename; RG-005/006 prism-bin→prism-query + removed SAP-3 defense-in-depth text; RG-008/009/011 Unit inline prism-bin/src/spec_driven_adapter.rs); §AC §Tasks §Live-Test Approach test names updated in all occurrences via replace_all. Rule #8 corrected: E-QUERY-038 plan-time tests run through prism-query (authoritative per SAP-3 rule 3), NOT prism-spec-engine. |
 | 1.3 | post-delivery-test-sync | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 11 `column_name =` occurrences changed to `name =` (ColumnSpec deserializer field). FIX B: §Red Gate Tests RG-012 mechanism corrected from QueryEngine::execute → SpecDrivenSensorAdapter::fetch (authoritative production path; no DTU for ACL policies per D-2200). FIX C: §File Structure Requirements RG-012 CREATE entry description corrected to SpecDrivenSensorAdapter::fetch path with DTU-absence rationale. |

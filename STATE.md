@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.941"
+version: "8.942"
 producer: state-manager
-timestamp: 2026-09-01T16:00:00Z
+timestamp: 2026-09-01T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,12 +18,12 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "07e64f4e"
 # NOTE: D-2412 — S-CLAROTY-ORGPOLICY-001 G5 PR #249 squash-merged to origin/develop @07e64f4e (D-2400 blanket authority 2026-09-01). BC-2.16.020+BC-2.16.021 draft→active per POL-14. develop_head updated 157596490→07e64f4e. D-2407 NOTE archived.
-bc_index_version: "9.97"
-# NOTE: D-2412 — BC-INDEX v9.96→v9.97: POL-14 BC auto-promotion — BC-2.16.020 (claroty_org_zone_domain) + BC-2.16.021 (claroty_org_firewall_domain) draft→active; S-CLAROTY-ORGPOLICY-001 merged PR #249 @07e64f4e (D-2400 blanket authority 2026-09-01). draft_contracts 6→4 / active_contracts 258→260 / total_contracts 277 UNCHANGED. D-2407 NOTE archived.
+bc_index_version: "9.98"
+# NOTE: D-2413 — BC-INDEX v9.97→v9.98: BC-2.16.022 pin v1.2→v1.3 (draft, filter_by selector contract EC-016-022-011; G6 FIX-A session-wrap 2026-09-01). draft_contracts 4 / active_contracts 260 / total_contracts 277 UNCHANGED. D-2412 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.975"
-# NOTE: D-2412 — STORY-INDEX v2.974→v2.975: S-CLAROTY-ORGPOLICY-001 pin [ready v1.6]→[merged 07e64f4e; PR #249]; total_stories 321 UNCHANGED. D-2411 NOTE archived.
+story_index_version: "2.976"
+# NOTE: D-2413 — STORY-INDEX v2.975→v2.976: S-CLAROTY-ACLPOLICY-001 pin [ready v1.5]→[ready v1.6] + BC-2.16.022 v1.2→v1.3 (FIX-A). total_stories 321 UNCHANGED. D-2412 NOTE archived.
 arch_index_version: "2.357"
 # NOTE: D-2373 — ARCH-INDEX v2.356→v2.357: ADR-060 v1.17→v1.18 (F-B1V-002: §D8.3 worked example (d) corrected to reachable/test-matched numbers page_size=10/LIMIT=5/partial-page=5/2 batches). D-2372 NOTE archived.
 workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2412 G5 (S-CLAROTY-ORGPOLICY-001) MERGED PR #249 @07e64f4e; BC-2.16.020+BC-2.16.021 promoted active (POL-14); develop_head 157596490→07e64f4e; bc_index 9.96→9.97 (draft 6→4, active 258→260); story_index 2.974→2.975. NEXT: G6 (S-CLAROTY-ACLPOLICY-001) re-rebase (git rebase --onto) onto merged develop 07e64f4e → live holdout (monroe) → demo → PR → merge → git-history purge (D-2410c) + live xDome release validation. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.940→v8.941."
+current_step: "D-2413 SESSION WRAP — G6 FIX-A applied (BC-2.16.022 v1.3 + story v1.6 + HS-001 v1.1; HTTP 422 filter_by.policy_id selector contract EC-016-022-011); spec + index sync committed; re-holdout pending. VERY NEXT: rebuild+redeploy G6 binary to test-soc (unlock keychain) → RE-RUN live holdout vs monroe → demo → PR → merge. develop_head UNCHANGED 07e64f4e. bc_index 9.97→9.98; story_index 2.975→2.976. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.941→v8.942."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-01 D-2412: G5 (S-CLAROTY-ORGPOLICY-001) MERGED PR #249 @07e64f4e (D-2400 blanket authority). POL-14: BC-2.16.020+BC-2.16.021 draft→active. develop_head 157596490→07e64f4e. bc_index 9.96→9.97 (draft 6→4, active 258→260). story_index 2.974→2.975 ([ready v1.6]→[merged 07e64f4e; PR #249]). total_stories 321 UNCHANGED. NEXT: G6 re-rebase onto merged develop → live holdout → demo → PR → merge → git-history purge + live xDome release validation. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.940→v8.941. |
+| **Last Updated** | 2026-09-01 D-2413: SESSION WRAP — G6 FIX-A applied (BC-2.16.022 v1.3 + story v1.6 + HS-001 v1.1; EC-016-022-011 filter_by selector). bc_index 9.97→9.98; story_index 2.975→2.976; holdout-index 1.32→1.33. develop_head UNCHANGED 07e64f4e. total_stories 321 UNCHANGED. VERY NEXT: rebuild+redeploy G6 → re-run live holdout → demo → PR → merge. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.941→v8.942. |
 
 ## Phase Progress
 
@@ -266,6 +266,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | D-2403 | state-manager | 2026-08-31 | **G3 (S-CLAROTY-DEVVULNREL-001) LIVE-TENANT HOLDOUT GATE PASS (TD-VSDD-053) — monroe Variant-2 read-only; setup healthy; real live data _source_type:live. HS-001 1.00 (class_uid=2002 + finding_info_title CVE string non-null), HS-003 1.00 (SELECT time accepted; SELECT device_vulnerability_detection_date E-QUERY-038 with time in available_columns), HS-002 0.75 at-threshold (VERDICT-A: over-specified; implementation CORRECT — vulnerability_name is Tier-1 finding_info_title NOT in raw_extensions per ADR-058 §B2; product-owner amended HS-002 v1.0→v1.1 pre-consumption). Mean satisfaction 0.92. All 3 HS-026 scenarios CONSUMED (lifecycle_status: consumed; used: true; last_evaluated: 2026-08-31). OBS-001 story frontmatter comment corrected: "(active)" → "(draft; POL-14 promotes to active at merge)". HOLDOUT-INDEX v1.29→v1.30 (HS-026 summary + detail updated; HS-001/HS-003 input-hash fdccb7c→3ad5d86). Lesson appended cycles/wave-5-e-demo-fidelity/lessons.md (scenario-authoring: Tier-1 columns assert via Arrow field name, not raw_extensions). develop_head UNCHANGED 3d724a069. TD-VSDD-097 N/A (holdout frontmatter + records + one story-comment correction; no new MUSTs, no spec/code content change). trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.932→v8.933.** | wave-5-e-demo-fidelity | 2026-08-31 |
 | D-2402 | state-manager | 2026-08-31 | **G3 (S-CLAROTY-DEVVULNREL-001) CONSISTENCY-GATE FIX BURST (TD-VSDD-053) — feature/S-CLAROTY-DEVVULNREL-001 rebased onto develop@3d724a069; 3 MED fixed: Finding-1 (RG-003 test-header owner corrected to authoritative prism-bin gate), Finding-2 (AC-009 prose corrected to native-JSON-array per BC-2.16.017 EC-016-017-004), Finding-3 (SAP2_STATUS constant+assertion added to both new test files per G2 sibling pattern). Feature HEAD 9136895d1→c94022ad3; just check exit 0. story v1.7→v1.8. STORY-INDEX v2.968→v2.969 (DEVVULNREL pin [ready v1.7]→[ready v1.8]). story_index_version 2.968→2.969. develop_head UNCHANGED 3d724a069. trajectory-tail UNCHANGED →8→0→1→2. TD-VSDD-097: Dim-1 CLEAR (story-doc + traceability/records + code-comment/constant additions; no sibling-pair contamination; SAP2_STATUS pattern is intentionally mirrored from G2, not a stale copy). Dim-2 CLEAR (no downstream copy-source sections changed). Dim-3 CLEAR (no new MUSTs introduced). Count-propagation sweep: story_index_version 2.968→2.969; bc/vp/arch index + total_stories (320) UNCHANGED. records-lint exit 0. STATE v8.931→v8.932.** | wave-5-e-demo-fidelity | 2026-08-31 |
 | D-2401 | state-manager | 2026-08-31 | **POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) MERGED (PR #246 @3d724a069). Convergence path: D-2398 consistency gate CLEAN(PR-merge); D-2399 live holdout accepted (HS-002/003 PASS 1.00, HS-001 SETUP-FAILURE quiescent-network, human-accepted); demo (9 ACs); PR review cycles closed MEDIUM-1/-2 + NEW-MEDIUM-1 (panic-stub live tests → real env-gated, sibling BC-2.16.015 pattern) + wasmtime 47.0.3→47.0.4 bundled (RUSTSEC-2026-0268/0269 cleared); 24 CI checks green; human merged (D-2400 blanket authority). POL-14: BC-2.16.016 (claroty_ot_activity_events) lifecycle_status/status draft→active. develop_head 6972ac2e→3d724a069. bc_index_version 9.93→9.94 (draft 10→9, active 254→255, total 277 UNCHANGED; frontmatter corrected from stale 11/253 — D-2387 G1 promotion was reflected in body but missed in frontmatter). story_index_version 2.967→2.968. TD-VSDD-097 N/A (post-merge records/index only; no new MUSTs/spec/code). Count-propagation sweep: STATE.md, BC-INDEX.md, STORY-INDEX.md updated; ARCH-INDEX/VP-INDEX/prd.md no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.930→v8.931.** | wave-5-e-demo-fidelity | 2026-08-31 |
+| D-2413 | state-manager | 2026-09-01 | **SESSION WRAP (TD-VSDD-053) — G6 FIX-A spec commit + INDEX SYNC + RESUME SNAPSHOT D-2413. G6 (S-CLAROTY-ACLPOLICY-001) live holdout FAILED: HTTP 422 organization_acl_policies body_template omitted mandatory filter_by.policy_id selector (EC-016-022-011). FIX-A applied: BC-2.16.022 v1.2→v1.3 (§Postconditions EC-016-022-011 filter_by selector contract + AC-003 body_template spec + RG-013 test anchor); story v1.5→v1.6 (AC-003 filter_by + RG-013); HS-001 v1.0→v1.1 (raw_extensions verdict-A per ADR-058 §I2, consistent G1–G5). CODE @29695e0b9 LOCAL-ONLY. INDEX SYNC: BC-INDEX v9.97→v9.98 (BC-2.16.022 draft pin v1.2→v1.3); STORY-INDEX v2.975→v2.976 (ACLPOLICY [ready v1.5]→[ready v1.6]); HOLDOUT-INDEX v1.32→v1.33 (HS-029 HS-001 v1.0→v1.1; GATE FAILED annotation). SESSION-HANDOFF.md D-2412 SUPERSEDED; §RESUME SNAPSHOT D-2413 inserted. develop_head UNCHANGED 07e64f4e. TD-VSDD-097: Dim-1 CLEAR (BC-2.16.022 has no peer sibling in this wave; HS-001 is not a sibling-pair artifact). Dim-2 CLEAR (no copy-source sections changed). Dim-3 DISCHARGED (EC-016-022-011 anchored to AC-003+RG-013 in story v1.6). Count-propagation sweep: bc_index 9.97→9.98, story_index 2.975→2.976, holdout-index 1.32→1.33; draft_contracts 4/active_contracts 260/total_contracts 277 UNCHANGED; total_stories 321 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.941→v8.942.** | wave-5-e-demo-fidelity | 2026-09-01 |
 | D-2380 | state-manager | 2026-08-30 | **G2 SPEC-READINESS BURST (TD-VSDD-053) — G2 (S-CLAROTY-OT-EVENTS-001) IMPLEMENTATION-READY. Remove-uncertainty CLEAN 2026-08-30 (validated against xDome OpenAPI ground truth). F-1 FIXED: BC-2.16.016 v1.0→v1.1 (§Postconditions §1 body_template corrected TOML literal-string syntax; 21 fields unchanged; zero semantic change; input-hash 2e91a4e). Story S-CLAROTY-OT-EVENTS-001 v1.0→v1.1 PROMOTED draft→ready: 8 BC-pin sites synced to v1.1; Task 10 count-agnostic; AC-006 JSON-array-in-raw_extensions assertion added (first production column_type="json"); input-hash cfc9e16. G2–G6 gating spikes resolved: endpoint-spike-findings.md §Spike 3/4 + G2 §Spike 2 (D-2357). Sibling stories S-CLAROTY-DEVVULNREL-001/SERVERS-001/ORGPOLICY-001/ACLPOLICY-001 (G3–G6) drafted. BC-INDEX v9.84→v9.85. STORY-INDEX v2.952→v2.953. TD-VSDD-097: Dim-1 N/A (BC-2.16.016 is not a sibling-pair artifact). Dim-2 N/A (no copy-source sections changed). Dim-3 N/A (no new MUSTs introduced). Count-propagation sweep: draft/active/total contracts 11/253/277 UNCHANGED (BC-2.16.016 remains draft — promotes active on story merge per POL-14); version pin update only. STORY-INDEX story_index_version bumped. BC-INDEX bc_index_version bumped. ARCH-INDEX/VP-INDEX UNCHANGED (no ADR/VP edits). records-lint exit 0. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.912→v8.913.** | wave-5-e-demo-fidelity | 2026-08-30 |
 
 ## Skip Log
@@ -298,28 +299,30 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2412 — G5 MERGED PR #249 @07e64f4e; BC-2.16.020+021 active; G6 NEXT re-rebase → holdout → PR) [supersedes D-2411]
+## Session Resume Checkpoint (D-2413 — G6 FIX-A applied; re-holdout pending) [supersedes D-2412]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. G1 (S-CLAROTY-VULNS-001) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). G2 (S-CLAROTY-OT-EVENTS-001) MERGED (D-2401; PR #246 @3d724a069; BC-2.16.016 active). G3 (S-CLAROTY-DEVVULNREL-001) MERGED (D-2404; PR #247 @12cecb12; BC-2.16.017 active). G4 (S-CLAROTY-SERVERS-001) MERGED (D-2407; PR #248 @157596490; BC-2.16.018+BC-2.16.019 active). G5 (S-CLAROTY-ORGPOLICY-001) MERGED (D-2412; PR #249 @07e64f4e; BC-2.16.020+BC-2.16.021 active). develop_head=07e64f4e. D-2396 CONVERGENCE-BAR DECISION in force. D-2400 BLANKET MERGE AUTHORITY in force for G6 (last sensor story). G6 @0f60b931a (rebased onto G5 branch @2194812e8; pre-PR front-loaded review DONE CLEAN(strict); story v1.5): AWAITS git rebase --onto develop 2194812e8 → final consistency re-verify → live holdout → demo (live-output-free per D-2410) → PR → ORCHESTRATOR merge. THREE STANDING DIRECTIVES (D-2410): LIVE-ONLY testing; no live-test output in repo; git-history purge authorized post-G6. Autonomy D-989; capped-strict.
+Phase 3 Wave-5-E, v1 Claroty xDome. G1–G5 MERGED (develop @07e64f4e). G6 (S-CLAROTY-ACLPOLICY-001) is the LAST sensor story: live holdout FAILED on a real API-contract defect (HTTP 422 — organization_acl_policies body_template omitted the mandatory selector), FIX-A applied (code @29695e0b9 LOCAL-ONLY + spec BC-2.16.022 v1.3 / story v1.6 / HS-001 v1.1). VERY NEXT ACTION: rebuild+redeploy the G6 binary to test-soc, ensure the login keychain is UNLOCKED, then RE-RUN the G6 live holdout vs monroe.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
-1. G6 (S-CLAROTY-ACLPOLICY-001 @0f60b931a rebased on G5 branch @2194812e8; pre-PR front-loaded review DONE CLEAN(strict); story v1.5): git rebase --onto develop 2194812e8 0f60b931a (re-rebase onto merged develop 07e64f4e) → final consistency re-verify → live holdout (monroe, NO DTU per D-2410) → demo (live-output-free per D-2410) → PR → ORCHESTRATOR-authorized merge (D-2400 blanket grant) → post-merge burst.
-2. POST-ALL-MERGED: LIVE xDome tenant validation (monroe) — v1 release gate per D-2310 runbook.
-3. POST-G6-MERGE: git-history purge (D-2410c) — git filter-repo to remove live output from G2/G3/G4 demo-evidence; force-push develop RE-CONFIRMED with human at execution.
-4. DEFERRED HOUSEKEEPING: (a) test doc-comment re-anchor; (b) holdout harness/fixture reconciliation; (c) validator gate for holdout-at-materialization; (d) BC-bump propagation checklist (D-2377 PROCESS-GAP); (e) `prism query` CLI stub wiring; (f) codify auto-mode merge-auth classifier protocol (D-2387 PROCESS-GAP); (g) vulnerabilities-table map_record comment fix-PR (D-2392 deferred); (h) E-QUERY-038 E2E test-writer discipline codification (D-2392 PROCESS-GAP); (i) POL-39 lint L11 (D-2393 PROCESS-GAP); (j) docs PR for SAP-4; (k) worktree cleanup: G1–G5 + LIMIT REMOVABLE; (l) DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 post-v1 adjudication.
+1. G6 BINARY REBUILD+REDEPLOY: in .worktrees/S-CLAROTY-ACLPOLICY-001 (code @29695e0b9 with FIX-A; unlock keychain on test-soc) → rebuild binary → redeploy to test-soc live-soc path.
+2. G6 LIVE HOLDOUT RE-RUN: run HS-029 scenarios (HS-001 v1.1) against live monroe → MUST PASS all 3 → if PASS proceed to demo; if FAIL diagnose and fix (FIX-B cycle).
+3. G6 DEMO (live-output-free per D-2410) → PR → ORCHESTRATOR merge (D-2400 blanket grant) → post-merge state-manager burst.
+4. POST-ALL-MERGED: LIVE xDome tenant validation (monroe) — v1 release gate per D-2310 runbook.
+5. POST-G6-MERGE: git-history purge (D-2410c) — git filter-repo to remove live output from G2/G3/G4 demo-evidence; force-push develop RE-CONFIRMED with human at execution.
 
-**CONVERGENCE STATE:** G1 MERGED (develop@6972ac2e). G2 MERGED (develop@3d724a069). G3 MERGED (develop@12cecb12). G4 MERGED (develop@157596490). G5 MERGED (develop@07e64f4e). G6 @0f60b931a LOCAL-ONLY (rebased onto G5 branch; pre-PR front-loaded review DONE; AWAITS re-rebase → holdout → PR).
+**CONVERGENCE STATE:** G1 MERGED (develop@6972ac2e). G2 MERGED (develop@3d724a069). G3 MERGED (develop@12cecb12). G4 MERGED (develop@157596490). G5 MERGED (develop@07e64f4e). G6 @29695e0b9 LOCAL-ONLY (FIX-A applied; re-holdout pending; not yet pushed to origin).
 
 **HEADS (backup boundary):**
 - `develop`: origin/develop = local develop = `07e64f4e` (D-2412 G5 PR #249 squash-merge 2026-09-01).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
 - G1–G5: MERGED; worktrees REMOVABLE.
-- `feature/S-CLAROTY-ACLPOLICY-001` (G6): `0f60b931a` LOCAL-ONLY (rebased onto G5 branch @2194812e8; pre-PR front-loaded review DONE; story v1.5; AWAITS re-rebase onto 07e64f4e → holdout → PR)
+- `feature/S-CLAROTY-ACLPOLICY-001` (G6): `29695e0b9` LOCAL-ONLY (FIX-A applied; story v1.6; re-holdout pending; not yet pushed to origin)
 - `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED (squash `c5be059f`); worktree REMOVABLE.
 - S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (P2 non-gating, parked).
 - Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+- test-soc binary: STALE (last deployed SHA 5205bb92; needs rebuild from 29695e0b9)
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 

@@ -8,18 +8,18 @@ must_pass: true
 priority: P0
 epic_id: "EPIC-CLAROTY-XDOME-WAVE-C"
 story_source: "S-CLAROTY-ACLPOLICY-001"
-version: "1.0"
+version: "1.1"
 status: active
 used: false
 single_use: true
 producer: product-owner
 timestamp: "2026-08-24T00:00:00Z"
-modified: "2026-08-24"
+modified: "2026-09-01"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.022-claroty-org-acl-policies.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "68aa88c"
+input-hash: "e13fbb9"
 traces_to: "BC-2.16.022"
 behavioral_contracts:
   - BC-2.16.022
@@ -76,9 +76,12 @@ matches BC-2.16.022 §Postconditions 1 and 2:
 4. The returned rows carry a column named `name` — the Arrow field name for the Tier-1 mapping
    of `policy_name` (source: `ocsf_field = "name"` → Arrow `name`).
 
-5. The returned rows carry a `raw_extensions` column containing a JSON object with at least one
-   ACL-specific Tier-2 key (e.g., `policy_source`, `policy_acl_type`, `policy_acl`,
-   `applied_models`, `matching_devices`, `policy_creation_date`, or `policy_last_updated`).
+5. The returned rows carry a `raw_extensions` column containing a non-null string whose parsed
+   JSON object contains at least one ACL-specific Tier-2 key (e.g., `policy_source`,
+   `policy_acl_type`, `policy_acl`, `applied_models`, `matching_devices`,
+   `policy_creation_date`, or `policy_last_updated`). Per ADR-058 §I2, `raw_extensions` is an
+   Arrow Utf8 column on the wire — a JSON-serialized string, not a JSON object value; parse via
+   `serde_json::from_str` or equivalent before inspecting keys.
 
 6. The rows do NOT carry a column named `policy_id` as a standalone Arrow field — if `policy_id`
    appears as a top-level column instead of `metadata_uid`, the Tier-1 OCSF rename was not
@@ -92,7 +95,7 @@ matches BC-2.16.022 §Postconditions 1 and 2:
 **And** the response wire JSON contains a row with a column `class_uid` equal to `3004`
 **And** the response wire JSON contains a row with a column `metadata_uid` that is a non-null, non-empty string
 **And** the response wire JSON contains a row with a column `name` (present, possibly null)
-**And** the response wire JSON contains a row with a column `raw_extensions` that is a JSON object with at least one ACL-specific Tier-2 key
+**And** the response wire JSON contains a row with a column `raw_extensions` that is a non-null string whose parsed JSON object contains at least one ACL-specific Tier-2 key (ADR-058 §I2: Arrow Utf8 on the wire)
 **And** the response wire JSON does NOT contain a top-level column named `policy_id`
 
 ---
@@ -124,7 +127,7 @@ matches BC-2.16.022 §Postconditions 1 and 2:
 | BC-2.16.022 | §Postconditions 1: ocsf_class = "entity_management" → class_uid 3004 | Assertion 1: class_uid = 3004 in wire output |
 | BC-2.16.022 | §Postconditions 2 Tier-1: policy_id → ocsf_field = "metadata.uid" → Arrow metadata_uid REQUIRED | Assertion 2+3: metadata_uid column present non-null; policy_id NOT standalone |
 | BC-2.16.022 | §Postconditions 2 Tier-1: policy_name → ocsf_field = "name" → Arrow name | Assertion 4: name column present |
-| BC-2.16.022 | §Postconditions 2 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion 5: raw_extensions JSON object with ACL-specific keys present |
+| BC-2.16.022 | §Postconditions 2 Tier-2: 7 Tier-2 columns aggregate into raw_extensions | Assertion 5: raw_extensions non-null string (Arrow Utf8 per ADR-058 §I2) parsed as JSON object with ACL-specific keys present |
 | BC-2.16.022 | §Postconditions 1: POST /api/v1/organization_acl_policies/, response_path = $.organization_acl_policies | End-to-end: table successfully queries live sensor |
 
 ---
@@ -151,11 +154,16 @@ matches BC-2.16.022 §Postconditions 1 and 2:
    null if the policy_name field was absent in that row). If the column is entirely absent,
    record PARTIAL (0.5) on the "name Tier-1 mapped" dimension.
 
-7. Inspect the first row's column list for `raw_extensions`. Assert it is a JSON object (not
-   null, not a string) containing at least one key that belongs to the Tier-2 column set
-   (`policy_source`, `policy_acl_type`, `policy_acl`, `applied_models`, `matching_devices`,
-   `policy_creation_date`, `policy_last_updated`). If `raw_extensions` is absent or null,
-   record FAIL on "raw_extensions Tier-2 aggregation" dimension.
+7. Inspect the first row's column list for `raw_extensions`. Per ADR-058 §I2 (D-2406),
+   `raw_extensions` on the wire is a JSON-serialized STRING (Arrow Utf8) — a non-null string
+   whose content is a serialized JSON object literal. Assert: (a) `raw_extensions` is a
+   non-null string (a string container is CORRECT per ADR-058 §I2; failing on the string type
+   is a false negative); (b) the string parses as a valid JSON object (via `serde_json::from_str`
+   or equivalent in the evaluation harness); (c) the parsed object contains at least one key
+   from the Tier-2 column set (`policy_source`, `policy_acl_type`, `policy_acl`,
+   `applied_models`, `matching_devices`, `policy_creation_date`, `policy_last_updated`). If
+   `raw_extensions` is absent or null, record FAIL on "raw_extensions Tier-2 aggregation"
+   dimension.
 
 8. Do NOT assert specific policy_id values, specific policy_name strings, or specific
    raw_extensions key values — the live sensor's content varies; structural assertions are
@@ -190,9 +198,13 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   Zero credit (0.0): `name` column absent.
 
 - **raw_extensions present with Tier-2 keys** (weight: 0.15): Does at least one returned row
-  carry a `raw_extensions` JSON object with at least one ACL-specific Tier-2 key?
-  Full credit (1.0): raw_extensions present, is a JSON object, contains at least one Tier-2 key.
-  Partial credit (0.5): raw_extensions present but null or empty object.
+  carry a `raw_extensions` non-null string that parses as a JSON object with at least one
+  ACL-specific Tier-2 key? Per ADR-058 §I2, `raw_extensions` is Arrow Utf8 (JSON-serialized
+  string) on the wire — the string container is CORRECT, not a failure condition.
+  Full credit (1.0): raw_extensions present as non-null string, parses as a JSON object,
+    contains at least one Tier-2 key.
+  Partial credit (0.5): raw_extensions present as non-null string but parses to an empty object,
+    OR raw_extensions is present but null.
   Zero credit (0.0): raw_extensions column absent.
 
 ---
@@ -250,4 +262,5 @@ failure mode BC-2.16.022 §Postconditions 1 guards against.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | fix-a-acl-selector-mandatory | 2026-09-01 | product-owner | ADR-058 §I2 wire-type correction (D-2406). §Scenario point 5, §BDD supplement, §Behavioral Contract Linkage row 4, §Verification Approach step 7, and §Evaluation Rubric raw_extensions dimension updated: raw_extensions on the wire is a JSON-serialized STRING (Arrow Utf8 per ADR-058 §I2), not a JSON object value. Evaluator must parse the string via serde_json::from_str before inspecting Tier-2 keys; asserting "not a string" would produce a false FAIL against a correct implementation. Consumption frontmatter (used/last_evaluated) unchanged — gate FAILED, scenario pending re-run. |
 | 1.0 | xdome-wave-c-f2-spec-evolution-g6 | 2026-08-24 | product-owner | Initial authoring. HS-029 group for S-CLAROTY-ACLPOLICY-001. Wire-shape assertion: class_uid=3004 and metadata_uid REQUIRED Tier-1 column (from policy_id→metadata.uid via ocsf_field_to_arrow_name) present in live monroe sensor output. BC-2.16.022 §Postconditions 1 and 2. SINGLE-USE. |
