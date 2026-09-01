@@ -330,7 +330,7 @@ path = "tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs"
 #   test_BC_2_16_017_claroty_device_vulnerability_relations_wire_shape_class_uid_2002_mock
 #     (SAP-4-001: basic wire shape + native JSON array for device_vulnerability_relevance_reasons)
 #   test_BC_2_16_017_claroty_device_vulnerability_relations_wire_shape_native_json_array_and_null_passthrough
-#     (SAP-4-002: serialized-JSON explicit_nulls; empty [] as native array; null-not-absent for absent vulnerability_name)
+#     (SAP-4-002: serialized-JSON explicit_nulls; three-record mock: Record 0 empty [] as native array, Record 1 null-not-absent for absent vulnerability_name, Record 2 null-not-absent for device_vulnerability_relevance_reasons = null)
 #   test_BC_2_16_017_claroty_device_vulnerability_relations_e2e_e_query_038_tier2_device_uid
 #     (RG-003: AUTHORITATIVE SAP-3 E-QUERY-038 gate; PrismError::ColumnNotFound via QueryEngine::execute())
 [[test]]
