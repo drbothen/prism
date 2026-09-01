@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.018 v1.0 draft + BC-2.16.019 v1.0 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.7"
+version: "1.8"
 modified: "2026-08-31"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,8 +21,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-schema-extract.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "c5bff0d"
-# input-hash: refreshed 2026-08-31 (G4 story-doc governance sweep v1.5→v1.6; BC input files updated to v1.2/v1.1)
+input-hash: "2a5f668"
+# input-hash: refreshed 2026-08-31 (v1.8 consistency fix burst; computed from current inputs)
 traces_to: "BC-2.16.018"
 # traces_to covers primary BC; BC-2.16.019 is the companion BC; both wired via behavioral_contracts
 points: 5
@@ -260,8 +260,7 @@ and MUST NOT contain `server_location` as a standalone column name.
 Same applies for any other Tier-2 column (`model`, `management_ip`, `os_version`,
 `serial_number`, `uptime_days`, etc.).
 
-**Test:** `test_BC_2_16_018_claroty_servers_tier2_column_raises_e_query_038`
-(drives through the plan-time validation path, not just a spec-parse assertion)
+**Test:** `test_BC_2_16_018_claroty_servers_e2e_e_query_038_tier2_column` (prism-bin, via QueryEngine::execute — authoritative E2E gate per SAP-3 rule 3; `test_BC_2_16_018_claroty_servers_tier2_column_raises_e_query_038` in prism-sensors is defense-in-depth per SAP-3 rule 3)
 
 ### AC-004 (WIRE-SHAPE rename): SELECT server_status (raw Tier-1 TOML name) raises E-QUERY-038; `available_columns` contains `status_code` but NOT `server_status` (traces to BC-2.16.018 invariant — raw Tier-1 TOML name rejected; Arrow name status_code is the accepted form; TV-BC-2.16.018-003 pattern)
 
@@ -374,8 +373,7 @@ and lives in `raw_extensions`. Cross-table access to `interface_name` requires
 Same applies for any other Tier-2 column (`interface_type`, `interface_connection_type`,
 `site_id`, `avg_traffic_past_month_mbps`, etc.).
 
-**Test:** `test_BC_2_16_019_claroty_server_interfaces_tier2_column_raises_e_query_038`
-(drives through the plan-time validation path, not just a spec-parse assertion)
+**Test:** `test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column` (prism-bin, via QueryEngine::execute — authoritative E2E gate per SAP-3 rule 3; `test_BC_2_16_019_claroty_server_interfaces_tier2_column_raises_e_query_038` in prism-sensors is defense-in-depth per SAP-3 rule 3)
 
 ### AC-012 (WIRE-SHAPE rename): SELECT interface_status (raw Tier-1 TOML name) raises E-QUERY-038; `available_columns` contains `status_code` but NOT `interface_status` (traces to BC-2.16.019 invariant — Tier-1 rename enforced; EC-016-019-006)
 
@@ -604,7 +602,7 @@ column_type = "string"
 name = "management_mac"
 column_type = "string"
 
-# Tier-2: days the server has been up; may be fractional (BC-2.16.018 §PC2 note — verify on live)
+# Tier-2: days the server has been up; confirmed fractional (OpenAPI §example: 667.233661; Float type resolved)
 [[tables.columns]]
 name = "uptime_days"
 column_type = "float"
@@ -963,6 +961,7 @@ dependency-direction enforcement.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-08-31 | story-writer | F-002 (LOW): AC-003 §Test cite updated to authoritative E2E gate `test_BC_2_16_018_claroty_servers_e2e_e_query_038_tier2_column` (prism-bin, QueryEngine::execute); `test_BC_2_16_018_claroty_servers_tier2_column_raises_e_query_038` (prism-sensors) noted as defense-in-depth per SAP-3 rule 3. AC-011 §Test cite updated to authoritative E2E gate `test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column` (prism-bin, QueryEngine::execute); `test_BC_2_16_019_claroty_server_interfaces_tier2_column_raises_e_query_038` (prism-sensors) noted as defense-in-depth per SAP-3 rule 3. F-004 (OBS): §TOML Column-Block Specification uptime_days comment updated from "may be fractional (…verify on live)" to "confirmed fractional (OpenAPI §example: 667.233661; Float type resolved)" — consistent with BC-2.16.018 §PC2 current state, §Notes item 5, and §Risk. input-hash refreshed to 2a5f668. |
 | 1.7 | 2026-08-31 | story-writer | §Behavioral Contracts table Version cells synced to current BC versions: BC-2.16.018 v1.2→v1.3, BC-2.16.019 v1.1→v1.2 (POL-40 structural pin). §Red Gate Tests: RG-005/006/013/014 (live Variant-1) type column updated — "real assertion body delivered (no todo!())" appended to reflect delivered state; RG-003/RG-011 (E2E prism-bin) What-it-gates column updated to include full available_columns set (class_uid, _sensor) consistent with AC-003/AC-011 authoritative assertions. No AC coverage or BC-trace changes. |
 | 1.6 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC version pins from §Authority (BC-2.16.018 §Postconditions §1..§2 + BC-2.16.019 §Postconditions §1..§3 headings), §Token Budget (both BC rows), and §References; §Behavioral Contracts table Version columns synced to v1.2/v1.1 per POL-40 current-state pin. FIX 2 (crates_touched): Removed prism-spec-engine — delivered tests live in crates/prism-sensors/tests/ and crates/prism-bin/tests/ (no prism-spec-engine file modified per worktree verification). FIX 4 (new delivered test): Added RG-023 test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent to §Red Gate Tests table and §File Structure Requirements (bc_2_16_019_claroty_server_interfaces_wire_shape.rs CREATE row); density check updated 22→23 RGTs / 16 ACs = 1.4375. input-hash refreshed to bfaf2e0 (BC-2.16.018 v1.2, BC-2.16.019 v1.1). |
 | 1.5 | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 27 `column_name =` occurrences (17 servers + 10 server_interfaces) changed to `name =`. FIX B: §Red Gate Tests — RG-003 test name corrected (`…e2e_e_query_038_tier2_column`); RG-011 test name corrected (`…e2e_e_query_038_tier2_column`); RG-017 (single combined wire-shape row) replaced with 6 authoritative fetch-path tests (RG-017..RG-022) across two delivered files; density updated 17→22 RGTs, ratio 1.06→1.375. FIX C: §File Structure Requirements prism-bin CREATE entry split from 1 combined file (`bc_2_16_018_019_…`) to 2 BC-scoped files (`bc_2_16_018_claroty_servers_wire_shape.rs` + `bc_2_16_019_claroty_server_interfaces_wire_shape.rs`); Cargo.toml MODIFY note updated to two `[[test]]` entries. |

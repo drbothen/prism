@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.970"
+version: "2.971"
 status: draft
 producer: state-manager
 timestamp: 2026-08-31T23:59:59Z
 phase: 3
 total_stories: 320
+# D-2405: G4 (S-CLAROTY-SERVERS-001) rebase + pre-PR front-loaded review fixes (TD-VSDD-053) — feature rebased onto develop@12cecb12, HEAD a24d0dea7→3b7ef5c3d; 8 findings ALL FIXED (CR-001..006, F-001..004); story v1.7→v1.8; pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. STORY-INDEX v2.970→v2.971. D-2404 NOTE archived.
 # D-2404: G3 (S-CLAROTY-DEVVULNREL-001) POST-MERGE BURST (TD-VSDD-053) — PR #247 @12cecb12 squash-merged (D-2400 blanket authority 2026-08-31). POL-14 BC-2.16.017 draft→active. pin [ready v1.8]→[merged 12cecb12; PR #247]. total_stories 320 UNCHANGED. STORY-INDEX v2.969→v2.970. D-2402 NOTE archived.
 # D-2402: G3 (S-CLAROTY-DEVVULNREL-001) consistency-gate fix burst (TD-VSDD-053) — rebased onto develop@3d724a069; story v1.7→v1.8; pin [ready v1.7]→[ready v1.8]. total_stories 320 UNCHANGED. STORY-INDEX v2.968→v2.969. D-2401 NOTE archived.
 # D-2399: G2 live holdout gate EXECUTED (monroe, Variant-2). HS-002 PASS 1.00 (consumed), HS-003 PASS 1.00 (consumed), HS-001 SETUP-FAILURE (quiescent OT — NOT consumed). Human ACCEPTED (Option-1). DEFECT-PQL-SENSOR-QUALIFIED-TABLEREF-001 draft v0.1 REGISTERED. total_stories 319→320. D-2398 NOTE archived.
@@ -1095,7 +1096,7 @@ Directive. SAP-2 probe N/A for all Wave C tables (D-2200).
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [ready v1.7] | prism-sensors, prism-bin | 2 (BC-2.16.018 v1.3, BC-2.16.019 v1.2) | -- | 5 | -- |
+| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [ready v1.8] | prism-sensors, prism-bin | 2 (BC-2.16.018 v1.3, BC-2.16.019 v1.2) | -- | 5 | -- |
 | S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [ready v1.5] | prism-sensors, prism-bin | 2 (BC-2.16.020 v1.2, BC-2.16.021 v1.2) | -- | 8 | -- |
 | S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [ready v1.4] | prism-sensors, prism-spec-engine, prism-bin, prism-query | 1 (BC-2.16.022 v1.2) | -- | 5 | -- |
 
