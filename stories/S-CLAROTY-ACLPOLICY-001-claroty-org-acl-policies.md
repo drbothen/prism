@@ -10,8 +10,8 @@ status: ready
 # BC status: BC-2.16.022 v1.1 draft — pre-delivery remove-uncertainty pass complete 2026-08-31; promoted to ready (D-2385).
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.4"
-modified: "2026-08-31"
+version: "1.5"
+modified: "2026-09-01"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -21,7 +21,7 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "702dbdc"
+input-hash: "11f1c65"
 # input-hash: run `compute-input-hash <this-file> --update` after state-manager commits
 traces_to: "BC-2.16.022"
 points: 5
@@ -378,10 +378,14 @@ is a P1 defect — same invariant as BC-2.16.020 §Invariants).
 
 An empty `applied_models` array MUST serialize as `[]` JSON, not null (EC-016-022-005).
 
-**Test:** `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string`
-(unit — mock response containing a row with `applied_models: ["Siemens SIMATIC S7", "Rockwell"]`;
-assert deserialized `raw_extensions["applied_models"]` is a JSON array, not a string;
-also test with empty `applied_models: []` → serializes as `[]` not null)
+**Tests:**
+- `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string` (unit — mock response
+  containing a row with `applied_models: ["Siemens SIMATIC S7", "Rockwell"]`; assert deserialized
+  `raw_extensions["applied_models"]` is a JSON array, not a string; covers the non-empty
+  sub-case only)
+- `test_BC_2_16_022_applied_models_empty_array_wire_shape` (integration in prism-bin
+  §bc_2_16_022_claroty_acl_policies_wire_shape — mock response with `applied_models: []`; assert
+  serialized as `[]` not null; EC-016-022-005 empty-array sub-case; distinct test from RG-008)
 
 ### AC-009: Missing REQUIRED policy_id field → null row; no hard error; subsequent rows unaffected (traces to BC-2.16.022 invariant — policy_id REQUIRED semantics; EC-016-022-001)
 
@@ -433,14 +437,15 @@ cells are null; no E-SPEC-018 raised)
 | RG-005 | `test_BC_2_16_022_claroty_org_acl_policies_policy_source_tier2_e_query_038` | Integration end-to-end (prism-query, via QueryEngine::execute — authoritative) | AC-005: SELECT policy_source raises E-QUERY-038; available_columns has raw_extensions, metadata_uid, name, actor_user_name, comment but NOT policy_source |
 | RG-006 | `test_BC_2_16_022_claroty_org_acl_policies_policy_id_raw_name_not_projected_metadata_uid_is` | Integration end-to-end (prism-query, via QueryEngine::execute — authoritative) | AC-006 WIRE-SHAPE rename: SELECT policy_id raises E-QUERY-038; available_columns has metadata_uid but NOT policy_id |
 | RG-007 | `test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and_metadata_uid` | Live Variant-1 (`#[ignore]`) | AC-007 WIRE-SHAPE: wire JSON class_uid=3004, metadata_uid non-null UUID, raw_extensions present, applied_models JSON array not stringified; policy_id NOT standalone root key |
-| RG-008 | `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-008: applied_models in raw_extensions is JSON array not stringified string; empty array serializes as [] not null |
+| RG-008 | `test_BC_2_16_022_applied_models_raw_extensions_json_array_not_string` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-008 (non-empty sub-case): non-empty applied_models array (native JSON array, not stringified) in raw_extensions |
+| (RG-008 sub-case) | `test_BC_2_16_022_applied_models_empty_array_wire_shape` | Integration (prism-bin §bc_2_16_022_claroty_acl_policies_wire_shape, MED-1 EC-016-022-005) | AC-008 (empty-array sub-case, EC-016-022-005): empty applied_models [] serializes as [] not null in wire output; distinct test from RG-008 |
 | RG-009 | `test_BC_2_16_022_null_metadata_uid_when_policy_id_absent` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-009: policy_id absent → null row; no hard error; subsequent rows continue |
 | RG-010 | `test_BC_2_16_022_claroty_org_acl_policies_live_unbounded_select_no_pagination` | Live Variant-1 (`#[ignore]`) | AC-002 + AC-010: SELECT * (no LIMIT) succeeds; no E-SENSOR-001; no count column in wire JSON; result stable across two runs |
 | RG-011 | `test_BC_2_16_022_datetime_fields_null_passthrough_in_raw_extensions` | Unit inline (prism-bin/src/spec_driven_adapter.rs) | AC-011: policy_creation_date and policy_last_updated parse ISO-8601 correctly; absent fields produce null cell not E-SPEC-018 |
 | RG-012 | `test_BC_2_16_022_claroty_org_acl_policies_wire_shape_applied_models_json_array` | Integration (prism-bin, wire-shape serialization assertion via SpecDrivenSensorAdapter::fetch — authoritative production path) | Wire-level assertion: `applied_models` Json column serializes as JSON-typed array (not string) in wire output; `applied_models` key absent from root-level wire envelope; fetch path is authoritative (no DTU for ACL policies per D-2200) |
 
-**BC-5.38.001 density check:** 12 Red Gate tests / 11 acceptance criteria = 1.09 ≥ 0.5 threshold. PASS.
-(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function. RG-012 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only.)
+**BC-5.38.001 density check:** 13 Red Gate tests / 11 acceptance criteria = 1.18 ≥ 0.5 threshold. PASS.
+(Note: RG-010 covers two ACs — AC-002 and AC-010 — counted as 1 RGT per 1 distinct failing test function. RG-012 is a supplemental wire-shape gate — no separate AC assigned; counted toward density numerator only. RG-008 sub-case (`test_BC_2_16_022_applied_models_empty_array_wire_shape`) is a supplemental integration test covering EC-016-022-005 — counted toward density numerator only.)
 
 ## Architecture Mapping
 
@@ -793,7 +798,7 @@ present:
 | `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY — append 1 `[[tables]]` block | Add `organization_acl_policies` (bare name; registered/queryable `claroty_organization_acl_policies`) per §TOML Column-Block Specification |
 | `crates/prism-spec-engine/src/spec_parser.rs` | MODIFY (add tests) | RG-001/003/004/011 unit tests in `#[cfg(test)] mod tests`; verify TOML parse with 11 ColumnSpec entries; verify PaginationConfig::None; verify body_template has policy_acl_syntax |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY (add tests; possibly add guard) | RG-002 unit test for build_request PaginationConfig::None path; if guard is absent, add explicit None arm before offset/limit injection |
-| `crates/prism-sensors/tests/` or `crates/prism-spec-engine/tests/` | MODIFY (add integration tests) | RG-005/006 plan-time E-QUERY-038 integration tests — defense-in-depth; authoritative version is in prism-bin (see below) |
+| `crates/prism-query/tests/bc_2_16_022_test.rs` | MODIFY (add integration tests) | RG-005/006 plan-time E-QUERY-038 integration tests — AUTHORITATIVE gate via QueryEngine::execute (per SAP-3 rule 3); SELECT policy_source raises E-QUERY-038 with correct available_columns (RG-005); SELECT policy_id raises E-QUERY-038 with available_columns containing metadata_uid but NOT policy_id (RG-006) |
 | `crates/prism-sensors/tests/` or `crates/prism-spec-engine/tests/` | MODIFY (add live tests) | RG-007/010 live Variant-1 `#[ignore]`'d integration tests against live monroe; must carry the LIVE-MONROE-001 comment |
 | `crates/prism-spec-engine/src/pipeline.rs` or `crates/prism-sensors/tests/` | MODIFY (add unit tests) | RG-008/009 mock response unit tests for applied_models Json serialization and REQUIRED policy_id semantics |
 | `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs` | CREATE | RG-012 prism-bin wire-shape test: SpecDrivenSensorAdapter::fetch path; serialized JSON assertion for applied_models Json column (JSON array, not string); wire-envelope shape (fetch path is authoritative; no DTU for ACL policies per D-2200) |
@@ -880,6 +885,7 @@ reasoning path. Deferred to live-validation milestone if not complete before hol
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | story-doc-consistency-g6-low001-obs001 | 2026-09-01 | story-writer | LOW-001: §File Structure Requirements RG-005/006 row corrected — stale `crates/prism-sensors/tests/ or prism-spec-engine/tests/` attribution and "defense-in-depth; authoritative in prism-bin" text removed; replaced with `crates/prism-query/tests/bc_2_16_022_test.rs` AUTHORITATIVE via QueryEngine::execute (per SAP-3 rule 3). OBS-001: §Red Gate Tests RG-008 scope narrowed to non-empty applied_models sub-case (native JSON array, not stringified); RG-008 sub-case row added for `test_BC_2_16_022_applied_models_empty_array_wire_shape` (EC-016-022-005, prism-bin §bc_2_16_022_claroty_acl_policies_wire_shape); §AC-008 §Test wording split into two named tests (non-empty unit test + empty-array integration test) to eliminate false implication that both sub-cases run in RG-008; density check updated 12→13 RGTs. |
 | 1.4 | story-doc-governance-sweep-g3-g4-g5-g6 | 2026-08-31 | story-writer | FIX 1 (POL-39): Removed volatile BC-2.16.022 version pins from §Authority (§Postconditions §1..§4 + §Invariants headings) and §Token Budget row; §Behavioral Contracts table Version synced to v1.2 per POL-40 current-state pin. FIX 3 (§Red Gate Tests + §Architecture Compliance): Synced 8 RG rows to delivered test names and crate paths (RG-004/007/010 name rename; RG-005/006 prism-bin→prism-query + removed SAP-3 defense-in-depth text; RG-008/009/011 Unit inline prism-bin/src/spec_driven_adapter.rs); §AC §Tasks §Live-Test Approach test names updated in all occurrences via replace_all. Rule #8 corrected: E-QUERY-038 plan-time tests run through prism-query (authoritative per SAP-3 rule 3), NOT prism-spec-engine. |
 | 1.3 | post-delivery-test-sync | 2026-08-31 | story-writer | FIX A: §TOML Column-Block Specification — 11 `column_name =` occurrences changed to `name =` (ColumnSpec deserializer field). FIX B: §Red Gate Tests RG-012 mechanism corrected from QueryEngine::execute → SpecDrivenSensorAdapter::fetch (authoritative production path; no DTU for ACL policies per D-2200). FIX C: §File Structure Requirements RG-012 CREATE entry description corrected to SpecDrivenSensorAdapter::fetch path with DTU-absence rationale. |
 | 1.2 | g2-proven-spec-prose-corrections | 2026-08-31 | story-writer | G2-proven spec-prose corrections applied (mirrors S-CLAROTY-OT-EVENTS-001 v1.3 fixes). FIX 1 (MED-1 table_name): `[[tables]]` block now uses bare `table_name = "organization_acl_policies"`; §Authority, TOML block, and AC-001 updated; derivation note `{sensor_id}_{table_name}` = `claroty_organization_acl_policies` registered/queryable name added; SELECT examples and error prose retain prefixed queryable names unchanged. FIX 2 (MED-3 mechanism attribution): N/A — no ColumnMapper::map_record references in this story. FIX 3 (MED-4 prism-bin declaration): `crates_touched` adds `prism-bin` and `prism-query`; RG-005/RG-006 updated to prism-bin end-to-end authoritative (plan-time prism-sensors tests remain defense-in-depth per SAP-3 rule 3); RG-012 added (wire-shape serialization assertion in prism-bin for `applied_models` Json column); density check 11→12 RGTs / 11 ACs = 1.09 PASS; §File Structure Requirements adds CREATE `crates/prism-bin/tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs` + MODIFY `crates/prism-bin/Cargo.toml`; TOML block description updated to bare name. FIX 4 (§Architecture Mapping path): `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` corrected to `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` (contains `build_column_array`). |

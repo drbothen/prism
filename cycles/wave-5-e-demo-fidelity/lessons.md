@@ -5039,3 +5039,57 @@ Never confuse the container encoding (always Utf8/string) with the content encod
 **3-recurrence gate:** If G6 (or any future story) arrives at pre-PR review with todo!()/panic!() live-test bodies (occurrence 3), the orchestrator MUST codify a SID-1 pre-stub-authoring check into stub-architect and test-writer standing disciplines, and add this as an explicit review criterion in the pre-PR review dispatch.
 
 **Source:** D-2408 G5 rebase + pre-PR front-loaded review fixes.
+
+---
+
+### [process-discipline] 2026-09-01 D-2411 — CODIFIED (3-recurrence): `const SAP2_STATUS` marker MUST be present in no-DTU sensor test files at stub-authoring time
+
+**Date recorded:** 2026-09-01
+**D-NNN anchor:** D-2411 (G6 pre-PR front-loaded review — OCCURRENCE 3; 3-recurrence codification threshold met per CLAUDE.md)
+**Story:** S-CLAROTY-ACLPOLICY-001
+**Tags:** [process-discipline] [sap2-discipline] [sensor-testing] [stub-architect] [test-writer] [codification]
+**Classification:** CODIFIED DEFECT PATTERN — missing `const SAP2_STATUS` in no-DTU sensor test files. Three occurrences: G4 F-001, G5 CR-001, G6 MED-001/CR-002. Follow-up story: S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 draft v0.1.
+
+**Description:**
+
+Every sensor table that ships without a DTU route must carry `const SAP2_STATUS: &str = "N/A: no DTU route; deferred to D-2200 (...)"` in its test file (plus an `assert!` that verifies the constant starts with `"N/A:"` and contains `"D-2200"`), so that the SAP-2 grep audit can confirm the absence is documented rather than accidentally missing.
+
+Occurrences:
+- G4 (S-CLAROTY-SERVERS-001): F-001 — all 4 new test files missing SAP2_STATUS. Fixed in pre-PR fix-burst (D-2405).
+- G5 (S-CLAROTY-ORGPOLICY-001): CR-001 (HIGH) — all 4 new test files missing SAP2_STATUS. Fixed in pre-PR front-loaded review (D-2408).
+- G6 (S-CLAROTY-ACLPOLICY-001): MED-001/CR-002 (HIGH) — test files missing SAP2_STATUS. Fixed in pre-PR front-loaded review (D-2411).
+
+**Root cause:** Stub-architect and test-writer agents do not have a machine-enforced template requirement. The constant is established by prior-story intelligence in CLAUDE.md/SAP-2, but that intelligence drifts under context pressure. The gap is caught at pre-PR adversarial review every time — it never reaches `develop` uncaught — but the cost of three separate fix-bursts is avoidable with a mechanical gate.
+
+**Codification action:** S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 draft v0.1 REGISTERED (2026-09-01). The story specifies a CI gate script (AC-001/AC-002) that fails if SAP2_STATUS is absent or lacks a D-2200 reference. Status: draft; behavioral_contracts: [] pending PO authorship. Post-v1 priority P3.
+
+**Rule (codified):** Before any pre-PR review, every new sensor test file for a table WITHOUT a DTU route MUST contain `const SAP2_STATUS: &str = "N/A: ..."` with the substring `"D-2200"`. The stub-architect MUST emit this constant in the initial stub, and the test-writer MUST verify its presence before declaring test authoring complete. A CI gate (AC-001/AC-002 of S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001) will mechanically enforce this once the story ships.
+
+**Source:** D-2411 G6 rebase + pre-PR front-loaded review fixes. Related: D-2405 (G4 F-001), D-2408 (G5 CR-001), D-2408 RECURRENCE-WATCH entry above (now CODIFIED).
+
+---
+
+### [process-discipline] 2026-09-01 D-2411 — CODIFIED (3-recurrence): `#[ignore]`'d live-test bodies MUST be real env-gated assertions, not `todo!()`/`panic!()`
+
+**Date recorded:** 2026-09-01
+**D-NNN anchor:** D-2411 (G6 pre-PR front-loaded review — OCCURRENCE 3; 3-recurrence codification threshold met per CLAUDE.md)
+**Story:** S-CLAROTY-ACLPOLICY-001
+**Tags:** [process-discipline] [sid1-discipline] [sensor-testing] [live-tests] [test-writer] [codification]
+**Classification:** CODIFIED DEFECT PATTERN — non-real live-test bodies (`todo!()`/`panic!()`) in `#[ignore]`'d `_live_` test functions. Three occurrences: G2 panic!(), G5 todo!(), G6 todo!(). Follow-up story: S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 draft v0.1.
+
+**Description:**
+
+`#[ignore]`'d tests whose names contain `_live_` must have real, env-gated bodies: read the sensor's `INSTANCE_URL` env var, skip gracefully if absent, and execute a real query when present. Authoring `panic!("not yet implemented")` or `todo!()` as the sole body violates SID-1 (CLAUDE.md §Standing Adversary Probes), which requires real behavior rather than a stub.
+
+Occurrences:
+- G2 (S-CLAROTY-OT-EVENTS-001): `panic!("not yet implemented")` body in live test — replaced with real env-gated body in pre-merge fix-burst.
+- G5 (S-CLAROTY-ORGPOLICY-001): CR-002 (HIGH) — 5 live `#[ignore]` test bodies contained `todo!()`. Fixed in pre-PR front-loaded review (D-2408).
+- G6 (S-CLAROTY-ACLPOLICY-001): CR-001 (HIGH) — live `#[ignore]` test bodies contained `todo!()`. Fixed in pre-PR front-loaded review (D-2411).
+
+**Root cause:** Stub-architect and test-writer agents author `#[ignore]` test stubs with `todo!()` bodies because the live-test pattern requires the real sensor env-var and a live instance, which are not available during stub authoring. SID-1 (CLAUDE.md §SID-1) prohibits this but is not mechanically enforced. The gap is invisible to CI because `#[ignore]` tests do not run. It is caught at pre-PR adversarial review.
+
+**Codification action:** S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 draft v0.1 REGISTERED (2026-09-01). The story specifies a CI gate script (AC-003) that fails if any `#[ignore]`'d `_live_` test has `todo!()`/`panic!()` as its sole body. Status: draft; behavioral_contracts: [] pending PO authorship. Post-v1 priority P3.
+
+**Rule (codified):** Any `#[ignore]`'d test function whose name contains `_live_` MUST have a real env-gated body at authoring time: read `SENSOR_INSTANCE_URL` (or equivalent), skip gracefully if absent, execute a real query if present. A bare `todo!()` or `panic!()` body is forbidden under SID-1 regardless of whether the live environment is available at authoring time. A CI gate (AC-003 of S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001) will mechanically enforce this once the story ships.
+
+**Source:** D-2411 G6 rebase + pre-PR front-loaded review fixes. Related: D-2408 (G5 CR-002), D-2408 RECURRENCE-WATCH entry above (now CODIFIED).
