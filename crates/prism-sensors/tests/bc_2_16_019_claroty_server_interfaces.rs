@@ -42,6 +42,16 @@ use prism_spec_engine::{
 use serde_json::json;
 
 // ---------------------------------------------------------------------------
+// SAP-2 marker — no DTU clone exists for claroty_server_interfaces
+// ---------------------------------------------------------------------------
+
+/// SAP-2 compliance: no DTU clone exists for the claroty_server_interfaces table.
+/// Parity check deferred to S-CLAROTY-SERVERS-DTU-001 (D-2200 tracking entry).
+#[allow(dead_code)]
+const SAP2_STATUS: &str =
+    "N/A: no DTU clone exists for claroty_server_interfaces; deferred to D-2200 (S-CLAROTY-SERVERS-DTU-001)";
+
+// ---------------------------------------------------------------------------
 // Helper: load the full claroty.sensor.toml and return the claroty_server_interfaces TableSpec.
 // Panics with the Red Gate message if the table is absent (pre-implementation).
 // ---------------------------------------------------------------------------
@@ -133,6 +143,33 @@ fn test_BC_2_16_019_claroty_server_interfaces_toml_block_parses() {
                  got: {other:?}"
             );
         }
+    }
+
+    // ── CR-004: body_template fields projection ────────────────────────────────
+    // The POST step requires a `fields` projection (GetServerInterfacesParameters minItems: 1).
+    // All 10 declared column names must appear in the body_template fields array.
+    // Read column names from parsed spec — NOT a hardcoded list.
+    assert!(
+        step.body_template.is_some(),
+        "BC-2.16.019 AC-009 CR-004: fetch_server_interfaces step must have body_template \
+         for fields projection (GetServerInterfacesParameters minItems: 1)"
+    );
+    let body_tmpl_str = step.body_template.as_deref().unwrap();
+    let body_tmpl_json: serde_json::Value = serde_json::from_str(body_tmpl_str)
+        .expect("BC-2.16.019 AC-009 CR-004: body_template must be valid JSON");
+    let fields_arr = body_tmpl_json["fields"]
+        .as_array()
+        .expect("BC-2.16.019 AC-009 CR-004: body_template must have a 'fields' array");
+    let fields_as_strs: Vec<&str> = fields_arr.iter().filter_map(|v| v.as_str()).collect();
+    for col in &server_interfaces.columns {
+        assert!(
+            fields_as_strs.contains(&col.name.as_str()),
+            "BC-2.16.019 AC-009 CR-004: column '{}' must be present in body_template \
+             'fields' array (GetServerInterfacesParameters projection). \
+             Present fields: {:?}",
+            col.name,
+            fields_as_strs
+        );
     }
 }
 
@@ -642,9 +679,10 @@ async fn test_BC_2_16_019_claroty_server_interfaces_live_raw_extensions_contains
 /// This test is SAP-3 defense-in-depth only. The authoritative production-path coverage
 /// for RG-015 part 1 (null-passthrough, server_name absent) is:
 ///   `crates/prism-bin/tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs` →
-///   `test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire`
-/// (The wire test exercises the full production path with a server_name-present /
-/// interface_name-null record and asserts on serialized wire JSON.)
+///   `test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent`
+/// That test exercises `SpecDrivenSensorAdapter::fetch` end-to-end with a wiremock response
+/// containing an absent server_name, and asserts `"device_name": null` (not absent)
+/// in the serialized wire JSON (CLAUDE.md §Wire-shape assertion discipline; BC-2.11.001 EC-11-079).
 ///
 /// Traces to: BC-2.16.019 §Invariants (server_name MUST be present); EC-016-019-001.
 /// Story: S-CLAROTY-SERVERS-001 AC-015 (part 1)
@@ -839,4 +877,28 @@ fn test_BC_2_16_019_claroty_server_interfaces_nullable_count_uses_empty_page_hal
     });
     // (Full behavioral test belongs in prism-spec-engine integration tests where
     // PipelineExecutor is directly accessible.)
+}
+
+// ---------------------------------------------------------------------------
+// F-001: SAP-2 N/A marker test
+// ---------------------------------------------------------------------------
+
+/// SAP-2 marker test: confirms SAP2_STATUS is properly documented as N/A
+/// (no DTU clone exists) with a D-2200 deferral anchor.
+///
+/// BC-2.16.019; Story: S-CLAROTY-SERVERS-001
+#[test]
+fn test_BC_2_16_019_claroty_server_interfaces_sap2_na_documented() {
+    assert!(
+        SAP2_STATUS.starts_with("N/A:"),
+        "SAP2_STATUS must begin with 'N/A:' to document the absence of a DTU clone. \
+         Got: {:?}",
+        SAP2_STATUS
+    );
+    assert!(
+        SAP2_STATUS.contains("D-2200"),
+        "SAP2_STATUS must cite D-2200 (S-CLAROTY-SERVERS-DTU-001 deferral anchor). \
+         Got: {:?}",
+        SAP2_STATUS
+    );
 }

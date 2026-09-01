@@ -57,13 +57,7 @@
 //! BC: BC-2.16.019
 //! Story: S-CLAROTY-SERVERS-001
 
-#![allow(
-    dead_code,
-    unused_imports,
-    non_snake_case,
-    clippy::unwrap_used,
-    clippy::expect_used
-)]
+#![allow(dead_code, non_snake_case, clippy::unwrap_used, clippy::expect_used)]
 extern crate toml;
 
 use arrow_json;
@@ -71,7 +65,7 @@ use std::sync::Arc;
 
 use arrow::array::Array;
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
     cache::CacheConfig,
@@ -80,8 +74,8 @@ use prism_query::{
     table_registry::TableRegistry,
 };
 use prism_sensors::{
-    BearerStaticSensorAuth, SensorAdapter, SensorError, adapter::QueryParams,
-    adapter::SensorSpec as SensorAdapterSpec, auth::SensorAuth,
+    BearerStaticSensorAuth, SensorAdapter, adapter::QueryParams,
+    adapter::SensorSpec as SensorAdapterSpec,
 };
 use prism_spec_engine::{
     overlay::{OverlayLoader, SensorInstanceOverlay},
@@ -91,6 +85,14 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
 };
+
+// ---------------------------------------------------------------------------
+// SAP-2 marker — no DTU clone exists for claroty_server_interfaces
+// ---------------------------------------------------------------------------
+
+/// SAP-2 compliance: no DTU clone exists for the claroty_server_interfaces table.
+/// Parity check deferred to S-CLAROTY-SERVERS-DTU-001 (D-2200 tracking entry).
+const SAP2_STATUS: &str = "N/A: no DTU clone exists for claroty_server_interfaces; deferred to D-2200 (S-CLAROTY-SERVERS-DTU-001)";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -366,7 +368,9 @@ async fn test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mo
         raw_ext_json
     );
 
-    // ── Wire-shape assertion 5: at least one Tier-2 field is inside raw_extensions ──
+    // ── Wire-shape assertion 5: seeded Tier-2 fields are inside raw_extensions ──
+    // CR-003: individual per-field assertions (not tautological .any() — each field is
+    // independently verified present in raw_extensions).
     let raw_ext_obj = raw_ext_json
         .as_object()
         .expect("raw_extensions must be a JSON object");
@@ -377,15 +381,15 @@ async fn test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mo
         "site_id",
         "avg_traffic_past_hour_mbps",
     ];
-    let has_tier2 = tier2_spot_check
-        .iter()
-        .any(|name| raw_ext_obj.contains_key(*name));
-    assert!(
-        has_tier2,
-        "raw_extensions object must contain at least one Tier-2 field. \
-         BC-2.16.019 AC-013. raw_extensions keys: {:?}",
-        raw_ext_obj.keys().collect::<Vec<_>>()
-    );
+    for name in &tier2_spot_check {
+        assert!(
+            raw_ext_obj.contains_key(*name),
+            "raw_extensions object must contain seeded Tier-2 field '{}'. \
+             BC-2.16.019 AC-013. raw_extensions keys: {:?}",
+            name,
+            raw_ext_obj.keys().collect::<Vec<_>>()
+        );
+    }
 
     // ── Wire-shape assertion 6: no Tier-2 column names at top level ───────────
     // Tier-2 columns MUST be inside raw_extensions, not as top-level wire columns.
@@ -422,6 +426,47 @@ async fn test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mo
         !column_names.contains(&"interface_status"),
         "interface_status (raw TOML name) MUST NOT appear as a top-level column; \
          Arrow name is 'status_code'. BC-2.16.019 AC-011."
+    );
+
+    // ── CR-001: Wire-level status_code assertion (explicit_nulls=true serialization) ──
+    // The RecordBatch-level assertion (3) above confirms status_code column exists.
+    // This block locks in the wire-level value: interface_status="Active" MUST appear as
+    // `"status_code": "Active"` in serialized JSON (not absent, not null).
+    // Mirrors the RG-015-WIRE-SNA pattern (BC-2.11.001 EC-11-079 null-not-absent discipline
+    // applies to non-null values too — the key must be present with the correct value).
+    let mut cr001_buf: Vec<u8> = Vec::new();
+    let mut cr001_writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut cr001_buf);
+    cr001_writer.write(first_batch).expect(
+        "NEW-2 CR-001: arrow_json write must not fail for \
+             claroty_server_interfaces RecordBatch",
+    );
+    cr001_writer
+        .finish()
+        .expect("NEW-2 CR-001: arrow_json finish must not fail");
+
+    let cr001_rows: Vec<serde_json::Value> =
+        serde_json::from_slice::<Vec<serde_json::Value>>(&cr001_buf)
+            .expect("NEW-2 CR-001: arrow_json output must deserialize as JSON array of rows");
+
+    assert!(
+        !cr001_rows.is_empty(),
+        "NEW-2 CR-001: wire serialization must produce at least one row"
+    );
+    let cr001_row0 = &cr001_rows[0];
+
+    assert!(
+        cr001_row0.get("status_code").is_some(),
+        "NEW-2 CR-001 LOAD-BEARING: 'status_code' key MUST be PRESENT in wire row 0 \
+         (seeded interface_status='Active' → status_code must appear in serialized JSON). \
+         BC-2.16.019 EC-016-019-003."
+    );
+    assert_eq!(
+        cr001_row0.get("status_code"),
+        Some(&serde_json::Value::String("Active".to_string())),
+        "NEW-2 CR-001 LOAD-BEARING: 'status_code' wire value MUST equal 'Active' \
+         (seeded interface_status='Active'). BC-2.16.019 EC-016-019-003."
     );
 }
 
@@ -1065,5 +1110,136 @@ async fn test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_emp
         "RG-016-PROD: empty server_interfaces array with count=null MUST produce ZERO rows. \
          Got {} rows. BC-2.16.019 §PC1; EC-016-019-005.",
         total_rows
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CR-002: Null status_code wire-level null-not-absent test
+// ---------------------------------------------------------------------------
+
+/// Production-path null-passthrough test: `SpecDrivenSensorAdapter::fetch()` for
+/// `claroty_server_interfaces` with a response where `interface_status` is ABSENT.
+///
+/// LOAD-BEARING assertion (CLAUDE.md §Wire-shape assertion discipline):
+/// When `interface_status` is absent in the API response, `status_code` becomes an Arrow
+/// null cell. With `explicit_nulls=true`, the JSON MUST contain `"status_code": null`
+/// (null-not-absent — the key must be PRESENT with value null, not missing).
+/// With `explicit_nulls=false` (DEFAULT), the key would be absent — the C3/H20 defect class.
+///
+/// BC-2.16.019 EC-016-019-003; BC-2.11.001 EC-11-079 (null-not-absent).
+/// Story: S-CLAROTY-SERVERS-001 CR-002.
+#[tokio::test]
+async fn test_BC_2_16_019_claroty_server_interfaces_null_status_code_interface_status_absent_null_not_absent()
+ {
+    let mock_server = MockServer::start().await;
+
+    // One record: server_name present, interface_status deliberately absent
+    // → status_code will be Arrow null (non-REQUIRED field absent)
+    Mock::given(method("POST"))
+        .and(path("/api/v1/server_interfaces/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_interfaces": [{
+                "server_name": "Monroe-Collector-1",
+                "interface_name": "eth0",
+                "interface_type": "1000BASE-T"
+                // interface_status deliberately absent → status_code will be Arrow null
+            }]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_server_interfaces".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-server-interfaces-null-status-code-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth =
+        BearerStaticSensorAuth::new("mock-bearer-token-server-interfaces-null-status-code-test");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "CR-002: fetch() must succeed for a server_interfaces response with absent \
+             interface_status. BC-2.16.019 EC-016-019-003.",
+        );
+
+    // Serialize with explicit_nulls=true (production MCP path)
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches.batches {
+        writer
+            .write(batch)
+            .expect("CR-002: arrow_json write must not fail");
+    }
+    writer
+        .finish()
+        .expect("CR-002: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect("CR-002: arrow_json output must deserialize as JSON array");
+
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "CR-002: fetch must return exactly 1 row for a 1-record response"
+    );
+    let row0 = &json_rows[0];
+
+    // NULL-NOT-ABSENT LOAD-BEARING (CR-002):
+    // interface_status absent → status_code is Arrow null cell.
+    // With explicit_nulls=true: `"status_code": null` in JSON (key present, value null).
+    // With explicit_nulls=false (DEFAULT): key absent — C3/H20 defect class.
+    assert!(
+        row0.get("status_code").is_some(),
+        "CR-002 LOAD-BEARING (null-not-absent): 'status_code' key MUST be PRESENT \
+         in wire row even when 'interface_status' was absent in API response. \
+         BC-2.16.019 EC-016-019-003; BC-2.11.001 EC-11-079."
+    );
+    assert_eq!(
+        row0.get("status_code"),
+        Some(&serde_json::Value::Null),
+        "CR-002 LOAD-BEARING (null-not-absent): 'status_code' MUST be JSON null \
+         (not another value) when interface_status was absent. \
+         BC-2.16.019 EC-016-019-003; BC-2.11.001 EC-11-079."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-001: SAP-2 N/A marker test
+// ---------------------------------------------------------------------------
+
+/// SAP-2 marker test: confirms SAP2_STATUS is properly documented as N/A
+/// (no DTU clone exists) with a D-2200 deferral anchor.
+///
+/// BC-2.16.019; Story: S-CLAROTY-SERVERS-001
+#[test]
+fn test_BC_2_16_019_claroty_server_interfaces_wire_shape_sap2_na_documented() {
+    assert!(
+        SAP2_STATUS.starts_with("N/A:"),
+        "SAP2_STATUS must begin with 'N/A:' to document the absence of a DTU clone. \
+         Got: {:?}",
+        SAP2_STATUS
+    );
+    assert!(
+        SAP2_STATUS.contains("D-2200"),
+        "SAP2_STATUS must cite D-2200 (S-CLAROTY-SERVERS-DTU-001 deferral anchor). \
+         Got: {:?}",
+        SAP2_STATUS
     );
 }
