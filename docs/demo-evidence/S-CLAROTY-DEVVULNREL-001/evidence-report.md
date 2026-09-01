@@ -26,7 +26,7 @@ null for `device_vulnerability_relevance_reasons` (valid: open vulnerabilities a
 | AC-006 | RG-006, RG-010 | AC-006-009-edge-cases (.tape/.gif/.webm) + AC-004-wire-shape-mock (.tape/.gif/.webm) | VHS (test suite) + VHS (production-path serialized-JSON) | PASS |
 | AC-007 | RG-007 | AC-006-009-edge-cases (.tape/.gif/.webm) | VHS (test suite) | PASS |
 | AC-008 | RG-008 | AC-006-009-edge-cases (.tape/.gif/.webm) | VHS (test suite) | PASS |
-| AC-009 | RG-009, RG-010 | AC-006-009-edge-cases (.tape/.gif/.webm) + AC-004-wire-shape-mock (.tape/.gif/.webm) + AC-004-005-009-live-queries.txt | VHS + live transcript | PASS (mock-coverage + live-null observation) |
+| AC-009 | RG-009, RG-010 | AC-006-009-edge-cases (.tape/.gif/.webm) + AC-004-wire-shape-mock (.tape/.gif/.webm) + AC-004-005-009-live-queries.txt | VHS + live transcript | PASS (mock: empty-array + null-shape null-not-absent [Row 2]; live-null observation) |
 
 ---
 
@@ -160,7 +160,7 @@ using `cargo nextest`. Compilation artifacts are pre-warmed; expected runtime pe
 
 ### AC-004-wire-shape-mock
 
-**Covers:** AC-004 wire shape (mock, Arrow-level via RG-011 + serialized-JSON via RG-010), AC-006 null-not-absent (production path, RG-010), AC-009 EC-004-WIRE (RG-010)
+**Covers:** AC-004 wire shape (mock, Arrow-level via RG-011 + serialized-JSON via RG-010), AC-006 null-not-absent (production path, RG-010), AC-009 empty-array passthrough + null-shape null-not-absent (RG-010 Rows 0 and 2)
 
 - `AC-004-wire-shape-mock.tape` — VHS script source
 - `AC-004-wire-shape-mock.gif` — PR-embeddable recording
@@ -182,17 +182,20 @@ using `cargo nextest`. Compilation artifacts are pre-warmed; expected runtime pe
   Production code path: `SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch → build_column_array`.
   Traces to BC-2.16.017 §PC1 (class_uid=2002), §PC2 (Tier-1/Tier-2), §PC3 (composite PK).
 
-- **AC-004 serialized-JSON + AC-006 null-not-absent + AC-009 EC-004-WIRE / RG-010:**
+- **AC-004 serialized-JSON + AC-006 null-not-absent + AC-009 null-shape null-not-absent / RG-010:**
   `test_BC_2_16_017_claroty_device_vulnerability_relations_wire_shape_native_json_array_and_null_passthrough`
-  PASS. Two-record mock; full production serialization path via
+  PASS. Three-record mock (Record 0: empty-reasons array; Record 1: absent vulnerability_name;
+  Record 2: `device_vulnerability_relevance_reasons = null` — the production-dominant shape per
+  live monroe data); full production serialization path via
   `arrow_json::writer::WriterBuilder::new().with_explicit_nulls(true)`.
+  Asserts `json_rows.len() == 3`.
 
   **Row 0 assertions (serialized JSON level):**
   - `class_uid = 2002` in row0 wire output.
   - `finding_info_title = "CVE-2024-EMPTY-REASONS"` in row0 wire output.
   - `time` key present, non-null, ISO-8601 string starting `"2024-04-01T08:00:00"` —
     Tier-1 `device_vulnerability_detection_date` → Arrow Timestamp(Microsecond, UTC) →
-    wire string. **MED-1 LOAD-BEARING assertion** (added at HEAD bc5732ecf): verifies the
+    wire string. **MED-1 LOAD-BEARING assertion**: verifies the
     Datetime→time column propagates through the production `arrow_json` serialization path.
   - `raw_extensions` JSON string with `device_vulnerability_relevance_reasons = []`
     (native empty JSON array, NOT null, NOT the string `"[]"`; wire form is exactly `"[]"`).
@@ -204,12 +207,22 @@ using `cargo nextest`. Compilation artifacts are pre-warmed; expected runtime pe
     Production-path companion to RG-006. BC-2.11.001 EC-11-079.
   - `time = null` present (null-not-absent); row1 has no `device_vulnerability_detection_date`
     → Arrow null Timestamp cell → `{"time": null}` with `explicit_nulls=true`.
-    **MED-1 LOAD-BEARING assertion** (added at HEAD bc5732ecf). ADR-028 §D8-B.
+    **MED-1 LOAD-BEARING assertion**. ADR-028 §D8-B.
   - `raw_extensions` present; `device_vulnerability_relevance_reasons = ["Network"]` native array.
   - `device_uid` present inside `raw_extensions`.
 
-  Traces to BC-2.16.017 §PC1 (class_uid=2002), §PC2 (Tier-1/Tier-2), AC-004, AC-006;
-  BC-2.11.001 EC-11-079 (null-not-absent); EC-016-017-004 (empty array passthrough).
+  **Row 2 assertions (serialized JSON level — AC-009 null shape, BC-2.11.001 EC-11-079):**
+  - Mock Record 2: `vulnerability_name = "CVE-2024-NULL-REASONS"`;
+    `device_vulnerability_relevance_reasons = null` (production-dominant shape — all 3 monroe
+    live rows return null for this field).
+  - `raw_extensions` present as JSON string; deserializes to a JSON object.
+  - LOAD-BEARING: `raw_ext_obj2.get("device_vulnerability_relevance_reasons") == Some(&Value::Null)`:
+    the key MUST be PRESENT with value `null` (null-not-absent). NOT absent, NOT `[]`.
+    BC-2.16.017 AC-009; EC-016-017-004; BC-2.11.001 EC-11-079.
+
+  Traces to BC-2.16.017 §PC1 (class_uid=2002), §PC2 (Tier-1/Tier-2), AC-004, AC-006, AC-009;
+  BC-2.11.001 EC-11-079 (null-not-absent, Rows 1 and 2);
+  EC-016-017-004 (empty-array + null-shape passthrough).
 
 ### AC-006-009-edge-cases
 
@@ -294,7 +307,8 @@ via the full `SpecDrivenSensorAdapter::fetch` path without network dependency.
 | AC-004-wire-shape-mock (.gif/.webm) | AC-004 (RG-011, Arrow-level) | BC-2.16.017 §PC1, §PC2, §PC3 | — |
 | AC-004-wire-shape-mock (.gif/.webm) | AC-004 (RG-010, serialized-JSON) | BC-2.16.017 §PC1, §PC2 | — |
 | AC-004-wire-shape-mock (.gif/.webm) | AC-006 (RG-010, null-not-absent production path) | BC-2.16.017 §Invariants | BC-2.11.001 EC-11-079 |
-| AC-004-wire-shape-mock (.gif/.webm) | AC-009 EC-004-WIRE (RG-010) | BC-2.16.017 §PC2 | EC-016-017-004 |
+| AC-004-wire-shape-mock (.gif/.webm) | AC-009 empty-array passthrough (RG-010 Row 0) | BC-2.16.017 §PC2 | EC-016-017-004 |
+| AC-004-wire-shape-mock (.gif/.webm) | AC-009 null-shape null-not-absent (RG-010 Row 2) | BC-2.16.017 §PC2 | EC-016-017-004; BC-2.11.001 EC-11-079 |
 | AC-006-009-edge-cases (.gif/.webm) | AC-006 (RG-006) | BC-2.16.017 §Invariants | EC-016-017-001 |
 | AC-006-009-edge-cases (.gif/.webm) | AC-007 (RG-007) | BC-2.16.017 §PC1 pagination | EC-016-017-005 |
 | AC-006-009-edge-cases (.gif/.webm) | AC-008 (RG-008) | BC-2.16.017 §Invariants | EC-016-017-002, EC-016-017-003 |
