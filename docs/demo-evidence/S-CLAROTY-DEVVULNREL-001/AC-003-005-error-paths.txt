@@ -1,0 +1,57 @@
+# AC-003 + AC-005 (error paths): Tier-2 plan gate E-QUERY-038 + OCSF rename enforcement
+# Story: S-CLAROTY-DEVVULNREL-001 (Wave B G3)
+# Traces to: BC-2.16.017 §Invariants (Tier-2 not exposed as standalone Arrow column),
+#            BC-2.16.017 EC-016-017-006 (device_uid E-QUERY-038),
+#            BC-2.16.017 §Postconditions §2 (Arrow name is 'time', raw name is device_vulnerability_detection_date)
+#
+# Tool: query — clients: ["monroe"]
+# Result: E-QUERY-038 for device_uid (Tier-2 plan gate) and device_vulnerability_detection_date (raw rename)
+#
+# AC-003 evidence: SELECT device_uid raises E-QUERY-038; available_columns contains
+#   raw_extensions, finding_info_title, time but NOT device_uid as standalone column.
+# AC-005 evidence (error path): SELECT device_vulnerability_detection_date raises E-QUERY-038;
+#   available_columns shows time as the correct Arrow name.
+#
+# Capture time: 2026-08-31T22:29:33+00:00
+# Binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 a89326a06...)
+# Config: /Users/jmagady/Dev/test-soc/.prism-live/ (monroe client)
+# Credentials: opaque per AD-017
+
+--- QUERY 1: SELECT device_uid FROM claroty_device_vulnerability_relations LIMIT 1 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'device_uid' not found in table
+'claroty_device_vulnerability_relations' for client 'monroe'; available:
+[_sensor, class_uid, finding_info_title, raw_extensions, time].
+Call prism_describe('<client_id>') to see available columns, or use the
+available_columns field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time validation) ---
+
+--- QUERY 2: SELECT device_vulnerability_detection_date FROM claroty_device_vulnerability_relations LIMIT 1 (clients: ["monroe"]) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'device_vulnerability_detection_date' not found in table
+'claroty_device_vulnerability_relations' for client 'monroe'; available:
+[_sensor, class_uid, finding_info_title, raw_extensions, time].
+Call prism_describe('<client_id>') to see available columns, or use the
+available_columns field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time validation) ---
+
+--- SUMMARY ---
+AC-003 PASS: SELECT device_uid raises E-QUERY-038 at plan time.
+  available_columns = [_sensor, class_uid, finding_info_title, raw_extensions, time]
+  - device_uid is ABSENT from available_columns (correct: it is a Tier-2 column in raw_extensions)
+  - raw_extensions IS PRESENT in available_columns (correct: Tier-2 aggregate is accessible)
+  - finding_info_title IS PRESENT (correct: Tier-1 OCSF name for vulnerability_name)
+  - time IS PRESENT (correct: Tier-1 OCSF name for device_vulnerability_detection_date)
+  Same behavior applies for ANY Tier-2 column: vulnerability_cvss_v3_score, vulnerability_id,
+  device_name, device_site_name, etc. (EC-016-017-006, EC-016-017-007 pattern).
+  Traces to BC-2.16.017 §Invariants (Tier-2 standalone query raises E-QUERY-038).
+  Authoritative gate: RG-003 test_BC_2_16_017_...e2e_e_query_038_tier2_device_uid (prism-bin).
+
+AC-005 error path PASS: SELECT device_vulnerability_detection_date raises E-QUERY-038.
+  device_vulnerability_detection_date is the RAW TOML column name.
+  The Arrow field name is 'time' (ocsf_field="time", ADR-058 §C identity transform).
+  available_columns = [_sensor, class_uid, finding_info_title, raw_extensions, time]
+  - device_vulnerability_detection_date is ABSENT (correct: use Arrow name 'time')
+  - time IS PRESENT (correct: this is the Tier-1 Arrow name)
+  Traces to BC-2.16.017 §Postconditions §2 (OCSF field renaming under ocsf_column_naming=true).
+--- End ---
