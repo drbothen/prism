@@ -337,6 +337,47 @@ path = "tests/bc_2_16_016_claroty_ot_activity_events_wire_shape.rs"
 name = "bc_2_16_017_claroty_device_vulnerability_relations_wire_shape"
 path = "tests/bc_2_16_017_claroty_device_vulnerability_relations_wire_shape.rs"
 
+# S-CLAROTY-SERVERS-001 SAP-4 gap closure + HIGH-1/MED-1 coverage fix:
+# production-path wire-shape, SAP-3 E-QUERY-038, and null-passthrough tests
+# for Claroty xDome Collection Servers (BC-2.16.018).
+# Exercises the full SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch →
+# build_column_array production path using wiremock + explicit_nulls=true serialization.
+# Closes: (a) map_record direct-call gap (SAP-4); (b) HIGH-1 missing authoritative
+# E-QUERY-038 test (RG-003-E2E via QueryEngine::execute); (c) MED-1 count=null paper-test
+# gap (RG-008-PROD serves {"servers":[],"count":null} to real fetch path).
+# BCs: BC-2.16.018, BC-2.11.001
+# Tests (6 total):
+#   test_BC_2_16_018_claroty_servers_wire_shape_class_uid_5001_mock (NEW-1 / SID-1 mock, non-live)
+#   test_BC_2_16_018_claroty_servers_null_passthrough_server_name_absent_null_not_absent (RG-007-WIRE)
+#   test_BC_2_16_018_claroty_servers_e2e_e_query_038_tier2_column (RG-003-E2E / HIGH-1 authoritative SAP-3)
+#   test_BC_2_16_018_claroty_servers_ec016_018_004_count_null_empty_page_halt_ok_zero_rows (RG-008-PROD / MED-1)
+#   test_BC_2_16_018_claroty_servers_null_status_code_server_status_absent_null_not_absent (CR-002 / null-not-absent wire)
+#   test_BC_2_16_018_claroty_servers_wire_shape_sap2_na_documented (F-001 / SAP-2 N/A marker)
+[[test]]
+name = "bc_2_16_018_claroty_servers_wire_shape"
+path = "tests/bc_2_16_018_claroty_servers_wire_shape.rs"
+
+# S-CLAROTY-SERVERS-001 SAP-4 gap closure + HIGH-1/MED-1 coverage fix:
+# production-path wire-shape, SAP-3 E-QUERY-038, and null-passthrough tests
+# for Claroty xDome Collection Server Interfaces (BC-2.16.019).
+# Exercises the full SpecDrivenSensorAdapter::fetch → pipeline_result_to_record_batch →
+# build_column_array production path using wiremock + explicit_nulls=true serialization.
+# Closes: (a) map_record direct-call gap (SAP-4); (b) HIGH-1 missing authoritative
+# E-QUERY-038 test (RG-011-E2E via QueryEngine::execute for Tier-2 composite PK element);
+# (c) MED-1 count=null paper-test gap (RG-016-PROD serves {"server_interfaces":[],"count":null}).
+# BCs: BC-2.16.019, BC-2.11.001
+# Tests (7 total):
+#   test_BC_2_16_019_claroty_server_interfaces_wire_shape_class_uid_5001_mock (NEW-2 / SID-1 mock, non-live)
+#   test_BC_2_16_019_claroty_server_interfaces_null_interface_name_row_not_dropped_wire (RG-015-WIRE)
+#   test_BC_2_16_019_claroty_server_interfaces_null_passthrough_server_name_absent_null_not_absent (RG-015-WIRE-SNA)
+#   test_BC_2_16_019_claroty_server_interfaces_e2e_e_query_038_tier2_column (RG-011-E2E / HIGH-1 authoritative SAP-3)
+#   test_BC_2_16_019_claroty_server_interfaces_ec016_019_005_count_null_empty_page_halt_ok_zero_rows (RG-016-PROD / MED-1)
+#   test_BC_2_16_019_claroty_server_interfaces_null_status_code_interface_status_absent_null_not_absent (CR-002 / null-not-absent wire)
+#   test_BC_2_16_019_claroty_server_interfaces_wire_shape_sap2_na_documented (F-001 / SAP-2 N/A marker)
+[[test]]
+name = "bc_2_16_019_claroty_server_interfaces_wire_shape"
+path = "tests/bc_2_16_019_claroty_server_interfaces_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
