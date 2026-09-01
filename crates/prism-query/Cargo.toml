@@ -163,6 +163,15 @@ required-features = ["test-helpers"]
 name = "bc_2_19_001_plugin_udf_registration_test"
 path = "tests/bc_2_19_001_plugin_udf_registration_test.rs"
 
+# S-CLAROTY-ACLPOLICY-001 (Wave C G6): E-QUERY-038 column-gate for
+# claroty_organization_acl_policies (BC-2.16.022 §Query-gate; RG-005/RG-006).
+# O-5 convention: explicit [[test]] entry per prism-bin/prism-spec-engine pattern.
+# prism-query uses autotest discovery for the majority of its test files; this
+# explicit entry adds convention consistency with the sibling G4/G5/G6 wave tests.
+[[test]]
+name = "bc_2_16_022_test"
+path = "tests/bc_2_16_022_test.rs"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "test-helpers", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
 non_snake_case = "allow"

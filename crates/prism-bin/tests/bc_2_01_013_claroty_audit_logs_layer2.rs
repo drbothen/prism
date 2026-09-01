@@ -992,13 +992,14 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
  {
     let mock_server = MockServer::start().await;
 
-    // Catch-all POST mock for all 13 Claroty table endpoints.
+    // Catch-all POST mock for all 14 Claroty table endpoints.
     // source_table = "claroty" → queried_table_name = None → all tables execute.
-    // The response MUST include all thirteen response_path keys ($.alerts, $.audit_log,
+    // The response MUST include all fourteen response_path keys ($.alerts, $.audit_log,
     // $.devices, $.devices_alerts, $.vulnerabilities, $.ot_activity_events,
     // $.devices_vulnerabilities, $.servers, $.server_interfaces,
     // $.organization_zones, $.organization_zone_policies,
-    // $.organization_firewall_groups, $.organization_firewall_policies) as empty arrays:
+    // $.organization_firewall_groups, $.organization_firewall_policies,
+    // $.organization_acl_policies) as empty arrays:
     // extract_at_path returns Err for missing keys (not empty-array), which would
     // short-circuit the table loop via `?`.
     // S-CLAROTY-VULNS-001 added $.vulnerabilities (5th table — Wave A G1).
@@ -1008,6 +1009,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
     //   $.server_interfaces (9th table — Wave C G4).
     // S-CLAROTY-ORGPOLICY-001 added $.organization_zones (10th), $.organization_zone_policies (11th),
     //   $.organization_firewall_groups (12th), $.organization_firewall_policies (13th — Wave C G5).
+    // S-CLAROTY-ACLPOLICY-001 added $.organization_acl_policies (14th — Wave C G6).
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "alerts": [],
@@ -1033,7 +1035,9 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
             // S-CLAROTY-ORGPOLICY-001: organization_firewall_groups uses response_path "$.organization_firewall_groups".
             "organization_firewall_groups": [],
             // S-CLAROTY-ORGPOLICY-001: organization_firewall_policies uses response_path "$.organization_firewall_policies".
-            "organization_firewall_policies": []
+            "organization_firewall_policies": [],
+            // S-CLAROTY-ACLPOLICY-001: organization_acl_policies uses response_path "$.organization_acl_policies".
+            "organization_acl_policies": []
         })))
         .mount(&mock_server)
         .await;

@@ -1,0 +1,97 @@
+# Schema Evidence — claroty_organization_acl_policies
+# Source: claroty.sensor.toml [[tables]] block (product schema, not tenant data)
+# Story: S-CLAROTY-ACLPOLICY-001 (Wave C G6)
+# BC: BC-2.16.022 §Postconditions §1 (TOML contract) + §2 (Tier classification)
+#
+# This file contains product schema only (column names, types, OCSF field mappings).
+# NO tenant row data is included per human-directed policy D-2410b + D-2410j.
+#
+# table_name (queryable): claroty_organization_acl_policies
+#   {sensor_id}_{table_name} = claroty_organization_acl_policies
+# ocsf_class: entity_management  → class_uid 3004
+# step method: POST /api/v1/organization_acl_policies/
+# response_path: $.organization_acl_policies  (NO count field in envelope)
+# pagination: type = "none"  (NON-PAGINATED SINGLE-FETCH — only Claroty table of this kind)
+# body_template mandatory fields:
+#   "policy_acl_syntax": "Cisco dACL"  (REQUIRED per OpenAPI schema)
+#   "filter_by": {"field": "policy_id", "operation": "is_not_null"}  (EC-016-022-011)
+
+# ARROW SCHEMA (ocsf_column_naming = true, inherited at sensor level)
+# Exposed top-level Arrow columns (prism_describe output shape):
+#
+#   metadata_uid   (string, nullable=true)   Tier-1 REQUIRED — OCSF metadata.uid
+#                  TOML: name="policy_id", column_type="string", ocsf_field="metadata.uid",
+#                        options=["REQUIRED"]
+#                  Arrow name: ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid"
+#                  NULLABILITY NOTE: options=["REQUIRED"] controls spec-engine null-row
+#                  push-down eligibility, NOT Arrow field nullability. spec_driven_adapter
+#                  pushes Field::new(&arrow_name, ..., true) for all Tier-1 columns;
+#                  prism_describe emits ColumnDescriptor { nullable: true } unconditionally
+#                  for Tier-1. RG-009 asserts meta_uid_arr.is_null(0) == true when policy_id
+#                  is absent — confirming nullable=true is the correct Arrow schema value.
+#                  (class_uid and _sensor remain nullable=false — those are synthesized
+#                  columns, not TOML-declared Tier-1 fields, and are correct as-is.)
+#
+#   name           (string, nullable=true)   Tier-1 — OCSF name (display label)
+#                  TOML: name="policy_name", column_type="string", ocsf_field="name"
+#                  Arrow name: ocsf_field_to_arrow_name("name") = "name"
+#
+#   actor_user_name (string, nullable=true)  Tier-1 — OCSF actor.user.name
+#                  TOML: name="policy_updated_by", column_type="string",
+#                        ocsf_field="actor.user.name"
+#                  Arrow name: ocsf_field_to_arrow_name("actor.user.name") = "actor_user_name"
+#
+#   comment        (string, nullable=true)   Tier-1 — OCSF comment (analyst notes)
+#                  TOML: name="policy_notes", column_type="string", ocsf_field="comment"
+#                  Arrow name: ocsf_field_to_arrow_name("comment") = "comment"
+#
+#   raw_extensions (json)                    Tier-2 aggregate
+#                  Contains all 7 Tier-2 columns as a JSON object:
+#                    policy_source         (string)
+#                    policy_acl_type       (string)
+#                    policy_acl            (string)
+#                    applied_models        (json — native JSON array, NOT stringified)
+#                    matching_devices      (integer)
+#                    policy_creation_date  (datetime; ADR-028 §D8-B implicit iso8601 default)
+#                    policy_last_updated   (datetime; ADR-028 §D8-B implicit iso8601 default)
+#
+#   class_uid      (integer, nullable=false) value=3004 (entity_management OCSF class)
+#
+#   _sensor        (string, nullable=false)  value="claroty"
+
+# TIER CLASSIFICATION SUMMARY:
+#   Tier-1 (ocsf_field != None): 4 columns
+#     policy_id          → metadata.uid   → Arrow: metadata_uid  [REQUIRED]
+#     policy_name        → name           → Arrow: name
+#     policy_updated_by  → actor.user.name → Arrow: actor_user_name
+#     policy_notes       → comment        → Arrow: comment
+#
+#   Tier-2 (ocsf_field == None, into raw_extensions): 7 columns
+#     policy_source        (string)
+#     policy_acl_type      (string)
+#     policy_acl           (string)
+#     applied_models       (json)    ← MUST be json, not string (EC-016-022-006)
+#     matching_devices     (integer)
+#     policy_creation_date (datetime)
+#     policy_last_updated  (datetime)
+
+# QUERY CONSTRAINTS:
+#   QUERYABLE (top-level Arrow columns):
+#     SELECT metadata_uid, name, actor_user_name, comment, raw_extensions,
+#            class_uid, _sensor FROM claroty.claroty_organization_acl_policies
+#
+#   NOT QUERYABLE by raw TOML name (raises E-QUERY-038):
+#     SELECT policy_id ...          → E-QUERY-038; use metadata_uid instead
+#     SELECT policy_source ...      → E-QUERY-038; access via raw_extensions
+#     SELECT policy_acl_type ...    → E-QUERY-038; access via raw_extensions
+#     SELECT policy_acl ...         → E-QUERY-038; access via raw_extensions
+#     SELECT applied_models ...     → E-QUERY-038; access via raw_extensions
+#     SELECT matching_devices ...   → E-QUERY-038; access via raw_extensions
+#     SELECT policy_creation_date . → E-QUERY-038; access via raw_extensions
+#     SELECT policy_last_updated .. → E-QUERY-038; access via raw_extensions
+
+# VERIFICATION:
+#   RG-001 PASS: SpecLoader::parse returns Ok(SensorSpec); 11 ColumnSpec entries;
+#                PaginationConfig::None; response_path = "$.organization_acl_policies"
+#   RG-004 PASS: Exactly 4 Tier-1 (non-None ocsf_field); exactly 7 Tier-2 (None ocsf_field)
+#   All RG tests: 5/5 PASS (prism-spec-engine::bc_2_16_022_test)

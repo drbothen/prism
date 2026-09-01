@@ -204,6 +204,11 @@ required-features = ["test-helpers"]
 name = "vp153_sensorauth_cross_composition"
 path = "tests/vp153_sensorauth_cross_composition.rs"
 
+# S-CLAROTY-ACLPOLICY-001: RG-001..RG-004, RG-007, RG-010 — BC-2.16.022 org_acl_policies table
+[[test]]
+name = "bc_2_16_022_test"
+path = "tests/bc_2_16_022_test.rs"
+
 # PLUGIN-MIGRATION-001-D: RG-01 / AC-006 — bundled spec file loading
 [[test]]
 name = "bc_2_16_001_bundled_spec_load"
