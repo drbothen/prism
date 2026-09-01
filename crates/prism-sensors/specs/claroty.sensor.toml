@@ -1004,3 +1004,206 @@ ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm; same as c
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: claroty_servers  (Wave C G4)
+# POST /api/v1/servers/ → envelope key: servers
+# OCSF class: inventory_info (class_uid 5001; existing arm in class_selector.rs)
+# PK: server_name (String, REQUIRED, single-column)
+# DTU status: NONE — SAP-2 probe N/A per D-2200; near-term tests against live monroe only
+# Tier-1: server_name → device_name (REQUIRED); server_status → status_code
+# Tier-2 (15 cols): all remaining aggregate into raw_extensions under ocsf_column_naming=true
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "servers"
+ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_devices)
+
+  # Tier-1: server_name → device_name (REQUIRED; primary key)
+  [[tables.columns]]
+  name = "server_name"
+  column_type = "string"
+  ocsf_field = "device.name"
+  options = ["REQUIRED"]
+
+  # Tier-1: server_status → status_code ("Up" / "Down" / "Pending")
+  [[tables.columns]]
+  name = "server_status"
+  column_type = "string"
+  ocsf_field = "status_code"
+
+  # Tier-2: physical location of the collection server appliance
+  [[tables.columns]]
+  name = "server_location"
+  column_type = "string"
+
+  # Tier-2: unique site identifier; numeric comparison operators supported
+  [[tables.columns]]
+  name = "site_id"
+  column_type = "integer"
+
+  # Tier-2: server model string (e.g. "MCS R340" or "R640")
+  [[tables.columns]]
+  name = "model"
+  column_type = "string"
+
+  # Tier-2: Ubuntu OS version string
+  [[tables.columns]]
+  name = "os_version"
+  column_type = "string"
+
+  # Tier-2: server serial number
+  [[tables.columns]]
+  name = "serial_number"
+  column_type = "string"
+
+  # Tier-2: count of network interfaces on the server
+  [[tables.columns]]
+  name = "num_of_interfaces"
+  column_type = "integer"
+
+  # Tier-2: data/management port IP address
+  [[tables.columns]]
+  name = "management_ip"
+  column_type = "string"
+
+  # Tier-2: iDRAC IP address
+  [[tables.columns]]
+  name = "idrac_ip"
+  column_type = "string"
+
+  # Tier-2: data/management port MAC address
+  [[tables.columns]]
+  name = "management_mac"
+  column_type = "string"
+
+  # Tier-2: days the server has been up; confirmed fractional (OpenAPI example: 667.233661)
+  # BC-2.16.018 §PC2 uptime_days Float — CONFIRMED from xdome_openapi_06.20.2026.json
+  [[tables.columns]]
+  name = "uptime_days"
+  column_type = "float"
+
+  # Tier-2: avg traffic past month (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_month_mbps"
+  column_type = "float"
+
+  # Tier-2: avg traffic past week (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_week_mbps"
+  column_type = "float"
+
+  # Tier-2: avg traffic past hour (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_hour_mbps"
+  column_type = "float"
+
+  # Tier-2: count of open incidents associated with this server
+  [[tables.columns]]
+  name = "num_of_open_incidents"
+  column_type = "integer"
+
+  # Tier-2: free-text analyst notes
+  [[tables.columns]]
+  name = "notes"
+  column_type = "string"
+
+  # POST-for-read step with offset pagination
+  # response_path: "$.servers" matches GetServersResponse envelope key (xDome OpenAPI 2026-06-20)
+  # body_template: fields projection required by GetServersParameters; all 17 declared columns.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time.
+  # path_template: trailing slash per xDome API convention (S-DEMO-CLAROTY-TRAILING-SLASH-001).
+  [[tables.steps]]
+  name = "fetch_servers"
+  method = "POST"
+  path_template = "/api/v1/servers/"
+  body_template = '{"fields": ["server_name", "server_location", "server_status", "site_id", "model", "os_version", "serial_number", "num_of_interfaces", "management_ip", "idrac_ip", "management_mac", "uptime_days", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "num_of_open_incidents", "notes"]}'
+  response_path = "$.servers"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: claroty_server_interfaces  (Wave C G4)
+# SEPARATE endpoint: POST /api/v1/server_interfaces/ → envelope key: server_interfaces
+# (NOT a sub-path of /api/v1/servers/; operationId: get_servers_api_v1_server_interfaces__post)
+# OCSF class: inventory_info (class_uid 5001; existing arm; same as claroty_servers)
+# Composite PK: (server_name, interface_name) — server_name REQUIRED; interface_name Tier-2
+# DTU status: NONE — SAP-2 probe N/A per D-2200; near-term tests against live monroe only
+# Tier-1: server_name → device_name (REQUIRED); interface_status → status_code
+# Tier-2 (8 cols, incl. composite PK element interface_name): aggregate into raw_extensions
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "server_interfaces"
+ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_servers)
+
+  # Tier-1: server_name → device_name (REQUIRED; composite PK anchor)
+  [[tables.columns]]
+  name = "server_name"
+  column_type = "string"
+  ocsf_field = "device.name"
+  options = ["REQUIRED"]
+
+  # Tier-1: interface_status → status_code ("Up" / "No Carrier")
+  [[tables.columns]]
+  name = "interface_status"
+  column_type = "string"
+  ocsf_field = "status_code"
+
+  # Tier-2: composite PK join key — interface name (e.g. "eth0", "ens3")
+  # No REQUIRED option per BC-2.16.019 §Invariants: null interface_name is degraded, not dropped
+  [[tables.columns]]
+  name = "interface_name"
+  column_type = "string"
+
+  # Tier-2: interface type ("SPAN" or "Management")
+  [[tables.columns]]
+  name = "interface_type"
+  column_type = "string"
+
+  # Tier-2: physical connection type ("SFP+" or "RJ45 (Copper)")
+  [[tables.columns]]
+  name = "interface_connection_type"
+  column_type = "string"
+
+  # Tier-2: unique site identifier for the site to which the interface belongs
+  [[tables.columns]]
+  name = "site_id"
+  column_type = "integer"
+
+  # Tier-2: avg traffic past month via this interface (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_month_mbps"
+  column_type = "float"
+
+  # Tier-2: avg traffic past week via this interface (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_week_mbps"
+  column_type = "float"
+
+  # Tier-2: avg traffic past hour via this interface (Mbps)
+  [[tables.columns]]
+  name = "avg_traffic_past_hour_mbps"
+  column_type = "float"
+
+  # Tier-2: free-text notes about the interface
+  [[tables.columns]]
+  name = "notes"
+  column_type = "string"
+
+  # POST-for-read step with offset pagination
+  # response_path: "$.server_interfaces" matches GetServerInterfacesResponse envelope key.
+  # body_template: fields projection required by GetServerInterfacesParameters; all 10 declared columns.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time.
+  # path_template: /api/v1/server_interfaces/ is SEPARATE from /api/v1/servers/ (endpoint correction
+  #   confirmed from OpenAPI operationId get_servers_api_v1_server_interfaces__post).
+  [[tables.steps]]
+  name = "fetch_server_interfaces"
+  method = "POST"
+  path_template = "/api/v1/server_interfaces/"
+  body_template = '{"fields": ["server_name", "interface_name", "interface_status", "interface_type", "interface_connection_type", "site_id", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "notes"]}'
+  response_path = "$.server_interfaces"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

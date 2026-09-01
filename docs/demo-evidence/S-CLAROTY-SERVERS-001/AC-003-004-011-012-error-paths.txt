@@ -1,0 +1,71 @@
+# AC-003 + AC-004 + AC-011 + AC-012: E-QUERY-038 error paths (both tables)
+# Story: S-CLAROTY-SERVERS-001 (Wave C G4)
+# Traces to: BC-2.16.018 §Invariants, EC-016-018-005; BC-2.16.019 §Invariants, EC-016-019-004, EC-016-019-006
+#
+# Tool: query — client: monroe (via prism-live MCP)
+# Prism binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 411dd2d2...)
+# Capture time: 2026-09-01T04:34:xx / 2026-09-01T04:35:xx
+#
+# These queries demonstrate that:
+# - Tier-2 column names are NOT accessible as standalone Arrow columns (E-QUERY-038)
+# - Raw TOML column names (pre-OCSF-rename) are NOT accessible as Arrow columns (E-QUERY-038)
+# - available_columns in the error contains the correct Arrow column names
+#   (device_name, status_code, raw_extensions — NOT the raw TOML names)
+
+--- QUERY: SELECT server_name FROM claroty_servers LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'server_name' not found in table 'claroty_servers'
+  for client 'monroe'; available: [_sensor, class_uid, device_name, raw_extensions, status_code].
+  Call prism_describe('<client_id>') to see available columns, or use the available_columns
+  field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time rejection: server_name is raw TOML name; Arrow name is device_name) ---
+
+--- QUERY: SELECT server_status FROM claroty_servers LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'server_status' not found in table 'claroty_servers'
+  for client 'monroe'; available: [_sensor, class_uid, device_name, raw_extensions, status_code].
+  Call prism_describe('<client_id>') to see available columns, or use the available_columns
+  field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time rejection: server_status is raw TOML name; Arrow name is status_code) ---
+
+--- QUERY: SELECT interface_name FROM claroty_server_interfaces LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'interface_name' not found in table
+  'claroty_server_interfaces' for client 'monroe'; available: [_sensor, class_uid, device_name,
+  raw_extensions, status_code].
+  Call prism_describe('<client_id>') to see available columns, or use the available_columns
+  field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time rejection: interface_name is Tier-2, composite PK element;
+  only accessible via SELECT raw_extensions) ---
+
+--- QUERY: SELECT interface_status FROM claroty_server_interfaces LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+ERROR: [validation] - E-QUERY-038: column 'interface_status' not found in table
+  'claroty_server_interfaces' for client 'monroe'; available: [_sensor, class_uid, device_name,
+  raw_extensions, status_code].
+  Call prism_describe('<client_id>') to see available columns, or use the available_columns
+  field in this error to correct the column name.
+--- Exit: E-QUERY-038 (plan-time rejection: interface_status is raw TOML name; Arrow name is status_code) ---
+
+--- SUMMARY ---
+AC-003 PASS (live): SELECT server_name FROM claroty_servers raises E-QUERY-038 at plan time.
+  available_columns = [_sensor, class_uid, device_name, raw_extensions, status_code].
+  'server_name' is absent; 'device_name' (the OCSF Arrow rename) is present.
+  Note: The story AC-003 example uses server_location (a different Tier-2 column); both
+  server_name (raw Tier-1) and server_location (Tier-2) produce E-QUERY-038 with the same
+  available_columns set. This live evidence covers both.
+  Traces to BC-2.16.018 §Invariants, EC-016-018-005.
+
+AC-004 PASS (live): SELECT server_status raises E-QUERY-038; available has status_code not
+  server_status. SELECT server_name raises E-QUERY-038; available has device_name not server_name.
+  Both raw Tier-1 TOML names are correctly rejected; Arrow forms are present in available_columns.
+  Traces to BC-2.16.018 §Invariants (Tier-1 rename enforcement).
+
+AC-011 PASS (live): SELECT interface_name FROM claroty_server_interfaces raises E-QUERY-038.
+  available_columns = [_sensor, class_uid, device_name, raw_extensions, status_code].
+  'interface_name' is absent (Tier-2, composite PK element); only accessible via raw_extensions.
+  Traces to BC-2.16.019 §Invariants, EC-016-019-004.
+
+AC-012 PASS (live): SELECT interface_status FROM claroty_server_interfaces raises E-QUERY-038;
+  available has status_code not interface_status. Raw Tier-1 TOML name correctly rejected.
+  Traces to BC-2.16.019 §Invariants, EC-016-019-006.

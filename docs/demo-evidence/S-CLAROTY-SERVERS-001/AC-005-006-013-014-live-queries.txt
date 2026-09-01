@@ -1,0 +1,199 @@
+# AC-005 + AC-006 + AC-013 + AC-014: Live query wire shapes (both tables)
+# Story: S-CLAROTY-SERVERS-001 (Wave C G4)
+# Traces to: BC-2.16.018 §Postconditions §1 (class_uid=5001), §2 (Tier-1/Tier-2 wire representation)
+#            BC-2.16.019 §Postconditions §1 (class_uid=5001), §2 (Tier-1/Tier-2 wire representation),
+#            §3 (composite PK join keys in raw_extensions)
+#
+# Tool: query — client: monroe (via prism-live MCP)
+# Prism binary: /Users/jmagady/Dev/test-soc/bin/prism (SHA-256 411dd2d2...)
+# Config: /Users/jmagady/Dev/test-soc/.prism-live/
+# Spec: /Users/jmagady/Dev/test-soc/.prism-live/specs/claroty.sensor.toml (G4 tables active)
+# Capture time: 2026-09-01T04:34:xx / 2026-09-01T04:35:xx
+#
+# IMPORTANT — raw_extensions wire-shape note:
+# raw_extensions is emitted as a JSON-serialized STRING on the wire (value is a JSON string,
+# not a native JSON object). This is the current behavior under architect adjudication (separate
+# from this story). The actual emitted value in the row looks like:
+#   "raw_extensions": "{\"avg_traffic_past_hour_mbps\":..., \"management_ip\":\"10.x.x.x\", ...}"
+# This file accurately describes the observed wire shape. No claims are made about whether
+# this is a native object or a string — the actual emitted form is described as observed.
+
+==========================================================================
+CLAROTY_SERVERS QUERIES (AC-005, AC-006)
+==========================================================================
+
+--- QUERY 1 (AC-005): SELECT * FROM claroty_servers LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-09-01T04:34:07.123763+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 1,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "1 result found", "type": "text"}],
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT * FROM claroty_servers LIMIT 1",
+    "returned_results": 1,
+    "rows": [
+      {
+        "_client": "monroe",
+        "_sensor": "claroty",
+        "_source_table": "claroty_servers",
+        "_source_type": "live",
+        "class_uid": 5001,
+        "device_name": "monroeenergy-chlstn-collection-1",
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":2476545.217391304,\"avg_traffic_past_month_mbps\":10696699.224190274,\"avg_traffic_past_week_mbps\":10568175.79018052,\"idrac_ip\":\"10.216.120.27\",\"management_ip\":\"10.216.120.28\",\"management_mac\":\"00:62:0b:06:e6:58\",\"model\":\"MCS R640\",\"notes\":null,\"num_of_interfaces\":8,\"num_of_open_incidents\":0.0,\"os_version\":\"22.04.5 LTS (Jammy Jellyfish)\",\"serial_number\":\"BH3J8Y3\",\"server_location\":null,\"site_id\":null,\"uptime_days\":36.55728}",
+        "status_code": "up"
+      }
+    ],
+    "total_available": 1
+  }
+}
+--- Exit 0 (live: 1 row; claroty reports 1 collection server for monroe client) ---
+
+--- QUERY 2 (AC-006): SELECT raw_extensions FROM claroty_servers LIMIT 5 (client: monroe) ---
+--- WIRE RESPONSE (abbreviated — 4 rows returned, total_available=4) ---
+{
+  "_meta": {
+    "data_source": ["claroty"], "has_more": false, "next_cursor": null, "page": 1,
+    "query_time": "2026-09-01T04:34:16.460219+00:00", "total_results": 4,
+    "trust_level": "untrusted_external"
+  },
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT raw_extensions FROM claroty_servers LIMIT 5",
+    "returned_results": 4,
+    "rows": [
+      {
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":2476545.217391304,\"avg_traffic_past_month_mbps\":10696699.224190274,\"avg_traffic_past_week_mbps\":10568175.79018052,\"idrac_ip\":\"10.216.120.27\",\"management_ip\":\"10.216.120.28\",\"management_mac\":\"00:62:0b:06:e6:58\",\"model\":\"MCS R640\",\"notes\":null,\"num_of_interfaces\":8,\"num_of_open_incidents\":0.0,\"os_version\":\"22.04.5 LTS (Jammy Jellyfish)\",\"serial_number\":\"BH3J8Y3\",\"server_location\":null,\"site_id\":null,\"uptime_days\":36.55809}"
+      },
+      {
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":150.37777777777777,\"avg_traffic_past_month_mbps\":161.22393987625605,\"avg_traffic_past_week_mbps\":161.01884992102356,\"idrac_ip\":\"10.216.15.10\",\"management_ip\":\"10.216.10.15\",\"management_mac\":\"00:62:0b:0e:0e:b8\",\"model\":\"MCS R640\",\"notes\":null,\"num_of_interfaces\":12,\"num_of_open_incidents\":0.0,\"os_version\":\"22.04.5 LTS (Jammy Jellyfish)\",\"serial_number\":\"C3FXY04\",\"server_location\":null,\"site_id\":null,\"uptime_days\":36.559294}"
+      },
+      {
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":375788.488372093,\"avg_traffic_past_month_mbps\":362682.0309601982,\"avg_traffic_past_week_mbps\":365506.3793253207,\"idrac_ip\":\"10.216.15.27\",\"management_ip\":\"10.216.10.27\",\"management_mac\":\"00:62:0b:07:1d:a4\",\"model\":\"MCS R640\",\"notes\":null,\"num_of_interfaces\":8,\"num_of_open_incidents\":0.0,\"os_version\":\"22.04.5 LTS (Jammy Jellyfish)\",\"serial_number\":\"9M3J8Y3\",\"server_location\":null,\"site_id\":null,\"uptime_days\":36.557292}"
+      },
+      {
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":23604.065217391304,\"avg_traffic_past_month_mbps\":23652.37670721971,\"avg_traffic_past_week_mbps\":23498.043672084077,\"idrac_ip\":null,\"management_ip\":\"10.216.105.230\",\"management_mac\":\"9c:2d:cd:f2:56:df\",\"model\":\"Lenovo SE50\",\"notes\":null,\"num_of_interfaces\":6,\"num_of_open_incidents\":0.0,\"os_version\":\"22.04.5 LTS (Jammy Jellyfish)\",\"serial_number\":\"YJ01GVMH\",\"server_location\":null,\"site_id\":null,\"uptime_days\":36.55787}"
+      }
+    ],
+    "total_available": 4
+  }
+}
+--- Exit 0 (4 rows returned; table has 4 collection servers on monroe; no E-QUERY-038) ---
+
+==========================================================================
+CLAROTY_SERVER_INTERFACES QUERIES (AC-013, AC-014)
+==========================================================================
+
+--- QUERY 3 (AC-013): SELECT * FROM claroty_server_interfaces LIMIT 1 (client: monroe) ---
+--- WIRE RESPONSE ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-09-01T04:35:17.064453+00:00",
+    "safety_flags": [],
+    "tool": "query",
+    "total_results": 1,
+    "trust_level": "untrusted_external"
+  },
+  "content": [{"text": "1 result found", "type": "text"}],
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT * FROM claroty_server_interfaces LIMIT 1",
+    "returned_results": 1,
+    "rows": [
+      {
+        "_client": "monroe",
+        "_sensor": "claroty",
+        "_source_table": "claroty_server_interfaces",
+        "_source_type": "live",
+        "class_uid": 5001,
+        "device_name": "monroeenergy-chlstn-collection-1",
+        "raw_extensions": "{\"avg_traffic_past_hour_mbps\":0.0,\"avg_traffic_past_month_mbps\":0.0,\"avg_traffic_past_week_mbps\":0.0,\"interface_connection_type\":\"SFP+\",\"interface_name\":\"eno4\",\"interface_type\":\"span\",\"notes\":null,\"site_id\":null}",
+        "status_code": "down"
+      }
+    ],
+    "total_available": 1
+  }
+}
+--- Exit 0 (live: 1 row; _source_table=claroty_server_interfaces confirms SEPARATE endpoint) ---
+
+--- QUERY 4 (AC-014): SELECT raw_extensions FROM claroty_server_interfaces LIMIT 5 (client: monroe) ---
+--- WIRE RESPONSE (all 5 rows) ---
+{
+  "_meta": {
+    "data_source": ["claroty"],
+    "has_more": false,
+    "next_cursor": null,
+    "page": 1,
+    "query_time": "2026-09-01T04:35:26.153167+00:00",
+    "total_results": 5,
+    "trust_level": "untrusted_external"
+  },
+  "results": {
+    "is_truncated": false,
+    "normalized_pql": "SELECT raw_extensions FROM claroty_server_interfaces LIMIT 5",
+    "returned_results": 5,
+    "rows": [
+      { "raw_extensions": "{\"avg_traffic_past_hour_mbps\":0.0,\"avg_traffic_past_month_mbps\":0.0,\"avg_traffic_past_week_mbps\":0.0,\"interface_connection_type\":\"SFP+\",\"interface_name\":\"eno4\",\"interface_type\":\"span\",\"notes\":null,\"site_id\":null}" },
+      { "raw_extensions": "{\"avg_traffic_past_hour_mbps\":0.0,\"avg_traffic_past_month_mbps\":0.0,\"avg_traffic_past_week_mbps\":0.0,\"interface_connection_type\":\"SFP+\",\"interface_name\":\"eno2\",\"interface_type\":\"span\",\"notes\":null,\"site_id\":null}" },
+      { "raw_extensions": "{\"avg_traffic_past_hour_mbps\":0.0,\"avg_traffic_past_month_mbps\":0.0,\"avg_traffic_past_week_mbps\":0.0,\"interface_connection_type\":\"SFP+\",\"interface_name\":\"eno3\",\"interface_type\":\"span\",\"notes\":null,\"site_id\":null}" },
+      { "raw_extensions": "{\"avg_traffic_past_hour_mbps\":0.0,\"avg_traffic_past_month_mbps\":0.0,\"avg_traffic_past_week_mbps\":0.0,\"interface_connection_type\":\"RJ45\",\"interface_name\":\"enp59s0f0\",\"interface_type\":\"management\",\"notes\":null,\"site_id\":null}" },
+      { "raw_extensions": "{\"avg_traffic_past_hour_mbps\":2374701.565217391,\"avg_traffic_past_month_mbps\":10115700.849346677,\"avg_traffic_past_week_mbps\":10166553.140511436,\"interface_connection_type\":\"RJ45\",\"interface_name\":\"enp59s0f2\",\"interface_type\":\"span\",\"notes\":\"DMZ\",\"site_id\":null}" }
+    ],
+    "total_available": 5
+  }
+}
+--- Exit 0 (5 rows; no E-QUERY-038 on raw_extensions; interface keys present in each row) ---
+
+--- SUMMARY ---
+AC-005 PASS (live): SELECT * FROM claroty_servers LIMIT 1 returns 1 row with:
+  1. class_uid = 5001 (OCSF inventory_info)
+  2. device_name = "monroeenergy-chlstn-collection-1" (present, non-null)
+  3. status_code = "up" (present; live value is lowercase — confirmed by store-opening note in story)
+  4. raw_extensions = JSON-serialized string (present, non-null) containing Tier-2 keys:
+     avg_traffic_past_hour_mbps, avg_traffic_past_month_mbps, avg_traffic_past_week_mbps,
+     idrac_ip, management_ip, management_mac, model, notes, num_of_interfaces,
+     num_of_open_incidents, os_version, serial_number, server_location, site_id, uptime_days
+  5. No standalone Tier-2 root keys in the row (server_location, management_ip, etc. are
+     ONLY inside raw_extensions, not at the top level of the row object).
+  NOTE: raw_extensions is emitted as a JSON-serialized string on the wire (not a native JSON
+  object). This is the observed wire behavior under architect adjudication.
+  Traces to BC-2.16.018 §Postconditions §1, §2.
+
+AC-006 PASS (live): SELECT raw_extensions FROM claroty_servers LIMIT 5 returns 4 rows
+  (total_available=4; table has 4 collection servers). No E-QUERY-038. raw_extensions
+  JSON string keys per row: management_ip, model, os_version, serial_number present in
+  all rows (values non-null). idrac_ip present in rows 1-3 (null in row 4 = Lenovo SE50).
+  uptime_days = 36.55x (fractional, confirming Float column type per EC-016-018-003).
+  Traces to BC-2.16.018 §Postconditions §2.
+
+AC-013 PASS (live): SELECT * FROM claroty_server_interfaces LIMIT 1 returns 1 row with:
+  1. class_uid = 5001 (OCSF inventory_info)
+  2. device_name = "monroeenergy-chlstn-collection-1" (present, non-null)
+  3. status_code = "down" (present; interface down state)
+  4. raw_extensions = JSON-serialized string (present, non-null) containing Tier-2 keys:
+     avg_traffic_past_hour_mbps, avg_traffic_past_month_mbps, avg_traffic_past_week_mbps,
+     interface_connection_type, interface_name, interface_type, notes, site_id
+  5. _source_table = "claroty_server_interfaces" (SEPARATE endpoint confirmed — distinct
+     from claroty_servers which has _source_table="claroty_servers")
+  6. No standalone Tier-2 root keys in the row.
+  NOTE: raw_extensions is emitted as a JSON-serialized string on the wire (same as claroty_servers).
+  Traces to BC-2.16.019 §Postconditions §1, §2, §3.
+
+AC-014 PASS (live): SELECT raw_extensions FROM claroty_server_interfaces LIMIT 5 returns
+  5 rows. No E-QUERY-038. raw_extensions JSON string keys include:
+  interface_name (composite PK join element: eno4, eno2, eno3, enp59s0f0, enp59s0f2),
+  interface_type (span/management), interface_connection_type (SFP+/RJ45), site_id, notes.
+  avg_traffic_* keys present in all rows. Traces to BC-2.16.019 §Postconditions §2.
