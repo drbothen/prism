@@ -19,8 +19,9 @@
 //!
 //! The handler builds the query payload, runs it through
 //! `SafetyEnvelopeBuilder::wrap("query", DataSource::Multiple(...), payload, 1,
-//! result.is_truncated, None, audit_warning)`, serializes the `ResponseEnvelope`
-//! to JSON, and returns `CallToolResult::structured(envelope_val)`.  The test
+//! audit_warning)` — `has_more`/`next_cursor` are hard-wired to `false`/`null`
+//! inside `wrap()` per ADR-060 §D8.7 and are not caller-supplied — serializes the
+//! `ResponseEnvelope` to JSON, and returns `CallToolResult::structured(envelope_val)`.  The test
 //! asserts on `call_result.content[0].text` — the exact bytes the LLM agent
 //! consumes — which contains the full serialized `ResponseEnvelope` JSON.
 //!

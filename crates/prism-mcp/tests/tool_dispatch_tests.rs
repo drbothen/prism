@@ -19,10 +19,13 @@
 use prism_core::error::PrismError;
 use prism_mcp::{
     error_mapping::{codes, map_prism_error},
-    safety_envelope::{DataSource, MetaEnvelopeSchemaType, SafetyEnvelopeBuilder},
+    safety_envelope::{
+        DataSource, MetaEnvelopeSchemaType, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
+    },
     tool_registry::{ToolDescriptionRegistrar, ToolRegistration},
 };
 use prism_security::injection_scanner::{InjectionScanner, ScanInput};
+use rmcp::handler::server::tool::schema_for_type;
 use serde_json::json;
 
 // ─── AC-2 / BC-2.09.003 — Injection scanner rejects malicious input ──────────
@@ -698,76 +701,125 @@ fn test_BC_2_09_007_tool_registration_carries_output_schema_with_meta_fields() {
     );
 }
 
-// ─── M-2 fix: served outputSchema has_more const:false / next_cursor type:null ─
+// ─── M-3 fix: served outputSchema has_more const:false / next_cursor type:null ─
 
-/// ADR-060 §D8.7 + BC-2.09.008 v1.5 + DEFECT-LIVE-ENVELOPE-OBS-001 M-2 (cycle-3 closure):
+/// ADR-060 §D8.7 + BC-2.09.008 v1.5 + DEFECT-LIVE-ENVELOPE-OBS-001 M-3 (cycle-3 closure):
 ///
-/// The SERVED outputSchema — generated via `schema_for_type::<ResponseEnvelopeSchema>()`
-/// which calls `schemars::schema_for!(ResponseEnvelopeSchema)` — MUST declare:
-///   - `_meta.has_more` with `const: false` (not just `type: boolean`)
-///   - `_meta.next_cursor` with `type: null` (not `oneOf([string, null])`)
+/// The SERVED outputSchema — generated via
+/// `rmcp::handler::server::tool::schema_for_type::<ResponseEnvelopeSchema>()`,
+/// the EXACT same function that rmcp's `tools/list` handler calls — MUST declare:
+///   - `properties._meta.$ref` → `"#/$defs/MetaEnvelopeSchemaType"` (linkage guard)
+///   - `$defs.MetaEnvelopeSchemaType.properties.has_more` with `const: false`
+///   - `$defs.MetaEnvelopeSchemaType.properties.next_cursor` with `type: null`
 ///
-/// `MetaEnvelopeSchemaType` is the type used for the `_meta` field in
-/// `ResponseEnvelopeSchema`. This test generates its schema directly (no `$ref`
-/// indirection), confirming the `schema_with` attributes are load-bearing.
+/// `schema_for_type` uses `SchemaSettings::draft2020_12()` which generates `$defs`-style
+/// `$ref` indirection. The constrained fields therefore live at
+/// `/$defs/MetaEnvelopeSchemaType/properties/has_more` (not `/properties/has_more`).
 ///
-/// Mental-deletion proof:
+/// The `_meta.$ref` linkage guard is the critical new assertion: if
+/// `ResponseEnvelopeSchema.meta` is ever retyped away from `MetaEnvelopeSchemaType`,
+/// the `$ref` link breaks and the schema narrowing constraints (`const:false`,
+/// `type:null`) are no longer part of the served schema — the LLM receives a schema
+/// that permits `has_more: true` and `next_cursor: "some-cursor"`.
+///
+/// Mental-deletion proofs:
 ///   - Remove `#[schemars(schema_with = "schema_has_more_const_false")]` from
 ///     `MetaEnvelopeSchemaType.has_more` → `has_more` schema becomes `{"type": "boolean"}`
-///     with no `const` key → `has_more_schema.get("const")` returns `None` → first
-///     `assert_eq!` FAILS.
+///     with no `const` key → has_more assertion at `/$defs/...` FAILS.
 ///   - Remove `#[schemars(schema_with = "schema_next_cursor_null")]` from
-///     `MetaEnvelopeSchemaType.next_cursor` → `next_cursor` schema becomes
-///     `{"oneOf": [{"type": "string"}, {"type": "null"}]}` → `type` key absent or not
-///     `"null"` → second `assert_eq!` FAILS; `oneOf` key present → third `assert_eq!`
-///     FAILS.
+///     `MetaEnvelopeSchemaType.next_cursor` → schema becomes `oneOf([string,null])` →
+///     type absent / not "null" FAILS; oneOf present → oneOf-absence assertion FAILS.
+///   - Retype `ResponseEnvelopeSchema.meta` from `MetaEnvelopeSchemaType` to any other
+///     type → `$ref` points to new type name → `_meta.$ref` linkage guard FAILS.
 ///
-/// This test is on the SERVED schema (`MetaEnvelopeSchemaType`), NOT the dead
-/// `prism_security::MetaEnvelopeSchema` type which cycle-1 incorrectly targeted.
+/// Defence-in-depth: per-type assertions on `schemars::schema_for!(MetaEnvelopeSchemaType)`
+/// are retained at the end of this test to confirm the `schema_with` annotations are
+/// load-bearing on the type itself (no `$ref` indirection in the direct generator path).
 #[test]
 fn test_BC_2_09_008_M2_served_outputSchema_has_more_const_false_next_cursor_null() {
-    // schema_for!(MetaEnvelopeSchemaType) generates the same schema that
-    // schema_for_type::<ResponseEnvelopeSchema>() uses for the `_meta` field.
-    // Testing this type directly avoids $ref resolution complexity while
-    // targeting the exact same schema_with-annotated fields.
-    let schema = schemars::schema_for!(MetaEnvelopeSchemaType);
-    let schema_val = schema.to_value();
+    // ── LOAD-BEARING: assert on the SERVED artifact ──────────────────────────
+    // This calls the exact same schema generator that rmcp's tools/list handler
+    // uses for each tool's outputSchema declaration. Any regression that changes
+    // how ResponseEnvelopeSchema is rendered — retyping _meta, removing schema_with
+    // attrs, changing the Draft version — is caught here before it reaches the wire.
+    let served = schema_for_type::<ResponseEnvelopeSchema>();
+    let served_val = serde_json::Value::Object((*served).clone());
 
-    // Navigate to has_more schema within properties.
-    let has_more_schema = schema_val
-        .pointer("/properties/has_more")
-        .expect("MetaEnvelopeSchemaType must have has_more property in outputSchema");
+    // 1. _meta.$ref linkage guard: MetaEnvelopeSchemaType must remain the $ref target.
+    //    If ResponseEnvelopeSchema.meta is ever retyped, this breaks the $ref chain
+    //    so schema narrowing (has_more/next_cursor constraints) is no longer served.
+    assert_eq!(
+        served_val.pointer("/properties/_meta/$ref"),
+        Some(&serde_json::json!("#/$defs/MetaEnvelopeSchemaType")),
+        "M-3 (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema /properties/_meta/$ref \
+         must equal \"#/$defs/MetaEnvelopeSchemaType\". If ResponseEnvelopeSchema._meta is \
+         retyped, this linkage breaks and has_more/next_cursor constraints are no longer \
+         part of the served schema."
+    );
 
-    // has_more MUST carry const: false (ADR-060 §D8.7).
+    // 2. has_more MUST carry const: false (ADR-060 §D8.7).
+    //    Under Draft 2020-12 $ref indirection, the constrained field lives at
+    //    /$defs/MetaEnvelopeSchemaType/properties/has_more, not /properties/has_more.
+    let has_more_schema = served_val
+        .pointer("/$defs/MetaEnvelopeSchemaType/properties/has_more")
+        .expect("served outputSchema must have $defs.MetaEnvelopeSchemaType.properties.has_more");
     assert_eq!(
         has_more_schema.get("const"),
         Some(&serde_json::json!(false)),
-        "M-2 fix (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.has_more MUST \
+        "M-3 (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.has_more MUST \
          have const:false. Mental-deletion: removing schema_with attr yields \
          {{\"type\":\"boolean\"}} with no const key — this assert FAILS."
     );
 
-    // Navigate to next_cursor schema within properties.
-    let next_cursor_schema = schema_val
-        .pointer("/properties/next_cursor")
-        .expect("MetaEnvelopeSchemaType must have next_cursor property in outputSchema");
-
-    // next_cursor MUST have type: null (ADR-060 §D8.7).
+    // 3. next_cursor MUST have type: null and MUST NOT have oneOf (ADR-060 §D8.7).
+    let next_cursor_schema = served_val
+        .pointer("/$defs/MetaEnvelopeSchemaType/properties/next_cursor")
+        .expect(
+            "served outputSchema must have $defs.MetaEnvelopeSchemaType.properties.next_cursor",
+        );
     assert_eq!(
         next_cursor_schema.get("type"),
         Some(&serde_json::json!("null")),
-        "M-2 fix (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.next_cursor MUST \
-         have type:null. Mental-deletion: removing schema_with attr yields oneOf([string,null]) \
-         — type key absent or not \"null\" — this assert FAILS."
+        "M-3 (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.next_cursor MUST \
+         have type:null. Mental-deletion: removing schema_with attr yields \
+         oneOf([string,null]) — type absent or not \"null\" — this assert FAILS."
     );
-
-    // next_cursor MUST NOT have oneOf (string still valid would break the contract).
     assert_eq!(
         next_cursor_schema.get("oneOf"),
         None,
-        "M-2 fix: served outputSchema _meta.next_cursor MUST NOT have oneOf. \
-         Mental-deletion: removing schema_with attr yields oneOf([string,null]) — \
+        "M-3 (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.next_cursor MUST NOT \
+         have oneOf. Mental-deletion: removing schema_with attr yields oneOf([string,null]) — \
          this assert FAILS because oneOf key is present."
+    );
+
+    // ── DEFENCE-IN-DEPTH: per-type assertions on MetaEnvelopeSchemaType directly ──
+    // Confirms the schema_with annotations are load-bearing on the type itself.
+    // These do NOT exercise the served artifact path (no $ref resolution), but
+    // provide fast, focused feedback when debugging schema_with attrs in isolation.
+    let direct = schemars::schema_for!(MetaEnvelopeSchemaType);
+    let direct_val = direct.to_value();
+
+    let has_more_direct = direct_val
+        .pointer("/properties/has_more")
+        .expect("MetaEnvelopeSchemaType must have has_more property");
+    assert_eq!(
+        has_more_direct.get("const"),
+        Some(&serde_json::json!(false)),
+        "defence-in-depth: MetaEnvelopeSchemaType.has_more must carry const:false"
+    );
+
+    let next_cursor_direct = direct_val
+        .pointer("/properties/next_cursor")
+        .expect("MetaEnvelopeSchemaType must have next_cursor property");
+    assert_eq!(
+        next_cursor_direct.get("type"),
+        Some(&serde_json::json!("null")),
+        "defence-in-depth: MetaEnvelopeSchemaType.next_cursor must have type:null"
+    );
+    assert_eq!(
+        next_cursor_direct.get("oneOf"),
+        None,
+        "defence-in-depth: MetaEnvelopeSchemaType.next_cursor must not have oneOf"
     );
 }
 
