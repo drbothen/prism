@@ -1,18 +1,57 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.039"
+version: "8.040"
 status: current
-timestamp: 2026-09-01T20:00:00Z
+timestamp: 2026-09-01T22:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2415 (2026-09-01): G6 (S-CLAROTY-ACLPOLICY-001) POST-MERGE BURST COMPLETE. PR #250 squash-merged origin/develop @672b10b6 (D-2400 blanket authority; normal squash-merge; FULLY-GREEN CI; no bypass). BC-2.16.022 draft→active per POL-14 (14th and final Claroty xDome table). G1–G6 ALL MERGED; v1 Claroty xDome 14-table sensor COMPLETE. NEXT: local worktree teardown + LIVE xDome v1 release-validation on monroe. STATE v8.943→v8.944. SESSION-HANDOFF v8.038→v8.039. [D-2414 historical: G6 live holdout HUMAN-ACCEPTED.]**
+> **D-2416 (2026-09-01): SHA-DRIFT RECOVERY BURST COMPLETE. AUTHORIZED git-history purge of live Claroty tenant data (D-2410c/k; human-authorized + human-executed). develop rewritten; develop_head 672b10b6→1f805276. G1–G6 ALL MERGED; v1 Claroty xDome 14-table sensor COMPLETE; live tenant data scrubbed from develop history. STATE v8.944→v8.945. SESSION-HANDOFF v8.039→v8.040. [D-2415 historical: G6 MERGED PR #250.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2415 (2026-09-01 — G6 MERGED PR #250 @672b10b6; v1 Claroty xDome 14-table sensor COMPLETE; SAFE TO CLEAR) [supersedes D-2414]
+## §RESUME SNAPSHOT — D-2416 (2026-09-01 — SHA-DRIFT RECOVERY COMPLETE; develop 1f805276; NEXT: worktree teardown + LIVE xDome validation) [supersedes D-2415]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E, v1 Claroty xDome. G1–G6 ALL MERGED (develop @1f805276; BC-2.16.022 active). 14-table Claroty xDome sensor is COMPLETE. AUTHORIZED git-history purge COMPLETE (D-2416; D-2410c/k; human-authorized + human-executed 2026-09-01): 6 demo-evidence files removed from ALL develop history (G2/G3/G4 live-queries.txt + evidence-report.md); develop rewritten 672b10b6→1f805276. HS-001 v1.1/HS-002/HS-003 PRESERVED single-use. VERY NEXT ACTIONS: (1) devops: local worktree teardown batch (G1–G6 + LIMIT + H2-parked). (2) LIVE xDome v1 release-validation on monroe. (3) .gitignore guards PR (normal PR — not a direct push).
+
+### GOVERNING OBJECTIVE
+v1 Claroty xDome sensor COMPLETE. Live tenant data scrubbed. Next milestones: worktree teardown → LIVE xDome tenant validation (v1 release gate) → .gitignore guards PR.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `1f805276` (D-2416 git-history purge 2026-09-01; rewritten from 672b10b6). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- G1–G6: ALL MERGED; worktrees REMOVABLE.
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+1. devops: teardown batch — .worktrees/S-CLAROTY-ACLPOLICY-001 + all other REMOVABLE worktrees (G1–G5 + LIMIT + H2-parked).
+2. LIVE xDome v1 release-validation on monroe (canonical runbook: .factory/ops/live-tenant-validation-runbook.md).
+3. .gitignore GUARDS PR (normal PR — direct push to develop gated by required status checks): docs/demo-evidence/**/*-live-queries.txt, docs/demo-evidence/*/live/, *-live-output*, plus two untracked live dirs S-CLAROTY-AUDITLOG-TIMEBOX-001/live + DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live.
+
+### CONVERGENCE STATE
+G1 MERGED (BC-2.16.015 active). G2 MERGED (BC-2.16.016 active). G3 MERGED (BC-2.16.017 active). G4 MERGED (BC-2.16.018+BC-2.16.019 active). G5 MERGED (BC-2.16.020+BC-2.16.021 active). G6 MERGED (BC-2.16.022 active; PR #250; D-2415). v1 Claroty xDome 14-table sensor COMPLETE. develop history rewritten (D-2416); live tenant data scrubbed.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2416 (SHA-DRIFT RECOVERY BURST — git-history purge COMPLETE D-2410c/k; develop_head 672b10b6→1f805276; STATE v8.944→v8.945; SESSION-HANDOFF v8.039→v8.040). D-2415 historical: G6 MERGED PR #250 @672b10b6.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) Live xDome tenant validation v1 release gate; canonical runbook: .factory/ops/live-tenant-validation-runbook.md. (e) SAP-4/POL-42 in force. **(f) D-2416 GIT-HISTORY PURGE COMPLETE — live tenant data scrubbed from develop history; develop rewritten to 1f805276; D-2410k obligation discharged. FOLLOW-UP: .gitignore guards PR (normal PR, not direct push).**
+
+### WORKTREE INVENTORY
+ALL G1–G6 worktrees REMOVABLE. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (PARKED-DIRTY do-NOT-touch). S-ENGINE-H2-LARGE-RESPONSE-001 (P2 parked, non-gating).
+
+### CODIFICATION NOTE
+S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 (draft, post-v1, maintenance) filed for the two 3-strike defect classes (SAP2_STATUS-missing; non-real live-test stubs) — both marked [codified] in cycles/wave-5-e-demo-fidelity/lessons.md (D-2411).
+
+---
+
+## §RESUME SNAPSHOT — D-2415 (2026-09-01 — G6 MERGED PR #250 @672b10b6; v1 Claroty xDome 14-table sensor COMPLETE; SAFE TO CLEAR) [SUPERSEDED by D-2416]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, v1 Claroty xDome. G1–G6 ALL MERGED (develop @672b10b6; BC-2.16.022 active). 14-table Claroty xDome sensor is COMPLETE. HS-001 v1.1/HS-002/HS-003 PRESERVED single-use for future re-run when monroe has ≥1 org ACL policy. VERY NEXT ACTIONS: (1) devops: local worktree teardown batch (G1–G6 + LIMIT + H2-parked). (2) LIVE xDome v1 release-validation on monroe. (3) git-history PURGE of G2/G3/G4 live-output files via git filter-repo — RE-CONFIRM with human before executing develop force-push (D-2410k).
