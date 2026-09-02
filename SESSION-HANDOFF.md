@@ -1,18 +1,58 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.044"
+version: "8.045"
 status: current
-timestamp: 2026-09-02T19:30:00Z
+timestamp: 2026-09-02T21:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2420 (2026-09-02): SESSION WRAP. vulnerabilities root cause NOT YET VERIFIED (OpenAPI confirms offset IS supported; prism sends no sort_by/include_count = malformed-request hypothesis). ALL prior diagnoses RETRACTED: 100-vulns/page_size=100/server-cliff/offset=0-only. v1 BLOCKED: Action 1 controlled test + Action 2 conformance audit (human-directed). Lesson logged. STATE v8.949→v8.950. SESSION-HANDOFF v8.043→v8.044. [D-2419 historical: PR #251 squash-merged @2edaaca78; OBS-1/OBS-2 CLOSED.]**
+> **D-2421 (2026-09-02): INVESTIGATIONS RESOLVED + CONFORMANCE AUDIT COMPLETE + sort_by DEFECT OPENED. vulnerabilities offset>0 hang ROOT CAUSE CONFIRMED: pre-PR-#237 WAF/transport failure; PR #237 fixed; NO TOML change needed. DEFECT-1 VERIFIED RESOLVED by PR #237; ADR-050 compliant. Conformance audit COMPLETE: 0 CRITICAL; D-001..D-007 Claroty non-unique sort (MEDIUM); D-008/D-010 cross-sensor open; D-011 audit_logs sort unverified. NEW DEFECT: ship deterministic sort_by on 7 Claroty tables (human-approved 2026-09-02). 3 post-v1 TDs filed (TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001). STATE v8.950→v8.951. SESSION-HANDOFF v8.044→v8.045. [D-2420 historical: SESSION WRAP, v1 BLOCKED on Action 1+2; now superseded.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2420 (2026-09-02 — SESSION WRAP; vulnerabilities root cause UNVERIFIED; v1 BLOCKED; NEXT: Action 1 controlled test + Action 2 conformance audit) [supersedes D-2419]
+## §RESUME SNAPSHOT — D-2421 (2026-09-02 — v1 transport blockers CLEARED; sort_by DEFECT delivery NEXT) [supersedes D-2420]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. v1 transport blockers CLEARED (D-2421). vulnerabilities offset>0 hang ROOT CAUSE CONFIRMED: pre-PR-#237 WAF/transport failure; PR #237 fixed; NO TOML change needed; monroe >10K vulns hits DI-019 cap, is_truncated=true. DEFECT-1 VERIFIED RESOLVED by PR #237; ADR-050 compliant. Conformance audit COMPLETE: 0 CRITICAL; 7 Claroty tables lack deterministic sort_by (MEDIUM D-001..D-007). NEW DEFECT: ship deterministic sort_by on 7 non-unique-sort Claroty tables — human-approved (2026-09-02); spec+code burst pending. develop @2edaaca78.
+
+### GOVERNING OBJECTIVE
+sort_by DEFECT delivery: amend BCs BC-2.16.015/013/019/020/021 (10 Red Gates per SAC-1); update claroty.sensor.toml body_template for 7 affected tables; TDD; live re-validation on monroe. Declare v1 RELEASE-READY after sort_by fix delivered and live re-validation passes.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
+- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename before editing).
+- G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
+3. **sort_by DEFECT spec burst:** Amend BCs: BC-2.16.015 (vulnerabilities: adjusted_vulnerability_score desc + name asc), BC-2.16.013 (audit_logs: timestamp desc + id asc — verify id sortability), BC-2.16.019 (server_interfaces), BC-2.16.020 (organization_zones + zone_policies), BC-2.16.021 (firewall_groups + firewall_policies). 10 Red Gates (SAC-1). Design doc: .factory/analysis/claroty-sortby-design-2026-09-02.md.
+4. **sort_by DEFECT code delivery:** TDD; update claroty.sensor.toml body_template for 7 affected tables; wire live-validation test.
+5. **Declare v1 RELEASE-READY** after sort_by fix delivered + live re-validation on monroe passes.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT delivery is active workstream.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2421 (INVESTIGATIONS RESOLVED: vulnerabilities root cause = pre-PR-#237 WAF/transport; DEFECT-1 closed; conformance audit 0-CRITICAL + 7 MEDIUM sort; NEW sort_by DEFECT opened human-approved; 3 post-v1 TDs filed; STATE v8.950→v8.951; SESSION-HANDOFF v8.044→v8.045). D-2420 historical: SESSION WRAP, v1 BLOCKED on Action 1+2; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416).
+
+### WORKTREE INVENTORY
+ACTIVE: none. DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename before editing). REMOVABLE: G1–G6 worktrees + fix/DEFECT local branch (stale pointer, not a real worktree). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+---
+
+## §RESUME SNAPSHOT — D-2420 (2026-09-02 — SESSION WRAP; vulnerabilities root cause UNVERIFIED; v1 BLOCKED; NEXT: Action 1 controlled test + Action 2 conformance audit) [SUPERSEDED by D-2421]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. OBS-1/OBS-2 fixes MERGED (PR #251 @2edaaca78; D-2419). 13/14 Claroty tables validated live; vulnerabilities is sole open blocker. Vulnerabilities offset>0 hang root cause NOT YET VERIFIED. OpenAPI contract (xdome_openapi_06.20.2026.json) confirms offset+limit pagination IS supported; prism body_template sends NO sort_by and NO include_count (malformed-request leading hypothesis). RETRACTED: ALL prior diagnoses ('100 vulns cache hit'; 'server cliff at page_size>=250'; 'endpoint is offset=0-only'; 'page_size=100 is the fix'; prior killed-wrap 'OFFSET=0-ONLY root cause'). AUTHORITATIVE COUNT: 7,872 vulnerabilities (xDome console screenshot). v1 BLOCKED on Action 1 (controlled test) AND Action 2 (full endpoint<->spec conformance audit, human-directed 2026-09-02). develop @2edaaca78.
