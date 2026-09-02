@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.99"
+version: "10.00"
 status: draft
 producer: state-manager
-timestamp: 2026-09-01T20:00:00Z
+timestamp: 2026-09-02T00:00:00Z
+# NOTE: D-2417 — BC-INDEX v9.99→v10.00: SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.09.008 version pin v1.4→v1.5 (OBS-1: EC-09-021 all-targets-failed edge case + Data-Source Integrity invariant; OBS-2: has_more always false / next_cursor always null ADR-060 §D8.7 invariant + EC-09-018 extended). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2415 NOTE archived.
 # NOTE: D-2415 — BC-INDEX v9.98→v9.99: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — POL-14 BC auto-promotion. BC-2.16.022 (claroty_org_acl_policies) lifecycle_status/status draft→active; anchor story S-CLAROTY-ACLPOLICY-001 merged PR #250 @672b10b6 (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table contract). draft_contracts 4→3 / active_contracts 260→261 / total_contracts 277 UNCHANGED. Frontmatter active_contracts/draft_contracts corrected from stale 258/6 to 261/3 (D-2412 promotion was reflected in body NOTE but missed in YAML frontmatter fields; corrected in same burst). D-2413 NOTE archived.
 # NOTE: D-2412 — BC-INDEX v9.96→v9.97: POL-14 BC auto-promotion — BC-2.16.020 (claroty_org_zone_domain) + BC-2.16.021 (claroty_org_firewall_domain) draft→active; S-CLAROTY-ORGPOLICY-001 merged PR #249 @07e64f4e (D-2400 blanket authority 2026-09-01). draft_contracts 6→4 / active_contracts 258→260 / total_contracts 277 UNCHANGED. D-2407 NOTE archived.
 # NOTE: D-2407 — BC-INDEX v9.95→v9.96: POL-14 BC auto-promotion — BC-2.16.018 (claroty_servers) + BC-2.16.019 (claroty_server_interfaces) draft→active; S-CLAROTY-SERVERS-001 merged PR #248 @157596490 (D-2400 blanket authority 2026-08-31). draft_contracts 8→6 / active_contracts 256→258 / total_contracts 277 UNCHANGED. D-2404 NOTE archived.
@@ -269,7 +270,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.09.005 | Trust-Level Metadata Per Response | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
 | BC-2.09.006 | Tool Description Security Warnings | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
-| BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
+| BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | active v1.5 |
 | BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Interface | CAP-005, CAP-015 | P0 | active |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Interface | CAP-005 | P0 | active |
@@ -536,6 +537,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v10.00 (2026-09-02, D-2417):** state-manager | SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.09.008 (Response Envelope with Trust Annotations) version pin v1.4→v1.5. OBS-1: EC-09-021 NEW all-targets-failed edge case (data_source carries queried sensor ID, NOT ["unknown"]; sensor_errors present with per-target failure details; results empty array) + Data-Source Integrity invariant (data_source reflects sensor actually reached regardless of row count, pagination mode, fan-out outcome, or per-sensor failure). OBS-2: cursor-pagination invariant (has_more always false; next_cursor always null; ADR-060 §D8.7) + EC-09-018 extended to cover all result shapes, not only zero-result; schema literals corrected. draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 CLEAR (BC-2.09.008 has no split twin; single endpoint-level trust-annotation BC). Dim-2 CLEAR (no downstream artifact reproduces the amended envelope schema block verbatim; BC-2.11.001/BC-2.09.007/entities.md reference BC-2.09.008 by ID/title only; no verbatim copy-source section). Dim-3 DISCHARGED (EC-09-021 + Data-Source Integrity + cursor-pagination invariants all describe required behavior anchored to fix/DEFECT-LIVE-ENVELOPE-OBS-001 + BC-2.09.008 v1.5; OBS-1/OBS-2 fix stream is the concrete fix-branch). Count-propagation sweep: bc_index_version 9.99→10.00; STATE.md 8.945→8.946; develop_head UNCHANGED 1f805276. records-lint exit 0. BC-INDEX v9.99→v10.00.
 
 **v9.99 (2026-09-01, D-2415):** state-manager | POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — POL-14 BC auto-promotion. BC-2.16.022 (claroty_org_acl_policies) lifecycle_status/status draft→active; anchor story S-CLAROTY-ACLPOLICY-001 merged PR #250 @672b10b6 (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table contract). draft_contracts 4→3 / active_contracts 260→261 / total_contracts 277 UNCHANGED. Frontmatter YAML active_contracts/draft_contracts corrected from stale 258/6 to 261/3 (D-2412 POL-14 promotion updated body NOTE but missed YAML frontmatter fields; corrected in same burst). TD-VSDD-097: Dim-1 CLEAR (BC-2.16.022 is endpoint-distinct — claroty_org_acl_policies; no sibling-pair twin). Dim-2 CLEAR (no copied section). Dim-3 CLEAR (no new MUSTs introduced; records/state burst only). Count-propagation sweep: bc_index_version 9.98→9.99; story_index_version 2.976→2.977; develop_head 07e64f4e→672b10b6; STATE.md 8.943→8.944; total VP/ADR counts UNCHANGED. records-lint exit 0. BC-INDEX v9.98→v9.99.
 

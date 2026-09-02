@@ -1,18 +1,64 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.040"
+version: "8.041"
 status: current
-timestamp: 2026-09-01T22:30:00Z
+timestamp: 2026-09-02T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2416 (2026-09-01): SHA-DRIFT RECOVERY BURST COMPLETE. AUTHORIZED git-history purge of live Claroty tenant data (D-2410c/k; human-authorized + human-executed). develop rewritten; develop_head 672b10b6→1f805276. G1–G6 ALL MERGED; v1 Claroty xDome 14-table sensor COMPLETE; live tenant data scrubbed from develop history. STATE v8.944→v8.945. SESSION-HANDOFF v8.039→v8.040. [D-2415 historical: G6 MERGED PR #250.]**
+> **D-2417 (2026-09-02): BC-2.09.008 v1.4→v1.5 committed (OBS-1 EC-09-021 + OBS-2 invariant). BC-INDEX v9.99→v10.00. LEVEL-4 AUTONOMY GRANT for OBS-1/OBS-2 fix stream (human-directed 2026-09-01). Fix branch: fix/DEFECT-LIVE-ENVELOPE-OBS-001. STATE v8.945→v8.946. SESSION-HANDOFF v8.040→v8.041. [D-2416 historical: git-history purge COMPLETE; develop 1f805276.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2416 (2026-09-01 — SHA-DRIFT RECOVERY COMPLETE; develop 1f805276; NEXT: worktree teardown + LIVE xDome validation) [supersedes D-2415]
+## §RESUME SNAPSHOT — D-2417 (2026-09-02 — OBS-1/OBS-2 FIX STREAM IN FLIGHT; OVERNIGHT AUTONOMOUS PLAN; develop 1f805276) [supersedes D-2416]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. A1 LIVE RELEASE-VALIDATION EXECUTED on monroe (develop@1f805276, binary SHA256 9f0ada1c...). v1 RELEASE-READY pending two LOW fixes (OBS-1/OBS-2). Human grant: FULL LEVEL-4 AUTONOMY for entire OBS-1/OBS-2 fix stream including merge authority (D-2417, 2026-09-01). BC-2.09.008 v1.4→v1.5 committed. Fix branch: fix/DEFECT-LIVE-ENVELOPE-OBS-001 @ .worktrees/DEFECT-LIVE-ENVELOPE-OBS-001.
+
+### GOVERNING OBJECTIVE
+OBS-1/OBS-2 fix → autonomous merge → live re-validation confirming v1 RELEASE-READY → present result to human in morning.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `1f805276` (D-2416 git-history purge 2026-09-01; rewritten from 672b10b6). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: off develop@1f805276; test-writer red-gates IN FLIGHT.
+- G1–G6: ALL MERGED; worktrees REMOVABLE.
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. test-writer: red-gate tests for OBS-1 + OBS-2 on fix/DEFECT-LIVE-ENVELOPE-OBS-001.
+2. implementer: 3-file fix → (a) OBS-1: `sensors_queried.insert(target.sensor_id.to_string())` in `Err(AllTargetsFailed)` arm of `materialize_single_external_target` (`crates/prism-query/src/materialization.rs`). (b) OBS-2: pass `false` for `has_more` in `SafetyEnvelopeBuilder::wrap` call (`crates/prism-mcp/src/server.rs`) + update `has_more`/`next_cursor` descriptions (`crates/prism-security/src/output_schema.rs`). `just check` → exit 0.
+3. pr-manager: fix-PR from fix/DEFECT-LIVE-ENVELOPE-OBS-001 → develop.
+4. pr-reviewer: CLEAN(PR-merge) + CI all-green.
+5. ORCHESTRATOR: normal squash-merge (D-2417 L4 grant; no per-PR human ask needed).
+6. state-manager: post-merge burst — develop_head update.
+7. devops: rebuild canonical binary from new develop HEAD + redeploy to ~/Dev/test-soc/bin/prism + 14-table claroty.sensor.toml to test-soc/.prism-live/specs/.
+8. Live re-validation on monroe: confirm OBS-1 (data_source==["claroty"] on empty none-pagination all-targets-failed) + OBS-2 (has_more==false / next_cursor==null / is_truncated==true). PRECONDITION: `security unlock-keychain` — if overnight and keychain locked, present fix-merged + one-command unlock to human.
+9. Declare v1 RELEASE-READY. Present live result + v1 summary to human.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@1f805276; all BCs active). A1 LIVE validation COMPLETE. OBS-1/OBS-2 IN FLIGHT on fix/DEFECT-LIVE-ENVELOPE-OBS-001.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2417 (BC-2.09.008 v1.4→v1.5; BC-INDEX v9.99→v10.00; L4 autonomy grant OBS-1/OBS-2 fix stream; STATE v8.945→v8.946; SESSION-HANDOFF v8.040→v8.041). D-2416 historical: git-history purge COMPLETE develop 1f805276.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) Live xDome tenant validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) SAP-4/POL-42 in force. (f) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (g) D-2416 GIT-HISTORY PURGE COMPLETE — live tenant data scrubbed from develop history. **(h) D-2417 LEVEL-4 AUTONOMY GRANT for OBS-1/OBS-2 fix stream INCLUDING merge authority (human-directed 2026-09-01). Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): O-3 (NullAuthProvider hardening), .gitignore guards PR, opaque offset-cursor feature (OBS-2 Option A future story).**
+
+### WORKTREE INVENTORY
+ACTIVE = .worktrees/DEFECT-LIVE-ENVELOPE-OBS-001 (fix/DEFECT-LIVE-ENVELOPE-OBS-001). REMOVABLE: G1–G6 worktrees (teardown deferred post-v1 or batch). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+### CODIFICATION NOTE
+S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 (draft, post-v1, maintenance) filed for the two 3-strike defect classes (SAP2_STATUS-missing; non-real live-test stubs) — both marked [codified] in cycles/wave-5-e-demo-fidelity/lessons.md (D-2411).
+
+---
+
+## §RESUME SNAPSHOT — D-2416 (2026-09-01 — SHA-DRIFT RECOVERY COMPLETE; develop 1f805276; NEXT: worktree teardown + LIVE xDome validation) [SUPERSEDED by D-2417]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, v1 Claroty xDome. G1–G6 ALL MERGED (develop @1f805276; BC-2.16.022 active). 14-table Claroty xDome sensor is COMPLETE. AUTHORIZED git-history purge COMPLETE (D-2416; D-2410c/k; human-authorized + human-executed 2026-09-01): 6 demo-evidence files removed from ALL develop history (G2/G3/G4 live-queries.txt + evidence-report.md); develop rewritten 672b10b6→1f805276. HS-001 v1.1/HS-002/HS-003 PRESERVED single-use. VERY NEXT ACTIONS: (1) devops: local worktree teardown batch (G1–G6 + LIMIT + H2-parked). (2) LIVE xDome v1 release-validation on monroe. (3) .gitignore guards PR (normal PR — not a direct push).

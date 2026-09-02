@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "4a1f396"
 traces_to: ["CAP-010"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
@@ -15,7 +15,7 @@ subsystem: "SS-09"
 capability: "CAP-010"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-09-01
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,7 +28,7 @@ removal_reason: null
 
 ## Description
 
-Every tool response is wrapped in a consistent `structuredContent` envelope with a `_meta` section and a `results` array. The `_meta` section carries `tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, `total_results`, `page`, `has_more`, and `next_cursor`. `_meta.safety_flags` is always present (empty array when no flags triggered). The `content[].text` prose summary begins with a provenance marker and contains only aggregate counts, never individual sensor field values, enforcing the DI-004/DI-006 separation between trusted metadata and untrusted results.
+Every tool response is wrapped in a consistent `structuredContent` envelope with a `_meta` section and a `results` array. The `_meta` section carries `tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, `total_results`, `page`, `has_more`, and `next_cursor`. `_meta.safety_flags` is always present (empty array when no flags triggered). `_meta.has_more` is always `false` and `_meta.next_cursor` is always `null`; Prism has no cursor-based cross-call pagination (ADR-060 §D8.7). When sensor targets fail, `sensor_errors` appears in the envelope alongside `results` with per-sensor failure details; `_meta.data_source` always reflects the queried sensor regardless of failure. The `content[].text` prose summary begins with a provenance marker and contains only aggregate counts, never individual sensor field values, enforcing the DI-004/DI-006 separation between trusted metadata and untrusted results.
 
 ## Preconditions
 - A sensor query tool has produced results ready for MCP response formatting
@@ -46,20 +46,25 @@ Every tool response is wrapped in a consistent `structuredContent` envelope with
       "safety_flags": ["<field_name on item_N>", ...],
       "total_results": <integer>,
       "page": <integer>,
-      "has_more": <boolean>,
-      "next_cursor": "<cursor_string>" | null
+      "has_more": false,
+      "next_cursor": null
     },
-    "results": [...]
+    "results": [...],
+    "sensor_errors": [{"sensor_id": "<sensor_id>", "error": "<detail>"}]
   }
   ```
 - The `_meta.safety_flags` array is always present (empty array when no flags triggered)
 - The `_meta.query_time` reflects when Prism fetched the data from the sensor API
-- The `_meta.data_source` identifies the sensor that produced the data
+- The `_meta.data_source` identifies the sensor that produced the data; this field is populated from the queried sensor ID regardless of row count, pagination mode, fan-out success, or per-sensor failure
+- `_meta.has_more` is always `false`; `_meta.next_cursor` is always `null` — no cursor-based cross-call pagination exists (ADR-060 §D8.7); see Invariants
+- `sensor_errors` is present in the envelope when at least one sensor target failed; it is omitted when all sensors succeeded; the field is never an empty array (use omit-if-empty semantics)
 - The `content[].text` prose summary begins with the provenance marker and includes aggregate counts, never individual record field values
 
 ## Invariants
 - DI-006: Envelope structure enforces separation between metadata (trusted) and results (untrusted)
 - DI-004: Audit completeness -- safety_flags from the envelope are also recorded in the AuditEntry
+- ADR-060 §D8.7 / Cursor-Pagination: `_meta.has_more` is always `false`; `_meta.next_cursor` is always `null`. Prism query sessions are ephemeral — no cursor state is maintained across calls. The authoritative truncation signals are `results.is_truncated` (bool) and `results.total_available` (int); agents retrieve additional rows by increasing LIMIT (max 1000) or narrowing scope, not by cursor pagination. This invariant holds for all result shapes: empty, partial, truncated, and multi-sensor fan-out.
+- Data-Source Integrity: `_meta.data_source` reflects the sensor actually reached regardless of row count, pagination mode, fan-out outcome, or per-sensor failure. A failed sensor produces `data_source: "<sensor_id>"` (not `["unknown"]`) alongside failure details in `sensor_errors`.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -69,9 +74,10 @@ Every tool response is wrapped in a consistent `structuredContent` envelope with
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-09-018 | Query returns zero results | `_meta.total_results: 0`, `results: []`, `has_more: false`; envelope is still present |
+| EC-09-018 | Query returns zero results | `_meta.total_results: 0`, `results: []`, `has_more: false`; envelope is still present. Note: `has_more: false` is INVARIANT across ALL result shapes — including truncated results, partial results, and multi-sensor fan-out — not only the zero-result case (ADR-060 §D8.7 cursor-pagination invariant). |
 | EC-09-019 | Cross-client query with multiple sensors | `_meta.data_source` is an array of sensor IDs; each result item includes `source_sensor` field |
 | EC-09-020 | Response truncated due to sensor unavailability mid-pagination | `_meta` includes `truncated: true`, `truncation_reason: "sensor_unavailable"` alongside normal envelope fields |
+| EC-09-021 | Sensor queried but all targets failed (path-extraction error on empty none-pagination response, API-key failure, or equivalent total-failure mode) | `_meta.data_source` carries the queried sensor ID (NOT `["unknown"]`); `sensor_errors` contains per-target failure details; `_meta.total_results: 0`, `results: []`, `has_more: false`. DI-006 + Data-Source Integrity invariant: data_source reflects the sensor actually reached regardless of row count or failure mode. `sensor_errors` is non-empty and present in the envelope; `results` is an empty array. |
 
 ## Canonical Test Vectors
 
@@ -102,6 +108,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | obs-1-obs-2-fix | 2026-09-01 | product-owner | OBS-1: Add EC-09-021 (all-targets-failed; data_source carries queried sensor ID on failure); add sensor_errors to envelope schema. OBS-2: Add cursor-pagination invariant (has_more always false, next_cursor always null per ADR-060 §D8.7); fix schema literals; extend EC-09-018 to cover all result shapes. |
 | 1.4 | bundle-a.2.2 | 2026-05-08 | state-manager | POL-14 promotion: draft → active. S-1.10 flipped to merged (D-304 / Bundle A.2). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
