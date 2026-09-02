@@ -187,26 +187,58 @@ fn test_BC_2_09_008_cross_client_query_data_source_is_array() {
     );
 }
 
-// ─── BC-2.09.008 — pagination ─────────────────────────────────────────────────
+// ─── BC-2.09.008 — has_more / next_cursor invariant ──────────────────────────
 
-/// BC-2.09.008 postcondition 1: `has_more` and `next_cursor` when paginating.
+/// ADR-060 §D8.7 + BC-2.09.008 v1.5: `wrap()` ALWAYS emits `has_more = false` and
+/// `next_cursor = null`, even when called with `has_more = true` and a non-null cursor.
+///
+/// The invariant is enforced structurally inside `wrap()` — the `_has_more` and
+/// `_next_cursor` parameters are silently discarded and cannot falsify the contract.
+///
+/// Mental-deletion proof: if the hard-wired `has_more: false` / `next_cursor: None`
+/// constants in `wrap()` are reverted to forwarding the parameters, this test FAILS
+/// (the envelope would carry `has_more = true` and `next_cursor = Some("cursor-abc-123")`).
+///
+/// This test MUST NOT be read as blessing cursor pagination — it exists solely to verify
+/// the structural enforcement described in ADR-060 §D8.7. The observable-output gate for
+/// the OBS-2 defect closure is in `defect_live_envelope_obs_001_test.rs` (TEST C + TEST D).
 #[test]
-fn test_BC_2_09_008_pagination_fields_present_when_paginating() {
+fn test_BC_2_09_008_wrap_always_emits_has_more_false_next_cursor_null() {
     let results = json!([{"hostname": "h.corp.com"}]);
-    let cursor = Some("cursor-abc-123".to_owned());
     let envelope = SafetyEnvelopeBuilder::wrap(
         "crowdstrike_detections",
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
+        // Intentionally passing truthy args — invariant must override them.
         true,
-        cursor.clone(),
+        Some("cursor-abc-123".to_owned()),
         None,
     );
-    assert!(envelope.meta.has_more, "_meta.has_more must be true");
+    // Invariant: has_more MUST be false regardless of arg supplied (ADR-060 §D8.7).
+    assert!(
+        !envelope.meta.has_more,
+        "BC-2.09.008 v1.5 / ADR-060 §D8.7: _meta.has_more MUST always be false \
+         even when wrap() is called with has_more=true. Invariant enforced structurally \
+         inside wrap() — callers cannot override it."
+    );
+    // Invariant: next_cursor MUST be null regardless of arg supplied.
+    assert!(
+        envelope.meta.next_cursor.is_none(),
+        "BC-2.09.008 v1.5 / ADR-060 §D8.7: _meta.next_cursor MUST always be null \
+         even when wrap() is called with a non-null cursor. Invariant enforced structurally."
+    );
+
+    // Wire-shape: verify the SERIALIZED output also carries false/null.
+    let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
     assert_eq!(
-        envelope.meta.next_cursor, cursor,
-        "_meta.next_cursor must be the provided cursor"
+        serialized["_meta"]["has_more"],
+        serde_json::json!(false),
+        "BC-2.09.008 v1.5: serialized _meta.has_more MUST be false at the wire level"
+    );
+    assert!(
+        serialized["_meta"]["next_cursor"].is_null(),
+        "BC-2.09.008 v1.5: serialized _meta.next_cursor MUST be null at the wire level"
     );
 }
 

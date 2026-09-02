@@ -41,13 +41,14 @@ impl MetaEnvelopeSchema {
                 },
                 "total_results": { "type": "integer", "description": "Total number of results in this response." },
                 "page": { "type": "integer", "description": "Current page number (1-based)." },
-                "has_more": { "type": "boolean", "description": "Always false. Prism query sessions are ephemeral with no cursor pagination. Use results.is_truncated and results.total_available to detect truncation; increase LIMIT (max 1000) to retrieve more rows." },
+                "has_more": {
+                    "type": "boolean",
+                    "const": false,
+                    "description": "Always false. Prism query sessions are ephemeral with no cursor pagination (ADR-060 §D8.7). Use results.is_truncated and results.total_available to detect truncation; increase LIMIT (max 1000) to retrieve more rows."
+                },
                 "next_cursor": {
-                    "description": "Always null. No cursor-based continuation is supported. See results.is_truncated.",
-                    "oneOf": [
-                        { "type": "string" },
-                        { "type": "null" }
-                    ]
+                    "type": "null",
+                    "description": "Always null. No cursor-based continuation is supported (ADR-060 §D8.7). See results.is_truncated."
                 }
             },
             "required": ["tool", "data_source", "query_time", "trust_level", "safety_flags",

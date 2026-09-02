@@ -400,7 +400,7 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
     // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
     //
     // content[0].text = serde_json::to_value(&ResponseEnvelope {
-    //   _meta: { has_more: result.is_truncated, ... },
+    //   _meta: { has_more: false, next_cursor: null, ... },  // ADR-060 §D8.7: always false/null
     //   results: { rows: [...], returned_results: N, total_available: N, is_truncated: X },
     //   content: [{ type: "text", text: "N results found" }],
     //   structuredContent: { results: { ... is_truncated: X ... } }
@@ -707,7 +707,7 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
     // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
     //
     // content[0].text = serde_json::to_value(&ResponseEnvelope {
-    //   _meta: { has_more: result.is_truncated, ... },
+    //   _meta: { has_more: false, next_cursor: null, ... },  // ADR-060 §D8.7: always false/null
     //   results: { rows: [...], returned_results: N, total_available: N, is_truncated: X },
     //   content: [{ type: "text", text: "N results found" }],
     //   structuredContent: { results: { ... is_truncated: X ... } }

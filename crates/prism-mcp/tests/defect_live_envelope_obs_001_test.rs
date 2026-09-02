@@ -480,7 +480,17 @@ mod tests {
              Got has_more: {has_more:?}. Full wire: {wire}"
         );
 
-        // ─── SECONDARY ASSERTION: next_cursor MUST be null ────────────────────
+        // ─── SECONDARY ASSERTION: next_cursor MUST be present AND null ──────────
+        // L-4 null-vs-absent guard: serde_json Value::Index returns Value::Null for BOTH
+        // a missing key AND an explicit null. We must assert the key is PRESENT (not absent)
+        // before asserting its value is null — absence would be a contract violation because
+        // output_schema lists next_cursor in `required` (BC-2.09.008 v1.5).
+        assert!(
+            sc["_meta"].get("next_cursor").is_some(),
+            "BC-2.09.008 v1.5: _meta.next_cursor key MUST be PRESENT and null, not absent \
+             (output_schema lists it in `required`). A regression to key-omission would pass \
+             the is_null() check silently. Full wire: {wire}"
+        );
         let next_cursor = &sc["_meta"]["next_cursor"];
         assert!(
             next_cursor.is_null(),
@@ -546,7 +556,13 @@ mod tests {
              truncated (3 rows ≤ 25 limit). Got: {has_more:?}. Full wire: {wire}"
         );
 
-        // next_cursor MUST be null (regression lock).
+        // next_cursor MUST be present AND null (regression lock).
+        // L-4 null-vs-absent guard: key presence asserted separately before value check.
+        assert!(
+            sc["_meta"].get("next_cursor").is_some(),
+            "BC-2.09.008 v1.5 REGRESSION: _meta.next_cursor key MUST be PRESENT and null, \
+             not absent (output_schema lists it in `required`). Full wire: {wire}"
+        );
         let next_cursor = &sc["_meta"]["next_cursor"];
         assert!(
             next_cursor.is_null(),

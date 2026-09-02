@@ -13,8 +13,8 @@
 //!     "safety_flags": [{...}, ...],
 //!     "total_results": <integer>,
 //!     "page": <integer>,
-//!     "has_more": <boolean>,
-//!     "next_cursor": "<cursor>" | null
+//!     "has_more": false,
+//!     "next_cursor": null
 //!   },
 //!   "results": [...],
 //!   "content": [{"type": "text", "text": "<N> results found"}],
@@ -143,6 +143,17 @@ impl SafetyEnvelopeBuilder {
     ///    EC-05-002 — `Some("audit emission failed")` when the read-path
     ///    tool-call audit emission failed; `None` → field omitted).
     ///
+    /// ## has_more / next_cursor invariant (ADR-060 §D8.7 + BC-2.09.008 v1.5)
+    ///
+    /// `_meta.has_more` is **always** `false` and `_meta.next_cursor` is **always** `null`
+    /// regardless of the `_has_more` / `_next_cursor` arguments supplied by the caller.
+    /// PrismQL has no OFFSET clause and cursor pagination is not supported; truncation is
+    /// signaled exclusively via `results.is_truncated` + `results.total_available`.
+    ///
+    /// The `_has_more` and `_next_cursor` parameters are retained solely for source
+    /// compatibility (removing `pub` API parameters would be a semver-breaking change).
+    /// No caller should rely on them being forwarded — they are silently discarded.
+    ///
     /// ## Scan coverage
     ///
     /// Object-shaped `{"rows": [...], ...}` payloads from the `query` tool are fully
@@ -157,8 +168,8 @@ impl SafetyEnvelopeBuilder {
         data_source: DataSource,
         results: Value,
         page: u64,
-        has_more: bool,
-        next_cursor: Option<String>,
+        _has_more: bool,
+        _next_cursor: Option<String>,
         audit_warning: Option<String>,
     ) -> ResponseEnvelope {
         let scanner = InjectionScanner::global();
@@ -248,8 +259,11 @@ impl SafetyEnvelopeBuilder {
                 safety_flags,
                 total_results,
                 page,
-                has_more,
-                next_cursor,
+                // ADR-060 §D8.7 + BC-2.09.008 v1.5: always false/null — invariant enforced
+                // structurally here, unfalsifiable by callers. Truncation signaled via
+                // results.is_truncated + results.total_available only.
+                has_more: false,
+                next_cursor: None,
                 audit_warning,
             },
             results,
