@@ -1,18 +1,61 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.043"
+version: "8.044"
 status: current
-timestamp: 2026-09-02T00:00:00Z
+timestamp: 2026-09-02T19:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2419 (2026-09-02): PR #251 (fix/DEFECT-LIVE-ENVELOPE-OBS-001) squash-merged to origin/develop @2edaaca78 (human-merged 2026-09-02 under D-2417 L4 grant). OBS-1/OBS-2 CLOSED in code. Local worktree torn down; local branch left in place. develop_head 1f805276→2edaaca78. STATE v8.947→v8.948. SESSION-HANDOFF v8.042→v8.043. [D-2418 historical: OBS-1/OBS-2 fix cascade CONVERGED.]**
+> **D-2420 (2026-09-02): SESSION WRAP. vulnerabilities root cause NOT YET VERIFIED (OpenAPI confirms offset IS supported; prism sends no sort_by/include_count = malformed-request hypothesis). ALL prior diagnoses RETRACTED: 100-vulns/page_size=100/server-cliff/offset=0-only. v1 BLOCKED: Action 1 controlled test + Action 2 conformance audit (human-directed). Lesson logged. STATE v8.949→v8.950. SESSION-HANDOFF v8.043→v8.044. [D-2419 historical: PR #251 squash-merged @2edaaca78; OBS-1/OBS-2 CLOSED.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2419 (2026-09-02 — PR #251 MERGED @2edaaca78; OBS-1/OBS-2 CLOSED; NEXT: devops rebuild + live re-validation) [supersedes D-2418]
+## §RESUME SNAPSHOT — D-2420 (2026-09-02 — SESSION WRAP; vulnerabilities root cause UNVERIFIED; v1 BLOCKED; NEXT: Action 1 controlled test + Action 2 conformance audit) [supersedes D-2419]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. OBS-1/OBS-2 fixes MERGED (PR #251 @2edaaca78; D-2419). 13/14 Claroty tables validated live; vulnerabilities is sole open blocker. Vulnerabilities offset>0 hang root cause NOT YET VERIFIED. OpenAPI contract (xdome_openapi_06.20.2026.json) confirms offset+limit pagination IS supported; prism body_template sends NO sort_by and NO include_count (malformed-request leading hypothesis). RETRACTED: ALL prior diagnoses ('100 vulns cache hit'; 'server cliff at page_size>=250'; 'endpoint is offset=0-only'; 'page_size=100 is the fix'; prior killed-wrap 'OFFSET=0-ONLY root cause'). AUTHORITATIVE COUNT: 7,872 vulnerabilities (xDome console screenshot). v1 BLOCKED on Action 1 (controlled test) AND Action 2 (full endpoint<->spec conformance audit, human-directed 2026-09-02). develop @2edaaca78.
+
+### GOVERNING OBJECTIVE
+Action 1: decisive controlled test — body_template contract-correct (sort_by+include_count+page_size<=500) + force offset>0 with force_refresh:true → confirm whether malformed body_template is root cause → fix body_template if confirmed → retest. Action 2: full endpoint<->spec conformance audit vs OpenAPI specs in .factory/reference/api-specs/. Declare v1 RELEASE-READY after BOTH gates cleared.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
+- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename DEFECT-CLAROTY-VULN-PAGINATION-001 before editing).
+- G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
+3. **Action 1 (FIRST) — decisive controlled test:** In test-soc claroty.sensor.toml vulnerabilities step, set body_template = contract-correct: sort_by=[{"field":"published_date","order":"desc"}], include_count=true, page_size/limit <=500. Boot prism; query with tool limit forcing offset>0 (limit=1500 → pages at 0/500/1000) with force_refresh:true. Capture prism's EXACT outgoing request body (debug/trace); compare to OpenAPI contract. offset>0 RETURNS → fix body_template (prism was sending malformed/incomplete request). still HANGS → inspect how UI's real network request differs. Restore test-soc TOML page_size=1000 after.
+4. **Action 2 (BIG, human-directed 2026-09-02) — full endpoint<->spec conformance audit:** Go through EVERY API endpoint; validate prism's implementation against OpenAPI specs in .factory/reference/api-specs/ (xdome_openapi_06.20.2026.json for Claroty; cyberint_alerts/cyberint_assets openapi + armis_endpoint_research for other sensors). Per endpoint: (a) required body fields present (e.g. fields minItems), (b) fields projection subset of fields_enum, (c) pagination params correct (sort_by where offset used; include_count where total needed), (d) response_path matches schema data key, (e) column->field mappings (SAP-2), (f) path+method correct. Produce per-endpoint conformance matrix + defect list. Expected: sort_by absent from entire claroty.sensor.toml = systemic defect class; likely sibling issues across 14 Claroty tables and other sensors.
+5. **Declare v1 RELEASE-READY** after Action 1 fix + Action 2 conformance gate cleared.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 BLOCKED: vulnerabilities pagination (Action 1 controlled test required) + endpoint conformance audit (Action 2).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2420 (SESSION WRAP: vulnerabilities root cause NOT YET VERIFIED; ALL prior diagnoses RETRACTED; OpenAPI contract authoritative; Action 1+2 next steps; lesson logged; STATE v8.949→v8.950; SESSION-HANDOFF v8.043→v8.044). D-2419 historical: PR #251 squash-merged @2edaaca78; OBS-1/OBS-2 CLOSED; develop_head 1f805276→2edaaca78.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416), per-table request_timeout_secs + page_size default (human to green-light).
+
+### WORKTREE INVENTORY
+ACTIVE: none. DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename DEFECT-CLAROTY-VULN-PAGINATION-001). REMOVABLE: G1–G6 worktrees + fix/DEFECT local branch (stale pointer, not a real worktree). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+### CODIFICATION NOTE
+THREE consecutive wrong live-diagnosis conclusions on the vulnerabilities endpoint corrected only by reading the OpenAPI contract and the human's console screenshot. Root-cause claims from live-probe behavior must be validated against the API contract BEFORE being recorded as fact. `total_available` / count fields unreliable (echo page_size/limit; cache-hit risk). Action 2 conformance audit motivated by systemic concern: sort_by absent from entire claroty.sensor.toml — same class of omission likely across all 14 Claroty tables and other sensors. Lesson logged cycles/wave-5-e-demo-fidelity/lessons.md [codification-assess] D-2420.
+
+---
+
+## §RESUME SNAPSHOT — D-2419 (2026-09-02 — PR #251 MERGED @2edaaca78; OBS-1/OBS-2 CLOSED; NEXT: devops rebuild + live re-validation) [SUPERSEDED by D-2420]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. PR #251 (fix/DEFECT-LIVE-ENVELOPE-OBS-001) squash-merged to origin/develop @2edaaca78 (human-merged 2026-09-02 under D-2417 L4 grant; merge commit 2edaaca78). OBS-1 (data_source reflects sensor on all-targets-failure) + OBS-2 (has_more always false/next_cursor always null, enforced structurally in SafetyEnvelopeBuilder::wrap AND in served MetaEnvelopeSchemaType) CLOSED in code on develop. Converged in 4 pr-reviewer cycles (cycle-4 APPROVE; all 24 CI green). BC-2.09.008 remains active v1.5 (already active — no POL-14 needed). develop @2edaaca78. NEXT: devops rebuild canonical binary → redeploy → human unlocks keychain → live re-validation on monroe → declare v1 RELEASE-READY.

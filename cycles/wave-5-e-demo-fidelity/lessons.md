@@ -5155,3 +5155,32 @@ Both misses share the same failure mode: the fixer's sibling sweep was a **conte
 - **Recommended action:** Flag for session-reviewer at wave-5-e cycle close. Proposal: add a mandatory pre-commit checklist item for fix-bursts touching SafetyEnvelope/schema/BC-invariant code: (a) grep for all assertions on the *output invariant* (not just callers of the changed function); (b) confirm served crate by checking `publish` in Cargo.toml before schema changes. This is a process strengthening, not a new codification story.
 
 **Source:** D-2418 checkpoint burst. PR #251 pr-reviewer cycle-1 and cycle-2 findings.
+
+---
+
+## Lesson: Live-Probe Root-Cause Claims Require API Contract Validation Before Recording
+
+**Date recorded:** 2026-09-02
+**D-NNN anchor:** D-2420 (session wrap)
+**Tags:** [live-probe] [api-contract] [root-cause-discipline] [codification-assess] [vulnerabilities]
+**Classification:** CODIFICATION-ASSESS — Three consecutive wrong live-diagnosis conclusions on a single endpoint, corrected only by reading the API contract and reviewing ground-truth console data. Assess whether this motivates a standing adversary probe or a mandatory contract-read pre-condition before recording any live-probe root-cause claim.
+
+**Description:**
+
+Three consecutive wrong diagnoses were recorded about the Claroty vulnerabilities endpoint before the error was corrected by reading the OpenAPI contract (`.factory/reference/api-specs/xdome_openapi_06.20.2026.json`) and the human's console screenshot:
+
+1. **"monroe has 100 vulnerabilities"** — WRONG. This was a cache hit. The response `total_available` / count field echoes `page_size`/`limit`, not the real dataset total. Unreliable as a count signal.
+2. **"server cliff at page_size>=250"** — WRONG. Not verified against contract. Premature conclusion from a single live probe; the API contract imposes no such ceiling (limit MAX is 5000).
+3. **"endpoint is offset=0-only; any offset>0 hangs indefinitely"** — WRONG. The OpenAPI contract explicitly defines `offset` (int, default 0) as a valid parameter alongside `limit` (MAX 5000). Offset pagination IS supported per contract. The offset>0 hang root cause remains unverified; the leading hypothesis is that prism sends NO `sort_by` and NO `include_count` in the body_template, which may cause the server to fail silently (malformed/incomplete request).
+
+Each wrong finding was recorded as fact in STATE.md. Two of the three were additionally written into mid-wrap killed commits before being superseded. The correct diagnosis required: (a) reading the OpenAPI spec for the endpoint, (b) comparing prism's outgoing body_template to the contract, and (c) consulting the human's console screenshot for the ground-truth total count.
+
+**Root cause:** All three conclusions were derived from observed live-probe behavior without consulting the API contract. Live-probe behavior is necessary but not sufficient for root-cause claims when an API contract exists. `total_available`-style echo fields are structurally unreliable for count validation (they reflect request parameters, not dataset size).
+
+**Rule (proposed for codification):** Root-cause claims derived from live-probe BEHAVIOR must be validated against the API CONTRACT (OpenAPI spec in `.factory/reference/api-specs/`) and ground truth (console/UI) BEFORE being recorded as findings in STATE.md, SESSION-HANDOFF.md, or Decisions Log. A "confirmed" root cause requires at minimum: (a) the contract read confirming whether the behavior is or is not supported, AND (b) a plausible mechanism consistent with the contract. If the contract supports the operation but the probe fails, the hypothesis must name the missing/wrong request element, not assert "the server does not support it."
+
+**Action triggered:** Full endpoint<->spec conformance audit (Action 2, human-directed 2026-09-02) was added to the v1 gate. Motivated by the finding that `sort_by` is absent from the entire claroty.sensor.toml file — suggesting the malformed-body-template defect class may be systemic across all 14 Claroty tables and the other sensors (cyberint, armis).
+
+**Source:** D-2420 session wrap. Three prior killed wrap attempts each producing wrong diagnoses, corrected by human providing OpenAPI contract authority + console screenshot ground truth.
+
+**Source:** D-2418 checkpoint burst. PR #251 pr-reviewer cycle-1 and cycle-2 findings.
