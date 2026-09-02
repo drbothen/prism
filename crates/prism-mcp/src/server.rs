@@ -2049,7 +2049,8 @@ impl PrismServer {
             DataSource::Multiple(sensor_ids),
             payload,
             1,
-            result.is_truncated,
+            false, // has_more always false — no cursor pagination in prism (ADR-060 §D8.7);
+            // truncation is signaled by results.is_truncated / results.total_available.
             None,
             audit_warning,
         );

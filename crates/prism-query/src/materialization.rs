@@ -1192,6 +1192,10 @@ pub async fn run_materialization_pipeline(
             }
             Err(e) => {
                 // All targets failed for this (source_table, client_id) pair.
+                // BC-2.09.008 OBS-1 (DEFECT-LIVE-ENVELOPE-OBS-001): data_source must
+                // reflect the reached sensor even when all targets fail; record it here
+                // identically to the Ok(fan_result) arm above.
+                sensors_queried.insert(target.sensor_id.to_string());
                 // CWE-117: sanitize source_table before log emission and client string
                 // (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::warn!(

@@ -41,9 +41,9 @@ impl MetaEnvelopeSchema {
                 },
                 "total_results": { "type": "integer", "description": "Total number of results in this response." },
                 "page": { "type": "integer", "description": "Current page number (1-based)." },
-                "has_more": { "type": "boolean", "description": "True when additional pages are available." },
+                "has_more": { "type": "boolean", "description": "Always false. Prism query sessions are ephemeral with no cursor pagination. Use results.is_truncated and results.total_available to detect truncation; increase LIMIT (max 1000) to retrieve more rows." },
                 "next_cursor": {
-                    "description": "Cursor for the next page; null when has_more is false.",
+                    "description": "Always null. No cursor-based continuation is supported. See results.is_truncated.",
                     "oneOf": [
                         { "type": "string" },
                         { "type": "null" }
