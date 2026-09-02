@@ -2049,8 +2049,6 @@ impl PrismServer {
             DataSource::Multiple(sensor_ids),
             payload,
             1,
-            result.is_truncated,
-            None,
             audit_warning,
         );
         let envelope_val = serde_json::to_value(&envelope).map_err(|e| {
@@ -2191,8 +2189,6 @@ impl PrismServer {
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -2321,8 +2317,6 @@ impl PrismServer {
             DataSource::Multiple(vec![]),
             result,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -2399,8 +2393,6 @@ impl PrismServer {
             DataSource::Multiple(vec![]),
             result,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -2511,8 +2503,6 @@ impl PrismServer {
             DataSource::Multiple(vec![]),
             result,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -2594,8 +2584,6 @@ impl PrismServer {
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -3075,8 +3063,6 @@ impl PrismServer {
             datasource,
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -3622,8 +3608,6 @@ scan/audit/business-logic processing occurs.\n\
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -3996,8 +3980,6 @@ scan/audit/business-logic processing occurs.\n\
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -4076,8 +4058,6 @@ scan/audit/business-logic processing occurs.\n\
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)
@@ -4161,8 +4141,6 @@ scan/audit/business-logic processing occurs.\n\
             DataSource::Multiple(vec![]),
             errors,
             1,
-            false,
-            None,
             audit_warning,
         );
         let _ = valid; // captured in the JSON above
@@ -4451,8 +4429,6 @@ is NOT an error — returns matrix with client_registered: false",
             DataSource::Multiple(vec![]),
             result_json,
             1,
-            false,
-            None,
             audit_warning,
         );
         serde_json::to_value(&envelope)

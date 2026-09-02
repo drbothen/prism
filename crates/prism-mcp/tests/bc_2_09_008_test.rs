@@ -26,8 +26,6 @@ fn test_BC_2_09_008_envelope_has_meta_and_results_fields() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -47,8 +45,6 @@ fn test_BC_2_09_008_safety_flags_always_present_in_envelope() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -68,8 +64,6 @@ fn test_BC_2_09_008_safety_flags_empty_array_for_clean_records() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
     assert!(
@@ -87,8 +81,6 @@ fn test_BC_2_09_008_meta_query_time_is_present() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
     assert!(
@@ -111,8 +103,6 @@ fn test_BC_2_09_008_meta_data_source_identifies_sensor() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
     let json = serde_json::to_value(&envelope).expect("serialize");
@@ -135,8 +125,6 @@ fn test_BC_2_09_008_zero_results_envelope_still_present() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
     assert_eq!(
@@ -168,8 +156,6 @@ fn test_BC_2_09_008_cross_client_query_data_source_is_array() {
         DataSource::Multiple(vec!["crowdstrike".to_owned(), "armis".to_owned()]),
         results,
         1,
-        false,
-        None,
         None,
     );
     let json = serde_json::to_value(&envelope).expect("serialize");
@@ -187,26 +173,55 @@ fn test_BC_2_09_008_cross_client_query_data_source_is_array() {
     );
 }
 
-// ─── BC-2.09.008 — pagination ─────────────────────────────────────────────────
+// ─── BC-2.09.008 — has_more / next_cursor invariant ──────────────────────────
 
-/// BC-2.09.008 postcondition 1: `has_more` and `next_cursor` when paginating.
+/// ADR-060 §D8.7 + BC-2.09.008 v1.5: `wrap()` ALWAYS emits `has_more = false` and
+/// `next_cursor = null`. The invariant is enforced at the API boundary — `wrap()` no longer
+/// accepts `has_more` or `next_cursor` parameters; the values are hard-wired inside `wrap()`
+/// and callers cannot influence them.
+///
+/// Mental-deletion proof: if the hard-wired `has_more: false` / `next_cursor: None`
+/// constants in `wrap()` are replaced with non-constant values, this test FAILS
+/// (the envelope would carry truthy has_more or non-null next_cursor).
+///
+/// This test MUST NOT be read as blessing cursor pagination — it exists solely to verify
+/// the structural enforcement described in ADR-060 §D8.7. The observable-output gate for
+/// the OBS-2 defect closure is in `defect_live_envelope_obs_001_test.rs` (TEST C + TEST D).
 #[test]
-fn test_BC_2_09_008_pagination_fields_present_when_paginating() {
+fn test_BC_2_09_008_wrap_always_emits_has_more_false_next_cursor_null() {
     let results = json!([{"hostname": "h.corp.com"}]);
-    let cursor = Some("cursor-abc-123".to_owned());
     let envelope = SafetyEnvelopeBuilder::wrap(
         "crowdstrike_detections",
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        true,
-        cursor.clone(),
         None,
     );
-    assert!(envelope.meta.has_more, "_meta.has_more must be true");
+    // Invariant: has_more MUST be false (ADR-060 §D8.7). API-level enforcement: the param
+    // was removed entirely — no caller can pass has_more=true.
+    assert!(
+        !envelope.meta.has_more,
+        "BC-2.09.008 v1.5 / ADR-060 §D8.7: _meta.has_more MUST always be false; \
+         invariant enforced at API boundary (param removed) and structurally in wrap()."
+    );
+    // Invariant: next_cursor MUST be null (ADR-060 §D8.7). API-level enforcement: the param
+    // was removed entirely — no caller can pass a non-null cursor.
+    assert!(
+        envelope.meta.next_cursor.is_none(),
+        "BC-2.09.008 v1.5 / ADR-060 §D8.7: _meta.next_cursor MUST always be null; \
+         invariant enforced at API boundary (param removed) and structurally in wrap()."
+    );
+
+    // Wire-shape: verify the SERIALIZED output also carries false/null.
+    let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
     assert_eq!(
-        envelope.meta.next_cursor, cursor,
-        "_meta.next_cursor must be the provided cursor"
+        serialized["_meta"]["has_more"],
+        serde_json::json!(false),
+        "BC-2.09.008 v1.5: serialized _meta.has_more MUST be false at the wire level"
+    );
+    assert!(
+        serialized["_meta"]["next_cursor"].is_null(),
+        "BC-2.09.008 v1.5: serialized _meta.next_cursor MUST be null at the wire level"
     );
 }
 
@@ -221,8 +236,6 @@ fn test_BC_2_09_008_envelope_trust_level_is_untrusted_external() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
     assert_eq!(
@@ -244,8 +257,6 @@ fn test_BC_2_09_008_invariant_meta_and_results_are_typed_separately() {
         DataSource::Single("crowdstrike".to_owned()),
         results.clone(),
         1,
-        false,
-        None,
         None,
     );
 

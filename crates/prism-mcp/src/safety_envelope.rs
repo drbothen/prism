@@ -13,8 +13,8 @@
 //!     "safety_flags": [{...}, ...],
 //!     "total_results": <integer>,
 //!     "page": <integer>,
-//!     "has_more": <boolean>,
-//!     "next_cursor": "<cursor>" | null
+//!     "has_more": false,
+//!     "next_cursor": null
 //!   },
 //!   "results": [...],
 //!   "content": [{"type": "text", "text": "<N> results found"}],
@@ -143,6 +143,12 @@ impl SafetyEnvelopeBuilder {
     ///    EC-05-002 — `Some("audit emission failed")` when the read-path
     ///    tool-call audit emission failed; `None` → field omitted).
     ///
+    /// ## has_more / next_cursor invariant (ADR-060 §D8.7 + BC-2.09.008 v1.5)
+    ///
+    /// `_meta.has_more` is **always** `false` and `_meta.next_cursor` is **always** `null`.
+    /// PrismQL has no OFFSET clause and cursor pagination is not supported; truncation is
+    /// signaled exclusively via `results.is_truncated` + `results.total_available`.
+    ///
     /// ## Scan coverage
     ///
     /// Object-shaped `{"rows": [...], ...}` payloads from the `query` tool are fully
@@ -157,8 +163,6 @@ impl SafetyEnvelopeBuilder {
         data_source: DataSource,
         results: Value,
         page: u64,
-        has_more: bool,
-        next_cursor: Option<String>,
         audit_warning: Option<String>,
     ) -> ResponseEnvelope {
         let scanner = InjectionScanner::global();
@@ -248,8 +252,11 @@ impl SafetyEnvelopeBuilder {
                 safety_flags,
                 total_results,
                 page,
-                has_more,
-                next_cursor,
+                // ADR-060 §D8.7 + BC-2.09.008 v1.5: always false/null — invariant enforced
+                // structurally here, unfalsifiable by callers. Truncation signaled via
+                // results.is_truncated + results.total_available only.
+                has_more: false,
+                next_cursor: None,
                 audit_warning,
             },
             results,
@@ -395,11 +402,52 @@ pub struct MetaEnvelopeSchemaType {
     pub safety_flags: Vec<SafetyFlagSchema>,
     pub total_results: u64,
     pub page: u64,
+    /// Always `false`. Prism query sessions are ephemeral with no cursor pagination
+    /// (ADR-060 §D8.7 + BC-2.09.008 v1.5). Use `results.is_truncated` and
+    /// `results.total_available` to detect truncation; increase LIMIT (max 1000) to
+    /// retrieve more rows. Schema constrained to `const: false` so LLM clients cannot
+    /// misinterpret cursor semantics.
+    #[schemars(schema_with = "schema_has_more_const_false")]
     pub has_more: bool,
+    /// Always `null`. No cursor-based continuation is supported (ADR-060 §D8.7 +
+    /// BC-2.09.008 v1.5). See `results.is_truncated`. Schema constrained to
+    /// `type: null` so the LLM client schema contract never advertises cursor
+    /// pagination.
+    #[schemars(schema_with = "schema_next_cursor_null")]
     pub next_cursor: Option<String>,
     /// BC-2.05.001 EC-05-002: present (with the literal "audit emission failed")
     /// only when read-path tool-call audit emission failed; omitted otherwise.
     pub audit_warning: Option<String>,
+}
+
+/// Schema helper: `_meta.has_more` is always `false` (ADR-060 §D8.7 + BC-2.09.008 v1.5).
+///
+/// Generates `{"type": "boolean", "const": false}` instead of the permissive
+/// `{"type": "boolean"}` that the default `bool` derive would produce. This narrows
+/// the LLM client contract to the single valid value so clients cannot misinterpret
+/// cursor semantics.
+fn schema_has_more_const_false(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "boolean",
+        "const": false,
+        "description": "Always false. Prism query sessions are ephemeral with no cursor \
+                        pagination (ADR-060 §D8.7). Use results.is_truncated and \
+                        results.total_available to detect truncation; increase LIMIT (max 1000) \
+                        to retrieve more rows."
+    })
+}
+
+/// Schema helper: `_meta.next_cursor` is always `null` (ADR-060 §D8.7 + BC-2.09.008 v1.5).
+///
+/// Generates `{"type": "null"}` instead of `{"oneOf": [{"type": "string"}, {"type": "null"}]}`
+/// that `Option<String>` would produce. This narrows the LLM client contract to `null`-only
+/// so the schema never advertises cursor-based pagination.
+fn schema_next_cursor_null(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "null",
+        "description": "Always null. No cursor-based continuation is supported \
+                        (ADR-060 §D8.7). See results.is_truncated."
+    })
 }
 
 /// Schema-only representation of the full response envelope (BC-2.09.007, BC-2.09.008).
@@ -451,8 +499,6 @@ mod tests {
             DataSource::Single("test_sensor".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
         // The injection payload is in `inner_field` — must surface a safety flag.
@@ -493,8 +539,6 @@ mod tests {
             DataSource::Single("test_sensor".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
         // The injection payload is in the second array element — must produce a flag.
@@ -541,8 +585,6 @@ mod tests {
             DataSource::Single("test_sensor".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
 
@@ -612,8 +654,6 @@ mod tests {
             DataSource::Single("test_sensor".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
 
@@ -718,8 +758,6 @@ mod tests {
             DataSource::Single("crowdstrike".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
 
@@ -764,8 +802,6 @@ mod tests {
             DataSource::Single("crowdstrike".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
 
@@ -800,8 +836,6 @@ mod tests {
             DataSource::Multiple(vec![]),
             json!([]),
             1,
-            false,
-            None,
             Some(AUDIT_EMISSION_FAILED_WARNING.to_owned()),
         );
         let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
@@ -829,8 +863,6 @@ mod tests {
             DataSource::Multiple(vec![]),
             json!([]),
             1,
-            false,
-            None,
             None,
         );
         let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
@@ -861,8 +893,6 @@ mod tests {
             DataSource::Single("test_sensor".to_owned()),
             results,
             1,
-            false,
-            None,
             None,
         );
         // At depth 63 (within limit), the string IS reachable — must produce a flag.

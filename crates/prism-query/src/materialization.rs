@@ -1192,6 +1192,10 @@ pub async fn run_materialization_pipeline(
             }
             Err(e) => {
                 // All targets failed for this (source_table, client_id) pair.
+                // BC-2.09.008 OBS-1 (DEFECT-LIVE-ENVELOPE-OBS-001): data_source must
+                // reflect the reached sensor even when all targets fail; record it here
+                // identically to the Ok(fan_result) arm above.
+                sensors_queried.insert(target.sensor_id.to_string());
                 // CWE-117: sanitize source_table before log emission and client string
                 // (F-CSD-P21-OBS-002 sibling sweep).
                 tracing::warn!(
@@ -8169,3 +8173,165 @@ mod check_ci_column_types_guard_tests {
 // RG-SLUG-006: test relocated to tests/slug_isolation_tests.rs to break the
 // self-reference that prevented the in-file include_str! from working correctly.
 // See: crates/prism-query/tests/slug_isolation_tests.rs::test_rg_slug_006_*
+
+// ---------------------------------------------------------------------------
+// DEFECT-LIVE-ENVELOPE-OBS-001 OBS-1 unit test
+// ---------------------------------------------------------------------------
+
+/// Red Gate unit tests for DEFECT-LIVE-ENVELOPE-OBS-001 OBS-1.
+///
+/// Root cause: `sensors_queried.insert(target.sensor_id.to_string())` fires only in the
+/// `Ok(fan_result)` arm of `materialize_single_external_target`. When all targets fail
+/// (Err arm), `sensors_queried` remains empty → `_meta.data_source: ["unknown"]`.
+///
+/// BC authority: BC-2.09.008 — `_meta.data_source` MUST reflect the sensor even when
+/// all fan-out targets fail.
+#[cfg(test)]
+mod sensors_queried_err_arm_tests {
+    use std::sync::Arc;
+
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_sensors::{
+        adapter::{FetchOutput, QueryParams, SensorSpec},
+        AdapterRegistry, BearerStaticSensorAuth, CredentialResolver, SensorAdapter, SensorAuth,
+        SensorError,
+    };
+
+    use crate::{
+        engine::QueryOptions,
+        materialization::{run_materialization_pipeline, MaterializationContext},
+        memory::build_session_context,
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Stub types
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Stub adapter that always returns `SensorError::HttpError`.
+    ///
+    /// Causes fan_out to collect a `FanOutError` and — since all targets fail —
+    /// return `Err(AllTargetsFailed)`. This drives the Err arm in
+    /// `materialize_single_external_target`, which is where OBS-1 manifests:
+    /// `sensors_queried.insert()` is absent from that arm.
+    ///
+    /// No HTTP calls are made (SID-1: unit test at the adapter boundary).
+    struct AlwaysFailsAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for AlwaysFailsAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "always-fails-defect-obs1-stub"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<FetchOutput, SensorError> {
+            Err(SensorError::HttpError {
+                sensor: self.sensor_id.to_string(),
+                status: 503,
+                body: String::new(),
+            })
+        }
+    }
+
+    /// Stub `CredentialResolver` that always succeeds.
+    ///
+    /// Without this, `fan_out()` short-circuits at credentials before reaching the adapter.
+    struct StubCredentialResolver;
+
+    impl CredentialResolver for StubCredentialResolver {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorError> {
+            Ok(Box::new(BearerStaticSensorAuth::new("test-token")))
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TEST A: BC-2.09.008 OBS-1 unit test
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// BC-2.09.008 OBS-1: `sensors_queried` must be populated even when all targets fail.
+    ///
+    /// # What this test covers
+    ///
+    /// Drives `run_materialization_pipeline` with `SELECT * FROM claroty_organization_acl_policies`
+    /// against an `AlwaysFailsAdapter` registered under `SensorId::new("claroty")`. The adapter
+    /// returns `Err(SensorError::HttpError)` on every `fetch()` call. `fan_out()` wraps the
+    /// single target's error into `Err(AllTargetsFailed)`, taking the Err arm in
+    /// `materialize_single_external_target`.
+    ///
+    /// # Red Gate
+    ///
+    /// FAILS today: `sensors_queried.insert()` fires only in the `Ok(fan_result)` arm.
+    /// The Err arm pushes to `sensor_errors` but leaves `sensors_queried` empty.
+    /// `output.sensors_queried = []` → assertion fails.
+    ///
+    /// # Green Gate
+    ///
+    /// PASSES after fix adds `sensors_queried.insert(target.sensor_id.to_string())`
+    /// to the Err arm in `materialize_single_external_target`.
+    ///
+    /// BC-2.09.008 | DEFECT-LIVE-ENVELOPE-OBS-001 OBS-1
+    #[allow(non_snake_case)]
+    #[tokio::test]
+    async fn test_BC_2_09_008_OBS_1_sensors_queried_populated_on_all_targets_failed() {
+        let org_id = OrgId::new();
+        let sensor_id = SensorId::new("claroty");
+        let adapter: Arc<dyn SensorAdapter> = Arc::new(AlwaysFailsAdapter {
+            sensor_id: sensor_id.clone(),
+        });
+        let mut registry = AdapterRegistry::new();
+        registry.register(org_id, adapter);
+
+        let mut mat_ctx = MaterializationContext::new_with_resolver(
+            Arc::new(registry),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            10_000,
+            Arc::new(StubCredentialResolver),
+            None, // no OrgRegistry — test/MVP mode, synthetic slug (ADR-061 D3)
+            None, // no resolved_spec_map — bundled claroty spec covers Priority 2
+        );
+
+        let session_ctx = build_session_context(50 * 1024 * 1024)
+            .expect("build_session_context must succeed for OBS-1 unit test");
+        let options = QueryOptions::default();
+
+        // BC-2.01.010 partial-failure semantics: `run_materialization_pipeline` returns Ok
+        // even when all targets fail. Sensor errors are in `output.sensor_errors`.
+        // The OBS-1 bug is that `output.sensors_queried` is also empty (wrong).
+        let output = run_materialization_pipeline(
+            "SELECT * FROM claroty_organization_acl_policies",
+            &options,
+            &mut mat_ctx,
+            &session_ctx,
+        )
+        .await
+        .expect(
+            "pipeline must return Ok even when all targets fail \
+             (BC-2.01.010 partial-failure: sensor errors go to output.sensor_errors)",
+        );
+
+        assert!(
+            output.sensors_queried.contains(&"claroty".to_string()),
+            "OBS-1 (BC-2.09.008): sensors_queried MUST contain the sensor id 'claroty' even \
+             when all fan-out targets fail. Got: {:?}. \
+             Root cause: sensors_queried.insert() fires only in the Ok(fan_result) arm of \
+             materialize_single_external_target, NOT in the Err(AllTargetsFailed) arm. \
+             Fix: add sensors_queried.insert(target.sensor_id.to_string()) to the Err arm.",
+            output.sensors_queried
+        );
+    }
+}
