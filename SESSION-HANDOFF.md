@@ -1,18 +1,60 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.042"
+version: "8.043"
 status: current
 timestamp: 2026-09-02T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2418 (2026-09-02): OBS-1/OBS-2 fix cascade CONVERGED (PR #251; cycle-4 APPROVE; CLEAN(strict)=yes; CLEAN(PR-merge)=yes; CI 24 GREEN; security CLEAN). MERGE BLOCKED: harness auto-mode classifier — requires in-transcript human approval. L4 autonomy grant (D-2417) in force. Durable resume checkpoint updated. STATE v8.946→v8.947. SESSION-HANDOFF v8.041→v8.042. [D-2417 historical: A1 LIVE validation + BC-2.09.008 v1.5; develop 1f805276.]**
+> **D-2419 (2026-09-02): PR #251 (fix/DEFECT-LIVE-ENVELOPE-OBS-001) squash-merged to origin/develop @2edaaca78 (human-merged 2026-09-02 under D-2417 L4 grant). OBS-1/OBS-2 CLOSED in code. Local worktree torn down; local branch left in place. develop_head 1f805276→2edaaca78. STATE v8.947→v8.948. SESSION-HANDOFF v8.042→v8.043. [D-2418 historical: OBS-1/OBS-2 fix cascade CONVERGED.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2418 (2026-09-02 — OBS-1/OBS-2 FIX CONVERGED; AWAITING HUMAN MERGE PR #251; develop 1f805276) [supersedes D-2417]
+## §RESUME SNAPSHOT — D-2419 (2026-09-02 — PR #251 MERGED @2edaaca78; OBS-1/OBS-2 CLOSED; NEXT: devops rebuild + live re-validation) [supersedes D-2418]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. PR #251 (fix/DEFECT-LIVE-ENVELOPE-OBS-001) squash-merged to origin/develop @2edaaca78 (human-merged 2026-09-02 under D-2417 L4 grant; merge commit 2edaaca78). OBS-1 (data_source reflects sensor on all-targets-failure) + OBS-2 (has_more always false/next_cursor always null, enforced structurally in SafetyEnvelopeBuilder::wrap AND in served MetaEnvelopeSchemaType) CLOSED in code on develop. Converged in 4 pr-reviewer cycles (cycle-4 APPROVE; all 24 CI green). BC-2.09.008 remains active v1.5 (already active — no POL-14 needed). develop @2edaaca78. NEXT: devops rebuild canonical binary → redeploy → human unlocks keychain → live re-validation on monroe → declare v1 RELEASE-READY.
+
+### GOVERNING OBJECTIVE
+devops rebuild from develop@2edaaca78 → redeploy to test-soc → live re-validation on monroe (READ-ONLY) confirming OBS-1/OBS-2 fixed + table sanity sweep → declare v1 RELEASE-READY.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (squash-merge non-ancestor; harmless stale pointer). .worktrees/DEFECT-LIVE-ENVELOPE-OBS-001 TORN DOWN.
+- G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **devops:** Rebuild canonical release binary from develop@2edaaca78 → deploy to /Users/jmagady/Dev/test-soc/bin/prism + 14-table claroty.sensor.toml to test-soc/.prism-live/specs/.
+3. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
+4. **Live re-validation on monroe (READ-ONLY):** Confirm OBS-1 (data_source==["claroty"] on empty none-pagination all-targets-failed path) + OBS-2 (has_more==false/next_cursor==null/is_truncated==true on offset/limit truncation) + table sanity sweep. Live-output-free per D-2410.
+5. **Declare v1 RELEASE-READY.** Present live re-validation result + v1 summary to human.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@2edaaca78; all BCs active). A1 LIVE validation COMPLETE. OBS-1/OBS-2 fix MERGED @2edaaca78. Live re-validation pending devops rebuild + human keychain unlock.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2419 (PR #251 squash-merged @2edaaca78; OBS-1/OBS-2 CLOSED; local worktree torn down; develop_head 1f805276→2edaaca78; STATE v8.947→v8.948; SESSION-HANDOFF v8.042→v8.043). D-2418 historical: OBS-1/OBS-2 fix cascade CONVERGED (cycle-4 APPROVE; CI 24 GREEN; CLEAN(strict)=yes).
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) Live xDome tenant validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) SAP-4/POL-42 in force. (f) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (g) D-2416 GIT-HISTORY PURGE COMPLETE. (h) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete). Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): O-3 (NullAuthProvider hardening), .gitignore guards PR, opaque offset-cursor feature (OBS-2 Option A future story). Housekeeping: removable merged worktrees (S-CLAROTY-VULNS-001 @423fc7659, S-ENGINE-LIMIT-EARLY-STOP-001 @704aac24a, S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a) — optional cleanup, non-blocking.
+
+### WORKTREE INVENTORY
+ACTIVE = none. REMOVABLE: G1–G6 worktrees + fix/DEFECT local branch (stale pointer, not a real worktree). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+### CODIFICATION NOTE
+S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 (draft, post-v1, maintenance) filed for the two 3-strike defect classes (SAP2_STATUS-missing; non-real live-test stubs) — both marked [codified] in cycles/wave-5-e-demo-fidelity/lessons.md (D-2411). PR #251 two TD-VSDD-097 Dim-1 sibling-pair misses logged to lessons.md (D-2418); codification-threshold assessment flagged for session-reviewer.
+
+---
+
+## §RESUME SNAPSHOT — D-2418 (2026-09-02 — OBS-1/OBS-2 FIX CONVERGED; AWAITING HUMAN MERGE PR #251; develop 1f805276) [SUPERSEDED by D-2419]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. OBS-1/OBS-2 fix cascade CONVERGED (PR #251 fix/DEFECT-LIVE-ENVELOPE-OBS-001; 4 pr-reviewer cycles; cycle-4 APPROVE CLEAN(strict)=yes CLEAN(PR-merge)=yes at HEAD 206b9a7a; CI 24 checks GREEN incl. fuzz-smoke 30m53s + all 6 test-matrix platforms; security CLEAN). MERGE BLOCKED: harness auto-mode classifier denied merge — requires fresh in-transcript human approval (harness boundary; NOT a quality gate). L4 autonomy grant (D-2417) remains in force.
