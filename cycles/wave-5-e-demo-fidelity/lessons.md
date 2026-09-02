@@ -5121,3 +5121,37 @@ When fixing any test assertion about column schema properties (nullable, type, n
 This pattern is already covered by TD-VSDD-097 Dim-1. This lesson records the concrete instance for recall and future sibling-awareness but does NOT trigger a new codification story (single occurrence in this cascade, not a 3x recurrence threshold event).
 
 **Source:** D-2415 G6 post-merge burst. G6 PR-LEVEL cascade cycle-2 MEDIUM-3-RESIDUAL finding; residual fix-burst @03f204239; cycle-3 CLEAN.
+
+---
+
+### [codification-assess] PR #251: Two TD-VSDD-097 Dim-1 sibling-pair misses caught only by pr-reviewer — string-grep is not a semantic sweep
+
+**Date recorded:** 2026-09-02
+**D-NNN anchor:** D-2418 (checkpoint burst)
+**Story:** fix/DEFECT-LIVE-ENVELOPE-OBS-001 (PR #251)
+**Tags:** [sibling-sweep] [TD-VSDD-097] [dim-1] [pr-reviewer] [string-grep-insufficient]
+**Classification:** CODIFICATION-ASSESS — Two Dim-1 sibling-pair misses in a single PR cascade, each caught only by pr-reviewer. Assess whether this meets threshold for a stronger mechanically-enforced gate; flag for session-reviewer at wave-5-e cycle close.
+
+**Description:**
+
+PR #251 (fix/DEFECT-LIVE-ENVELOPE-OBS-001; BC-2.09.008 v1.5) had two distinct TD-VSDD-097 Dim-1 sibling-pair misses caught by the pr-reviewer in consecutive review cycles:
+
+**Cycle-1 miss:** The implementer's fix-burst closed OBS-1 and OBS-2 correctly, but missed a BC-2.09.008 test that asserted the negated `has_more` invariant. That test was a sibling of the OBS-2 SafetyEnvelopeBuilder changes — authored under the same BC, testing the same envelope field, but in a different test file. The fixer's sweep grepped for the changed string (SafetyEnvelopeBuilder parameter name) and found all call-sites of the changed function. The sibling test was not a call-site; it was an assertion on the *behavioral invariant* produced by the function. A string-grep on the changed code is not equivalent to a semantic sweep for all tests asserting the same invariant.
+
+**Cycle-2 miss:** The L-6 schema narrowing (MetaEnvelopeSchemaType has_more const:false / next_cursor type:null) was applied to the DEAD prism-security crate's `output_schema.rs` — the file being deleted — instead of the SERVED prism-mcp `MetaEnvelopeSchemaType`. The fixer identified `output_schema.rs` as the schema artifact and swept to it by filename. The served schema lives in prism-mcp (publish = true); prism-security (publish = false) was a dead stub at the time of the fix. A filename-based grep found the dead artifact. Identifying the correct sibling required semantic knowledge of which crate is served and which is internal/dead.
+
+**Root cause:**
+
+Both misses share the same failure mode: the fixer's sibling sweep was a **content-text grep for the changed identifier**, not a **semantic sweep for all artifacts that express the same behavioral invariant or serve the same API surface**. TD-VSDD-097 Dim-1 requires naming the sibling by architectural relationship. The two required checks that would have caught these misses:
+
+1. "Sweep all tests in all crates that assert the same behavioral invariant (e.g., `has_more == false`), not just tests that call the changed function."
+2. "Before changing a schema artifact, identify which crate is served (`publish = true`) vs. dead/internal (`publish = false`), and apply the change to the served crate."
+
+**Codification threshold assessment:**
+
+- **Within-cascade count:** Two Dim-1 misses in a single PR cascade. Different sub-types (semantic invariant sweep vs. crate-identity identification).
+- **Cross-cascade history:** G6 PR-LEVEL cascade (D-2415) had one Dim-1 miss (evidence-report.md twin). Combined with PR #251's two misses = three total Dim-1 instances across two recent cascades.
+- **Threshold verdict:** The 3-recurrence codification threshold is for the *same specific defect pattern* across independent cascades. The three instances are of related but distinct patterns (filename-limit sweep, evidence-report miss, crate-identity miss). They share the root cause "string-grep-only sweep is insufficient," which IS a codifiable general rule — but that rule is already in TD-VSDD-097 prose. The gap is that agents are not mechanically verifying they followed it.
+- **Recommended action:** Flag for session-reviewer at wave-5-e cycle close. Proposal: add a mandatory pre-commit checklist item for fix-bursts touching SafetyEnvelope/schema/BC-invariant code: (a) grep for all assertions on the *output invariant* (not just callers of the changed function); (b) confirm served crate by checking `publish` in Cargo.toml before schema changes. This is a process strengthening, not a new codification story.
+
+**Source:** D-2418 checkpoint burst. PR #251 pr-reviewer cycle-1 and cycle-2 findings.
