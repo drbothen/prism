@@ -41,7 +41,6 @@ pub mod risk_tier;
 
 // ── S-1.10: Prompt Injection Defense (SS-09) ─────────────────────────────────
 pub mod injection_scanner;
-pub mod output_schema;
 pub mod provenance;
 pub mod trust_level;
 
@@ -70,7 +69,6 @@ pub use injection_scanner::{InjectionScanner, ScanInput, ScanResult};
 pub use list_capabilities::{
     CapabilityMatrixEntry, CapabilityStatus, ListCapabilitiesEngine, ListCapabilitiesQuery,
 };
-pub use output_schema::{MetaEnvelopeSchema, OutputSchema, ResultsItemSchema};
 pub use provenance::{ProvenanceFraming, SecurityWarning, ToolDescriptionTemplate};
 pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};
 pub use trust_level::TrustLevelExt;

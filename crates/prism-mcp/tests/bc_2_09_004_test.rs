@@ -22,8 +22,6 @@ fn test_BC_2_09_004_ac4_envelope_original_data_intact_flags_in_meta() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -69,8 +67,6 @@ fn test_BC_2_09_004_multiple_injections_all_in_meta_safety_flags() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 

@@ -19,7 +19,7 @@
 use prism_core::error::PrismError;
 use prism_mcp::{
     error_mapping::{codes, map_prism_error},
-    safety_envelope::{DataSource, SafetyEnvelopeBuilder},
+    safety_envelope::{DataSource, MetaEnvelopeSchemaType, SafetyEnvelopeBuilder},
     tool_registry::{ToolDescriptionRegistrar, ToolRegistration},
 };
 use prism_security::injection_scanner::{InjectionScanner, ScanInput};
@@ -323,8 +323,6 @@ fn test_BC_2_09_008_response_envelope_wrapping_with_trust_metadata() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -361,8 +359,6 @@ fn test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -699,6 +695,79 @@ fn test_BC_2_09_007_tool_registration_carries_output_schema_with_meta_fields() {
         "BC-2.09.007: outputSchema must declare _meta.safety_flags as type: array; \
          got: {:?}",
         schema["properties"]["_meta"]["properties"]["safety_flags"]
+    );
+}
+
+// ─── M-2 fix: served outputSchema has_more const:false / next_cursor type:null ─
+
+/// ADR-060 §D8.7 + BC-2.09.008 v1.5 + DEFECT-LIVE-ENVELOPE-OBS-001 M-2 (cycle-3 closure):
+///
+/// The SERVED outputSchema — generated via `schema_for_type::<ResponseEnvelopeSchema>()`
+/// which calls `schemars::schema_for!(ResponseEnvelopeSchema)` — MUST declare:
+///   - `_meta.has_more` with `const: false` (not just `type: boolean`)
+///   - `_meta.next_cursor` with `type: null` (not `oneOf([string, null])`)
+///
+/// `MetaEnvelopeSchemaType` is the type used for the `_meta` field in
+/// `ResponseEnvelopeSchema`. This test generates its schema directly (no `$ref`
+/// indirection), confirming the `schema_with` attributes are load-bearing.
+///
+/// Mental-deletion proof:
+///   - Remove `#[schemars(schema_with = "schema_has_more_const_false")]` from
+///     `MetaEnvelopeSchemaType.has_more` → `has_more` schema becomes `{"type": "boolean"}`
+///     with no `const` key → `has_more_schema.get("const")` returns `None` → first
+///     `assert_eq!` FAILS.
+///   - Remove `#[schemars(schema_with = "schema_next_cursor_null")]` from
+///     `MetaEnvelopeSchemaType.next_cursor` → `next_cursor` schema becomes
+///     `{"oneOf": [{"type": "string"}, {"type": "null"}]}` → `type` key absent or not
+///     `"null"` → second `assert_eq!` FAILS; `oneOf` key present → third `assert_eq!`
+///     FAILS.
+///
+/// This test is on the SERVED schema (`MetaEnvelopeSchemaType`), NOT the dead
+/// `prism_security::MetaEnvelopeSchema` type which cycle-1 incorrectly targeted.
+#[test]
+fn test_BC_2_09_008_M2_served_outputSchema_has_more_const_false_next_cursor_null() {
+    // schema_for!(MetaEnvelopeSchemaType) generates the same schema that
+    // schema_for_type::<ResponseEnvelopeSchema>() uses for the `_meta` field.
+    // Testing this type directly avoids $ref resolution complexity while
+    // targeting the exact same schema_with-annotated fields.
+    let schema = schemars::schema_for!(MetaEnvelopeSchemaType);
+    let schema_val = schema.to_value();
+
+    // Navigate to has_more schema within properties.
+    let has_more_schema = schema_val
+        .pointer("/properties/has_more")
+        .expect("MetaEnvelopeSchemaType must have has_more property in outputSchema");
+
+    // has_more MUST carry const: false (ADR-060 §D8.7).
+    assert_eq!(
+        has_more_schema.get("const"),
+        Some(&serde_json::json!(false)),
+        "M-2 fix (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.has_more MUST \
+         have const:false. Mental-deletion: removing schema_with attr yields \
+         {{\"type\":\"boolean\"}} with no const key — this assert FAILS."
+    );
+
+    // Navigate to next_cursor schema within properties.
+    let next_cursor_schema = schema_val
+        .pointer("/properties/next_cursor")
+        .expect("MetaEnvelopeSchemaType must have next_cursor property in outputSchema");
+
+    // next_cursor MUST have type: null (ADR-060 §D8.7).
+    assert_eq!(
+        next_cursor_schema.get("type"),
+        Some(&serde_json::json!("null")),
+        "M-2 fix (DEFECT-LIVE-ENVELOPE-OBS-001): served outputSchema _meta.next_cursor MUST \
+         have type:null. Mental-deletion: removing schema_with attr yields oneOf([string,null]) \
+         — type key absent or not \"null\" — this assert FAILS."
+    );
+
+    // next_cursor MUST NOT have oneOf (string still valid would break the contract).
+    assert_eq!(
+        next_cursor_schema.get("oneOf"),
+        None,
+        "M-2 fix: served outputSchema _meta.next_cursor MUST NOT have oneOf. \
+         Mental-deletion: removing schema_with attr yields oneOf([string,null]) — \
+         this assert FAILS because oneOf key is present."
     );
 }
 

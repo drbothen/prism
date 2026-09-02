@@ -290,8 +290,6 @@ pub async fn handle_prism_describe(
         crate::safety_envelope::DataSource::Single(org_slug.as_str().to_owned()),
         results_value,
         1,
-        false,
-        None,
         audit_warning_opt,
     );
 

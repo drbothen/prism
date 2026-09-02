@@ -47,8 +47,6 @@ fn test_BC_2_09_001_sensor_hostname_in_structured_content_not_prose() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -85,8 +83,6 @@ fn test_BC_2_09_001_prose_summary_contains_counts_not_field_values() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -125,8 +121,6 @@ fn test_BC_2_09_001_empty_string_field_in_structured_content() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -152,8 +146,6 @@ fn test_BC_2_09_001_triple_backtick_description_not_in_prose() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
@@ -191,8 +183,6 @@ fn test_BC_2_09_001_invariant_no_sensor_values_in_prose_for_clean_record() {
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 

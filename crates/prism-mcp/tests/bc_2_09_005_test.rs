@@ -17,8 +17,6 @@ fn test_BC_2_09_005_ac2_envelope_trust_level_untrusted_external_for_sensor_data(
         DataSource::Single("crowdstrike".to_owned()),
         results,
         1,
-        false,
-        None,
         None,
     );
 
