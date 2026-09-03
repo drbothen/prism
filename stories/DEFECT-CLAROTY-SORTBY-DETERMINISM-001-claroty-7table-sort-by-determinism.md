@@ -12,7 +12,7 @@ status: ready
 # pattern — eligible for status: ready after remove-uncertainty pass.
 producer: story-writer
 timestamp: "2026-09-02T00:00:00Z"
-version: "1.4"
+version: "1.5"
 modified: "2026-09-02"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -47,9 +47,12 @@ subsystems: [SS-01]
 target_module: prism-sensors
 crates_touched: [prism-sensors]
 # crates_touched: prism-sensors only (claroty.sensor.toml + tests).
-# prism-spec-engine is NOT modified; SpecLoader::parse is called from tests but
-# the crate itself has no changed files. No prism-bin changes required since all
-# RG tests are spec-parse unit tests that do not exercise the full query pipeline.
+# prism-spec-engine is NOT modified; SpecLoader::parse and PipelineExecutor are
+# called from tests but the crate itself has no changed files. No prism-bin
+# changes required. RG-001..RG-010 are synchronous spec-parse unit tests (no
+# pipeline invocation); the 3 OBS wire tests exercise
+# PipelineExecutor::execute_with_max_requests → build_request via wiremock but
+# no production code is added or changed.
 capabilities:
   - CAP-029
 behavioral_contracts:
@@ -382,6 +385,24 @@ REQUIRED PK for `claroty_organization_firewall_policies` per BC-2.16.021
 (RG-008, RG-009, RG-010) are structural assertions that verify tiebreaker field presence
 and coexistence invariants beyond the basic body_template presence checks.
 
+**Additional wire-level coverage (OBS tests — NOT Red Gate tests):** During adversarial
+convergence, 3 wire-level tests were added to close adversary findings OBS-1 and OBS-3.
+These are integration-style tests using tokio + wiremock + reqwest and are clearly
+distinguished from RG-001..RG-010 (which remain THE red gate tests and THE deliverable
+defined by SAC-1). The 3 OBS tests do NOT alter the BC-5.38.001 density check —
+10 RGTs / 7 ACs = 1.43 PASS stands.
+
+| Test function | Finding closed | What it asserts |
+|---------------|---------------|-----------------|
+| `test_obs1_vulnerabilities_build_request_emits_sort_by` | OBS-1 Case 2 | SERIALIZED POST body to `/api/v1/vulnerabilities/` contains `sort_by` (2-element array, DESC-first), `offset` 0, and `limit` 1000 after `build_request` processing — proves offset/limit injection does NOT clobber `sort_by` (BC-2.16.015 §Post §1 + EC-016-015-009) |
+| `test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination` | OBS-1 Case 1 | SERIALIZED POST body to `/api/v1/audit_log/get` contains ALL FOUR keys (`filter_by`, `sort_by`, `offset`, `limit`) simultaneously — proves filter_by template expansion AND offset/limit injection both preserve `sort_by` (BC-2.16.013 §Post §1 + EC-002 coexistence invariant) |
+| `test_obs3_remaining_tables_build_request_emits_sort_by` | OBS-3 | Wire-level sort_by coverage for `server_interfaces`, `organization_zones`, `organization_zone_policies`, `organization_firewall_groups`, `organization_firewall_policies` — each table's POST body verified against its BC-contracted sort_by array with correct field names and orders (BC-2.16.019/020/021 §Sort-by postconditions) |
+
+The 3 OBS tests use wiremock mock servers; no live network or real xDome instance is
+required. Test seam: `PipelineExecutor::execute_with_max_requests` → `build_request` →
+wiremock `received_requests()` inspection (SAP-3 compliance: full `build_request` POST
+path exercised, not a synthetic-AST or pre-serialization path).
+
 **RG-number reconciliation note:** The design doc (`.factory/analysis/claroty-sortby-design-2026-09-02.md` §5)
 assigned RG-009 = `test_rg_server_interfaces_composite_key_both_present` and
 RG-010 = `test_rg_audit_logs_body_template_contains_sort_by_and_filter_by`. The
@@ -410,12 +431,20 @@ Architecture section references:
 
 ## Purity Classification
 
-- **Pure (no I/O, deterministic):** `SpecLoader::parse` (TOML deserialization); all 10 RG tests are
-  spec-parse unit tests that read `claroty.sensor.toml` from disk and make string assertions;
-  no network, no DTU, no external services required.
-- **Effectful (I/O, network):** The `body_template` literal change propagates to
-  `PipelineExecutor::execute` at runtime (HTTP POST body to xDome), but the spec-engine
-  production code itself is not modified. No effectful test paths in this story.
+- **Pure (no I/O, deterministic):** `SpecLoader::parse` (TOML deserialization); RG-001..RG-010 are
+  synchronous spec-parse unit tests that read `claroty.sensor.toml` from disk and make string
+  assertions; no network, no DTU, no external services required.
+- **Effectful (runtime production path — unchanged):** The `body_template` literal change
+  propagates to `PipelineExecutor::execute` at runtime (HTTP POST body to xDome), but the
+  spec-engine production code itself is not modified.
+- **Effectful (test-only, wiremock-backed localhost HTTP):** The 3 OBS wire tests
+  (`test_obs1_vulnerabilities_build_request_emits_sort_by`,
+  `test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination`,
+  `test_obs3_remaining_tables_build_request_emits_sort_by`) use tokio + wiremock + reqwest to
+  exercise `PipelineExecutor::execute_with_max_requests` → `build_request` against a localhost
+  wiremock server. These tests assert on the SERIALIZED POST body (exact JSON wire bytes) to
+  prove the `sort_by` key survives offset/limit injection and (for audit_logs) filter_by template
+  expansion. No live network or real xDome instance is required.
 
 ---
 
@@ -440,8 +469,8 @@ Architecture section references:
 | BC files (5 BCs: BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021) | ~15,000 |
 | Design doc (`.factory/analysis/claroty-sortby-design-2026-09-02.md`) | ~5,000 |
 | `crates/prism-spec-engine/src/spec_parser.rs` (SpecLoader, FetchStep, body_template parsing section) | ~3,000 |
-| Test file `defect_claroty_sortby_determinism_001.rs` (10 RGTs) | ~4,000 |
-| **Total estimate** | **~40,000 tokens** |
+| Test file `defect_claroty_sortby_determinism_001.rs` (10 RGTs + 3 OBS wire tests) | ~6,000 |
+| **Total estimate** | **~42,000 tokens** |
 
 Well within 20-30% of a 200K window. If context is tight, read only the affected
 `[[tables.steps]]` blocks in `claroty.sensor.toml` (7 sections of ~15 lines each)
@@ -574,11 +603,36 @@ edit is made. The TOML edit is the implementation step that turns them green.
 
 - [ ] **Task 10 (Final gate):**
   `just check` (full workspace).
-  Confirm all 10 RG tests pass. Confirm no new `unwrap()`/`expect()` on `Result`
-  in production code (none should exist — this is a TOML-only change + tests).
-  Confirm `claroty.sensor.toml` still parses as valid TOML via `SpecLoader::parse`
-  (RG-001..007 provide this). After `just check` passes, proceed to story-level
-  holdout gate (BLOCKING before push to origin).
+  Confirm all 13 tests pass (10 RG tests RG-001..RG-010 + 3 OBS wire tests). Confirm
+  no new `unwrap()`/`expect()` on `Result` in production code (none should exist —
+  this is a TOML-only change + tests). Confirm `claroty.sensor.toml` still parses
+  as valid TOML via `SpecLoader::parse` (RG-001..007 provide this). After `just check`
+  passes, proceed to story-level holdout gate (BLOCKING before push to origin).
+
+- [ ] **Task 11 (OBS wire tests — adversarial convergence additions):**
+  During adversarial convergence, add 3 wire-level tests to
+  `crates/prism-sensors/tests/defect_claroty_sortby_determinism_001.rs` to close
+  adversary findings OBS-1 (Case 1: audit_logs; Case 2: vulnerabilities) and OBS-3
+  (remaining 5 tables). These tests use tokio + wiremock + reqwest — all already
+  dev-dependencies of prism-sensors from prior stories. No new Cargo.toml changes
+  required.
+
+  - `test_obs1_vulnerabilities_build_request_emits_sort_by` (`#[tokio::test]`) — OBS-1
+    Case 2: mount a wiremock mock at `/api/v1/vulnerabilities/`; execute
+    `PipelineExecutor::execute_with_max_requests` with the redirected spec; assert on
+    the SERIALIZED POST body that `sort_by` (2-element, DESC-first), `offset` 0, and
+    `limit` 1000 are all present (BC-2.16.015 §Post §1).
+  - `test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination`
+    (`#[tokio::test]`) — OBS-1 Case 1: mount a wiremock mock at `/api/v1/audit_log/get`;
+    provide `_claroty_audit_filter_by` in `FetchContext` query filters; assert on the
+    SERIALIZED POST body that all four keys (`filter_by`, `sort_by`, `offset`, `limit`)
+    coexist simultaneously (BC-2.16.013 §Post §1 + EC-002 coexistence invariant).
+  - `test_obs3_remaining_tables_build_request_emits_sort_by` (`#[tokio::test]`) — OBS-3:
+    mount wiremock mocks for 5 table paths; execute each table through
+    `PipelineExecutor::execute_with_max_requests`; assert each POST body contains the
+    BC-contracted sort_by array with correct field names and orders (BC-2.16.019/020/021).
+    Note: firewall table paths use abbreviated `_fw_` URLs (EC-016-021-006 asymmetry);
+    mock paths must match the abbreviated URL form.
 
 ---
 
@@ -650,13 +704,17 @@ From the `endpoint-conformance-audit` and design doc:
 
 | Library | Version | Source |
 |---------|---------|--------|
-| `prism-spec-engine` | workspace path | `SpecLoader::parse` — called from test file to validate TOML and inspect `body_template` strings |
-| `serde_json` | per workspace Cargo.toml | Used in RG-008/009/010 to parse the embedded JSON sort_by arrays from body_template strings |
-| `tokio` | per workspace Cargo.toml | NOT required — all RG tests are synchronous spec-parse unit tests; no async needed |
+| `prism-spec-engine` | workspace path, `test-helpers` feature (dev) | `SpecLoader::parse` — called from all RG and OBS tests; `PipelineExecutor::execute_with_max_requests` and `NullAuthProvider` (test-helpers feature) — called from the 3 OBS wire tests; already a dev-dependency from S-CLAROTY-VULNS-001 |
+| `serde_json` | production dep version "1" | Used in RG-008/009/010 to parse the embedded JSON sort_by arrays from body_template strings; already a production dependency of prism-sensors — no Cargo.toml change required |
+| `tokio` | `[dev-dependencies]` version "1", features rt-multi-thread+macros+time | Required for the 3 OBS wire tests (`#[tokio::test]` async runtime); NOT required by RG-001..RG-010 (synchronous spec-parse unit tests with no async); already a dev-dependency of prism-sensors from prior stories |
+| `wiremock` | `[dev-dependencies]` version "0.6" | Used by all 3 OBS wire tests to provide a localhost mock HTTP server that records received POST bodies for wire-level serialized-body assertions; already a dev-dependency of prism-sensors from S-CLAROTY-VULNS-001 |
+| `reqwest` | production dep version "0.12", `default-features = false`, `features = ["rustls-tls"]` (ADR-050) | Used by the 3 OBS wire tests to construct `reqwest::Client::builder().timeout(30s).build()` per CLAUDE.md HTTP timeout rule; already a production dependency of prism-sensors — no Cargo.toml change required |
 
-Do NOT add new Cargo.toml production dependencies. The test file requires only
-`prism-spec-engine` (for `SpecLoader`) and `serde_json` (for JSON parsing in RG-008/009/010)
-— both are already workspace dependencies.
+No new Cargo.toml dependencies are needed for either the RG tests or the OBS wire tests.
+`serde_json` and `reqwest` are already production dependencies of prism-sensors.
+`tokio`, `wiremock`, and `prism-spec-engine` (test-helpers feature) were already
+dev-dependencies from prior Claroty stories (S-CLAROTY-VULNS-001, S-CLAROTY-SERVERS-001).
+The delivered test file required zero Cargo.toml modifications.
 
 ---
 
@@ -665,8 +723,8 @@ Do NOT add new Cargo.toml production dependencies. The test file requires only
 | Action | File path | Notes |
 |--------|-----------|-------|
 | MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add `"sort_by": [...]` to `body_template` strings for: `fetch_vulnerabilities`, `fetch_audit_logs`, `fetch_server_interfaces`, `fetch_organization_zones`, `fetch_organization_zone_policies`, `fetch_organization_firewall_groups`, `fetch_organization_firewall_policies` — 7 edits total |
-| CREATE | `crates/prism-sensors/tests/defect_claroty_sortby_determinism_001.rs` | Contains RG-001..RG-010: spec-parse unit tests asserting sort_by presence and structure in the 7 modified body_templates |
-| POSSIBLY MODIFY | `crates/prism-sensors/Cargo.toml` | Add `[dev-dependencies]` entry for `serde_json = { workspace = true }` if not already present (needed by RG-008/009/010 JSON parsing) |
+| CREATE | `crates/prism-sensors/tests/defect_claroty_sortby_determinism_001.rs` | Contains RG-001..RG-010 (10 synchronous spec-parse unit tests asserting sort_by presence and structure in 7 body_templates) PLUS 3 OBS wire-level tests (`test_obs1_vulnerabilities_build_request_emits_sort_by`, `test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination`, `test_obs3_remaining_tables_build_request_emits_sort_by`) using tokio + wiremock + reqwest to assert the SERIALIZED POST body — 13 tests total |
+| NOT MODIFIED | `crates/prism-sensors/Cargo.toml` | No changes required — all dependencies were already present: `serde_json` (production dep), `tokio` + `wiremock` + `prism-spec-engine` (test-helpers feature) all already dev-deps from prior Claroty stories (S-CLAROTY-VULNS-001, S-CLAROTY-SERVERS-001); `reqwest` already a production dep |
 
 Files that MUST NOT be modified:
 - `crates/prism-spec-engine/src/pipeline.rs` — no production code change needed
@@ -739,6 +797,7 @@ prism-sensors → prism-spec-engine, not reverse).
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.5 | 2026-09-02 | story-writer | MED-001 story↔code test-surface reconciliation (POL-39/TD-VSDD-091): corrected §Purity Classification (removed false "no effectful test paths" claim; documented 3 OBS wire tests as tokio+wiremock+reqwest effectful test-only paths); corrected §Library & Framework Requirements (replaced false "tokio NOT required" row; added wiremock and reqwest rows; clarified serde_json is a production dep; no new Cargo.toml deps needed); added §Red Gate Tests OBS wire-level coverage table documenting test_obs1_vulnerabilities_build_request_emits_sort_by, test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination, test_obs3_remaining_tables_build_request_emits_sort_by beyond RG-001..RG-010 red gates; updated §Token Budget Estimate test file row from 10 to 13 tests; updated §Tasks Task 10 to 13 tests, added Task 11 for OBS wire test additions; updated §File Structure Requirements CREATE row to 13 tests + Cargo.toml not-modified note; corrected frontmatter crates_touched comment (removed false "all RG tests are spec-parse unit tests that do not exercise the full query pipeline"). No BC/mechanism/AC/RG number change. |
 | 1.4 | 2026-09-02 | story-writer | MED-001 closed — POL-7 verbatim-H1 sync: BC-2.16.019 title in §Behavioral Contracts table corrected from "Claroty Server Interfaces Table" to verbatim H1; BC-2.16.020 title corrected from "Claroty Org Zone Domain" to verbatim H1; BC-2.16.021 title corrected from "Claroty Org Firewall Domain" to verbatim H1. §References section added with all 5 anchored BCs (POL-7 completeness). No content, mechanism, AC, or RG change. |
 | 1.3 | 2026-09-02 | state-manager | Records-only micro-burst (TD-VSDD-096): MED-001 CLOSED — BC-2.16.015 version pin synced v2.1→v2.2 in frontmatter behavioral_contracts comment (site 1) and Behavioral Contracts table Version column (site 2). OBS-001 CLOSED (depin per POL-39/TD-VSDD-091) — BC-2.16.013 table role-description volatile version token `(amended v1.44)` replaced with content/section anchor `(amended — observed-ordering sort + timestamp-only fallback)`. No content/mechanism/contract-semantics change. |
 | 1.2 | 2026-09-02 | story-writer | Aligned §Authority and AC-001 to BC-2.16.015 §Postconditions §1 amended to close adversary OBS-001 propagation: replaced "provably unique CVE ID" and "total order" claims for `name` tiebreaker with accurate best-available-tiebreaker + accepted-residual language (`name` maps to `finding_info.title`, presence-required but NOT unique; opaque PK `id` not in `Vulnerability__sortable_fields_enum`; accepted residual for identical-score + identical-name bounded tie case, symmetric with BC-2.16.013 §Sort-by postcondition, mitigated by risk-primary ordering and DI-019 10K cap). Updated Behavioral Contracts table BC-2.16.015 Version cell and Role description. Renamed RG-008 test to `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`. POL-39 compliance: no vX.Y BC version tokens introduced in narrative prose. |
