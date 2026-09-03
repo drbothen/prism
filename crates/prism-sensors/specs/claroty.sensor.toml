@@ -264,7 +264,7 @@ ocsf_class = "entity_management"
   name = "fetch_audit_logs"
   method = "POST"
   path_template = "/api/v1/audit_log/get"
-  body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'
+  body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"}]}'
   response_path = "$.audit_log"
   variables_produced = []
   [tables.steps.pagination]
@@ -729,7 +729,7 @@ ocsf_class = "vulnerability_finding"
   name = "fetch_vulnerabilities"
   method = "POST"
   path_template = "/api/v1/vulnerabilities/"
-  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"]}'
+  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"], "sort_by": [{"field":"adjusted_vulnerability_score","order":"desc"},{"field":"name","order":"asc"}]}'
   response_path = "$.vulnerabilities"
   variables_produced = []
   [tables.steps.pagination]
@@ -1201,7 +1201,7 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_
   name = "fetch_server_interfaces"
   method = "POST"
   path_template = "/api/v1/server_interfaces/"
-  body_template = '{"fields": ["server_name", "interface_name", "interface_status", "interface_type", "interface_connection_type", "site_id", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "notes"]}'
+  body_template = '{"fields": ["server_name", "interface_name", "interface_status", "interface_type", "interface_connection_type", "site_id", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "notes"], "sort_by": [{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]}'
   response_path = "$.server_interfaces"
   variables_produced = []
   [tables.steps.pagination]
@@ -1284,7 +1284,7 @@ ocsf_class = "entity_management"   # class_uid 3004 (existing arm; same as claro
   name = "fetch_organization_zones"
   method = "POST"
   path_template = "/api/v1/organization_zones/"
-  body_template = '{"fields": ["zone_name", "zone_description", "zone_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"]}'
+  body_template = '{"fields": ["zone_name", "zone_description", "zone_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"], "sort_by": [{"field":"zone_name","order":"asc"}]}'
   response_path = "$.organization_zones"
   variables_produced = []
   [tables.steps.pagination]
@@ -1378,7 +1378,7 @@ ocsf_class = "entity_management"   # class_uid 3004
   name = "fetch_organization_zone_policies"
   method = "POST"
   path_template = "/api/v1/organization_zone_policies/"
-  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_zone_pairs", "created_time", "last_updated", "updated_by"]}'
+  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_zone_pairs", "created_time", "last_updated", "updated_by"], "sort_by": [{"field":"policy_name","order":"asc"}]}'
   response_path = "$.organization_zone_policies"
   variables_produced = []
   [tables.steps.pagination]
@@ -1463,7 +1463,7 @@ ocsf_class = "entity_management"   # class_uid 3004
   name = "fetch_organization_firewall_groups"
   method = "POST"
   path_template = "/api/v1/organization_fw_groups/"
-  body_template = '{"fields": ["firewall_group_name", "firewall_group_description", "firewall_group_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"]}'
+  body_template = '{"fields": ["firewall_group_name", "firewall_group_description", "firewall_group_source", "priority", "enabled", "device_conditions", "attributed_devices", "exportable_attributed_devices", "created_time", "last_update", "updated_by"], "sort_by": [{"field":"firewall_group_name","order":"asc"}]}'
   response_path = "$.organization_firewall_groups"
   variables_produced = []
   [tables.steps.pagination]
@@ -1558,7 +1558,7 @@ ocsf_class = "entity_management"   # class_uid 3004
   name = "fetch_organization_firewall_policies"
   method = "POST"
   path_template = "/api/v1/organization_fw_group_policies/"
-  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_group_pairs", "created_time", "last_updated", "updated_by"]}'
+  body_template = '{"fields": ["policy_name", "policy_source", "policy_action", "communication_conditions", "matching_devices", "should_generate_alerts", "alert_use_case", "policy_notes", "related_alerts_ids", "applied_group_pairs", "created_time", "last_updated", "updated_by"], "sort_by": [{"field":"policy_name","order":"asc"}]}'
   response_path = "$.organization_firewall_policies"
   variables_produced = []
   [tables.steps.pagination]
