@@ -148,8 +148,17 @@ fn test_rg_vulnerabilities_sort_by_in_request_body() {
 /// BC-2.16.013 v1.43 §Postconditions §1 audit_logs sort-by postcondition — AC-002
 /// EC-016-013-011 (offset pagination determinism).
 ///
-/// The `fetch_audit_logs` body_template MUST contain a `"sort_by"` key with the
-/// preferred value `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`.
+/// The `fetch_audit_logs` body_template MUST contain a `"sort_by"` key with EITHER
+/// the preferred form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`
+/// OR the fallback form `[{"field":"timestamp","order":"asc"}]` — both are acceptable
+/// per the BC-2.16.013 §id-tiebreaker-caveat (fallback if live xDome rejects `id`).
+///
+/// Invariants asserted by this test: (a) `sort_by` is present, (b) `timestamp` is
+/// referenced as the primary sort field, (c) `filter_by` is preserved alongside
+/// `sort_by` (EC-002 coexistence guard). The `id` tiebreaker is accepted-if-present;
+/// its absence (timestamp-only fallback) is equally valid. The structural array-level
+/// check that accepts either form is in RG-009
+/// (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`).
 ///
 /// RED: `assert!` panics because `"sort_by"` is absent from the current
 /// body_template (only `"filter_by": ${...}` is present before Task 5).
@@ -181,16 +190,29 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
     );
 
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
+    //
+    // filter_by coexistence guard (EC-002): sort_by MUST NOT replace filter_by.
+    // The 7-day time-window enforcement depends on filter_by; removing it causes
+    // unbounded queries (BC-2.16.013 §2.2 risk note).
+    assert!(
+        body_template.contains(r#""filter_by""#),
+        "EC-002 COEXISTENCE (BC-2.16.013 v1.43 §Post §1): fetch_audit_logs body_template \
+         must retain \"filter_by\" key — sort_by must not replace it; \
+         the 7-day time-window enforcement depends on filter_by"
+    );
     assert!(
         body_template.contains("timestamp"),
         "sort_by must reference timestamp field (primary sort, BC-2.16.013 v1.43 §Post §1)"
     );
-    assert!(
-        body_template.contains("\"id\""),
-        "sort_by must reference id field (tiebreaker — preferred form; \
-         BC-2.16.013 v1.43 §Post §1 id-tiebreaker caveat; \
-         use fallback [timestamp only] if live xDome API rejects 'id')"
-    );
+    // BC-2.16.013 fallback protocol (§id-tiebreaker-caveat + EC-001 / Task 7):
+    //   Preferred form: [timestamp asc, id asc]  — use when xDome accepts 'id' as a sort field.
+    //   Fallback form:  [timestamp asc]           — use if live xDome API rejects 'id'.
+    //
+    // The 'id' tiebreaker is accepted-if-present but its absence (timestamp-only fallback)
+    // is equally valid. This test therefore does NOT hard-assert
+    // body_template.contains("\"id\""), which would spuriously fail if the fallback form
+    // is adopted. The structural array-level check that accepts either form is in RG-009
+    // (test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback).
 }
 
 // ── RG-003 ────────────────────────────────────────────────────────────────────
