@@ -5184,3 +5184,86 @@ Each wrong finding was recorded as fact in STATE.md. Two of the three were addit
 **Source:** D-2420 session wrap. Three prior killed wrap attempts each producing wrong diagnoses, corrected by human providing OpenAPI contract authority + console screenshot ground truth.
 
 **Source:** D-2418 checkpoint burst. PR #251 pr-reviewer cycle-1 and cycle-2 findings.
+
+---
+
+## Lesson: Live Gate Defect Catches That Pass All Local Tests — Strong Corroboration of D-2310 Live-Tenant-Merge-Gate Discipline
+
+**Date recorded:** 2026-09-03
+**D-NNN anchor:** D-2435 (post-merge cycle-closing checklist, DEFECT-CLAROTY-SORTBY-DETERMINISM-001)
+**Tags:** [live-gate] [api-contract] [holdout] [d-2310-corroboration] [codification-assess]
+**Classification:** CODIFICATION-ASSESS — Single occurrence. Live-gate discipline corroborated by real defect discovery. Assess against existing D-2310 rule strength; may not need new codification.
+
+**Description:**
+
+The `audit_logs` endpoint `id` field returns 0 rows (the `id` column is always null in live data) — a real API-contract defect that was NOT caught by: (a) all 13 local test passes, (b) all LOCAL adversary passes (passes 1–12 on the cascade before fallback), or (c) the holdout gate HS-031. It was caught ONLY by live validation on monroe (D-2430), which revealed that the API does not populate `id` at all for audit log entries. This forced the audit_logs sort_by canonical to be revised from `[{field: id}, {field: timestamp}]` to `[{field: timestamp}]` (the timestamp-only fallback), requiring a full spec-perimeter re-convergence pass and reset of the 3-CLEAN streak.
+
+This is strong empirical corroboration of D-2310: the live-tenant-merge-gate catches a class of API-contract defects that local tests, adversarial passes, and holdout scenarios cannot. The defect was invisible because (a) DTU clone was not built for audit_logs (build deferred post-v1), so no realistic fake data existed; (b) the API contract (OpenAPI) does not document `id` availability; (c) holdout scenarios tested the mechanism, not the live data shape.
+
+**Rule (D-2310 reaffirmed):** Live xDome validation is a required pre-merge gate for all stories that touch Claroty sensor TOML, regardless of local test completeness, adversarial pass count, or holdout gate status.
+
+**Source:** D-2430 live validation + D-2435 post-merge cycle-close. Single occurrence → [codification-assess]. D-2310 is already codified; this lesson reaffirms it.
+
+---
+
+## Lesson: Post-Sweep Propagation Gaps — TD-VSDD-097 Dim-2 Sweep-All-Copies Discipline Recurring Class
+
+**Date recorded:** 2026-09-03
+**D-NNN anchor:** D-2435 (post-merge cycle-closing checklist, DEFECT-CLAROTY-SORTBY-DETERMINISM-001)
+**Tags:** [td-vsdd-097] [dim-2] [propagation-gap] [sweep-discipline] [codification-assess]
+**Classification:** CODIFICATION-ASSESS — Recurring class (D-2430/D-2431/D-2432/D-2433 all produced Dim-2 propagation gaps in the same defect stream). Assess whether the recurrence count warrants a structural gate addition.
+
+**Description:**
+
+During the DEFECT-CLAROTY-SORTBY-DETERMINISM-001 cascade, every major spec change produced at least one Dim-2 propagation gap caught by the next adversary pass:
+- D-2430 (audit_logs fallback): left the §Sensor-Defect-Fixes intro paragraph (STORY-INDEX prose section) at the old BC-2.16.013 v1.44 pin → caught by D-2431.
+- D-2432 (re-gate-pass-1 fix): corrected BC-2.16.013 v1.45→v1.46 in the story body table row but not in the §Sensor-Defect-Fixes intro paragraph → caught by D-2433.
+- Separately: RG-002 assertion message in code, BC coupling text, story AC-002 paragraph each carried stale wording after adjacent spec edits.
+
+The pattern: when editing a spec row in a table AND there is prose in the same or a sibling section that echoes those values, both must be updated atomically. The downstream copy target (TD-VSDD-097 Dim-2) is specifically the prose paragraph that re-states values from the table.
+
+**Root cause:** Dim-2 sweep was applied to the table row but not to the associated prose paragraph in the same section. The prose paragraph is a "downstream copy target" in TD-VSDD-097 terminology: it restates the same data in narrative form and must be treated as a co-update obligation.
+
+**Proposed operationalization:** When updating any BC version pin in a STORY-INDEX table row, immediately grep for the BC ID + version string in the surrounding prose section(s) of the same file. If found, co-update atomically.
+
+**Source:** D-2430→D-2431→D-2432→D-2433 propagation gaps. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 cascade. [codification-assess] — 4 recurrences within a single defect stream; assess against 3-recurrence codification threshold.
+
+---
+
+## Lesson: STORY-INDEX §Sensor Defect Fixes Intro Prose Pins a BC Version — POL-39 Cleanup Candidate
+
+**Date recorded:** 2026-09-03
+**D-NNN anchor:** D-2435 (post-merge cycle-closing checklist, DEFECT-CLAROTY-SORTBY-DETERMINISM-001)
+**Tags:** [pol-39] [pol-40] [version-pin] [story-index] [codification-assess]
+**Classification:** CODIFICATION-ASSESS — Single occurrence. POL-39/POL-40 cleanup candidate; does not require immediate action.
+
+**Description:**
+
+The STORY-INDEX.md §Sensor Defect Fixes intro prose paragraph contains a literal BC version pin: "BC amendments (PO leg) are already active: BC-2.16.015 v2.2, BC-2.16.013 v1.46, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3." Each time a BC is amended and its version bumps (e.g., BC-2.16.013 v1.44→v1.45→v1.46 over 3 bursts), the intro prose must also be updated — creating a Dim-2 propagation lag on every BC bump. This class of lag recurred at D-2431 (pin lag) and D-2433 (pin lag again after D-2432 table-row update).
+
+Per POL-39, narrative prose SHOULD avoid version pins and instead reference the BC by ID + section anchor. The phrase "BC amendments (PO leg) are already active: BC-2.16.013 v1.46" should ideally be de-pinned to "BC amendments (PO leg) are already active: BC-2.16.013, BC-2.16.015, BC-2.16.019, BC-2.16.020, BC-2.16.021 (all active per POL-14 at time of section registration)".
+
+**Action (deferred):** Post-v1, de-pin the §Sensor Defect Fixes intro prose from BC version numbers. Assign to S-MAINT-ANTIPIN-SWEEP-001 scope or register as a standalone maintenance task. Not blocking v1.
+
+**Source:** D-2431 + D-2433 propagation gaps. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 cascade. [codification-assess] — POL-39 already codified; this is a cleanup candidate for existing prose, not a new rule.
+
+---
+
+## Lesson: Holdout-Harness Limitation — DTU Without Standalone Server Cannot Run Headless MCP Dimensions
+
+**Date recorded:** 2026-09-03
+**D-NNN anchor:** D-2435 (post-merge cycle-closing checklist, DEFECT-CLAROTY-SORTBY-DETERMINISM-001)
+**Tags:** [holdout] [dtu] [headless] [claroty] [setup-failure] [codification-assess]
+**Classification:** CODIFICATION-ASSESS — Single occurrence. Infrastructure gap, not a process failure. Assess whether a standalone Claroty DTU server is worthwhile for headless holdout runs.
+
+**Description:**
+
+The DEFECT-CLAROTY-SORTBY-DETERMINISM-001 story's holdout gate ran HS-031 against the story binary (prism + claroty.sensor.toml). The MCP-non-error dimensions (those requiring real MCP tool calls to the running prism binary with Claroty DTU responding) could not run headless because prism-dtu-claroty ships no standalone server binary. The holdout evaluator scored those dimensions SETUP-FAILURE and corroborated them structurally instead (reading the TOML spec and confirming sort_by arrays were present). The gate still PASSED (all structural/contract dimensions verified; SETUP-FAILURE quiescent per established protocol from G6 HS-031 runs).
+
+This is a known architectural limitation: the Claroty DTU clone was built for integration testing within the workspace (cargo test), not as a standalone HTTP server. Running the MCP tool dimensions of holdout scenarios requires: (a) prism binary, (b) Claroty DTU server responding on its port, and (c) the holdout evaluator able to wire them together. Without (b) as a standalone server, headless holdout MCP dims cannot run.
+
+**Candidate solution:** Build a standalone server binary for prism-dtu-claroty (e.g., `cargo run --bin prism-dtu-claroty-server`) that listens on a configurable port and serves the same routes as the test routes. This would enable headless holdout MCP dimensions without requiring the full monroe live API.
+
+**Action (deferred, non-blocking):** Track as post-v1 candidate. Not suitable for current v1 scope given deadline constraints and the SETUP-FAILURE-quiescent protocol already handles it correctly.
+
+**Source:** D-2429 HS-031 holdout gate run. DEFECT-CLAROTY-SORTBY-DETERMINISM-001. [codification-assess] — single occurrence; assess standalone DTU server as post-v1 infrastructure story.

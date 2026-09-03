@@ -1,18 +1,57 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.056"
+version: "8.057"
 status: current
-timestamp: 2026-09-03T12:00:00Z
+timestamp: 2026-09-03T14:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2434 (2026-09-03): SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL cascade RE-CONVERGED on fallback HEAD 1fcf91af1; BC-5.39.001 satisfied; all pre-merge gates passed (LOCAL 3-CLEAN ✓; HS-031 GATE PASS ✓; live validation ✓). records-lint PASS. STATE v8.963→v8.964. SESSION-HANDOFF v8.055→v8.056.**
+> **D-2435 (2026-09-03): SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed); POL-14 NO-OP (5 BCs already active); STORY-INDEX v2.989→v2.990; develop_head 2edaaca78→11493aeb5. sort_by workstream COMPLETE. records-lint PASS. STATE v8.964→v8.965. SESSION-HANDOFF v8.056→v8.057.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2434 (2026-09-03 — LOCAL re-convergence COMPLETE on fallback HEAD; all gates passed; demo/push/PR NEXT) [supersedes D-2433]
+## §RESUME SNAPSHOT — D-2435 (2026-09-03 — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED; sort_by workstream COMPLETE; v1 RELEASE-READY next) [supersedes D-2434]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. D-2435: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03; harness auto-mode classifier blocks agent-executed merges on coordinator-relayed approval — same boundary as PR #251/D-2418; NOT a quality gate; all objective gates had passed). POL-14: all 5 BCs (BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021) already active — NO-OP. STORY-INDEX v2.989→v2.990 (322 stories). develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. G1–G6 ALL MERGED + sort_by fix MERGED = v1 Claroty xDome sensor FULLY DELIVERED. BC-INDEX v10.06. develop @11493aeb5.
+
+### GOVERNING OBJECTIVE
+Declare v1 RELEASE-READY after live re-validation on monroe with new sort_by TOML confirms pagination stability. Then proceed to post-v1 backlog.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `11493aeb5` (D-2435 PR #252 squash-merge 2026-09-03). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
+- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename before editing).
+- G1–G6 + sort_by fix: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **Live re-validation on monroe:** confirm 7-table sort_by fix → stable pagination (live data; AD-017 opaque; DO NOT SAVE output per D-2410).
+3. **Declare v1 RELEASE-READY:** record in STATE.md + SESSION-HANDOFF.
+4. **Post-v1 backlog:** TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, DEFECT-CLAROTY-VULN-PAGINATION-001.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@11493aeb5; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. sort_by DEFECT: MERGED PR #252 @11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. v1 Claroty xDome sensor FULLY DELIVERED. NEXT: live re-validation → v1 RELEASE-READY declaration.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2435 (POST-MERGE BURST: PR #252 @11493aeb5 merged; POL-14 NO-OP; STORY-INDEX v2.989→v2.990; develop_head 2edaaca78→11493aeb5; STATE v8.964→v8.965; SESSION-HANDOFF v8.056→v8.057). D-2434 historical: LOCAL cascade RE-CONVERGED; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416), [process-gap] standalone Claroty DTU server for headless holdout MCP dims (D-2429), [process-gap] §Sensor-Defect-Fixes intro prose version-pin POL-39 cleanup (D-2433 class).
+
+### WORKTREE INVENTORY
+ACTIVE: none (sort_by fix branch MERGED; feature/DEFECT-CLAROTY-SORTBY-DETERMINISM-001 CLOSED). DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename before editing). REMOVABLE: G1–G6 worktrees + sort_by fix branch + fix/DEFECT-LIVE-ENVELOPE-OBS-001 local branch (stale pointer). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+---
+
+## §RESUME SNAPSHOT — D-2434 (2026-09-03 — LOCAL re-convergence COMPLETE on fallback HEAD; all gates passed; demo/push/PR NEXT) [SUPERSEDED by D-2435]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. D-2434: SINGLE-COMMIT BURST — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade RE-CONVERGED on fallback HEAD 1fcf91af1 (3 consecutive CLEAN(strict) passes; BC-5.39.001 satisfied). ALL pre-merge quality gates passed: (1) LOCAL 3-CLEAN ✓ (factory-artifacts HEAD 3260409dd); (2) holdout gate HS-031 GATE PASS ✓ (D-2429; HS-002 audit_logs coexistence holds under timestamp-only; all 4 consumed single-use); (3) live validation on monroe ✓ (D-2430; 6 non-audit tables PASS; audit_logs corrected to timestamp-only — the live-validated form and OpenAPI default). Independent corroboration: xDome sort_by default = `[{"field":"timestamp","order":"asc"}]` — byte-identical to adopted canonical. BC-INDEX v10.06; STORY-INDEX v2.989 (322 stories). develop @2edaaca78.
