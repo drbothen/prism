@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.986"
+version: "2.987"
 status: draft
 producer: state-manager
-timestamp: 2026-09-03T00:00:00Z
+timestamp: 2026-09-03T01:00:00Z
 phase: 3
 total_stories: 322
+# D-2431: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 section prose BC-2.16.013 pin v1.44→v1.45 (Dim-2 propagation gap from D-2430 — §Sensor Defect Fixes paragraph line not swept when table row was updated). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.986→v2.987. D-2430 NOTE archived.
 # D-2430: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback — story row [ready v1.5]→[ready v1.6] (story v1.5→v1.6: AC-002/Task-7 DISCHARGED/EC-001/§Authority/§Background/Behavioral-Contracts-table/RG-002/RG-009/§Tasks/§Architecture-Compliance/§Notes aligned to timestamp-only canonical; BC-2.16.013 v1.44→v1.45). total_stories 322 UNCHANGED. STORY-INDEX v2.985→v2.986. D-2428 NOTE archived.
 # D-2428: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pass-9 fix-burst — story row [ready v1.4]→[ready v1.5] (story v1.4→v1.5: story↔code test-surface reconciliation — §Purity, §Library, §RG-OBS table, §Tasks, §File Structure corrected to document delivered 13-test file; no mechanism/BC/AC/RG-set change). total_stories 322 UNCHANGED. STORY-INDEX v2.984→v2.985. D-2427 NOTE archived.
 # D-2424: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst — story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pin v1.1→v1.2 (§Authority/AC-001 aligned to BC-2.16.015 §Postconditions §1 v2.1; RG-008 renamed test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field; BC version cell v2.0→v2.1; changelog row added). total_stories 322 UNCHANGED. STORY-INDEX v2.980→v2.981. D-2423 NOTE archived.
@@ -1116,7 +1117,7 @@ default sort orders. Without an explicit `sort_by` clause, offset pagination is
 non-deterministic at page boundaries (duplicate or skipped records). This section
 registers the single defect fix story that covers all 7 tables. The fix is additive
 (7 `body_template` edits in `claroty.sensor.toml`; no spec-engine code changes).
-BC amendments (PO leg) are already active: BC-2.16.015 v2.2, BC-2.16.013 v1.44,
+BC amendments (PO leg) are already active: BC-2.16.015 v2.2, BC-2.16.013 v1.45,
 BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3. ORDER BY push-down deferred
 to TD-SENSOR-SORTBY-PUSHDOWN-001.
 
@@ -1703,6 +1704,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.987 | 2026-09-03 | state-manager D-2431: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.44→v1.45. Dim-2 propagation gap from D-2430 (downstream paragraph not swept when table row was updated). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED. Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.986→2.987. records-lint exit 0. |
 | v2.986 | 2026-09-03 | state-manager D-2430: SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback. Story row [ready v1.5]→[ready v1.6] (story v1.5→v1.6: AC-002/Task-7 DISCHARGED; EC-001/§Authority/§Background/Behavioral-Contracts-table/RG-002/RG-009/§Tasks/§Architecture-Compliance/§Notes aligned to timestamp-only canonical; UNVERIFIED→LIVE-VERIFIED FALLBACK ADOPTED in row description). BC-2.16.013 v1.44→v1.45 in BCs column. BC-INDEX v10.04→v10.05. total_stories 322 UNCHANGED. story_index_version 2.985→2.986. records-lint exit 0. |
 | v2.984 | 2026-09-02 | state-manager D-2427: RECORDS-ONLY MICRO-BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-8 fix-burst. Story row [ready v1.3]→[ready v1.4] (story v1.3→v1.4: POL-7 verbatim-title fix — 3 BC Behavioral-Contracts table Title cells corrected to verbatim BC H1 for BC-2.16.019/020/021; §References section added covering all 5 anchored BCs). BC-INDEX UNCHANGED at v10.04. total_stories 322 UNCHANGED. story_index_version 2.983→2.984. records-lint exit 0. |
 | v2.983 | 2026-09-02 | state-manager D-2426: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — pass-5 pin-sync. Section header BC-2.16.015 v2.1→v2.2; story row [ready v1.2]→[ready v1.3] (story v1.3 pin-sync + depin). total_stories 322 UNCHANGED. story_index_version 2.982→2.983. records-lint exit 0. |
