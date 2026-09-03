@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.00"
+version: "10.01"
 status: draft
 producer: state-manager
 timestamp: 2026-09-02T00:00:00Z
+# NOTE: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 — BC-INDEX v10.00→v10.01: deterministic sort_by postcondition BC amendments (product-owner 2026-09-02). Pin updates: BC-2.16.013 v1.42→v1.43, BC-2.16.015 v1.9→v2.0, BC-2.16.019 v1.2→v1.3, BC-2.16.020 v1.2→v1.3, BC-2.16.021 v1.2→v1.3. Fixes D-001..D-007 body_template offset pagination instability per DEFECT-CLAROTY-SORTBY-DETERMINISM-001 design doc. draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2417 NOTE archived (preserved below).
 # NOTE: D-2417 — BC-INDEX v9.99→v10.00: SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.09.008 version pin v1.4→v1.5 (OBS-1: EC-09-021 all-targets-failed edge case + Data-Source Integrity invariant; OBS-2: has_more always false / next_cursor always null ADR-060 §D8.7 invariant + EC-09-018 extended). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2415 NOTE archived.
 # NOTE: D-2415 — BC-INDEX v9.98→v9.99: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — POL-14 BC auto-promotion. BC-2.16.022 (claroty_org_acl_policies) lifecycle_status/status draft→active; anchor story S-CLAROTY-ACLPOLICY-001 merged PR #250 @672b10b6 (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table contract). draft_contracts 4→3 / active_contracts 260→261 / total_contracts 277 UNCHANGED. Frontmatter active_contracts/draft_contracts corrected from stale 258/6 to 261/3 (D-2412 promotion was reflected in body NOTE but missed in YAML frontmatter fields; corrected in same burst). D-2413 NOTE archived.
 # NOTE: D-2412 — BC-INDEX v9.96→v9.97: POL-14 BC auto-promotion — BC-2.16.020 (claroty_org_zone_domain) + BC-2.16.021 (claroty_org_firewall_domain) draft→active; S-CLAROTY-ORGPOLICY-001 merged PR #249 @07e64f4e (D-2400 blanket authority 2026-09-01). draft_contracts 6→4 / active_contracts 258→260 / total_contracts 277 UNCHANGED. D-2407 NOTE archived.
@@ -373,15 +374,15 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.43 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v2.0 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.5 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.2 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active (v1.3 current) |
-| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active (v1.2 current) |
-| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.2 |
-| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.2 |
+| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active (v1.3 current) |
+| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.3 |
+| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.3 |
 | BC-2.16.022 | Claroty xDome Organization ACL Policies — Non-Paginated Single-Page Fetch with Mandatory policy_acl_syntax and OCSF entity_management Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | **active** (POL-14: draft→active D-2415 2026-09-01; anchor story S-CLAROTY-ACLPOLICY-001 merged PR #250 @672b10b6; 14th and final Claroty xDome table contract) — **v1.3** |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active |

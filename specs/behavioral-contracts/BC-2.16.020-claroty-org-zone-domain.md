@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -21,7 +21,7 @@ input-hash: "a8bd2be"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: "2026-08-31"
+modified: "2026-09-02"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -105,7 +105,8 @@ method = "POST"
 path_template = "/api/v1/organization_zones/"
 body_template = '{"fields": ["zone_name", "zone_description", "zone_source", "priority", \
   "enabled", "device_conditions", "attributed_devices", \
-  "exportable_attributed_devices", "created_time", "last_update", "updated_by"]}'
+  "exportable_attributed_devices", "created_time", "last_update", "updated_by"], \
+  "sort_by": [{"field":"zone_name","order":"asc"}]}'
 response_path = "$.organization_zones"
 variables_produced = []
 [tables.steps.pagination]
@@ -116,6 +117,13 @@ page_size = 1000
 **Envelope key:** `organization_zones` — confirmed in schema extract §organization_zones
 (`envelope keys: count, organization_zones`). Response carries a `count` field; if `count` is
 null or absent, pagination halts via empty-page check (EC-016-020-004).
+
+**Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, D-005):** The
+`organization_zones` `body_template` MUST include `"sort_by": [{"field":"zone_name","order":"asc"}]`
+(per `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-004 `test_rg_organization_zones_sort_by_in_request_body`).
+`zone_name` is confirmed in `OrganizationZones__sortable_fields_enum` (xDome OpenAPI
+`ValidatingSortClause`) and is the REQUIRED PK, making the sort order total (no tiebreaker
+needed). This eliminates duplicate-or-skipped records across offset page boundaries (EC-016-020-011).
 
 ### 2. TOML Table Contract — claroty_organization_zone_policies
 
@@ -137,7 +145,8 @@ path_template = "/api/v1/organization_zone_policies/"
 body_template = '{"fields": ["policy_name", "policy_source", "policy_action", \
   "communication_conditions", "matching_devices", "should_generate_alerts", \
   "alert_use_case", "policy_notes", "related_alerts_ids", "applied_zone_pairs", \
-  "created_time", "last_updated", "updated_by"]}'
+  "created_time", "last_updated", "updated_by"], \
+  "sort_by": [{"field":"policy_name","order":"asc"}]}'
 response_path = "$.organization_zone_policies"
 variables_produced = []
 [tables.steps.pagination]
@@ -152,6 +161,13 @@ page_size = 1000
 (no trailing 'd'); the zone_policies table uses `last_updated` (with trailing 'd'). Both are
 confirmed in the schema extract OrganizationZones fields_enum and OrganizationZonePolicies
 fields_enum respectively. Implementer MUST use the exact field name per-table.
+
+**Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, D-006):** The
+`organization_zone_policies` `body_template` MUST include `"sort_by": [{"field":"policy_name","order":"asc"}]`
+(per `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-005 `test_rg_organization_zone_policies_sort_by_in_request_body`).
+`policy_name` is confirmed in `OrganizationZonePolicies__sortable_fields_enum` (xDome OpenAPI
+`ValidatingSortClause`) and is the REQUIRED PK, making the sort order total (no tiebreaker
+needed). This eliminates duplicate-or-skipped records across offset page boundaries (EC-016-020-012).
 
 ### 3. Column Tier Classification — claroty_organization_zones (ADR-058)
 
@@ -340,6 +356,8 @@ covered by existing codes.
 | EC-016-020-008 | `policy_action` is absent in a zone_policies row | Null `activity_name` Arrow cell; not an error |
 | EC-016-020-009 | Implementer uses `last_updated` for the zones table instead of `last_update` | Column silently absent (API returns nothing for a non-existent field name); no runtime error but temporal data lost — caught by structural live-sensor test asserting `last_update` key present in `raw_extensions` |
 | EC-016-020-010 | `device_conditions` is a JSON object (not array) in a given row | Serialized as JSON object in `raw_extensions.device_conditions`; spec-engine does not validate the nested structure beyond raw serialization; no error |
+| EC-016-020-011 | Offset pagination determinism for `claroty_organization_zones`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"zone_name","order":"asc"}]` — `zone_name` is the REQUIRED PK and is provably unique, making the sort order total. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-004 (`test_rg_organization_zones_sort_by_in_request_body`). |
+| EC-016-020-012 | Offset pagination determinism for `claroty_organization_zone_policies`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"policy_name","order":"asc"}]` — `policy_name` is the REQUIRED PK and is provably unique, making the sort order total. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-005 (`test_rg_organization_zone_policies_sort_by_in_request_body`). |
 
 ## Related BCs
 
@@ -414,6 +432,7 @@ S-CLAROTY-ORGPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | defect-claroty-sortby-determinism-bc-amendments | 2026-09-02 | product-owner | Human-directed 2026-09-02: add deterministic `sort_by` postconditions to both `organization_zones` and `organization_zone_policies` `body_template` blocks to fix D-005 and D-006 offset pagination instability (no sort key on either table). (1) §PC1 `organization_zones` body_template: `sort_by` array appended: `[{"field":"zone_name","order":"asc"}]`. `zone_name` is in `OrganizationZones__sortable_fields_enum` (xDome OpenAPI `ValidatingSortClause`) and is the REQUIRED PK, making it provably unique. (2) Sort-by postcondition note added after zones pagination note in §PC1. (3) EC-016-020-011 added for zones offset pagination determinism. (4) §PC2 `organization_zone_policies` body_template: `sort_by` array appended: `[{"field":"policy_name","order":"asc"}]`. `policy_name` is in `OrganizationZonePolicies__sortable_fields_enum` and is the REQUIRED PK, provably unique. (5) Sort-by postcondition note added after zone_policies datetime asymmetry note in §PC2. (6) EC-016-020-012 added for zone_policies offset pagination determinism. TD-VSDD-097: (1) Sibling pair — zones and zone_policies are paired tables in this BC; both amended in this burst with their respective unique PKs as sort keys; BC-2.16.021 (firewall domain) is the sibling BC from the same Wave C G6 story — also amended in this burst with its own sort criteria; CLEAR. (2) Downstream copy target — `claroty.sensor.toml` zone and zone_policies `body_template` blocks are the downstream; update deferred to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` per task scope. (3) Mandate anchor — EC-016-020-011 and zones Sort-by MUST anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-004 (`test_rg_organization_zones_sort_by_in_request_body`); EC-016-020-012 and zone_policies Sort-by MUST anchored to RG-005 (`test_rg_organization_zone_policies_sort_by_in_request_body`). |
 | 1.2 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 (zones) and §2 (zone_policies) TOML bare table_names corrected: `"claroty_organization_zones"` → `"organization_zones"` and `"claroty_organization_zone_policies"` → `"organization_zone_policies"`; added derivation notes (`{sensor_id}_{table_name}` = registered/queryable name). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.1 | xdome-wave-c-remove-uncertainty | 2026-08-31 | research-agent | Remove-uncertainty pass (satisfies mandatory pre-delivery pass D-1110). Validated every TOML/API assumption against ground truth (endpoint-schema-extract.md OrganizationZones + OrganizationZonePolicies fields_enums; endpoint-spike-findings.md §Spike 3 Tables A/B; the xDome OpenAPI schema extract): all 11+13 `body_template` fields present in the respective field enums; endpoint paths (`/api/v1/organization_zones/`, `/api/v1/organization_zone_policies/`), envelope keys (`organization_zones`, `organization_zone_policies`), and `response_path` values confirmed; `entity_management`/3004 arm confirmed present in `class_selector.rs::select_by_class_name`; 4 Json columns confirmed against §Spike 3 (device_conditions ×1 zones; communication_conditions + related_alerts_ids + applied_zone_pairs zone_policies); `last_update` (zones) vs `last_updated` (zone_policies) datetime field-name asymmetry confirmed; `applied_zone_pairs` confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A re-confirmed (no zone routes exist in prism-dtu-claroty); baseline Claroty table count confirmed = 4 committed tables (alerts, audit_logs, devices, device_alert_relations). CORRECTION: §Invariants zones `available_columns` enumeration was missing `actor_user_name`, inconsistent with §PC3, EC-016-020-005, TV-BC-2.16.020-002/003, and story AC-003 — added. BC-INDEX H1 title drift corrected (POLICY 7). input-hash refreshed (input files drifted since initial authoring). No content/mechanism defects found. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Zone Domain (zones + zone_policies) queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G5. Domain-pairing rationale documented (4 points). TOML table contracts for both tables with envelope keys and pagination. Column Tier classification: zones (11 cols: 4 Tier-1 [zone_name→name REQUIRED, zone_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 including 1 Json: device_conditions); zone_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 including 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs). Datetime field name asymmetry noted (last_update vs last_updated). OCSF class: entity_management/3004 (existing arm). PK rationale for both tables. No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-028 holdout group registered with 4 P0 scenarios for S-CLAROTY-ORGPOLICY-001. |

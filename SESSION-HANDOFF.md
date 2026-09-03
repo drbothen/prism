@@ -1,18 +1,58 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.045"
+version: "8.046"
 status: current
-timestamp: 2026-09-02T21:00:00Z
+timestamp: 2026-09-02T22:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2421 (2026-09-02): INVESTIGATIONS RESOLVED + CONFORMANCE AUDIT COMPLETE + sort_by DEFECT OPENED. vulnerabilities offset>0 hang ROOT CAUSE CONFIRMED: pre-PR-#237 WAF/transport failure; PR #237 fixed; NO TOML change needed. DEFECT-1 VERIFIED RESOLVED by PR #237; ADR-050 compliant. Conformance audit COMPLETE: 0 CRITICAL; D-001..D-007 Claroty non-unique sort (MEDIUM); D-008/D-010 cross-sensor open; D-011 audit_logs sort unverified. NEW DEFECT: ship deterministic sort_by on 7 Claroty tables (human-approved 2026-09-02). 3 post-v1 TDs filed (TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001). STATE v8.950→v8.951. SESSION-HANDOFF v8.044→v8.045. [D-2420 historical: SESSION WRAP, v1 BLOCKED on Action 1+2; now superseded.]**
+> **D-2422 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 SPEC BURST COMMITTED. 5 BCs amended (BC-2.16.015 v2.0; BC-2.16.013 v1.43; BC-2.16.019/020/021 v1.3). Story v1.0 status ready (7 ACs; RG-001..010; SAC-1 SATISFIED). HS-031 holdouts authored (4 P0 HIDDEN SINGLE-USE scenarios). BC-INDEX v10.01; STORY-INDEX v2.979 (322 stories). TD-VSDD-097 Dim-1/2/3 DISCHARGED. records-lint PASS. STATE v8.951→v8.952. SESSION-HANDOFF v8.045→v8.046. NEXT: TDD delivery — test-writer (RG-001..010) → implementer → holdout gate (HS-031) → PR → merge. [D-2421 historical: investigations resolved + conformance audit + sort_by DEFECT opened; now superseded.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2421 (2026-09-02 — v1 transport blockers CLEARED; sort_by DEFECT delivery NEXT) [supersedes D-2420]
+## §RESUME SNAPSHOT — D-2422 (2026-09-02 — sort_by DEFECT spec COMMITTED; TDD delivery NEXT) [supersedes D-2421]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. D-2422 SPEC BURST COMMITTED: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 fully specced. 5 BCs amended (BC-2.16.015 v2.0 vulns adj_vuln_score desc/name asc; BC-2.16.013 v1.43 audit_logs timestamp desc/id asc; BC-2.16.019/020/021 v1.3 server_interfaces/org_zones+zone_policies/fw_groups+fw_policies). Story v1.0 status ready (7 ACs; RG-001..010; SAC-1 SATISFIED). HS-031 holdouts (4 P0 HIDDEN SINGLE-USE scenarios; test-writer/implementer MUST NOT read — contamination control). BC-INDEX v10.01; STORY-INDEX v2.979 (322 stories). develop @2edaaca78.
+
+### GOVERNING OBJECTIVE
+TDD delivery for DEFECT-CLAROTY-SORTBY-DETERMINISM-001: test-writer (RG-001..010 failing tests) → implementer (claroty.sensor.toml sort_by arrays for 7 tables) → LOCAL 3-CLEAN adversary cascade → story-level holdout gate (HS-031 HIDDEN) → demo-recorder → PR → merge. Declare v1 RELEASE-READY after sort_by fix delivered and live re-validation on monroe passes.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
+- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename before editing).
+- G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
+3. **TDD delivery:** test-writer (RG-001..RG-010 failing tests for 7 Claroty table sort_by arrays) → implementer (claroty.sensor.toml body_template sort_by fields; wire tests green) → LOCAL 3-CLEAN adversary cascade (BC-5.39.001) → story-level holdout gate (holdout-evaluator; HS-031 HIDDEN — MUST NOT be read before gate) → demo-recorder → PR → pr-manager 9-step PR cycle → squash-merge into develop.
+4. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
+5. **Declare v1 RELEASE-READY** after sort_by fix delivered + live re-validation on monroe passes.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: spec committed (D-2422); TDD delivery is active workstream.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2422 (SPEC BURST: 5 BCs amended + story v1.0 ready + HS-031 holdouts 4 P0; BC-INDEX v10.01; STORY-INDEX v2.979 (322 stories); TD-VSDD-097 Dim-1/2/3 DISCHARGED; records-lint PASS; STATE v8.951→v8.952; SESSION-HANDOFF v8.045→v8.046). D-2421 historical: investigations resolved + conformance audit + sort_by DEFECT opened; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416).
+
+### WORKTREE INVENTORY
+ACTIVE: none (DEFECT-CLAROTY-SORTBY-DETERMINISM-001 delivery PENDING — new worktree to be created on TDD start). DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename before editing). REMOVABLE: G1–G6 worktrees + fix/DEFECT-LIVE-ENVELOPE-OBS-001 local branch (stale pointer, not a real worktree). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+---
+
+## §RESUME SNAPSHOT — D-2421 (2026-09-02 — v1 transport blockers CLEARED; sort_by DEFECT delivery NEXT) [SUPERSEDED by D-2422]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. v1 transport blockers CLEARED (D-2421). vulnerabilities offset>0 hang ROOT CAUSE CONFIRMED: pre-PR-#237 WAF/transport failure; PR #237 fixed; NO TOML change needed; monroe >10K vulns hits DI-019 cap, is_truncated=true. DEFECT-1 VERIFIED RESOLVED by PR #237; ADR-050 compliant. Conformance audit COMPLETE: 0 CRITICAL; 7 Claroty tables lack deterministic sort_by (MEDIUM D-001..D-007). NEW DEFECT: ship deterministic sort_by on 7 non-unique-sort Claroty tables — human-approved (2026-09-02); spec+code burst pending. develop @2edaaca78.

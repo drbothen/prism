@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -21,7 +21,7 @@ input-hash: "150e0ec"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/reference/api-specs/xdome_openapi_06.20.2026.json"
 introduced: "2026-08-24"
-modified: "2026-08-31"
+modified: "2026-09-02"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -76,7 +76,7 @@ ocsf_class = "inventory_info"   # class_uid 5001 (existing arm; same as claroty_
 name = "fetch_server_interfaces"
 method = "POST"
 path_template = "/api/v1/server_interfaces/"
-body_template = '{"fields": ["server_name", "interface_name", "interface_status", "interface_type", "interface_connection_type", "site_id", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "notes"]}'
+body_template = '{"fields": ["server_name", "interface_name", "interface_status", "interface_type", "interface_connection_type", "site_id", "avg_traffic_past_month_mbps", "avg_traffic_past_week_mbps", "avg_traffic_past_hour_mbps", "notes"], "sort_by": [{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]}'
 response_path = "$.server_interfaces"
 variables_produced = []
 [tables.steps.pagination]
@@ -93,6 +93,19 @@ response schema (`GetServerInterfacesResponse` with envelope `{count, server_int
 
 **Pagination note:** The `server_interfaces` response envelope carries a `count` field per the
 OpenAPI spec. If `count` is null or absent, pagination halts via empty-page check (EC-016-019-005).
+
+**Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001):** The `body_template` MUST
+include a `sort_by` key with the value
+`[{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]`
+(per `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-003 `test_rg_server_interfaces_sort_by_in_request_body`).
+Both `server_name` and `interface_name` are confirmed members of the
+`ServerInterfaces__sortable_fields_enum` (xDome OpenAPI `ValidatingSortClause`). The composite
+PK `(server_name, interface_name)` is provably unique (a server has one record per network
+interface), so this sort key produces a total order that eliminates duplicate-or-skipped records
+across offset page boundaries (EC-016-019-007). ORDER BY push-down to the API request body is
+the sole mechanism — the spec-engine does NOT inject `sort_by` automatically; it MUST appear in
+`body_template`. Push-down of user PrismQL ORDER BY to the API is deferred to
+`TD-SENSOR-SORTBY-PUSHDOWN-001`.
 
 ### 2. Column Tier Classification (ADR-058)
 
@@ -211,6 +224,7 @@ not a new runtime error mode.
 | EC-016-019-004 | Query references Tier-2 column `interface_name` by raw name | E-QUERY-038; `available_columns` contains `raw_extensions`, `device_name`, `status_code` but NOT `interface_name` |
 | EC-016-019-005 | `count` is null or absent in the response envelope | Pagination continues via empty-page check (empty page → halt); not an error |
 | EC-016-019-006 | `SELECT interface_status` (raw col.name) attempted | E-QUERY-038; `available_columns` includes `status_code` but NOT `interface_status`; the Tier-1 rename is enforced |
+| EC-016-019-007 | Offset pagination determinism: two sequential pages of `claroty_server_interfaces` must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]` — the composite sort on `(server_name, interface_name)` is provably unique (one record per server/interface pair), making the sort order total and ensuring deterministic page boundaries under offset pagination. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-003 (`test_rg_server_interfaces_sort_by_in_request_body`). |
 
 ## Related BCs
 
@@ -279,6 +293,7 @@ S-CLAROTY-SERVERS-001; holdout evaluator exercises live monroe surface via HS-02
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | defect-claroty-sortby-determinism-bc-amendments | 2026-09-02 | product-owner | Human-directed 2026-09-02: add deterministic `sort_by` postcondition to `server_interfaces` `body_template` to fix D-003 offset pagination instability (non-unique API default). (1) §Postconditions §1 `body_template` single-line TOML block: `sort_by` array appended inside the JSON value: `[{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]`. Both fields are in `ServerInterfaces__sortable_fields_enum` (xDome OpenAPI `ValidatingSortClause`). The composite PK `(server_name, interface_name)` matches the sort — tiebreaker is implicit since `(server_name, interface_name)` is provably unique. (2) **Sort-by postcondition** note added after the existing Pagination note in §Postconditions §1. (3) EC-016-019-007 added: offset pagination determinism guarantee with MUST anchor. TD-VSDD-097: (1) Sibling pair — `server_interfaces` has no BC sibling created in the same split; BC-2.16.018 (servers table) is the sibling sensor-table BC from the same Wave C G4 story — reviewed; `servers` uses `ValidatingSortClause` but has a different sort key set; the defect audit (D-004) did NOT flag `servers` for pagination instability (it has only server_name as unique identifier; its own deterministic sort is a separate concern deferred to TD-SENSOR-SORTBY-PUSHDOWN-001 if needed); CLEAR for this burst. (2) Downstream copy target — `claroty.sensor.toml` `server_interfaces` `body_template` is the downstream; update deferred to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` per task scope. (3) Mandate anchor — EC-016-019-007 and Sort-by postcondition MUSTs anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-003 (`test_rg_server_interfaces_sort_by_in_request_body`). |
 | 1.2 | g4-obs2-body-template-single-line | 2026-08-31 | product-owner | OBS-2: §Postconditions §1 `body_template` re-rendered as valid single-line TOML literal string; prior multi-line backslash-continuation form is invalid in TOML literal (single-quoted) strings. No semantic change — all 10 fields unchanged. |
 | 1.1 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 TOML bare table_name corrected from `"claroty_server_interfaces"` to `"server_interfaces"`; added derivation note (`{sensor_id}_{table_name}` = registered/queryable name `"claroty_server_interfaces"`). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome server interfaces queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G4. TOML table contract, 10-column Tier-1/Tier-2 classification per ADR-058 (2 Tier-1: device_name REQUIRED [server_name→device.name] + status_code [interface_status→status_code]; 8 Tier-2 into raw_extensions). Composite PK: (server_name, interface_name). OCSF class: inventory_info/5001 (existing arm; same as claroty_servers). ENDPOINT CORRECTION: `/api/v1/server_interfaces/` is a SEPARATE endpoint from `/api/v1/servers/` (confirmed from OpenAPI spec; operationId: get_servers_api_v1_server_interfaces__post). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). All 10 fields from ServerInterfaces fields_enum confirmed in schema-extract §ServerInterfaces. HS-027 holdout group registered with 3 P0 scenarios for S-CLAROTY-SERVERS-001. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: active
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -21,7 +21,7 @@ input-hash: "a8bd2be"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: "2026-08-31"
+modified: "2026-09-02"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -101,7 +101,8 @@ path_template = "/api/v1/organization_fw_groups/"
 body_template = '{"fields": ["firewall_group_name", "firewall_group_description", \
   "firewall_group_source", "priority", "enabled", "device_conditions", \
   "attributed_devices", "exportable_attributed_devices", \
-  "created_time", "last_update", "updated_by"]}'
+  "created_time", "last_update", "updated_by"], \
+  "sort_by": [{"field":"firewall_group_name","order":"asc"}]}'
 response_path = "$.organization_firewall_groups"
 variables_produced = []
 [tables.steps.pagination]
@@ -118,6 +119,14 @@ loss defect. This asymmetry is confirmed in schema extract §organization_firewa
 
 The `count` field is present in the envelope; if null or absent, pagination halts via empty-page
 check (EC-016-021-004).
+
+**Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, D-007):** The
+`organization_firewall_groups` `body_template` MUST include `"sort_by": [{"field":"firewall_group_name","order":"asc"}]`
+(per `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-006 `test_rg_organization_firewall_groups_sort_by_in_request_body`).
+`firewall_group_name` is confirmed in `OrganizationFirewallGroups__sortable_fields_enum` (xDome
+OpenAPI `ValidatingSortClause`) and is the REQUIRED PK, making the sort order total (no
+tiebreaker needed). This eliminates duplicate-or-skipped records across offset page boundaries
+(EC-016-021-011).
 
 ### 2. TOML Table Contract — claroty_organization_firewall_policies
 
@@ -139,7 +148,8 @@ path_template = "/api/v1/organization_fw_group_policies/"
 body_template = '{"fields": ["policy_name", "policy_source", "policy_action", \
   "communication_conditions", "matching_devices", "should_generate_alerts", \
   "alert_use_case", "policy_notes", "related_alerts_ids", "applied_group_pairs", \
-  "created_time", "last_updated", "updated_by"]}'
+  "created_time", "last_updated", "updated_by"], \
+  "sort_by": [{"field":"policy_name","order":"asc"}]}'
 response_path = "$.organization_firewall_policies"
 variables_produced = []
 [tables.steps.pagination]
@@ -158,6 +168,14 @@ response envelope key is `organization_firewall_policies`. The `response_path` M
 'd'). Both confirmed in the schema extract OrganizationFirewallGroups fields_enum and
 OrganizationFirewallGroupPolicies fields_enum respectively. This is the same asymmetry as the
 Zone Domain (BC-2.16.020 §PC2 note). Implementer MUST use the exact field name per-table.
+
+**Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, D-007):** The
+`organization_firewall_policies` `body_template` MUST include `"sort_by": [{"field":"policy_name","order":"asc"}]`
+(per `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-007 `test_rg_organization_firewall_policies_sort_by_in_request_body`).
+`policy_name` is confirmed in `OrganizationFirewallGroupPolicies__sortable_fields_enum` (xDome
+OpenAPI `ValidatingSortClause`) and is the REQUIRED PK, making the sort order total (no
+tiebreaker needed). This eliminates duplicate-or-skipped records across offset page boundaries
+(EC-016-021-012).
 
 ### 3. Column Tier Classification — claroty_organization_firewall_groups (ADR-058)
 
@@ -347,6 +365,8 @@ envelope key asymmetry for firewall paths is a spec-authoring concern (use corre
 | EC-016-021-008 | `enabled` is null or absent in a firewall_groups row | Null `status_code` Arrow cell; not an error |
 | EC-016-021-009 | Implementer uses `last_updated` for firewall_groups instead of `last_update` | Column silently absent; same as EC-016-020-009 |
 | EC-016-021-010 | `applied_group_pairs` and `applied_zone_pairs` column names confused between tables | TOML spec authoring defect; the firewall_policies table MUST use `applied_group_pairs` (not `applied_zone_pairs`); using the wrong name produces an empty column |
+| EC-016-021-011 | Offset pagination determinism for `claroty_organization_firewall_groups`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"firewall_group_name","order":"asc"}]` — `firewall_group_name` is the REQUIRED PK and is provably unique, making the sort order total. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-006 (`test_rg_organization_firewall_groups_sort_by_in_request_body`). |
+| EC-016-021-012 | Offset pagination determinism for `claroty_organization_firewall_policies`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"policy_name","order":"asc"}]` — `policy_name` is the REQUIRED PK and is provably unique, making the sort order total. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-007 (`test_rg_organization_firewall_policies_sort_by_in_request_body`). |
 
 ## Related BCs
 
@@ -422,6 +442,7 @@ S-CLAROTY-ORGPOLICY-001; holdout evaluator exercises live monroe surface via HS-
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | defect-claroty-sortby-determinism-bc-amendments | 2026-09-02 | product-owner | Human-directed 2026-09-02: add deterministic `sort_by` postconditions to both `organization_firewall_groups` and `organization_firewall_policies` `body_template` blocks to fix D-007 offset pagination instability (no sort key on either table). Structural mirror of BC-2.16.020 v1.3 amendments for the firewall subsystem. (1) §PC1 `organization_firewall_groups` body_template: `sort_by` array appended: `[{"field":"firewall_group_name","order":"asc"}]`. `firewall_group_name` is in `OrganizationFirewallGroups__sortable_fields_enum` (xDome OpenAPI `ValidatingSortClause`) and is the REQUIRED PK, provably unique. (2) Sort-by postcondition note added after firewall_groups pagination note in §PC1. (3) EC-016-021-011 added for firewall_groups offset pagination determinism. (4) §PC2 `organization_firewall_policies` body_template: `sort_by` array appended: `[{"field":"policy_name","order":"asc"}]`. `policy_name` is in `OrganizationFirewallGroupPolicies__sortable_fields_enum` and is the REQUIRED PK, provably unique. (5) Sort-by postcondition note added after firewall_policies datetime asymmetry note in §PC2. (6) EC-016-021-012 added for firewall_policies offset pagination determinism. TD-VSDD-097: (1) Sibling pair — BC-2.16.020 (zone domain) is the structural sibling — also amended in this burst with its own `zone_name`/`policy_name` sort criteria; no cross-contamination (firewall tables use different sort fields); CLEAR. (2) Downstream copy target — `claroty.sensor.toml` firewall_groups and firewall_policies `body_template` blocks are the downstream; update deferred to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` per task scope. (3) Mandate anchor — EC-016-021-011 and fw_groups Sort-by MUST anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-006 (`test_rg_organization_firewall_groups_sort_by_in_request_body`); EC-016-021-012 and fw_policies Sort-by MUST anchored to RG-007 (`test_rg_organization_firewall_policies_sort_by_in_request_body`). |
 | 1.2 | g3-g4-g5-spec-prose-corrections | 2026-08-31 | product-owner | MED-1: §Postconditions §1 (firewall_groups) and §2 (firewall_policies) TOML bare table_names corrected: `"claroty_organization_firewall_groups"` → `"organization_firewall_groups"` and `"claroty_organization_firewall_policies"` → `"organization_firewall_policies"`; added derivation notes (`{sensor_id}_{table_name}` = registered/queryable name). Architecture anchor: §Architecture Anchors `spec_driven_adapter.rs` crate corrected `crates/prism-spec-engine` → `crates/prism-bin` (ground truth: `pipeline_result_to_record_batch` lives in `crates/prism-bin/src/spec_driven_adapter.rs`). FIX 2 not applicable — no `ColumnMapper::map_record` attribution present. |
 | 1.1 | xdome-wave-c-remove-uncertainty | 2026-08-31 | research-agent | Remove-uncertainty pass (satisfies mandatory pre-delivery pass D-1110). Validated every TOML/API assumption against ground truth (endpoint-schema-extract.md OrganizationFirewallGroups + OrganizationFirewallGroupPolicies fields_enums; endpoint-spike-findings.md §Spike 3 Tables C/D; the xDome OpenAPI schema extract): all 11+13 `body_template` fields present in the respective field enums; endpoint paths, envelope keys, and `response_path` values confirmed — fw URL↔envelope-key asymmetry verified (`/api/v1/organization_fw_groups/` ↔ `$.organization_firewall_groups`; `/api/v1/organization_fw_group_policies/` ↔ `$.organization_firewall_policies`); `entity_management`/3004 arm confirmed present in `class_selector.rs::select_by_class_name`; 4 Json columns confirmed against §Spike 3 (device_conditions ×1 fw_groups; communication_conditions + related_alerts_ids + applied_group_pairs fw_policies); `last_update` vs `last_updated` datetime field-name asymmetry confirmed; `applied_group_pairs` (not `applied_zone_pairs`) confirmed; omitted `timestamp_formats` (ADR-028 §D8-B implicit iso8601 default, SAP-2 datetime arm c) valid; SAP-2 N/A re-confirmed (no fw routes exist in prism-dtu-claroty). CORRECTION: §Invariants firewall_groups `available_columns` enumeration was missing `actor_user_name`, inconsistent with §PC3, TV-BC-2.16.021-003, and story AC-020 — added. BC-INDEX H1 title drift corrected (POLICY 7). input-hash refreshed (input files drifted since initial authoring). No content/mechanism defects found. |
 | 1.0 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome Firewall Domain (firewall_groups + firewall_policies) queryable surface contract per xdome-endpoint-expansion-plan.md Wave C G5. Structural mirror of BC-2.16.020 for the firewall subsystem. Domain-pairing rationale references BC-2.16.020. TOML table contracts for both tables with URL vs envelope key asymmetry documented (path `/api/v1/organization_fw_groups/` → envelope `$.organization_firewall_groups`; path `/api/v1/organization_fw_group_policies/` → envelope `$.organization_firewall_policies`). Column Tier classification: firewall_groups (11 cols: 4 Tier-1 [firewall_group_name→name REQUIRED, firewall_group_description→comment, enabled→status_code, updated_by→actor_user_name]; 7 Tier-2 including 1 Json: device_conditions); firewall_policies (13 cols: 4 Tier-1 [policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name]; 9 Tier-2 including 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs). Datetime field name asymmetry noted (last_update vs last_updated — same as Zone Domain). OCSF class: entity_management/3004 (existing arm). No new error codes. SAP-2 N/A (no DTU; D-2200 deferred DTU anchor). HS-028 holdout group registered with 4 P0 scenarios for S-CLAROTY-ORGPOLICY-001. |

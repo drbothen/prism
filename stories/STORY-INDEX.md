@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.977"
+version: "2.979"
 status: draft
 producer: state-manager
-timestamp: 2026-09-01T17:00:00Z
+timestamp: 2026-09-02T22:00:00Z
 phase: 3
-total_stories: 321
+total_stories: 322
+# D-2422: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 registered (total_stories 321→322; story v1.0) + status draft→ready (spec complete: 5 BCs amended, SAC-1, HS-031 holdouts authored). STORY-INDEX v2.977→v2.979. D-2415 NOTE archived.
 # D-2415: G6 POST-MERGE BURST (TD-VSDD-053) — S-CLAROTY-ACLPOLICY-001 pin [ready v1.6]→[merged 672b10b6; PR #250] (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table). BC-2.16.022 draft→active per POL-14. total_stories 321 UNCHANGED. STORY-INDEX v2.976→v2.977. D-2413 NOTE archived.
 # D-2412: G5 (S-CLAROTY-ORGPOLICY-001) POST-MERGE BURST (TD-VSDD-053) — PR #249 @07e64f4e squash-merged (D-2400 blanket authority 2026-09-01). POL-14 BC-2.16.020+BC-2.16.021 draft→active. pin [ready v1.6]→[merged 07e64f4e; PR #249]. total_stories 321 UNCHANGED. STORY-INDEX v2.974→v2.975. D-2411 NOTE archived.
 # D-2411: G6 (S-CLAROTY-ACLPOLICY-001) rebase + pre-PR front-loaded review fixes (TD-VSDD-053) — feature rebased onto G5 branch (@2194812e8); story v1.4→v1.5 (LOW-001 RG-005/006 crate attribution + OBS-001 RG-008 scope); 9 findings ALL FIXED pre-PR (CR-001 HIGH real live-test bodies; CR-002 HIGH SAP2_STATUS; CR-003 MED null-not-absent comment; CR-004 MED Tier-1 value asserts; CR-005 LOW Cargo count; CR-006 LOW SAP-3 notes; CR-007 OBS extern crate); re-verified CLEAN(strict)=yes @0f60b931a (just check 6008 pass). 3-RECURRENCE CODIFICATION: S-MAINT-SENSOR-TEST-DISCIPLINE-GATE-001 draft v0.1 REGISTERED; total_stories 320→321. STORY-INDEX v2.973→v2.974. D-2408 NOTE archived.
@@ -1103,6 +1104,21 @@ Directive. SAP-2 probe N/A for all Wave C tables (D-2200).
 | S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [merged 157596490; PR #248] | prism-sensors, prism-bin | 2 (BC-2.16.018 v1.3, BC-2.16.019 v1.2) | -- | 5 | -- |
 | S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [merged 07e64f4e; PR #249] | prism-sensors, prism-bin | 2 (BC-2.16.020 v1.2, BC-2.16.021 v1.2) | -- | 8 | -- |
 | S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [merged 672b10b6; PR #250] | prism-sensors, prism-spec-engine, prism-bin, prism-query | 1 (BC-2.16.022 v1.3) | -- | 5 | -- |
+
+## Sensor Defect Fixes — Claroty xDome sort_by Determinism (D-001..D-007)
+
+Conformance audit (2026-09-02) identified 7 Claroty xDome tables with non-unique API
+default sort orders. Without an explicit `sort_by` clause, offset pagination is
+non-deterministic at page boundaries (duplicate or skipped records). This section
+registers the single defect fix story that covers all 7 tables. The fix is additive
+(7 `body_template` edits in `claroty.sensor.toml`; no spec-engine code changes).
+BC amendments (PO leg) are already active: BC-2.16.015 v2.0, BC-2.16.013 v1.43,
+BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3. ORDER BY push-down deferred
+to TD-SENSOR-SORTBY-PUSHDOWN-001.
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| DEFECT-CLAROTY-SORTBY-DETERMINISM-001 | Claroty xDome sort_by determinism — add explicit sort_by arrays to 7 tables (vulnerabilities, audit_logs, server_interfaces, organization_zones, zone_policies, firewall_groups, firewall_policies) to fix offset-pagination instability under non-unique API default sorts; 7 ACs + 10 RG tests (density 1.43); audit_logs id tiebreaker UNVERIFIED at live-API — fallback protocol per BC-2.16.013; ORDER BY push-down OUT OF SCOPE (TD-SENSOR-SORTBY-PUSHDOWN-001) [ready v1.0] | prism-sensors | 5 (BC-2.16.015 v2.0, BC-2.16.013 v1.43, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3) | -- | 3 | -- |
 
 ## Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)
 
