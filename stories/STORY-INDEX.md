@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.988"
+version: "2.989"
 status: draft
 producer: state-manager
 timestamp: 2026-09-03T01:00:00Z
 phase: 3
 total_stories: 322
+# D-2433: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46 (Dim-2 propagation gap from D-2432 — §Sensor Defect Fixes paragraph at line ~1121 not swept when D-2432 updated the table row and BCs column). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.988→v2.989. D-2432 NOTE archived.
 # D-2432: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst — story row [ready v1.6]→[ready v1.7] (story v1.6→v1.7: AC-002 Tests para + RG-002 table row + Task-7 + Notes-for-Implementer-3 corrected to RG-002-unchanged/RG-009-hardened formulation; BC-2.16.013 v1.45→v1.46 in BCs column). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.987→v2.988. D-2431 NOTE archived.
 # D-2431: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 section prose BC-2.16.013 pin v1.44→v1.45 (Dim-2 propagation gap from D-2430 — §Sensor Defect Fixes paragraph line not swept when table row was updated). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.986→v2.987. D-2430 NOTE archived.
 # D-2430: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback — story row [ready v1.5]→[ready v1.6] (story v1.5→v1.6: AC-002/Task-7 DISCHARGED/EC-001/§Authority/§Background/Behavioral-Contracts-table/RG-002/RG-009/§Tasks/§Architecture-Compliance/§Notes aligned to timestamp-only canonical; BC-2.16.013 v1.44→v1.45). total_stories 322 UNCHANGED. STORY-INDEX v2.985→v2.986. D-2428 NOTE archived.
@@ -1118,7 +1119,7 @@ default sort orders. Without an explicit `sort_by` clause, offset pagination is
 non-deterministic at page boundaries (duplicate or skipped records). This section
 registers the single defect fix story that covers all 7 tables. The fix is additive
 (7 `body_template` edits in `claroty.sensor.toml`; no spec-engine code changes).
-BC amendments (PO leg) are already active: BC-2.16.015 v2.2, BC-2.16.013 v1.45,
+BC amendments (PO leg) are already active: BC-2.16.015 v2.2, BC-2.16.013 v1.46,
 BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3. ORDER BY push-down deferred
 to TD-SENSOR-SORTBY-PUSHDOWN-001.
 
@@ -1705,6 +1706,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.989 | 2026-09-03 | state-manager D-2433: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46. Dim-2 propagation gap from D-2432 (§Sensor Defect Fixes paragraph at STORY-INDEX §Sensor-Defect-Fixes not swept when D-2432 updated the table row and BCs column). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED. Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.988→2.989. records-lint exit 0. |
 | v2.988 | 2026-09-03 | state-manager D-2432: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst. Story row [ready v1.6]→[ready v1.7] (story v1.6→v1.7: AC-002 Tests para + RG-002 table row + Task-7 + Notes-for-Implementer-3 corrected to RG-002-unchanged/RG-009-hardened formulation). BC-2.16.013 v1.45→v1.46 in BCs column. BC-INDEX v10.05→v10.06. TD-VSDD-097: Dim-1 CLEAR (BC-2.01.013 sibling has no sort_by coupling — CLEAR). Dim-2 DISCHARGED (story AC-002 + EC-016-013-011 Test-coupling co-updated in same burst). Dim-3 CLEAR (no new unanchored MUSTs). total_stories 322 UNCHANGED. story_index_version 2.987→2.988. records-lint exit 0. |
 | v2.987 | 2026-09-03 | state-manager D-2431: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.44→v1.45. Dim-2 propagation gap from D-2430 (downstream paragraph not swept when table row was updated). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED. Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.986→2.987. records-lint exit 0. |
 | v2.986 | 2026-09-03 | state-manager D-2430: SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback. Story row [ready v1.5]→[ready v1.6] (story v1.5→v1.6: AC-002/Task-7 DISCHARGED; EC-001/§Authority/§Background/Behavioral-Contracts-table/RG-002/RG-009/§Tasks/§Architecture-Compliance/§Notes aligned to timestamp-only canonical; UNVERIFIED→LIVE-VERIFIED FALLBACK ADOPTED in row description). BC-2.16.013 v1.44→v1.45 in BCs column. BC-INDEX v10.04→v10.05. total_stories 322 UNCHANGED. story_index_version 2.985→2.986. records-lint exit 0. |
