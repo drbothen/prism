@@ -185,7 +185,8 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
         body_template.contains(r#""sort_by""#),
         "AC-002 RED GATE (BC-2.16.013 §Post §1): \
          fetch_audit_logs body_template must contain a \"sort_by\" key \
-         with [timestamp asc, id asc] (preferred) or [timestamp asc] (fallback); \
+         with the canonical [timestamp asc]; compound [timestamp asc, id asc] is RETIRED \
+         (live-validated 2026-09-02 — id returns 0 rows on the xDome audit_log API); \
          currently absent — EC-016-013-011 offset pagination is non-deterministic"
     );
 
