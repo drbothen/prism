@@ -264,7 +264,7 @@ ocsf_class = "entity_management"
   name = "fetch_audit_logs"
   method = "POST"
   path_template = "/api/v1/audit_log/get"
-  body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]}'
+  body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"}]}'
   response_path = "$.audit_log"
   variables_produced = []
   [tables.steps.pagination]
