@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.05"
+version: "10.06"
 status: draft
 producer: state-manager
 timestamp: 2026-09-03T00:00:00Z
+# NOTE: D-2432 — BC-INDEX v10.05→v10.06: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst — BC-2.16.013 pin v1.45→v1.46 (LOW-002: coupling paragraph + EC-016-013-011 Test-coupling note corrected; RG-009 hardened to strictly enforce timestamp-only id-absent). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2430 NOTE archived.
 # NOTE: D-2430 — BC-INDEX v10.04→v10.05: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs fallback ADOPTED after live validation on monroe (2026-09-02/03) — BC-2.16.013 pin v1.44→v1.45 (audit_logs §Sort-by postcondition + EC-016-013-011: timestamp-only [{"field":"timestamp","order":"asc"}] now CANONICAL; compound [timestamp asc, id asc] RETIRED live-proven-broken; id→0 rows on xDome audit_log API verified live; accepted residual non-determinism; filter_by coexistence retained). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2425 NOTE archived.
 # NOTE: D-2425 — BC-INDEX v10.03→v10.04: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-4 fix-burst — BC-2.16.015 pin v2.1→v2.2 (MED-001 + OBS-001 dim-2 downstream-copy sweep: RG-008 anchor citation corrected to `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field` at 4 sites in §Postconditions §1, EC-016-015-009, v2.1 and v2.0 changelog rows). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2424 NOTE archived.
 # NOTE: D-2424 — BC-INDEX v10.02→v10.03: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst — BC-2.16.015 pin v2.0→v2.1 (OBS-001: vulnerabilities §Postconditions §1 + EC-016-015-009 — name reclassified best-available tiebreaker with accepted residual non-determinism symmetric with audit_logs §Sort-by postcondition; sort_by array UNCHANGED). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2423 NOTE archived.
@@ -378,7 +379,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.45 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.46 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v2.2 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.5 |

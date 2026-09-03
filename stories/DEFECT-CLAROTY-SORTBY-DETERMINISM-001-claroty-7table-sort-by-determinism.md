@@ -12,8 +12,8 @@ status: ready
 # pattern — eligible for status: ready after remove-uncertainty pass.
 producer: story-writer
 timestamp: "2026-09-02T00:00:00Z"
-version: "1.6"
-modified: "2026-09-02"
+version: "1.7"
+modified: "2026-09-03"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -24,7 +24,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.020-claroty-org-zone-domain.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "73b9dc1"
+input-hash: "f4157b8"
 traces_to:
   - "BC-2.16.015"
   - "BC-2.16.013"
@@ -62,7 +62,7 @@ behavioral_contracts:
   # (offset pagination determinism; accepted residual for identical-score + identical-name
   # bounded tie case); anchors RG-001 + RG-008.
   - BC-2.16.013
-  # BC-2.16.013 v1.45 — Bundled Sensor Spec Authoring: §Postconditions §1 audit_logs
+  # BC-2.16.013 v1.46 — Bundled Sensor Spec Authoring: §Postconditions §1 audit_logs
   # sort-by postcondition (D-002, timestamp-only canonical adopted — live-validated
   # 2026-09-02: id in sort_by returns 0 rows; compound form RETIRED);
   # EC-016-013-011 (offset pagination determinism); anchors RG-002 + RG-009.
@@ -229,7 +229,7 @@ outcome. Task 7 is DISCHARGED.
 | BC | Title | Version | Role in this story |
 |----|-------|---------|-------------------|
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v2.2 | §Postconditions §1 sort-by postcondition: `[adjusted_vulnerability_score desc, name asc]`; `name` is best-available tiebreaker (not unique); EC-016-015-009 pagination determinism with accepted residual for identical-score + identical-name bounded tie case; anchors RG-001 + RG-008 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.45 | §Postconditions §1 `audit_logs` sort-by postcondition — timestamp-only canonical `[timestamp asc]` (live-validated 2026-09-02: `id` in sort_by returns 0 rows; compound form RETIRED); accepted residual non-determinism (no valid unique tiebreaker; 7-day window bounds blast radius); filter_by coexistence retained; EC-016-013-011 pagination determinism; anchors RG-002 + RG-009 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.46 | §Postconditions §1 `audit_logs` sort-by postcondition — timestamp-only canonical `[timestamp asc]` (live-validated 2026-09-02: `id` in sort_by returns 0 rows; compound form RETIRED); accepted residual non-determinism (no valid unique tiebreaker; 7-day window bounds blast radius); filter_by coexistence retained; EC-016-013-011 pagination determinism; anchors RG-002 + RG-009 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | v1.3 | §Postconditions §1 sort-by postcondition: `[server_name asc, interface_name asc]`; EC-016-019-007 pagination determinism (composite PK guarantee); anchors RG-003 + RG-010 |
 | BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 zones sort-by postcondition: `[zone_name asc]`; EC-016-020-011; §Postconditions §2 zone_policies sort-by: `[policy_name asc]`; EC-016-020-012; anchors RG-004 + RG-005 |
 | BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 firewall_groups sort-by: `[firewall_group_name asc]`; EC-016-021-011; §Postconditions §2 firewall_policies sort-by: `[policy_name asc]`; EC-016-021-012; anchors RG-006 + RG-007 |
@@ -289,8 +289,12 @@ achievable via the API contract. Equal-timestamp ties resolve in API-dependent
 radius. This residual is accepted, not a defect.
 
 **Tests:** RG-002 (`test_rg_audit_logs_sort_by_in_request_body`),
-RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). Both tests assert the
-timestamp-only form — no test-file change is required.
+RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). RG-002 sort_by-presence
+and filter_by coexistence logic is unchanged; its stale failure-message assertion was
+corrected to the timestamp-only canonical form. RG-009 was hardened to strictly enforce
+timestamp-only: sort_by array len == 1, sole element is `timestamp asc`, and `id` is
+asserted absent — a regression guard against the retired compound form (consistent with
+BC-2.16.013 §Sort-by postcondition coupling paragraph).
 
 ### AC-003: `claroty_server_interfaces` body_template contains composite sort_by (server_name asc, interface_name asc) (traces to BC-2.16.019 postcondition 1 sort-by postcondition; EC-016-019-007)
 
@@ -366,7 +370,7 @@ REQUIRED PK for `claroty_organization_firewall_policies` per BC-2.16.021
 | ID | Test name | Test type | What it gates |
 |----|-----------|-----------|---------------|
 | RG-001 | `test_rg_vulnerabilities_sort_by_in_request_body` | Unit — `SpecLoader::parse` on `claroty.sensor.toml`; assert `body_template` string for `fetch_vulnerabilities` contains `"sort_by"` key with `adjusted_vulnerability_score` desc and `name` asc | AC-001: vulnerabilities body_template emits the contracted sort_by array (traces to BC-2.16.015 postcondition 1 + EC-016-015-009) |
-| RG-002 | `test_rg_audit_logs_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_audit_logs` contains `"sort_by"` key with the timestamp-only canonical form `[timestamp asc]` | AC-002: audit_logs body_template contains timestamp-only sort_by (traces to BC-2.16.013 §Sort-by postcondition + EC-016-013-011); no test change required — timestamp-only is the adopted canonical form |
+| RG-002 | `test_rg_audit_logs_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_audit_logs` contains `"sort_by"` key with the timestamp-only canonical form `[timestamp asc]` | AC-002: audit_logs body_template contains timestamp-only sort_by (traces to BC-2.16.013 §Sort-by postcondition + EC-016-013-011); sort_by-presence and filter_by coexistence logic unchanged — stale failure-message assertion corrected to timestamp-only canonical |
 | RG-003 | `test_rg_server_interfaces_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_server_interfaces` contains `"sort_by"` key | AC-003: server_interfaces sort_by present (traces to BC-2.16.019 postcondition 1 + EC-016-019-007) |
 | RG-004 | `test_rg_organization_zones_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_zones` contains `"sort_by"` with `zone_name asc` | AC-004: organization_zones sort_by (traces to BC-2.16.020 postcondition 1 + EC-016-020-011) |
 | RG-005 | `test_rg_organization_zone_policies_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_zone_policies` contains `"sort_by"` with `policy_name asc` | AC-005: zone_policies sort_by (traces to BC-2.16.020 postcondition 2 + EC-016-020-012) |
@@ -569,8 +573,11 @@ edit is made. The TOML edit is the implementation step that turns them green.
   `user_display_name`, `note`, `timestamp`, `details`). Including `id` in `sort_by`
   causes xDome to silently return 0 rows. **Outcome adopted:** timestamp-only form
   `[{"field":"timestamp","order":"asc"}]` is the canonical sort for `audit_logs`.
-  The compound form is RETIRED. RG-002 and RG-009 both accept the timestamp-only
-  form — no test-file change is required. BC-2.16.013 §Sort-by postcondition amended
+  The compound form is RETIRED. RG-002 sort_by-presence and filter_by coexistence
+  logic is unchanged; its stale failure-message assertion was corrected to the
+  timestamp-only canonical form. RG-009 was hardened to strictly enforce timestamp-only
+  (sort_by len == 1, sole element timestamp asc, id asserted absent) as a regression
+  guard against the retired compound form. BC-2.16.013 §Sort-by postcondition amended
   (product-owner leg complete). This gate is now closed.
 
 - [ ] **Task 8 (SAP-1 self-check):**
@@ -742,8 +749,11 @@ prism-sensors → prism-spec-engine, not reverse).
    Live validation ran on monroe (2026-09-02). Both compound sort variants returned 0 rows
    (HTTP 200 empty). `id` is NOT a valid `audit_logs` sort field. The timestamp-only form
    `[{"field":"timestamp","order":"asc"}]` is the canonical form — ADOPTED. The compound
-   form with `id` is RETIRED. RG-002 and RG-009 both assert the timestamp-only form; no
-   test-file change is required. BC-2.16.013 §Sort-by postcondition reflects this outcome.
+   form with `id` is RETIRED. RG-002 sort_by-presence and filter_by coexistence logic is
+   unchanged; its stale failure-message assertion was corrected to the timestamp-only
+   canonical form. RG-009 was hardened to strictly enforce timestamp-only (sort_by len == 1,
+   sole element timestamp asc, id asserted absent) as a regression guard against the retired
+   compound form. BC-2.16.013 §Sort-by postcondition reflects this outcome.
 
 4. **ORDER BY push-down is explicitly OUT OF SCOPE.** TD-SENSOR-SORTBY-PUSHDOWN-001
    tracks the future work of mapping PrismQL ORDER BY clauses to the API `sort_by`
@@ -777,6 +787,7 @@ prism-sensors → prism-spec-engine, not reverse).
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.7 | 2026-09-03 | story-writer | LOW-002 closure — corrected inaccurate "no test change required" claim across AC-002 Tests paragraph, RG-002 table row, Task 7, and Notes for Implementer §3: RG-002 sort_by-presence + filter_by coexistence logic was unchanged but its stale failure-message assertion was corrected to the timestamp-only canonical form; RG-009 was hardened to strictly enforce timestamp-only (sort_by len == 1, sole element timestamp asc, id asserted absent) as a regression guard against the retired compound form. Updated Behavioral Contracts table BC-2.16.013 Version cell v1.45 → v1.46; updated frontmatter BC-2.16.013 comment pin to match. |
 | 1.6 | 2026-09-02 | story-writer | Aligned audit_logs sort_by to BC-2.16.013 §Sort-by postcondition timestamp-only adoption: live validation on monroe discharged Task 7 — both compound sort variants (timestamp+id) returned 0 rows (HTTP 200 empty); id is not a valid audit_logs sort field; compound form RETIRED (live-proven-broken). AC-002 rewritten — timestamp-only `[timestamp asc]` is the canonical form (contingency framing removed). Task 7 marked DISCHARGED. EC-001 updated from pending-contingency to documented-outcome. §Authority BC-2.16.013 paragraph updated to timestamp-only canonical with live finding. §Background live validation note and D-002 table row updated (id UNVERIFIED removed). Behavioral Contracts table BC-2.16.013 Version cell updated; Role description updated to timestamp-only canonical. RG-002 and RG-009 row descriptions updated to assert timestamp-only form (no test-file change required). §Notes for Implementer Note 3 updated (live validation complete). §Architecture Compliance Rules audit_logs note updated. Frontmatter BC-2.16.013 comment and risk comment updated. |
 | 1.5 | 2026-09-02 | story-writer | MED-001 story↔code test-surface reconciliation (POL-39/TD-VSDD-091): corrected §Purity Classification (removed false "no effectful test paths" claim; documented 3 OBS wire tests as tokio+wiremock+reqwest effectful test-only paths); corrected §Library & Framework Requirements (replaced false "tokio NOT required" row; added wiremock and reqwest rows; clarified serde_json is a production dep; no new Cargo.toml deps needed); added §Red Gate Tests OBS wire-level coverage table documenting test_obs1_vulnerabilities_build_request_emits_sort_by, test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination, test_obs3_remaining_tables_build_request_emits_sort_by beyond RG-001..RG-010 red gates; updated §Token Budget Estimate test file row from 10 to 13 tests; updated §Tasks Task 10 to 13 tests, added Task 11 for OBS wire test additions; updated §File Structure Requirements CREATE row to 13 tests + Cargo.toml not-modified note; corrected frontmatter crates_touched comment (removed false "all RG tests are spec-parse unit tests that do not exercise the full query pipeline"). No BC/mechanism/AC/RG number change. |
 | 1.4 | 2026-09-02 | story-writer | MED-001 closed — POL-7 verbatim-H1 sync: BC-2.16.019 title in §Behavioral Contracts table corrected from "Claroty Server Interfaces Table" to verbatim H1; BC-2.16.020 title corrected from "Claroty Org Zone Domain" to verbatim H1; BC-2.16.021 title corrected from "Claroty Org Firewall Domain" to verbatim H1. §References section added with all 5 anchored BCs (POL-7 completeness). No content, mechanism, AC, or RG change. |
