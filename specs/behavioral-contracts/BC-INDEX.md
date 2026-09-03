@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "10.01"
+version: "10.02"
 status: draft
 producer: state-manager
 timestamp: 2026-09-02T00:00:00Z
+# NOTE: D-2423 — BC-INDEX v10.01→v10.02: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst — BC-2.16.013 pin v1.43→v1.44 (OBS-1: audit_logs §Sort-by postcondition + EC-016-013-011 live-validation observed-ordering assertion + silent-ignore→timestamp-only-fallback decision logic + accepted residual non-determinism documented; OBS-2: POL-39 prose depin 30 narrative version-pins removed). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2422 NOTE archived.
 # NOTE: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 — BC-INDEX v10.00→v10.01: deterministic sort_by postcondition BC amendments (product-owner 2026-09-02). Pin updates: BC-2.16.013 v1.42→v1.43, BC-2.16.015 v1.9→v2.0, BC-2.16.019 v1.2→v1.3, BC-2.16.020 v1.2→v1.3, BC-2.16.021 v1.2→v1.3. Fixes D-001..D-007 body_template offset pagination instability per DEFECT-CLAROTY-SORTBY-DETERMINISM-001 design doc. draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2417 NOTE archived (preserved below).
 # NOTE: D-2417 — BC-INDEX v9.99→v10.00: SINGLE-COMMIT BURST (TD-VSDD-053) — BC-2.09.008 version pin v1.4→v1.5 (OBS-1: EC-09-021 all-targets-failed edge case + Data-Source Integrity invariant; OBS-2: has_more always false / next_cursor always null ADR-060 §D8.7 invariant + EC-09-018 extended). draft_contracts 3 / active_contracts 261 / total_contracts 277 ALL UNCHANGED. D-2415 NOTE archived.
 # NOTE: D-2415 — BC-INDEX v9.98→v9.99: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — POL-14 BC auto-promotion. BC-2.16.022 (claroty_org_acl_policies) lifecycle_status/status draft→active; anchor story S-CLAROTY-ACLPOLICY-001 merged PR #250 @672b10b6 (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table contract). draft_contracts 4→3 / active_contracts 260→261 / total_contracts 277 UNCHANGED. Frontmatter active_contracts/draft_contracts corrected from stale 258/6 to 261/3 (D-2412 promotion was reflected in body NOTE but missed in YAML frontmatter fields; corrected in same burst). D-2413 NOTE archived.
@@ -374,7 +375,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.43 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.44 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | active v2.0 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | active v1.5 |

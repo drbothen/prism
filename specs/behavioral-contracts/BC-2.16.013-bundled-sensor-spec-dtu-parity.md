@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.43"
+version: "1.44"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-09-02"  # v1.43: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 — deterministic sort_by postcondition for audit_logs (D-002)
+modified: "2026-09-02"  # v1.44: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 OBS-1 — audit_logs sort-by validation corrected to OBSERVED ORDERING DETERMINISM; silent-ignore path + residual non-determinism documented; RG-002 parameterization noted
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ inputs:
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
   - "crates/prism-dtu-armis/src/clone.rs"
   - "crates/prism-dtu-armis/src/lib.rs"
-input-hash: "3957917"
+input-hash: "02d9fe9"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -260,17 +260,48 @@ per ADR-053 §D5.
 
     **`timestamp` column `options = ["INDEX"]` prerequisite for push-down eligibility (CRIT-DRIFT-CLAROTY-AUDITLOG-TIMEBOX-001, v1.40):** `claroty.sensor.toml` `audit_logs` table `timestamp` column MUST declare `options = ["INDEX"]`. This is the same prerequisite that `crowdstrike.sensor.toml` `created_timestamp` carries (CrowdStrike precedent: `AC-INDEX-CWS-001 / BC-2.01.013 CrowdStrike FQL time-window`). Without `options = ["INDEX"]`, `extract_time_window_from_ast` (`pushdown.rs §extract_time_window_from_ast`) does not treat `timestamp` as eligible for ADR-033 Option T1 time-bound extraction (`ColumnOptions::Index` check not satisfied); `QueryParams.start_time`/`QueryParams.end_time` remain `None`; `build_claroty_audit_filter_by(None, None)` injects the 7-day default silently for every query — the user's explicit WHERE time-filter is discarded (SOUL.md §4 silent-wrong-result). Mandate anchor (TD-VSDD-097 §3): anchored to S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 + RG-007 (`test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility`) (landed, story v2.4).
 
-    **Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001):** The `body_template` MUST
-    include a `sort_by` key alongside `filter_by`. The contracted preferred value is
-    `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`.
-    **`id` tiebreaker caveat:** `audit_logs` uses the generic `SortClause` schema (free-form string
-    field name, no enum validation), unlike the 6 other tables which use `ValidatingSortClause`
-    with a closed field enum. The `id` tiebreaker MUST be confirmed at live-API validation
-    (demo prep check: `POST /api/v1/audit_log/get` with `"sort_by": [{"field":"id","order":"asc"}]`).
-    If xDome rejects `id` as a sort field with a 4xx response, the implementer MUST fall back to
-    `[{"field":"timestamp","order":"asc"}]` alone AND amend this BC and `claroty.sensor.toml` in
-    the same burst. `timestamp` alone is unique-enough for low-volume audit windows (audit events
-    rarely share an identical timestamp) but is technically non-unique at sub-second precision.
+    **Sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, amended OBS-1):** The
+    `body_template` MUST include a `sort_by` key alongside `filter_by`. The initial contracted
+    form is `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`.
+
+    **`id` tiebreaker caveat — silent-ignore risk:** `audit_logs` uses the generic `SortClause`
+    schema in `GetAuditLogParameters` (free-form string field name, no enum, no
+    `additionalProperties: false`), unlike the 6 other Claroty tables which use
+    `ValidatingSortClause` with a closed field enum. The xDome-documented sortable fields for
+    `audit_logs` are `category`, `action`, `user_display_name`, `note`, `timestamp`, `details`
+    — `id` is NOT among them. Because `SortClause` performs no server-side field-name
+    validation, xDome will NOT return a 4xx for an unknown `id` field; instead it may silently
+    ignore the `id` clause, leaving the effective sort as `timestamp asc` only while returning
+    HTTP 200. A 2xx response alone is therefore NOT evidence that `id` is honored.
+
+    **Live-validation gate — MUST assert OBSERVED ORDERING DETERMINISM:** At demo prep the
+    implementer MUST verify ordering determinism directly — e.g., stable, gap/dup-free row
+    ordering across a page boundary; or that the compound form produces pagination stability
+    demonstrably distinct from the timestamp-only form — NOT merely inspect the HTTP response
+    code. (Mandate anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-009
+    `test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`.)
+
+    **Decision logic:**
+    - IF live-validation demonstrates `id` is honored (compound sort creates a total order
+      distinct from timestamp-only) → keep `[{"field":"timestamp","order":"asc"},
+      {"field":"id","order":"asc"}]` as the TOML `body_template` sort form.
+    - IF `id` is rejected (4xx) OR silently ignored (compound sort ordering
+      indistinguishable from timestamp-only) → the implementer MUST adopt the
+      `[{"field":"timestamp","order":"asc"}]` fallback AND amend this BC and
+      `claroty.sensor.toml` in the same burst. **Residual non-determinism (accepted):**
+      `audit_logs` exposes no unique sortable tiebreaker in its documented
+      `SortClause`/`GetAuditLogParameters` field set (`category`, `action`,
+      `user_display_name`, `note`, `timestamp`, `details`), so full total-ordering is not
+      achievable via the API contract; the 7-day time-window filter bounds the practical
+      blast radius; this residual is accepted, not a defect.
+
+    **RG-002 and RG-009 coupling:** RG-002 (`test_rg_audit_logs_sort_by_in_request_body`)
+    is parameterized to accept either the compound form or the fallback
+    `[{"field":"timestamp","order":"asc"}]` — it validates that `sort_by` is present in
+    one of these two forms, not a specific form. If the fallback is adopted, the
+    preferred-form language in this postcondition and in EC-016-013-011 MUST be updated to
+    reflect the fallback as the canonical form in the same amendment.
+
     Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-002 (`test_rg_audit_logs_sort_by_in_request_body`)
     + RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). See EC-016-013-011.
 
@@ -606,7 +637,7 @@ adapter path for all test cases:
 | EC-016-013-008 | Spec loaded successfully but no `sensor_specs_dir` configured to include bundled path | The implementation test must set `sensor_specs_dir` to `crates/prism-sensors/specs/` (or equivalent test path) explicitly; mis-configuration in test is a test authoring defect, not a BC violation |
 | EC-016-013-009 | `device_alert_relations` DTU route or TOML `response_path` uses path-stem key `device_alert_relations` instead of actual API key `devices_alerts` | All relation rows are silently lost at normalization time; the correct top-level response key is `devices_alerts` per `GetDeviceAlertsResponse` (verified against authoritative xDome OpenAPI). The DTU handler and `response_path` in `claroty.sensor.toml` MUST use `devices_alerts`. This is a silent-failure mode: the pipeline returns an empty result set with no error rather than a parse error. |
 | ~~EC-016-013-010~~ | ~~Silent truncation for queries older than 7 days while Layer 1 active~~ | **SUPERSEDED BEFORE SHIPPING (2026-08-15):** This edge case described the Layer 1 static-`after_seconds_ago` TOML interim. Layer 1 was dropped in the DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 design rework (human decision) — the fix ships as a single push-down code story (S-CLAROTY-AUDITLOG-TIMEBOX-001). Silent truncation is not a valid behavior in the shipped design: the Layer 2 push-down honors explicit user filters for older windows. EC-016-013-010 is retired per append_only_numbering (DF-030); ID preserved and never reused. |
-| EC-016-013-011 | Offset pagination determinism for `audit_logs`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` (preferred) or the fallback `[{"field":"timestamp","order":"asc"}]` if `id` is rejected by the xDome API. Without any `sort_by`, the xDome API default for `audit_logs` is undefined (generic `SortClause`, no canonical default documented), making page boundaries non-deterministic under offset pagination. **Fallback protocol:** if the preferred compound sort is rejected at live-API validation, the implementer MUST use the single-field fallback and amend this BC and `claroty.sensor.toml` in the same burst. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) + RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |
+| EC-016-013-011 | Offset pagination determinism for `audit_logs`: two sequential pages must not duplicate or skip records | The `body_template` MUST contain `"sort_by"` in one of two forms: compound `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` (initial contracted form) or fallback `[{"field":"timestamp","order":"asc"}]`, depending on live-validation outcome (see **Sort-by postcondition** above). Without any `sort_by`, the xDome API default for `audit_logs` via the generic `SortClause`/`GetAuditLogParameters` schema is undefined (no canonical default documented), making page boundaries non-deterministic under offset pagination. **Silent-ignore risk:** because `SortClause` uses a free-form string field name with no server-side validation, xDome silently ignores an unknown `id` field and returns HTTP 200 while the effective sort remains `timestamp asc` only — a 2xx response is NOT evidence that `id` is honored. **Live-validation gate:** the implementer MUST assert OBSERVED ORDERING DETERMINISM (stable, gap/dup-free page boundary across a page boundary), NOT merely an HTTP 200 status. **Fallback protocol:** if live-validation shows `id` is rejected (4xx) OR silently ignored (ordering indistinguishable from timestamp-only), the implementer MUST use the `[{"field":"timestamp","order":"asc"}]` fallback and amend this BC and `claroty.sensor.toml` in the same burst. **Residual non-determinism (accepted if fallback adopted):** `audit_logs` exposes no unique sortable tiebreaker in its documented `SortClause`/`GetAuditLogParameters` field set (`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`); full total-ordering is not achievable via the API contract; the 7-day time-window filter bounds the blast radius; this residual is accepted, not a defect. Anchor: `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) + RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |
 
 ## Error Conditions
 
@@ -698,6 +729,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.44 | defect-claroty-sortby-determinism-obs1-fix | 2026-09-02 | product-owner | OBS-1 closure: §Sort-by postcondition and EC-016-013-011 corrected to encode the silent-ignore failure path. Prior text assumed xDome would reject an unknown `id` sort field with a 4xx response (triggering the fallback), which contradicts the `GetAuditLogParameters.sort_by` contract (`SortClause` schema — free-form string field, no enum, no `additionalProperties: false`). Because `SortClause` performs no server-side field-name validation, xDome silently ignores an unknown field and returns HTTP 200 while the effective sort remains `timestamp asc` only, leaving non-determinism undetected by any HTTP-status check. Three substantive changes: (1) **Live-validation gate** updated — the implementer MUST assert OBSERVED ORDERING DETERMINISM (stable, gap/dup-free page boundary, or compound sort demonstrably distinct from timestamp-only), NOT merely a 2xx response. (2) **Decision logic** made explicit — IF `id` is honored (compound sort creates total order distinct from timestamp-only) → keep compound form; IF `id` is rejected (4xx) OR silently ignored (ordering indistinguishable from timestamp-only) → adopt `[{"field":"timestamp","order":"asc"}]` fallback AND document RESIDUAL non-determinism: `audit_logs` exposes no unique sortable tiebreaker in its documented `SortClause`/`GetAuditLogParameters` field set (`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`); full total-ordering is not achievable via the API contract; 7-day time-window filter bounds the blast radius; residual accepted, not a defect. (3) **RG-002 parameterization** noted — RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) accepts either form; if fallback adopted, preferred-form language in this postcondition and EC-016-013-011 MUST move to fallback in same amendment. EC-016-013-011 updated in parallel to reflect silent-ignore path and residual non-determinism. TD-VSDD-097: (1) Sibling pair — BC-2.01.013 has no parallel `audit_logs` sort contract (Claroty-specific); CLEAR. (2) Downstream copy target — `claroty.sensor.toml` `audit_logs` `body_template` is downstream; not in scope per task constraint (TOML NOT touched). (3) Mandate anchor — observed-ordering-determinism MUST anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |
 | 1.43 | defect-claroty-sortby-determinism-bc-amendments | 2026-09-02 | product-owner | Human-directed 2026-09-02: add deterministic `sort_by` postcondition to `audit_logs` `body_template` to fix D-002 offset pagination instability (generic API default, no field sort). (1) `body_template` description in §Postconditions §1 **Bounded push-down** block updated: `body_template` literal extended to `'{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]}'`. Rationale: `timestamp asc` is the primary deterministic sort; `id asc` is the tiebreaker for records sharing the same second, per the `SortClause` schema (generic string field with no enum validation — `id` is UNVERIFIED as a valid sort key). **Fallback caveat documented:** if live-API validation (demo prep) rejects `id` as a sort key, the implementer MUST fall back to `[{"field":"timestamp","order":"asc"}]` alone and amend this BC and the TOML in the same burst. `timestamp` alone is unique-enough in practice for low-volume audit windows but is technically non-unique at millisecond granularity; the compound form is preferred. (2) **Sort-by postcondition note** added in the `audit_logs` bullet after the `options = ["INDEX"]` block: contracts the `sort_by` array, the `id`-tiebreaker caveat, and the fallback. (3) EC-016-013-011 added: offset pagination determinism guarantee with MUST anchor. TD-VSDD-097: (1) Sibling pair — `audit_logs` has no sibling BC created in the same split; BC-2.01.013 is the related CrowdStrike / Armis / push-down counterpart — reviewed; no audit_logs `sort_by` contract in BC-2.01.013 (Claroty-specific concern); CLEAR. (2) Downstream copy target — `claroty.sensor.toml` `audit_logs` `body_template` is the downstream; update deferred to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` per task scope. (3) Mandate anchor — EC-016-013-011 and Sort-by postcondition MUSTs anchored to `DEFECT-CLAROTY-SORTBY-DETERMINISM-001` RG-002 (`test_rg_audit_logs_sort_by_in_request_body`) + RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). |
 | 1.42 | S-CLAROTY-AUDITLOG-TIMEBOX-001-F1-F2-consolidated-fix | 2026-08-16 | product-owner | F-1 (MEDIUM) + F-2 (LOW) consolidated spec-accuracy fix for PR #239. **F-1:** §Postconditions §1 `audit_logs` bounded push-down block: corrected false claim that "`devices` and `alerts` tables retain `body_template: '{}'`." Ground truth (INV-PARITY-003 / claroty.sensor.toml): all three non-audit_logs tables — `devices`, `alerts`, `device_alert_relations` — carry `{"fields":[...]}` projections (minItems:1), not `'{}'`. Corrected rationale: the injected `_claroty_audit_filter_by` key is inert for these three tables because their body_templates do not reference `${query.filter._claroty_audit_filter_by}`. Also enumerated `device_alert_relations` explicitly (was omitted from the prior "devices and alerts" phrasing). **F-2:** §Postconditions §1 `options = ["INDEX"]` prerequisite block: stale forward-mandate "Story-writer MUST add AC-INDEX-CLARO-001 to S-CLAROTY-AUDITLOG-TIMEBOX-001 in the BC-array-propagation pass." removed from body; mandate anchor prefix reformatted from bare "Mandate anchor:" to "Mandate anchor (TD-VSDD-097 §3): anchored to … (landed, story v2.4)." — AC-INDEX-CLARO-001 + RG-007 already landed in story v2.4. TD-VSDD-097 three-dimension discharge: (1) SIBLING PAIR — BC-2.01.013 amended in same burst; v1.22→v1.23. Swept both BCs for '{}'/empty-object/to-be-added residue after these fixes — no additional occurrences remain in either BC body. (2) DOWNSTREAM COPY — story line 419 carries the same '{}' claim; flagged for story-writer under `bc_array_changes_propagate_to_body_and_acs` policy; do NOT edit story body here. (3) MANDATE ANCHOR — F-2 removes stale forward-mandates; no new MUSTs introduced. |
 | 1.41 | S-CLAROTY-AUDITLOG-TIMEBOX-001-F-P4-LOW-001-fix-burst | 2026-08-15 | product-owner | F-P4-LOW-001 records-tier prose consistency fix — ASM-CLAROTY-AUDITLOG-001 live-check curl example `value` field corrected from unquoted numeric token `<now−600>` to quoted ISO-8601 RFC3339 string. The numeric token contradicted the normative wire contract in this same §Postconditions §1 and BC-2.01.013 EC-01-030..034 (all `value` fields MUST be ISO-8601 strings, NOT epoch integers). A literal follower of the prior example would probe xDome with the wrong value shape and get a false pass/fail signal. No behavioral change; no new MUST. TD-VSDD-097: (9a) Sibling pair — BC-2.01.013 has no parallel curl example; CLEAR. (9b) Downstream copy — story file has no copy of the curl example; CLEAR. (9c) No new mandate. |

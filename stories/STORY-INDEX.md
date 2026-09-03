@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.979"
+version: "2.980"
 status: draft
 producer: state-manager
 timestamp: 2026-09-02T22:00:00Z
 phase: 3
 total_stories: 322
+# D-2423: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst — story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pin v1.0→v1.1 (AC-002/Task 7/EC-001 aligned to BC-2.16.013 §Sort-by postconditions v1.44; POL-39 prose depin 30 narrative version-pins removed; changelog row added). total_stories 322 UNCHANGED. STORY-INDEX v2.979→v2.980. D-2422 NOTE archived.
 # D-2422: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 registered (total_stories 321→322; story v1.0) + status draft→ready (spec complete: 5 BCs amended, SAC-1, HS-031 holdouts authored). STORY-INDEX v2.977→v2.979. D-2415 NOTE archived.
 # D-2415: G6 POST-MERGE BURST (TD-VSDD-053) — S-CLAROTY-ACLPOLICY-001 pin [ready v1.6]→[merged 672b10b6; PR #250] (D-2400 blanket authority 2026-09-01; 14th and final Claroty xDome table). BC-2.16.022 draft→active per POL-14. total_stories 321 UNCHANGED. STORY-INDEX v2.976→v2.977. D-2413 NOTE archived.
 # D-2412: G5 (S-CLAROTY-ORGPOLICY-001) POST-MERGE BURST (TD-VSDD-053) — PR #249 @07e64f4e squash-merged (D-2400 blanket authority 2026-09-01). POL-14 BC-2.16.020+BC-2.16.021 draft→active. pin [ready v1.6]→[merged 07e64f4e; PR #249]. total_stories 321 UNCHANGED. STORY-INDEX v2.974→v2.975. D-2411 NOTE archived.
@@ -1112,13 +1113,13 @@ default sort orders. Without an explicit `sort_by` clause, offset pagination is
 non-deterministic at page boundaries (duplicate or skipped records). This section
 registers the single defect fix story that covers all 7 tables. The fix is additive
 (7 `body_template` edits in `claroty.sensor.toml`; no spec-engine code changes).
-BC amendments (PO leg) are already active: BC-2.16.015 v2.0, BC-2.16.013 v1.43,
+BC amendments (PO leg) are already active: BC-2.16.015 v2.0, BC-2.16.013 v1.44,
 BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3. ORDER BY push-down deferred
 to TD-SENSOR-SORTBY-PUSHDOWN-001.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| DEFECT-CLAROTY-SORTBY-DETERMINISM-001 | Claroty xDome sort_by determinism — add explicit sort_by arrays to 7 tables (vulnerabilities, audit_logs, server_interfaces, organization_zones, zone_policies, firewall_groups, firewall_policies) to fix offset-pagination instability under non-unique API default sorts; 7 ACs + 10 RG tests (density 1.43); audit_logs id tiebreaker UNVERIFIED at live-API — fallback protocol per BC-2.16.013; ORDER BY push-down OUT OF SCOPE (TD-SENSOR-SORTBY-PUSHDOWN-001) [ready v1.0] | prism-sensors | 5 (BC-2.16.015 v2.0, BC-2.16.013 v1.43, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3) | -- | 3 | -- |
+| DEFECT-CLAROTY-SORTBY-DETERMINISM-001 | Claroty xDome sort_by determinism — add explicit sort_by arrays to 7 tables (vulnerabilities, audit_logs, server_interfaces, organization_zones, zone_policies, firewall_groups, firewall_policies) to fix offset-pagination instability under non-unique API default sorts; 7 ACs + 10 RG tests (density 1.43); audit_logs id tiebreaker UNVERIFIED at live-API — fallback protocol per BC-2.16.013; ORDER BY push-down OUT OF SCOPE (TD-SENSOR-SORTBY-PUSHDOWN-001) [ready v1.1] | prism-sensors | 5 (BC-2.16.015 v2.0, BC-2.16.013 v1.44, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3) | -- | 3 | -- |
 
 ## Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)
 
