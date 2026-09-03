@@ -528,6 +528,55 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         "sort_by[1] (name) must be 'asc' — \
          asc tiebreaker after desc primary confirms total sort order"
     );
+
+    // OBS-2: Assert enum membership — the comment "Confirmed member of
+    // Vulnerability__sortable_fields_enum (ValidatingSortClause__6)" becomes a
+    // LOAD-BEARING assertion. BC-2.16.015 v2.0 §Post §1: "Both
+    // adjusted_vulnerability_score and name are confirmed members of
+    // Vulnerability__sortable_fields_enum (xDome OpenAPI schema ValidatingSortClause__6)."
+    //
+    // Hardcoded from: (a) BC-2.16.015 v2.0 §Post §1 confirmed set, plus (b) other
+    // numeric/string fields present in ClarotyVulnerability struct that correspond to
+    // known sortable fields in the xDome OpenAPI Vulnerability__fields_enum.
+    const VULNERABILITY_SORTABLE_FIELDS_ENUM: &[&str] = &[
+        "name",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v2_score",
+        "epss_score",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "exploits_count",
+        "is_known_exploited",
+        "vulnerability_type",
+        "source_name",
+    ];
+
+    let primary_field = primary.get("field").and_then(|f| f.as_str()).unwrap_or("");
+    assert!(
+        VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&primary_field),
+        "OBS-2: sort_by[0] field '{}' must be a member of \
+         Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
+         known members: {:?}; BC-2.16.015 v2.0 §Post §1",
+        primary_field,
+        VULNERABILITY_SORTABLE_FIELDS_ENUM
+    );
+    let tiebreaker_field = tiebreaker
+        .get("field")
+        .and_then(|f| f.as_str())
+        .unwrap_or("");
+    assert!(
+        VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&tiebreaker_field),
+        "OBS-2: sort_by[1] field '{}' (tiebreaker) must be a member of \
+         Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
+         tiebreaker must be a unique sortable field; \
+         known members: {:?}; BC-2.16.015 v2.0 §Post §1",
+        tiebreaker_field,
+        VULNERABILITY_SORTABLE_FIELDS_ENUM
+    );
 }
 
 // ── RG-009 ────────────────────────────────────────────────────────────────────
@@ -707,5 +756,323 @@ fn test_rg_server_interfaces_composite_key_both_present() {
         "sort_by[1] order must be 'asc' for interface_name \
          (BC-2.16.019 v1.3 §Post §1); got: {:?}",
         tiebreaker
+    );
+}
+
+// ── OBS-1 Wire-level build_request body coverage ──────────────────────────────
+//
+// The 10 RG tests above assert on the parsed body_template STRING only (TOML
+// static analysis). They cannot detect regressions in:
+//   (a) offset/limit injection clobbering sort_by after template expansion
+//   (b) filter_by expansion clobbering sort_by (audit_logs risky path)
+//   (c) sort_by silently dropped if template expansion produces non-JSON
+//
+// These two tests drive the ACTUAL request-construction path via
+// PipelineExecutor::execute_with_max_requests → build_request and assert on
+// the SERIALIZED outgoing POST body received by a wiremock server.
+//
+// Seam used: PipelineExecutor::execute_with_max_requests + wiremock
+// received_requests() inspection. This seam proves post-expansion /
+// post-injection body shape without requiring Arc-DI construction overhead.
+// (SAP-3 compliance: the arm exercised is the full build_request POST path,
+// not a synthetic-AST or pre-serialization path.)
+//
+// SAP-1: no tracing emissions added — these are request-body assertion tests.
+// SAP-2: N/A — sort_by is a request-body parameter, not a DTU response field.
+
+/// OBS-1 Case 2: `fetch_vulnerabilities` — plain fields+sort_by table.
+///
+/// Asserts the SERIALIZED outgoing POST body contains:
+/// - `"sort_by"` array with DESC-first ordering preserved
+///   (adjusted_vulnerability_score desc before name asc)
+/// - `"offset"` and `"limit"` integer keys injected by build_request
+///
+/// The fix is inert if offset/limit injection clobbers sort_by; this test
+/// catches that regression.
+///
+/// Seam: `PipelineExecutor::execute_with_max_requests` → `build_request` → wiremock.
+/// BC-2.16.015 v2.0 §Post §1 + EC-016-015-009.
+#[tokio::test]
+async fn test_obs1_vulnerabilities_build_request_emits_sort_by() {
+    use std::collections::HashMap;
+
+    use prism_core::OrgSlug;
+    use prism_spec_engine::{FetchContext, NullAuthProvider, PipelineExecutor, SpecLoader};
+    use wiremock::{
+        matchers::{method as wm_method, path as wm_path},
+        Mock as WmMock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    // Single-page response: 1 record < page_size=1000 → pipeline terminates after 1 page.
+    WmMock::given(wm_method("POST"))
+        .and(wm_path("/api/v1/vulnerabilities/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [{"id": "vuln-obs1", "name": "CVE-2024-TEST"}],
+            "total": 1,
+            "page": 0
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let mut spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    // Redirect to mock server so build_request hits wiremock instead of the real endpoint.
+    spec.base_url = mock_server.uri();
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist")
+        .clone();
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+
+    PipelineExecutor::execute_with_max_requests(
+        &spec,
+        &table,
+        &context,
+        &http_client,
+        &NullAuthProvider,
+        2,
+    )
+    .await
+    .expect("OBS-1 Case 2: vulnerabilities POST must succeed with mock server");
+
+    // Inspect the SERIALIZED POST body received by the mock server.
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock must record received requests");
+
+    let post_req = received
+        .iter()
+        .find(|r| r.url.path() == "/api/v1/vulnerabilities/")
+        .expect("OBS-1 Case 2: must have received a POST to /api/v1/vulnerabilities/");
+
+    let body: serde_json::Value = serde_json::from_slice(&post_req.body).unwrap_or_else(|e| {
+        panic!(
+            "OBS-1 Case 2: POST body must be valid JSON; error: {e}; raw: {:?}",
+            String::from_utf8_lossy(&post_req.body)
+        )
+    });
+
+    // sort_by must be present and intact after offset/limit injection.
+    let sort_by = body.get("sort_by").unwrap_or_else(|| {
+        panic!(
+            "OBS-1 Case 2: POST body must contain 'sort_by' key — \
+             offset/limit injection must NOT clobber sort_by; body={body}"
+        )
+    });
+    let sort_by_arr = sort_by
+        .as_array()
+        .unwrap_or_else(|| panic!("OBS-1 Case 2: 'sort_by' must be a JSON array; got: {sort_by}"));
+    assert_eq!(
+        sort_by_arr.len(),
+        2,
+        "OBS-1 Case 2: sort_by must have exactly 2 elements; got: {sort_by_arr:?}"
+    );
+
+    // DESC-first ordering must be preserved post-injection (BC-2.16.015 §Post §1).
+    let sort0 = &sort_by_arr[0];
+    assert_eq!(
+        sort0.get("field").and_then(|f| f.as_str()),
+        Some("adjusted_vulnerability_score"),
+        "OBS-1 Case 2: sort_by[0].field must be adjusted_vulnerability_score (DESC primary); \
+         got: {sort0}"
+    );
+    assert_eq!(
+        sort0.get("order").and_then(|o| o.as_str()),
+        Some("desc"),
+        "OBS-1 Case 2: sort_by[0].order must be 'desc'; got: {sort0}"
+    );
+
+    let sort1 = &sort_by_arr[1];
+    assert_eq!(
+        sort1.get("field").and_then(|f| f.as_str()),
+        Some("name"),
+        "OBS-1 Case 2: sort_by[1].field must be 'name' (ASC tiebreaker); got: {sort1}"
+    );
+    assert_eq!(
+        sort1.get("order").and_then(|o| o.as_str()),
+        Some("asc"),
+        "OBS-1 Case 2: sort_by[1].order must be 'asc'; got: {sort1}"
+    );
+
+    // offset and limit must be present (post-injection by build_request).
+    let offset_val = body
+        .get("offset")
+        .expect("OBS-1 Case 2: POST body must contain 'offset'");
+    let limit_val = body
+        .get("limit")
+        .expect("OBS-1 Case 2: POST body must contain 'limit'");
+    assert_eq!(
+        offset_val.as_u64(),
+        Some(0),
+        "OBS-1 Case 2: first page offset must be 0; body={body}"
+    );
+    assert_eq!(
+        limit_val.as_u64(),
+        Some(1000),
+        "OBS-1 Case 2: limit must equal page_size 1000 (from TOML); body={body}"
+    );
+}
+
+/// OBS-1 Case 1: `fetch_audit_logs` — the risky coexistence path.
+///
+/// Asserts the SERIALIZED outgoing POST body contains ALL OF simultaneously:
+/// - `"filter_by"` (from template expansion of `${query.filter._claroty_audit_filter_by}`)
+/// - `"sort_by"` array (DEFECT-CLAROTY-SORTBY-DETERMINISM-001 fix)
+/// - `"offset"` integer (injected by build_request)
+/// - `"limit"` integer (injected by build_request)
+///
+/// Proves the fix is not inert: filter_by expansion OR offset/limit injection
+/// MUST NOT clobber sort_by. The coexistence invariant (EC-002) requires all four
+/// keys to be present simultaneously.
+///
+/// Seam: `PipelineExecutor::execute_with_max_requests` → `build_request` → wiremock.
+/// BC-2.16.013 v1.43 §Post §1 + EC-002 + EC-016-013-011.
+#[tokio::test]
+async fn test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination() {
+    use std::collections::HashMap;
+
+    use prism_core::OrgSlug;
+    use prism_spec_engine::{FetchContext, NullAuthProvider, PipelineExecutor, SpecLoader};
+    use wiremock::{
+        matchers::{method as wm_method, path as wm_path},
+        Mock as WmMock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    // Single-page response: 1 record < page_size=1000 → pipeline terminates after 1 page.
+    WmMock::given(wm_method("POST"))
+        .and(wm_path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "audit_log": [{"id": "audit-obs1", "action": "test-action"}]
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let mut spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    spec.base_url = mock_server.uri();
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "audit_logs")
+        .expect("audit_logs table must exist")
+        .clone();
+
+    // Provide a valid JSON-object string for _claroty_audit_filter_by.
+    // pipeline.rs auto-parses JSON-object strings to Value::Object (BC-2.16.013 §Postcondition 1
+    // / S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-004): `${query.filter._claroty_audit_filter_by}`
+    // expands inline as valid JSON in the POST body.
+    let mut query_filters = HashMap::new();
+    query_filters.insert(
+        "_claroty_audit_filter_by".to_string(),
+        r#"{"field":"timestamp","operation":"greater_or_equal","value":"2026-08-26T00:00:00Z"}"#
+            .to_string(),
+    );
+    let context = FetchContext::new(OrgSlug::new("test-org"), query_filters, None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+
+    PipelineExecutor::execute_with_max_requests(
+        &spec,
+        &table,
+        &context,
+        &http_client,
+        &NullAuthProvider,
+        2,
+    )
+    .await
+    .expect("OBS-1 Case 1: audit_logs POST must succeed with mock server");
+
+    // Inspect the SERIALIZED POST body.
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock must record received requests");
+
+    let post_req = received
+        .iter()
+        .find(|r| r.url.path() == "/api/v1/audit_log/get")
+        .expect("OBS-1 Case 1: must have received a POST to /api/v1/audit_log/get");
+
+    let body: serde_json::Value = serde_json::from_slice(&post_req.body).unwrap_or_else(|e| {
+        panic!(
+            "OBS-1 Case 1: POST body must be valid JSON; error: {e}; raw: {:?}",
+            String::from_utf8_lossy(&post_req.body)
+        )
+    });
+
+    // filter_by must be present (from template expansion — EC-002 coexistence guard).
+    assert!(
+        body.get("filter_by").is_some(),
+        "OBS-1 Case 1 (EC-002): POST body must contain 'filter_by' \
+         (from ${{query.filter._claroty_audit_filter_by}} expansion); body={body}"
+    );
+
+    // sort_by must be present and intact — must NOT be clobbered by filter_by expansion
+    // or offset/limit injection (BC-2.16.013 §Post §1).
+    let sort_by = body.get("sort_by").unwrap_or_else(|| {
+        panic!(
+            "OBS-1 Case 1: POST body must contain 'sort_by' key — \
+             filter_by expansion and offset/limit injection must NOT clobber sort_by; \
+             body={body}"
+        )
+    });
+    let sort_by_arr = sort_by
+        .as_array()
+        .unwrap_or_else(|| panic!("OBS-1 Case 1: 'sort_by' must be a JSON array; got: {sort_by}"));
+    assert!(
+        !sort_by_arr.is_empty(),
+        "OBS-1 Case 1: sort_by must have at least 1 element (timestamp primary); body={body}"
+    );
+
+    // timestamp must be the primary sort field (BC-2.16.013 §Post §1).
+    let has_timestamp = sort_by_arr
+        .iter()
+        .any(|e| e.get("field").and_then(|f| f.as_str()) == Some("timestamp"));
+    assert!(
+        has_timestamp,
+        "OBS-1 Case 1: sort_by must contain a 'timestamp' entry (primary sort, \
+         BC-2.16.013 §Post §1); body={body}"
+    );
+
+    // offset and limit must be present (build_request injection).
+    let offset_val = body
+        .get("offset")
+        .expect("OBS-1 Case 1: POST body must contain 'offset'");
+    let limit_val = body
+        .get("limit")
+        .expect("OBS-1 Case 1: POST body must contain 'limit'");
+    assert!(
+        offset_val.is_number(),
+        "OBS-1 Case 1: 'offset' must be a number; body={body}"
+    );
+    assert!(
+        limit_val.is_number(),
+        "OBS-1 Case 1: 'limit' must be a number; body={body}"
+    );
+
+    // EC-002 coexistence invariant: all four keys present simultaneously.
+    assert!(
+        body.get("filter_by").is_some()
+            && body.get("sort_by").is_some()
+            && body.get("offset").is_some()
+            && body.get("limit").is_some(),
+        "OBS-1 Case 1 (EC-002 coexistence invariant): POST body must contain ALL OF \
+         filter_by + sort_by + offset + limit simultaneously; body={body}"
     );
 }
