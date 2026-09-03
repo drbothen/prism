@@ -1,18 +1,56 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.058"
+version: "8.059"
 status: current
-timestamp: 2026-09-03T15:00:00Z
+timestamp: 2026-09-03T20:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2436 (2026-09-03): SESSION WRAP (TD-VSDD-053) — RESUME SNAPSHOT D-2436 authored. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed. Both D-2420 v1 gates CLEARED. SESSION-HANDOFF D-2435 SUPERSEDED; §RESUME SNAPSHOT D-2436 inserted. records-lint PASS. STATE v8.964→v8.965. SESSION-HANDOFF v8.057→v8.058.**
+> **D-2437 (2026-09-03): SINGLE-COMMIT BURST (TD-VSDD-053) — CONFIRMATORY LIVE RE-VALIDATION PASSED; v1 Claroty xDome RELEASE-READY DECLARED. monroe sweep on MERGED binary (develop@11493aeb5) PASS: all 7 sort_by tables live (audit_logs timestamp-only fix confirmed); pagination stable 3 force_refresh queries; sanity tables live. Per D-2410 opaque. SESSION-HANDOFF D-2436 SUPERSEDED; §RESUME SNAPSHOT D-2437 inserted. records-lint PASS. STATE v8.965→v8.966. SESSION-HANDOFF v8.058→v8.059.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2436 (2026-09-03 — SESSION WRAP; confirmatory live re-validation + v1 RELEASE PROCESS next; SAFE TO CLEAR) [supersedes D-2435]
+## §RESUME SNAPSHOT — D-2437 (2026-09-03 — v1 RELEASE-READY DECLARED; v1 RELEASE PROCESS next; SAFE TO CLEAR) [supersedes D-2436]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E, Claroty xDome v1 RELEASE-READY. Confirmatory live re-validation on monroe PASSED on MERGED release binary (develop@11493aeb5). All 7 sort_by tables returned live rows with deterministic ordering. audit_logs timestamp-only sort confirmed returning live rows (was 0 rows with compound id sort). Pagination stable across 3 consecutive force_refresh queries. 3 sanity tables (devices/alerts/servers) all live. v1 DECLARATION ISSUED (D-2437). NEXT: v1 RELEASE process (/vsdd-factory:release + .factory/release-config.yaml) then develop→main (requires fresh in-transcript human approval — harness auto-mode classifier boundary confirmed).
+
+### GOVERNING OBJECTIVE
+v1 RELEASE process: /vsdd-factory:release + .factory/release-config.yaml → version bump + CHANGELOG + git tag + GitHub Release → develop→main (fresh in-transcript human approval required). Force-push to main FORBIDDEN.
+
+### HEADS (backup boundary)
+- `develop`: origin = local = `11493aeb5` (PR #252 squash-merge 2026-09-03). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053). PUSHED.
+- Worktrees: ACTIVE: none. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001. No open PRs.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. v1 RELEASE PROCESS (human-directed): /vsdd-factory:release + .factory/release-config.yaml — version bump, CHANGELOG, git tag, GitHub Release, any registry publish.
+3. develop→main merge: REQUIRES fresh direct in-transcript human approval (harness auto-mode classifier boundary — coordinator/agent relay does NOT satisfy; confirmed PR #252 + #251/D-2418). force-push to main FORBIDDEN.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@11493aeb5; BC-2.16.015..BC-2.16.022 all active). DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED (PR #252 @11493aeb5; D-2435). OBS-1/OBS-2 CLOSED. D-2420 Action-1 + Action-2 both CLEARED. Confirmatory live re-validation PASS (D-2437). v1 Claroty xDome sensor RELEASE-READY. NEXT: v1 RELEASE process.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2437 (this burst: CONFIRMATORY LIVE RE-VALIDATION PASSED; v1 RELEASE-READY DECLARED; STATE v8.965→v8.966; SESSION-HANDOFF v8.058→v8.059). D-2436 historical: SESSION WRAP; RESUME SNAPSHOT D-2436 authored; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 autonomy grant in force. (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) HARNESS BOUNDARY: merges (PR→develop AND develop→main) require human-executed OR fresh direct in-transcript human approval — an orchestrator/coordinator relay of a prior grant does NOT satisfy the auto-mode classifier (empirically confirmed PR #252 + #251/D-2418). (f) DEFECT-1 (rustls direct transport) RESOLVED by PR #237 — direct api.claroty.com works; relay decommissioned (banner added in test-soc). (g) TRACKED POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001 (ORDER BY push-down), TD-DI019-RECORDS-CAP-001 (configurable 10K cap), TD-CONFIG-SURFACE-EPIC-001 (magic-numbers config). (h) 4 cycle-close lessons [codification-assess] logged in cycles/wave-5-e-demo-fidelity/lessons.md for session-reviewer.
+
+### PENDING USER-APPROVED WORK
+v1 RELEASE process requires fresh in-transcript human approval for develop→main merge specifically. No other pending fix lists.
+
+### WORKTREE INVENTORY
+ACTIVE: none. REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend DELETE per D-2421 root cause NOT PRESENT). fix/DEFECT-LIVE-ENVELOPE-OBS-001: LOCAL branch only (stale pointer; harmless).
+
+---
+
+## §RESUME SNAPSHOT — D-2436 (2026-09-03 — SESSION WRAP; confirmatory live re-validation + v1 RELEASE PROCESS next; SAFE TO CLEAR) [SUPERSEDED by D-2437]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, Claroty xDome v1. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 (deterministic per-table sort_by on 7 Claroty tables; audit_logs timestamp-only after live validation proved `id`→0 rows) MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed (LOCAL 3-CLEAN, holdout HS-031, live validation, CI 24/24, pr-reviewer APPROVE). Both D-2420 v1 gates CLEARED: Action-1 vulnerabilities = NO DEFECT (transport fixed by PR #237; deep offsets work); Action-2 conformance audit = done (0 critical) + its one actionable class D-001..D-007 fixed & merged. NEXT: (1) confirmatory live re-validation on the MERGED develop binary on monroe, then (2) v1 RELEASE process (capture → release → merge develop→main).

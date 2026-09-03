@@ -673,3 +673,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2434 2026-09-03):** develop: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02); factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (TD-VSDD-053); G1–G6: ALL MERGED; worktrees REMOVABLE; Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch; DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees EMPTY off develop@2edaaca78.
 
 **NOTE: Superseded by D-2435 — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03). STORY-INDEX v2.989→v2.990. develop_head 2edaaca78→11493aeb5. STATE v8.964→v8.965.**
+
+---
+
+## Archived: D-2436 — 2026-09-03; STATE v8.964→v8.965 — SESSION WRAP; confirmatory live re-validation + v1 RELEASE PROCESS next
+
+**RESUME IN ONE BREATH:** Phase 3 Wave-5-E, Claroty xDome v1. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed (LOCAL 3-CLEAN, holdout HS-031, live validation, CI 24/24, pr-reviewer APPROVE). Both D-2420 v1 gates CLEARED: Action-1 vulnerabilities = NO DEFECT; Action-2 conformance audit = done (0 critical) + D-001..D-007 fixed & merged. NEXT: (1) confirmatory live re-validation on monroe; (2) v1 RELEASE process.
+
+**HEADS (D-2436 2026-09-03):** develop `11493aeb5` (origin=local=PUSHED); factory-artifacts: `e3bad23a4` pre-wrap; no open PRs; PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch); REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**NOTE: Superseded by D-2437 — CONFIRMATORY LIVE RE-VALIDATION PASSED; v1 Claroty xDome RELEASE-READY DECLARED (develop@11493aeb5). STATE v8.965→v8.966. SESSION-HANDOFF v8.058→v8.059.**
