@@ -1,24 +1,24 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.050"
+version: "8.051"
 status: current
-timestamp: 2026-09-02T23:59:00Z
+timestamp: 2026-09-02T23:59:59Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2428 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pass-9 fix-burst COMMITTED (TD-VSDD-096). MED-001 CLOSED (story↔code test-surface drift): story v1.4→v1.5 — §Purity/§Library (tokio/wiremock/reqwest)/§RG-OBS table/§Tasks/§File Structure reconciled to document 13-test file (RG-001..010 + 3 OBS wiremock wire-tests). STORY-INDEX v2.985. BC-INDEX UNCHANGED v10.04. records-lint PASS. STATE v8.957→v8.958. SESSION-HANDOFF v8.049→v8.050. LOCAL adversary cascade streak RESET 0/3; pass-10 NEXT. [D-2427 historical: pass-8 records-only micro-burst — POL-7 verbatim-title fix; superseded.]**
+> **D-2429 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade CONVERGED (BC-5.39.001; 3 consecutive CLEAN(strict) passes 10/11/12 on frozen HEAD abd7eeb9f) + story-level holdout gate HS-031 GATE PASS (4/4 must-pass; satisfaction 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP-non-error dims SETUP-FAILURE — prism-dtu-claroty no standalone server binary; [process-gap] logged not codified). HS-031 all 4 scenarios CONSUMED (single-use). HOLDOUT-INDEX v1.36→v1.37. records-lint PASS. STATE v8.958→v8.959. SESSION-HANDOFF v8.050→v8.051. NEXT: live validation on monroe (keychain-gated/human) → demo → push → PR → merge. [D-2428 historical: pass-9 fix-burst COMMITTED; superseded.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2428 (2026-09-02 — sort_by DEFECT pass-9 fix-burst COMMITTED; LOCAL pass-10 adversary NEXT) [supersedes D-2427]
+## §RESUME SNAPSHOT — D-2429 (2026-09-02 — LOCAL CONVERGED + HS-031 holdout GATE PASS; live validation NEXT) [supersedes D-2428]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. D-2428 PASS-9 FIX-BURST COMMITTED (TD-VSDD-096): MED-001 CLOSED (story↔code test-surface drift) — story v1.5 (§Purity/§Library (tokio/wiremock/reqwest)/§RG-OBS table/§Tasks/§File Structure reconciled to document 13-test file — RG-001..010 + 3 OBS wiremock wire-tests); STORY-INDEX v2.985. All current-state BC pins consistent: BC-2.16.015 v2.2, BC-2.16.013 v1.44, BC-2.16.019/020/021 v1.3. LOCAL adversary cascade streak RESET 0/3; pass-10 NEXT; 3-CLEAN required before TDD. HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
+Phase 3 Wave-5-E. D-2429: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade CONVERGED (BC-5.39.001; 3 consecutive CLEAN(strict) passes 10/11/12 on frozen HEAD abd7eeb9f). Story-level holdout gate HS-031 GATE PASS (4/4 must-pass; satisfaction 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP-non-error dims SETUP-FAILURE — prism-dtu-claroty no standalone server binary; corroborated structurally). HS-031 all 4 scenarios CONSUMED. BC-INDEX v10.04; STORY-INDEX v2.985 (322 stories). develop @2edaaca78.
 
 ### GOVERNING OBJECTIVE
-TDD delivery for DEFECT-CLAROTY-SORTBY-DETERMINISM-001: complete LOCAL 3-CLEAN adversary cascade on story v1.5 + BC-2.16.015 v2.2 + BC-2.16.013 v1.44 → test-writer (RG-001..010 failing tests) → implementer (claroty.sensor.toml sort_by arrays for 7 tables) → LOCAL 3-CLEAN on code → story-level holdout gate (HS-031 HIDDEN) → demo-recorder → PR → merge. Declare v1 RELEASE-READY after sort_by fix delivered and live re-validation on monroe passes.
+Deliver DEFECT-CLAROTY-SORTBY-DETERMINISM-001 to develop: live validation on monroe (keychain-gated/human; audit_logs Task-7 observed-ordering) → demo (live-data-free per D-2410) → push feature branch → pr-manager 9-step PR cycle → squash-merge into develop. Declare v1 RELEASE-READY after merge + live re-validation confirmed.
 
 ### HEADS (backup boundary)
 - `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
@@ -30,23 +30,24 @@ TDD delivery for DEFECT-CLAROTY-SORTBY-DETERMINISM-001: complete LOCAL 3-CLEAN a
 
 ### PER-WORKSTREAM NEXT-ACTIONS (exact order)
 1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
-2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
-3. **LOCAL adversary pass-10 (3-CLEAN cascade):** Fresh-context adversary on story v1.5 + BC-2.16.015 v2.2 + BC-2.16.013 v1.44 + BC-2.16.019/020/021 v1.3. Pass-9 MED-001 CLOSED (story↔code test-surface drift). Streak RESET 0/3; 3 consecutive CLEAN(strict) passes required before TDD.
-4. **TDD delivery (after 3-CLEAN):** test-writer (RG-001..RG-010 failing tests) → implementer (claroty.sensor.toml body_template sort_by fields; wire tests green) → LOCAL 3-CLEAN adversary cascade (BC-5.39.001) → story-level holdout gate (holdout-evaluator; HS-031 HIDDEN — MUST NOT be read before gate) → demo-recorder → PR → pr-manager 9-step PR cycle → squash-merge into develop.
-5. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
-6. **Declare v1 RELEASE-READY** after sort_by fix delivered + live re-validation on monroe passes.
+2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`) — required for live validation on monroe.
+3. **Live validation on monroe (keychain-gated):** Per-Claroty-story merge gate (runbook: .factory/ops/live-tenant-validation-runbook.md; Path B). Includes audit_logs Task-7 observed-ordering verification (live API confirms sort_by timestamp accepted without 422). Live-data-free demo per D-2410.
+4. **Demo recording:** demo-recorder (live-data-free per D-2410).
+5. **Push + PR:** push feature branch → pr-manager 9-step PR cycle → squash-merge into develop (human-approved).
+6. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
+7. **Declare v1 RELEASE-READY** after sort_by fix merged + live re-validation confirmed.
 
 ### CONVERGENCE STATE
-G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: story v1.5 through D-2428; LOCAL adversary cascade streak RESET 0/3; TDD delivery pending 3-CLEAN (pass-10 NEXT).
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: LOCAL 3-CLEAN CONVERGED (passes 10/11/12 @abd7eeb9f; HS-031 holdout GATE PASS; NEXT: live validation → demo → push → PR → merge).
 
 ### HEARTBEAT
 Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
 
 ### DECISION DELTA
-D-2428 (PASS-9 FIX-BURST TD-VSDD-096: MED-001 CLOSED story↔code test-surface drift — story v1.5 (§Purity/§Library/§RG-OBS table/§Tasks/§File Structure reconciled; 13-test file documented); STORY-INDEX v2.985; BC-INDEX UNCHANGED v10.04; records-lint PASS; STATE v8.957→v8.958; SESSION-HANDOFF v8.049→v8.050). D-2427 (PASS-8 RECORDS-ONLY MICRO-BURST: story v1.4 POL-7 verbatim-title fix; STORY-INDEX v2.984). D-2422 historical: spec burst committed; superseded.
+D-2429 (LOCAL CONVERGED + HS-031 holdout GATE PASS: 3-CLEAN passes 10/11/12 @abd7eeb9f; HS-031 4/4 PASS sat 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP SETUP-FAILURE; 4 scenarios CONSUMED; HOLDOUT-INDEX v1.36→v1.37; records-lint PASS; STATE v8.958→v8.959; SESSION-HANDOFF v8.050→v8.051). D-2428 historical: pass-9 fix-burst COMMITTED; superseded.
 
 ### STANDING DECISIONS (carry forward)
-(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416).
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416), [process-gap] standalone Claroty DTU server for headless holdout MCP dims (D-2429).
 
 ### WORKTREE INVENTORY
 ACTIVE: none (DEFECT-CLAROTY-SORTBY-DETERMINISM-001 delivery PENDING — new worktree to be created on TDD start). DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename before editing). REMOVABLE: G1–G6 worktrees + fix/DEFECT-LIVE-ENVELOPE-OBS-001 local branch (stale pointer, not a real worktree). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).

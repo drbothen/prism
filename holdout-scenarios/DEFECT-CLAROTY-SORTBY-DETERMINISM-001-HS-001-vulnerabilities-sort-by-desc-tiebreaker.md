@@ -10,7 +10,7 @@ epic_id: "EPIC-CLAROTY-XDOME-DEFECTS"
 story_source: "DEFECT-CLAROTY-SORTBY-DETERMINISM-001"
 version: "1.0"
 status: active
-used: false
+used: true
 single_use: true
 producer: product-owner
 timestamp: "2026-09-02T00:00:00Z"
@@ -24,10 +24,10 @@ traces_to: "BC-2.16.015"
 behavioral_contracts:
   - BC-2.16.015
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "DEFECT-CLAROTY-SORTBY-DETERMINISM-001"
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: 2026-09-02
+last_eval_satisfaction: 0.90
 staleness_check: null
 stale_reason: null
 retired: null
