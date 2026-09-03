@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.953"
+version: "8.954"
 producer: state-manager
-timestamp: 2026-09-02T23:00:00Z
+timestamp: 2026-09-02T23:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,12 +18,12 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "2edaaca78"
 # NOTE: D-2421 — investigations resolved + conformance audit COMPLETE + sort_by DEFECT opened (2026-09-02). (1) vulnerabilities offset>0 hang ROOT CAUSE CONFIRMED: pre-PR-#237 WAF/transport failure (h1-only/no-User-Agent rustls path WAF-throttled at deep offsets); PR #237 (876e39c88) fixed; live A/B monroe: Config A = 10p/18.9s/no-timeout, Config B = 20p/28.7s (SLOWER); NO production TOML change needed. monroe >10K vulns → DI-019 cap; ~7872 estimate RETRACTED. (2) DEFECT-1 VERIFIED RESOLVED by PR #237; ADR-050 compliant. (3) Conformance audit 24 endpoints: 0 CRITICAL; D-001..D-007 non-unique-sort 7 Claroty tables (MEDIUM); D-008/D-010 existing stories; D-011 unverified. (4) sort_by DEFECT: ship deterministic sort_by NOW (human-directed 2026-09-02); spec burst + code delivery NEXT. develop_head UNCHANGED 2edaaca78. D-2420 NOTE archived.
-bc_index_version: "10.02"
-# NOTE: D-2423 — BC-INDEX v10.01→v10.02: BC-2.16.013 pin v1.43→v1.44 (DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst; §Sort-by postcondition + EC-016-013-011 + POL-39 prose depin). draft/active/total UNCHANGED 3/261/277. D-2422 NOTE archived.
+bc_index_version: "10.03"
+# NOTE: D-2424 — BC-INDEX v10.02→v10.03: BC-2.16.015 pin v2.0→v2.1 (DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst; §Postconditions §1 + EC-016-015-009 vulnerabilities name best-available tiebreaker + accepted residual non-determinism symmetric with audit_logs; sort_by array UNCHANGED). draft/active/total UNCHANGED 3/261/277. D-2423 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.980"
-# NOTE: D-2423 — STORY-INDEX v2.979→v2.980: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 story pin v1.0→v1.1 (AC-002/Task 7/EC-001 aligned to BC-2.16.013 §Sort-by v1.44; POL-39 prose depin). total_stories 322 UNCHANGED. D-2422 NOTE archived.
+story_index_version: "2.981"
+# NOTE: D-2424 — STORY-INDEX v2.980→v2.981: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 story pin v1.1→v1.2 (§Authority/AC-001 aligned to BC-2.16.015 §Postconditions §1 v2.1; RG-008 renamed; BC version cell v2.0→v2.1). total_stories 322 UNCHANGED. D-2423 NOTE archived.
 arch_index_version: "2.357"
 # NOTE: D-2373 — ARCH-INDEX v2.356→v2.357: ADR-060 v1.17→v1.18 (F-B1V-002: §D8.3 worked example (d) corrected to reachable/test-matched numbers page_size=10/LIMIT=5/partial-page=5/2 batches). D-2372 NOTE archived.
 workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2423 (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst spec delta COMMITTED. BC-2.16.013 v1.43→v1.44 (§Sort-by postcondition + EC-016-013-011 + silent-ignore→fallback logic + accepted residual non-determinism; POL-39 prose depin 30 version-pins). Story v1.0→v1.1 (AC-002/Task 7/EC-001 aligned). BC-INDEX v10.01→v10.02 + STORY-INDEX v2.979→v2.980. Pass-1 OBS-1/OBS-2 (build_request wire tests + RG-008 enum assertion) closed on feature branch. records-lint L1/L7/L9/L10 PASS. STATE v8.952→v8.953. trajectory-tail UNCHANGED →8→0→1→2. develop_head UNCHANGED 2edaaca78. NEXT: TDD delivery — test-writer (RG-001..RG-010) → implementer → LOCAL 3-CLEAN adversary → story-level holdout gate (HS-031) → demo-recorder → PR → merge."
+current_step: "D-2424 (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst spec delta COMMITTED. BC-2.16.015 v2.0→v2.1 (§Postconditions §1 + EC-016-015-009: vulnerabilities name best-available tiebreaker + accepted residual non-determinism symmetric with audit_logs; sort_by array UNCHANGED). Story v1.1→v1.2 (§Authority/AC-001 aligned; RG-008 renamed). LOW-001/OBS-003 closed on feature branch. OBS-002 CLEARED (conformance audit). BC-INDEX v10.02→v10.03 + STORY-INDEX v2.980→v2.981. records-lint L1/L7/L9/L10 PASS. STATE v8.953→v8.954. trajectory-tail UNCHANGED →8→0→1→2. develop_head UNCHANGED 2edaaca78. NEXT: TDD delivery — test-writer (RG-001..RG-010) → implementer → LOCAL 3-CLEAN adversary → story-level holdout gate (HS-031) → demo-recorder → PR → merge."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -164,6 +164,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 | ID | Author | Date | Decision | Cycle | Updated |
 |----|--------|------|----------|-------|---------|
+| D-2424 | state-manager | 2026-09-02 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst spec delta COMMITTED.** BC-2.16.015 v2.0→v2.1: §Postconditions §1 amended — vulnerabilities `name` tiebreaker reclassified as best-available (maps to finding_info.title, presence-required but NOT provably unique; opaque PK `id` absent from `Vulnerability__sortable_fields_enum`); EC-016-015-009 updated to document accepted residual non-determinism for identical-score + identical-name bounded tie case, symmetric with BC-2.16.013 §Sort-by postcondition; sort_by array content UNCHANGED. Story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 v1.1→v1.2: §Authority/AC-001 aligned to BC-2.16.015 §Postconditions §1 v2.1; RG-008 renamed to `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`; BC version cell updated v2.0→v2.1. LOW-001 (test docstrings depinned of volatile BC version tokens) and OBS-003 (parameterized build_request wire test for remaining 5 tables) closed on feature branch (code side). OBS-002 (other 6 offset-paginated Claroty tables) NO ACTION — authoritatively cleared by conformance audit §D-001..D-007 (those tables confirmed unique default sorts; conformance audit scoped exactly these 7). BC-INDEX v10.02→v10.03; STORY-INDEX v2.980→v2.981 (total_stories 322 UNCHANGED). BC input-hash f0b3278 confirmed; story input-hash f7eaf92 UNCHANGED (spec alignment; no source-TOML change). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. STATE v8.953→v8.954. develop_head UNCHANGED 2edaaca78. | wave-5-e-demo-fidelity | 2026-09-02 |
 | D-2423 | state-manager | 2026-09-02 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst spec delta COMMITTED.** BC-2.16.013 v1.43→v1.44: §Sort-by postcondition added for audit_logs + EC-016-013-011 live-validation now asserts observed ordering not HTTP status + silent-ignore→timestamp-only-fallback decision logic documented + accepted residual non-determinism bounded by 7-day window recorded. Story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 v1.0→v1.1: AC-002/Task 7/EC-001 aligned to BC-2.16.013 §Sort-by postconditions v1.44; POL-39 prose depin (30 narrative version-pins removed). Pass-1 findings OBS-1 (build_request wire tests) and OBS-2 (RG-008 enum assertion) closed on feature branch (code side). BC-INDEX v10.01→v10.02; STORY-INDEX v2.979→v2.980 (total_stories 322 UNCHANGED). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. STATE v8.952→v8.953. develop_head UNCHANGED 2edaaca78. | wave-5-e-demo-fidelity | 2026-09-02 |
 | D-2422 | state-manager | 2026-09-02 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 spec burst COMMITTED.** 5 BCs amended (BC-2.16.015 v2.0; BC-2.16.013 v1.43; BC-2.16.019/020/021 v1.3) + story v1.0 status ready (7 ACs; RG-001..010; SAC-1 SATISFIED) + HS-031 holdouts (4 P0 HIDDEN SINGLE-USE scenarios authored). BC-INDEX v10.00→v10.01; STORY-INDEX v2.977→v2.979 (321→322 stories). TD-VSDD-097 Dim-1 CLEAR / Dim-2 CLEAR / Dim-3 DISCHARGED. records-lint L1/L7/L9/L10 PASS. STATE v8.951→v8.952. SESSION-HANDOFF v8.045→v8.046. trajectory-tail UNCHANGED →8→0→1→2. develop_head UNCHANGED 2edaaca78. | wave-5-e-demo-fidelity | 2026-09-02 |
 | D-2300 | state-manager | 2026-08-25 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-1/pass-2 fix-bursts RECORDED. pass-1: 2 CRIT, 2 HIGH, 5 MED, 2 OBS — ALL FIXED @e2b779800 + @3874f8624. pass-2: 1 MED, 3 LOW, 1 OBS — ALL FIXED @62f1c6379 + BC-2.16.015 v1.0→v1.1 (F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated D-2200/D-2264 deferral + anchor S-ADR058-DTU-PARITY-MIGRATION-001; TD-VSDD-097 Dim-3 DISCHARGED) + story v1.1→v1.2 (F-VULNS-P1-003: RG-003 split RG-003a/003b, RG-004b mock wire-shape added, density 10/8=1.25, SAC-1 restored). F-VULNS-011: crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] (feature diff @62f1c6379 zero prism-spec-engine files). Feature HEAD 62f1c6379 FROZEN for pass-3 re-cascade. just check GREEN: prism-sensors 199 / prism-bin 229 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (re-cascade pending). BC-INDEX v9.60→v9.61. STORY-INDEX v2.894→v2.895. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs affected); Dim-2 CLEAR (BC-2.16.015 §4 is not a copy-source section); Dim-3 DISCHARGED (§4 MUST anchored to story S-ADR058-DTU-PARITY-MIGRATION-001). records-lint exit 0. STATE v8.832→v8.833.** | wave-5-e-demo-fidelity | 2026-08-25 |
@@ -317,15 +318,15 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2423 — sort_by DEFECT LOCAL pass-2 fix-burst COMMITTED; TDD delivery NEXT) [supersedes D-2422]
+## Session Resume Checkpoint (D-2424 — sort_by DEFECT LOCAL pass-3 fix-burst COMMITTED; TDD delivery NEXT) [supersedes D-2423]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. D-2423 LOCAL ADVERSARY PASS-2 FIX-BURST COMMITTED: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 spec delta complete. BC-2.16.013 v1.44 (audit_logs §Sort-by postcondition + EC-016-013-011 + fallback logic + accepted non-determinism). Story v1.1 (AC-002/Task 7/EC-001 updated; POL-39 prose depin). Pass-1 OBS-1/OBS-2 (build_request wire tests + RG-008 enum assertion) closed on feature branch. BC-INDEX v10.02; STORY-INDEX v2.980 (322 stories). LOCAL adversary cascade: streak RESTARTING (pass-2 fix-burst complete; pass-3 due). HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
+Phase 3 Wave-5-E. D-2424 LOCAL ADVERSARY PASS-3 FIX-BURST COMMITTED: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 spec delta complete. BC-2.16.015 v2.1 (§Postconditions §1 + EC-016-015-009: name best-available tiebreaker + accepted residual non-determinism symmetric with audit_logs). Story v1.2 (§Authority/AC-001 aligned; RG-008 renamed). LOW-001/OBS-003 closed on feature branch. OBS-002 CLEARED by conformance audit. BC-INDEX v10.03; STORY-INDEX v2.981 (322 stories). LOCAL adversary cascade: streak RESTARTING (pass-3 fix-burst complete; 3-CLEAN required before TDD). HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
 1. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
-2. **LOCAL adversary pass-3:** Run fresh-context adversary on DEFECT-CLAROTY-SORTBY-DETERMINISM-001 story + BC-2.16.013 v1.44. Pass-2 LOW-1 (RG-002 parameterized) + OBS-1 (BC spec + wire tests) + OBS-2 (POL-39 prose depin) all CLOSED. Streak must restart at 0/3.
+2. **LOCAL adversary pass-4 (3-CLEAN cascade):** Run fresh-context adversary on DEFECT-CLAROTY-SORTBY-DETERMINISM-001 story v1.2 + BC-2.16.015 v2.1 + BC-2.16.013 v1.44. Pass-3 LOW-001/OBS-001/OBS-003 all CLOSED (spec+feature branch). Streak at 0/3; 3 consecutive CLEAN(strict) passes required before TDD delivery.
 3. **TDD delivery (after 3-CLEAN):** test-writer (RG-001..RG-010 failing tests) → implementer (claroty.sensor.toml sort_by arrays for 7 tables + tests green) → LOCAL 3-CLEAN adversary cascade (BC-5.39.001) → story-level holdout gate (holdout-evaluator; HS-031 HIDDEN — MUST NOT be read before gate) → demo-recorder → PR → pr-manager 9-step PR cycle → squash-merge into develop.
 4. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
 5. **Declare v1 RELEASE-READY** after sort_by fix delivered + live re-validation on monroe passes.
@@ -339,7 +340,7 @@ Phase 3 Wave-5-E. D-2423 LOCAL ADVERSARY PASS-2 FIX-BURST COMMITTED: DEFECT-CLAR
 - GitHub ~30-day dangling-object cache from D-2416 purge (no action needed; self-expiring).
 - Housekeeping: removable merged worktrees (S-CLAROTY-VULNS-001, S-ENGINE-LIMIT-EARLY-STOP-001, S-ENGINE-H2-LARGE-RESPONSE-001) — optional cleanup, non-blocking.
 
-**CONVERGENCE STATE:** G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: spec committed (D-2422); TDD delivery is active workstream.
+**CONVERGENCE STATE:** G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: spec delta committed through D-2424 (pass-3 fix-burst complete; 3-CLEAN local cascade required before TDD delivery).
 
 **HEADS (backup boundary):**
 - `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.

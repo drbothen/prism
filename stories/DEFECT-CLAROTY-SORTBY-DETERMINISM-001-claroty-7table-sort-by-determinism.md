@@ -12,7 +12,7 @@ status: ready
 # pattern — eligible for status: ready after remove-uncertainty pass.
 producer: story-writer
 timestamp: "2026-09-02T00:00:00Z"
-version: "1.1"
+version: "1.2"
 modified: "2026-09-02"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -24,7 +24,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.020-claroty-org-zone-domain.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "e604642"
+input-hash: "f7eaf92"
 traces_to:
   - "BC-2.16.015"
   - "BC-2.16.013"
@@ -54,9 +54,10 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.015
-  # BC-2.16.015 v2.0 — Claroty xDome Vulnerability Findings Table: §Postconditions §1
+  # BC-2.16.015 v2.1 — Claroty xDome Vulnerability Findings Table: §Postconditions §1
   # sort-by postcondition (DEFECT-CLAROTY-SORTBY-DETERMINISM-001); EC-016-015-009
-  # (offset pagination determinism); anchors RG-001 + RG-008.
+  # (offset pagination determinism; accepted residual for identical-score + identical-name
+  # bounded tie case); anchors RG-001 + RG-008.
   - BC-2.16.013
   # BC-2.16.013 v1.44 — Bundled Sensor Spec Authoring: §Postconditions §1 audit_logs
   # sort-by postcondition (D-002); EC-016-013-011 (offset pagination determinism);
@@ -112,8 +113,15 @@ origin_cascade: "Human-directed 2026-09-02 — deterministic sort_by for all Cla
 `[{"field":"adjusted_vulnerability_score","order":"desc"},{"field":"name","order":"asc"}]`.
 Both fields are confirmed members of `Vulnerability__sortable_fields_enum` (xDome OpenAPI
 `ValidatingSortClause__6`). DI-019 truncation rationale: `adjusted_vulnerability_score desc`
-ensures highest-risk records survive the 10K cap; `name asc` (CVE ID, provably unique)
-enforces deterministic page boundaries. Anchor: EC-016-015-009; RG-001; RG-008.
+ensures highest-risk records survive the 10K cap. The `name asc` secondary sort (mapping to
+`finding_info.title`, `options=["REQUIRED"]` for presence, NOT a uniqueness constraint) is the
+**best-available sortable tiebreaker** from `Vulnerability__sortable_fields_enum`; the opaque
+record PK `id` is NOT a member of that enum and cannot serve as a sortable tiebreaker.
+**Accepted residual non-determinism (symmetric with BC-2.16.013 §Sort-by postcondition):**
+where two rows share BOTH the same `adjusted_vulnerability_score` AND the same `name`, page-
+boundary ordering between them is not guaranteed. This residual is bounded — ties require
+identical score AND identical title — and is further mitigated by risk-primary ordering and
+the DI-019 10K cap. Accepted, not a defect. Anchor: EC-016-015-009; RG-001; RG-008.
 
 **BC-2.16.013 §Postconditions §1 (audit_logs sort-by postcondition)** governs
 `claroty_audit_logs`: preferred body_template is
@@ -214,7 +222,7 @@ and Task 7).
 
 | BC | Title | Version | Role in this story |
 |----|-------|---------|-------------------|
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v2.0 | §Postconditions §1 sort-by postcondition: `[adjusted_vulnerability_score desc, name asc]`; EC-016-015-009 pagination determinism guarantee; anchors RG-001 + RG-008 |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v2.1 | §Postconditions §1 sort-by postcondition: `[adjusted_vulnerability_score desc, name asc]`; `name` is best-available tiebreaker (not unique); EC-016-015-009 pagination determinism with accepted residual for identical-score + identical-name bounded tie case; anchors RG-001 + RG-008 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.44 | §Postconditions §1 `audit_logs` sort-by postcondition (amended v1.44): preferred `[timestamp asc, id asc]`; fallback `[timestamp asc]` if `id` rejected (4xx) OR silently ignored; residual non-determinism accepted; EC-016-013-011 pagination determinism; both RG-002 (parameterized) + RG-009 must be updated on fallback adoption |
 | BC-2.16.019 | Claroty Server Interfaces Table | v1.3 | §Postconditions §1 sort-by postcondition: `[server_name asc, interface_name asc]`; EC-016-019-007 pagination determinism (composite PK guarantee); anchors RG-003 + RG-010 |
 | BC-2.16.020 | Claroty Org Zone Domain | v1.3 | §Postconditions §1 zones sort-by postcondition: `[zone_name asc]`; EC-016-020-011; §Postconditions §2 zone_policies sort-by: `[policy_name asc]`; EC-016-020-012; anchors RG-004 + RG-005 |
@@ -234,12 +242,18 @@ as a literal string embedded in the template.
 The `sort_by` array MUST appear alongside the existing `"fields"` array — it is
 additive; the fields projection is unchanged (18 fields per BC-2.16.015 §Postconditions §1).
 
-The `name` tiebreaker (CVE ID / advisory title, provably unique per OCSF `finding_info.title`
-semantics) makes the sort order total, ensuring deterministic page boundaries under
-offset pagination (EC-016-015-009).
+The `name` tiebreaker (mapping to `finding_info.title`, presence-required but NOT provably
+unique) is the **best-available sortable tiebreaker** — the opaque PK `id` is NOT a member
+of `Vulnerability__sortable_fields_enum` and cannot be used. **Accepted residual
+non-determinism (symmetric with the `audit_logs` accepted residual in BC-2.16.013
+§Sort-by postcondition):** where two rows share BOTH the same `adjusted_vulnerability_score`
+AND the same `name` (title), page-boundary ordering between them is not guaranteed. This
+residual is bounded (ties require identical score AND identical title) and is further mitigated
+by risk-primary ordering and the DI-019 10K cap. Accepted per BC-2.16.015 §Postconditions §1,
+not a defect (EC-016-015-009).
 
 **Tests:** RG-001 (`test_rg_vulnerabilities_sort_by_in_request_body`),
-RG-008 (`test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field`).
+RG-008 (`test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`).
 
 ### AC-002: `claroty_audit_logs` body_template contains sort_by alongside filter_by, with id tiebreaker and documented fallback (traces to BC-2.16.013 postcondition 1 audit_logs sort-by postcondition; EC-016-013-011)
 
@@ -359,13 +373,13 @@ REQUIRED PK for `claroty_organization_firewall_policies` per BC-2.16.021
 | RG-005 | `test_rg_organization_zone_policies_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_zone_policies` contains `"sort_by"` with `policy_name asc` | AC-005: zone_policies sort_by (traces to BC-2.16.020 postcondition 2 + EC-016-020-012) |
 | RG-006 | `test_rg_organization_firewall_groups_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_firewall_groups` contains `"sort_by"` with `firewall_group_name asc` | AC-006: firewall_groups sort_by (traces to BC-2.16.021 postcondition 1 + EC-016-021-011) |
 | RG-007 | `test_rg_organization_firewall_policies_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_firewall_policies` contains `"sort_by"` with `policy_name asc` | AC-007: firewall_policies sort_by (traces to BC-2.16.021 postcondition 2 + EC-016-021-012) |
-| RG-008 | `test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field` | Unit — parse spec; extract `body_template` for `fetch_vulnerabilities`; parse the JSON embedded literal; assert `sort_by` array last element has `"field": "name"` and `"order": "asc"`; assert `name` is a member of `Vulnerability__sortable_fields_enum` (hardcode known values) | AC-001 structural: tiebreaker is a unique field — `name` (CVE ID) provides total order (traces to BC-2.16.015 postcondition 1 DI-019 truncation rationale + EC-016-015-009) |
+| RG-008 | `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field` | Unit — parse spec; extract `body_template` for `fetch_vulnerabilities`; parse the JSON embedded literal; assert `sort_by` array last element has `"field": "name"` and `"order": "asc"`; assert `name` is a member of `Vulnerability__sortable_fields_enum` (hardcode known values) | AC-001 structural: `name` (`finding_info.title`) is the best-available sortable tiebreaker — `id` not in `Vulnerability__sortable_fields_enum`; accepted residual non-determinism for identical-score + identical-name bounded tie case documented (traces to BC-2.16.015 §Postconditions §1 + EC-016-015-009) |
 | RG-009 | `test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback` | Unit — parse spec; assert `body_template` for `fetch_audit_logs` contains BOTH `"filter_by"` AND `"sort_by"` substrings (coexistence); AND assert `sort_by` array contains `"timestamp"` entry; AND assert (if the preferred form): `"id"` entry present or (if the fallback form is used after live-validation confirms silent-ignore or 4xx rejection): `"id"` absent but `"timestamp"` remains the only sort field | AC-002: filter_by preserved (not replaced by sort_by) AND id-tiebreaker or timestamp-only fallback (traces to BC-2.16.013 postcondition 1 audit_logs sort-by + EC-016-013-011) |
 | RG-010 | `test_rg_server_interfaces_composite_key_both_present` | Unit — parse spec; extract `body_template` for `fetch_server_interfaces`; assert `sort_by` array contains exactly 2 elements: element 0 has `"field": "server_name"` and element 1 has `"field": "interface_name"`, both with `"order": "asc"` | AC-003 structural: composite key `(server_name, interface_name)` both present in correct order — uniqueness guarantee for total sort order (traces to BC-2.16.019 postcondition 1 + EC-016-019-007) |
 
 **BC-5.38.001 density check:** 10 Red Gate tests (RG-001 through RG-010) /
 7 acceptance criteria = 1.43 RGTs per AC. PASS (≥ 0.5 required). The 3 extra tests
-(RG-008, RG-009, RG-010) are structural assertions that verify uniqueness properties
+(RG-008, RG-009, RG-010) are structural assertions that verify tiebreaker field presence
 and coexistence invariants beyond the basic body_template presence checks.
 
 **RG-number reconciliation note:** The design doc (`.factory/analysis/claroty-sortby-design-2026-09-02.md` §5)
@@ -453,10 +467,11 @@ edit is made. The TOML edit is the implementation step that turns them green.
   assertion error (not skipping or panicking).
 
 - [ ] **Task 2 (Red Gate — write failing tests first): Write RG-008** in the same test file.
-  `test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field`: parse the `body_template`
-  for `fetch_vulnerabilities`; extract the JSON substring between `"sort_by":` and the
-  closing `]`; parse it as `Vec<serde_json::Value>`; assert the last element has
-  `"field": "name"` and `"order": "asc"`. MUST FAIL before Task 5.
+  `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`: parse the
+  `body_template` for `fetch_vulnerabilities`; extract the JSON substring between
+  `"sort_by":` and the closing `]`; parse it as `Vec<serde_json::Value>`; assert the last
+  element has `"field": "name"` and `"order": "asc"`; assert `name` is a member of
+  `Vulnerability__sortable_fields_enum` (hardcode known values). MUST FAIL before Task 5.
 
 - [ ] **Task 3 (Red Gate — write failing tests first): Write RG-009 and RG-010** in the
   same test file.
@@ -712,5 +727,6 @@ prism-sensors → prism-spec-engine, not reverse).
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.2 | 2026-09-02 | story-writer | Aligned §Authority and AC-001 to BC-2.16.015 §Postconditions §1 amended to close adversary OBS-001 propagation: replaced "provably unique CVE ID" and "total order" claims for `name` tiebreaker with accurate best-available-tiebreaker + accepted-residual language (`name` maps to `finding_info.title`, presence-required but NOT unique; opaque PK `id` not in `Vulnerability__sortable_fields_enum`; accepted residual for identical-score + identical-name bounded tie case, symmetric with BC-2.16.013 §Sort-by postcondition, mitigated by risk-primary ordering and DI-019 10K cap). Updated Behavioral Contracts table BC-2.16.015 Version cell and Role description. Renamed RG-008 test to `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`. POL-39 compliance: no vX.Y BC version tokens introduced in narrative prose. |
 | 1.1 | 2026-09-02 | story-writer | Aligned AC-002, Task 7, and EC-001 to BC-2.16.013 §Sort-by postcondition amended per DEFECT-CLAROTY-SORTBY-DETERMINISM-001 OBS-1: live-validation gate updated from 2xx-check to OBSERVED ORDERING DETERMINISM; silent-ignore path added alongside 4xx-rejection path in decision logic; residual non-determinism documented. LOW-1 closure: added RG-002 coupling to fallback protocol throughout (AC-002, Task 7, EC-001, §Authority, RG-002 table row, §Background live validation note). Updated Behavioral Contracts table BC-2.16.013 row to v1.44. OBS-2 closure (POL-39 depin): removed vX.Y version tokens from all narrative-prose BC citations in story body — 30 instances depinned across §Authority, §Background, AC headers, and RG table; frontmatter POL-39-exempt and unchanged. |
 | 1.0 | 2026-09-02 | story-writer | Initial story creation — 7 Claroty xDome sort_by determinism fixes, RG-001..RG-010 Red Gate enumeration, AC traceability to BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021. |
