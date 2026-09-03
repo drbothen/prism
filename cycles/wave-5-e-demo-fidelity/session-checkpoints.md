@@ -653,3 +653,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2414 2026-09-01):** develop: origin/develop = local develop = `07e64f4e` (D-2412 G5 PR #249 squash-merge); feature/S-CLAROTY-ACLPOLICY-001 (G6): `29695e0b9` LOCAL-ONLY (FIX-A applied; holdout ACCEPTED D-2414; story v1.6; demo + PR pending); G1–G5: MERGED; worktrees REMOVABLE; feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED squash `c5be059f`; S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (parked); Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
 
 **NOTE: Superseded by D-2415 — S-CLAROTY-ACLPOLICY-001 G6 PR #250 squash-merged develop@672b10b6 (D-2400 blanket authority 2026-09-01). BC-2.16.022 draft→active per POL-14. G1–G6 ALL MERGED; v1 Claroty xDome 14-table sensor COMPLETE. STATE v8.943→v8.944.**
+
+---
+
+## Archived: D-2425 — 2026-09-02; STATE v8.954→v8.955 — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-4 fix-burst COMMITTED; LOCAL pass-5 NEXT
+
+**RESUME IN ONE BREATH:** Phase 3 Wave-5-E. D-2425 LOCAL ADVERSARY PASS-4 FIX-BURST COMMITTED: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 BC-2.16.015 v2.2 (MED-001 + OBS-001 dim-2 downstream-copy sweep — RG-008 anchor citation corrected `_is_unique_field` → `_is_best_available_field` at 4 sites). Design doc swept. BC-INDEX v10.04; STORY-INDEX v2.982 (322 stories). LOCAL adversary cascade: streak at 0/3 (pass-4 fix-burst complete; 3-CLEAN required before TDD). HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
+
+**HEADS (D-2425 2026-09-02):** develop: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred); Parked: S-3.09 `43c41389d` KEEP-PARKED; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2427 — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-8 fix-burst COMMITTED. MED-001 CLOSED (POL-7): story v1.3→v1.4. STORY-INDEX v2.984. STATE v8.956→v8.957.**

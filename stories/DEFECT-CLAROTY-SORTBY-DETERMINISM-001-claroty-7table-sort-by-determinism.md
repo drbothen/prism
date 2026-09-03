@@ -12,7 +12,7 @@ status: ready
 # pattern — eligible for status: ready after remove-uncertainty pass.
 producer: story-writer
 timestamp: "2026-09-02T00:00:00Z"
-version: "1.3"
+version: "1.4"
 modified: "2026-09-02"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -224,9 +224,9 @@ and Task 7).
 |----|-------|---------|-------------------|
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v2.2 | §Postconditions §1 sort-by postcondition: `[adjusted_vulnerability_score desc, name asc]`; `name` is best-available tiebreaker (not unique); EC-016-015-009 pagination determinism with accepted residual for identical-score + identical-name bounded tie case; anchors RG-001 + RG-008 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.44 | §Postconditions §1 `audit_logs` sort-by postcondition (amended — observed-ordering sort + timestamp-only fallback): preferred `[timestamp asc, id asc]`; fallback `[timestamp asc]` if `id` rejected (4xx) OR silently ignored; residual non-determinism accepted; EC-016-013-011 pagination determinism; both RG-002 (parameterized) + RG-009 must be updated on fallback adoption |
-| BC-2.16.019 | Claroty Server Interfaces Table | v1.3 | §Postconditions §1 sort-by postcondition: `[server_name asc, interface_name asc]`; EC-016-019-007 pagination determinism (composite PK guarantee); anchors RG-003 + RG-010 |
-| BC-2.16.020 | Claroty Org Zone Domain | v1.3 | §Postconditions §1 zones sort-by postcondition: `[zone_name asc]`; EC-016-020-011; §Postconditions §2 zone_policies sort-by: `[policy_name asc]`; EC-016-020-012; anchors RG-004 + RG-005 |
-| BC-2.16.021 | Claroty Org Firewall Domain | v1.3 | §Postconditions §1 firewall_groups sort-by: `[firewall_group_name asc]`; EC-016-021-011; §Postconditions §2 firewall_policies sort-by: `[policy_name asc]`; EC-016-021-012; anchors RG-006 + RG-007 |
+| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | v1.3 | §Postconditions §1 sort-by postcondition: `[server_name asc, interface_name asc]`; EC-016-019-007 pagination determinism (composite PK guarantee); anchors RG-003 + RG-010 |
+| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 zones sort-by postcondition: `[zone_name asc]`; EC-016-020-011; §Postconditions §2 zone_policies sort-by: `[policy_name asc]`; EC-016-020-012; anchors RG-004 + RG-005 |
+| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 firewall_groups sort-by: `[firewall_group_name asc]`; EC-016-021-011; §Postconditions §2 firewall_policies sort-by: `[policy_name asc]`; EC-016-021-012; anchors RG-006 + RG-007 |
 
 ---
 
@@ -723,10 +723,23 @@ prism-sensors → prism-spec-engine, not reverse).
 
 ---
 
+## References
+
+| BC | Verbatim H1 Title | File |
+|----|-------------------|------|
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | `.factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md` |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | `.factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md` |
+| BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | `.factory/specs/behavioral-contracts/BC-2.16.019-claroty-server-interfaces-table.md` |
+| BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | `.factory/specs/behavioral-contracts/BC-2.16.020-claroty-org-zone-domain.md` |
+| BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | `.factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md` |
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.4 | 2026-09-02 | story-writer | MED-001 closed — POL-7 verbatim-H1 sync: BC-2.16.019 title in §Behavioral Contracts table corrected from "Claroty Server Interfaces Table" to verbatim H1; BC-2.16.020 title corrected from "Claroty Org Zone Domain" to verbatim H1; BC-2.16.021 title corrected from "Claroty Org Firewall Domain" to verbatim H1. §References section added with all 5 anchored BCs (POL-7 completeness). No content, mechanism, AC, or RG change. |
 | 1.3 | 2026-09-02 | state-manager | Records-only micro-burst (TD-VSDD-096): MED-001 CLOSED — BC-2.16.015 version pin synced v2.1→v2.2 in frontmatter behavioral_contracts comment (site 1) and Behavioral Contracts table Version column (site 2). OBS-001 CLOSED (depin per POL-39/TD-VSDD-091) — BC-2.16.013 table role-description volatile version token `(amended v1.44)` replaced with content/section anchor `(amended — observed-ordering sort + timestamp-only fallback)`. No content/mechanism/contract-semantics change. |
 | 1.2 | 2026-09-02 | story-writer | Aligned §Authority and AC-001 to BC-2.16.015 §Postconditions §1 amended to close adversary OBS-001 propagation: replaced "provably unique CVE ID" and "total order" claims for `name` tiebreaker with accurate best-available-tiebreaker + accepted-residual language (`name` maps to `finding_info.title`, presence-required but NOT unique; opaque PK `id` not in `Vulnerability__sortable_fields_enum`; accepted residual for identical-score + identical-name bounded tie case, symmetric with BC-2.16.013 §Sort-by postcondition, mitigated by risk-primary ordering and DI-019 10K cap). Updated Behavioral Contracts table BC-2.16.015 Version cell and Role description. Renamed RG-008 test to `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`. POL-39 compliance: no vX.Y BC version tokens introduced in narrative prose. |
 | 1.1 | 2026-09-02 | story-writer | Aligned AC-002, Task 7, and EC-001 to BC-2.16.013 §Sort-by postcondition amended per DEFECT-CLAROTY-SORTBY-DETERMINISM-001 OBS-1: live-validation gate updated from 2xx-check to OBSERVED ORDERING DETERMINISM; silent-ignore path added alongside 4xx-rejection path in decision logic; residual non-determinism documented. LOW-1 closure: added RG-002 coupling to fallback protocol throughout (AC-002, Task 7, EC-001, §Authority, RG-002 table row, §Background live validation note). Updated Behavioral Contracts table BC-2.16.013 row to v1.44. OBS-2 closure (POL-39 depin): removed vX.Y version tokens from all narrative-prose BC citations in story body — 30 instances depinned across §Authority, §Background, AC headers, and RG table; frontmatter POL-39-exempt and unchanged. |

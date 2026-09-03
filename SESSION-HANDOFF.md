@@ -1,21 +1,21 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.048"
+version: "8.049"
 status: current
 timestamp: 2026-09-02T23:45:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2426 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pass-5 records-only micro-burst COMMITTED (TD-VSDD-096). MED-001 CLOSED: story BC-2.16.015 pin v2.1→v2.2. OBS-001 CLOSED (depin): BC-2.16.013 volatile version token removed. Comprehensive sweep: STORY-INDEX section header + HOLDOUT-INDEX HS-031 description + story input-hash. Story v1.2→v1.3. STORY-INDEX v2.983; HOLDOUT-INDEX v1.36. records-lint PASS. STATE v8.955→v8.956. SESSION-HANDOFF v8.047→v8.048. NEXT: LOCAL adversary pass-5 (3-CLEAN cascade, streak at 0/3). [D-2425 historical: pass-4 fix-burst — BC-2.16.015 v2.2, RG-008 anchor sweep; superseded.]**
+> **D-2427 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-8 fix-burst COMMITTED (TD-VSDD-096). MED-001 CLOSED (POL-7 verbatim-title): 3 story §Behavioral Contracts Title cells corrected to verbatim BC H1 (BC-2.16.019/020/021); §References section added. Story v1.3→v1.4. STORY-INDEX v2.984. BC-INDEX UNCHANGED v10.04. records-lint PASS. STATE v8.956→v8.957. SESSION-HANDOFF v8.048→v8.049. LOCAL adversary cascade streak RESET 0/3; pass-9 NEXT. [D-2426 historical: pass-5 records-only micro-burst — BC-2.16.015 pin v2.1→v2.2 + depin; superseded.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2426 (2026-09-02 — sort_by DEFECT LOCAL pass-5 records-only micro-burst COMMITTED; LOCAL pass-5 adversary NEXT) [supersedes D-2425]
+## §RESUME SNAPSHOT — D-2427 (2026-09-02 — sort_by DEFECT LOCAL adversary pass-8 fix-burst COMMITTED; LOCAL pass-9 adversary NEXT) [supersedes D-2426]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. D-2426 PASS-5 RECORDS-ONLY MICRO-BURST COMMITTED (TD-VSDD-096): MED-001/OBS-001 CLOSED — story v1.3 (BC-2.16.015 pin v2.1→v2.2; BC-2.16.013 volatile token depin); STORY-INDEX v2.983; HOLDOUT-INDEX v1.36. All current-state BC pins consistent: BC-2.16.015 v2.2, BC-2.16.013 v1.44, BC-2.16.019/020/021 v1.3. LOCAL adversary cascade streak at 0/3; 3-CLEAN required before TDD. HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
+Phase 3 Wave-5-E. D-2427 LOCAL ADVERSARY PASS-8 FIX-BURST COMMITTED (TD-VSDD-096): MED-001 CLOSED (POL-7) — story v1.4 (3 BC Behavioral-Contracts Title cells corrected to verbatim H1; §References section added); STORY-INDEX v2.984. All current-state BC pins consistent: BC-2.16.015 v2.2, BC-2.16.013 v1.44, BC-2.16.019/020/021 v1.3. LOCAL adversary cascade streak RESET 0/3; pass-9 NEXT; 3-CLEAN required before TDD. HS-031 holdouts (4 P0 HIDDEN SINGLE-USE; MUST NOT read before holdout gate). develop @2edaaca78.
 
 ### GOVERNING OBJECTIVE
 TDD delivery for DEFECT-CLAROTY-SORTBY-DETERMINISM-001: complete LOCAL 3-CLEAN adversary cascade on story v1.3 + BC-2.16.015 v2.2 + BC-2.16.013 v1.44 → test-writer (RG-001..010 failing tests) → implementer (claroty.sensor.toml sort_by arrays for 7 tables) → LOCAL 3-CLEAN on code → story-level holdout gate (HS-031 HIDDEN) → demo-recorder → PR → merge. Declare v1 RELEASE-READY after sort_by fix delivered and live re-validation on monroe passes.
@@ -31,19 +31,19 @@ TDD delivery for DEFECT-CLAROTY-SORTBY-DETERMINISM-001: complete LOCAL 3-CLEAN a
 ### PER-WORKSTREAM NEXT-ACTIONS (exact order)
 1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
 2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`).
-3. **LOCAL adversary pass-5 (3-CLEAN cascade):** Fresh-context adversary on story v1.2 + BC-2.16.015 v2.2 + BC-2.16.013 v1.44. Pass-4 MED-001/OBS-001 closed. Streak at 0/3; 3 consecutive CLEAN(strict) passes required before TDD.
+3. **LOCAL adversary pass-9 (3-CLEAN cascade):** Fresh-context adversary on story v1.4 + BC-2.16.015 v2.2 + BC-2.16.013 v1.44 + BC-2.16.019/020/021 v1.3. Pass-8 MED-001 CLOSED (POL-7). Streak RESET 0/3; 3 consecutive CLEAN(strict) passes required before TDD.
 4. **TDD delivery (after 3-CLEAN):** test-writer (RG-001..RG-010 failing tests) → implementer (claroty.sensor.toml body_template sort_by fields; wire tests green) → LOCAL 3-CLEAN adversary cascade (BC-5.39.001) → story-level holdout gate (holdout-evaluator; HS-031 HIDDEN — MUST NOT be read before gate) → demo-recorder → PR → pr-manager 9-step PR cycle → squash-merge into develop.
 5. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
 6. **Declare v1 RELEASE-READY** after sort_by fix delivered + live re-validation on monroe passes.
 
 ### CONVERGENCE STATE
-G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: spec complete through D-2425 (BC-2.16.015 v2.2); LOCAL adversary cascade at 0/3; TDD delivery pending 3-CLEAN.
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: story v1.4 through D-2427; LOCAL adversary cascade streak RESET 0/3; TDD delivery pending 3-CLEAN (pass-9 NEXT).
 
 ### HEARTBEAT
 Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
 
 ### DECISION DELTA
-D-2426 (PASS-5 RECORDS-ONLY MICRO-BURST TD-VSDD-096: MED-001/OBS-001 CLOSED — story v1.3 pin-sync + depin; STORY-INDEX v2.983; HOLDOUT-INDEX v1.36; records-lint PASS; STATE v8.955→v8.956; SESSION-HANDOFF v8.047→v8.048). D-2425 (PASS-4 FIX-BURST: BC-2.16.015 v2.2 MED-001+OBS-001 dim-2 sweep; BC-INDEX v10.04; STORY-INDEX v2.982). D-2422 historical: spec burst committed; superseded.
+D-2427 (PASS-8 FIX-BURST TD-VSDD-096: MED-001 CLOSED POL-7 — story v1.4 (3 BC Title cells corrected; §References added); STORY-INDEX v2.984; BC-INDEX UNCHANGED v10.04; records-lint PASS; STATE v8.956→v8.957; SESSION-HANDOFF v8.048→v8.049). D-2426 (PASS-5 RECORDS-ONLY MICRO-BURST: story v1.3 pin-sync + depin; STORY-INDEX v2.983; HOLDOUT-INDEX v1.36). D-2422 historical: spec burst committed; superseded.
 
 ### STANDING DECISIONS (carry forward)
 (a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416).
