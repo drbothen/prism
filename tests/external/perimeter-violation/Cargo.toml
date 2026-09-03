@@ -26,9 +26,11 @@ prism-core = { path = "../../../crates/prism-core" }
 # breaks brotli 8.0.x and brotli-decompressor 5.0.x compilation under rustc stable
 # 1.95.0 with E0277 (StandardAlloc: alloc::Allocator<T> not satisfied). The main
 # workspace Cargo.lock pins alloc-stdlib 0.2.2 + alloc-no-stdlib 2.0.4 +
-# brotli-decompressor 5.0.0 + brotli 8.0.2 (all known-good), but this crate's
-# Cargo.lock is gitignored so each CI run fresh-resolves to the latest versions.
-# These pins replicate the known-good resolution from the main workspace lockfile.
+# brotli-decompressor 5.0.0 + brotli 8.0.2 (all known-good). This crate's
+# Cargo.lock is now tracked (see .gitignore note) and also pins tinyvec 1.11.0
+# to prevent toolchain-compat regressions (tinyvec 1.13.0 fails on Rust 1.98.1).
+# These = pins provide belt-and-suspenders version locking in the manifest itself,
+# consistent with the main workspace Cargo.lock.
 # Remove when alloc-no-stdlib 3.x / alloc-stdlib 0.2.3 compatibility is fixed upstream.
 brotli = "=8.0.2"
 brotli-decompressor = "=5.0.0"

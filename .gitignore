@@ -39,8 +39,9 @@ fuzz/Cargo.lock
 # same app-binary concern as locking the main workspace binary. Tracking the lockfile
 # closes the transitive-dep drift vector in the staleness gate (hash-plugin-source.py
 # uses git ls-files, so the lockfile is included in the source-tree hash).
-# NOTE: perimeter-violation/ and non-exhaustive-violation/ Cargo.lock files ARE tracked
-# to pin transitive deps (e.g. tinyvec) to versions compatible with the pinned toolchain.
+# NOTE: perimeter-violation/, non-exhaustive-violation/, and no-hardcoded-sensors/
+# Cargo.lock files ARE tracked to pin transitive deps (e.g. tinyvec) to versions
+# compatible with the pinned toolchain.
 # fuzz/ Cargo.lock remains excluded (not a shipped binary, no toolchain-compat concern).
 
 # prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
