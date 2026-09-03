@@ -12,7 +12,7 @@ status: ready
 # pattern — eligible for status: ready after remove-uncertainty pass.
 producer: story-writer
 timestamp: "2026-09-02T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-09-02"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -24,7 +24,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.020-claroty-org-zone-domain.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.021-claroty-org-firewall-domain.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "1a1ccaf"
+input-hash: "73b9dc1"
 traces_to:
   - "BC-2.16.015"
   - "BC-2.16.013"
@@ -62,9 +62,10 @@ behavioral_contracts:
   # (offset pagination determinism; accepted residual for identical-score + identical-name
   # bounded tie case); anchors RG-001 + RG-008.
   - BC-2.16.013
-  # BC-2.16.013 v1.44 — Bundled Sensor Spec Authoring: §Postconditions §1 audit_logs
-  # sort-by postcondition (D-002); EC-016-013-011 (offset pagination determinism);
-  # anchors RG-002 + RG-009.
+  # BC-2.16.013 v1.45 — Bundled Sensor Spec Authoring: §Postconditions §1 audit_logs
+  # sort-by postcondition (D-002, timestamp-only canonical adopted — live-validated
+  # 2026-09-02: id in sort_by returns 0 rows; compound form RETIRED);
+  # EC-016-013-011 (offset pagination determinism); anchors RG-002 + RG-009.
   - BC-2.16.019
   # BC-2.16.019 v1.3 — Claroty Server Interfaces Table: §Postconditions §1 sort-by
   # postcondition (D-003); EC-016-019-007 (offset pagination determinism);
@@ -99,8 +100,8 @@ severity: MED
 risk: LOW
 # Risk rationale: The change is additive (sort_by is an optional API parameter that
 # cannot cause a non-200 response for enum-validated tables). audit_logs id tiebreaker
-# carries MEDIUM risk (SortClause has no field enum; id may be rejected or silently
-# ignored). Fallback protocol documented in BC-2.16.013 and AC-002.
+# risk resolved via live validation (2026-09-02): timestamp-only form adopted; compound
+# form with id RETIRED (live-proven: id in sort_by returns 0 rows). Risk remains LOW.
 assumption_validations: []
 risk_mitigations: []
 origin_finding: "D-001..D-007 in .factory/analysis/endpoint-conformance-audit-2026-09-02.md"
@@ -127,19 +128,20 @@ identical score AND identical title — and is further mitigated by risk-primary
 the DI-019 10K cap. Accepted, not a defect. Anchor: EC-016-015-009; RG-001; RG-008.
 
 **BC-2.16.013 §Postconditions §1 (audit_logs sort-by postcondition)** governs
-`claroty_audit_logs`: preferred body_template is
-`'{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]}'`.
-**`id` tiebreaker caveat:** `audit_logs` uses the generic `SortClause` schema (free-form
-string field, no enum validation). The live-validation gate MUST assert OBSERVED ORDERING
-DETERMINISM — a 2xx response alone is NOT evidence that `id` is honored. If `id` is
-rejected (4xx) OR silently ignored (compound sort indistinguishable from timestamp-only),
-the fallback is `[{"field":"timestamp","order":"asc"}]` alone — the implementer MUST use
-the fallback and amend BC-2.16.013 and `claroty.sensor.toml` in the same burst; on
-fallback adoption, BOTH RG-002 (parameterized to accept either form) AND RG-009 must be
-updated. **Residual non-determinism (accepted if fallback adopted):** `audit_logs` has no
-unique sortable tiebreaker in its documented field set (`category`, `action`,
-`user_display_name`, `note`, `timestamp`, `details`); 7-day window bounds blast radius.
-Anchor: EC-016-013-011; RG-002; RG-009.
+`claroty_audit_logs`. The canonical sort form is `[{"field":"timestamp","order":"asc"}]`
+(timestamp-only, live-validated 2026-09-02 on monroe). **Live-validation outcome:** Both
+compound sort variants — `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`
+and `[{"field":"timestamp","order":"asc"},{"field":"id","order":"desc"}]` — returned 0 rows
+(HTTP 200, empty result set) against the live xDome audit_log endpoint. `id` is NOT a valid
+sort field for `audit_logs`. The `GetAuditLogParameters` documented sortable fields
+(`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`) do not include
+`id`; including `id` in `sort_by` causes xDome to silently return 0 rows. The compound form
+is RETIRED — live-proven-broken. **Accepted residual non-determinism:** `audit_logs` exposes
+no valid unique sortable tiebreaker in its documented field set; equal-timestamp ties resolve
+in API-dependent (non-guaranteed-stable) order. The 7-day time-window filter bounds the
+practical blast radius; this residual is accepted, not a defect. **Filter-by coexistence
+(unchanged):** `sort_by` MUST NOT displace `filter_by` from `body_template`. Anchor:
+EC-016-013-011; RG-002; RG-009.
 
 **BC-2.16.019 §Postconditions §1 sort-by postcondition** governs
 `claroty_server_interfaces`:
@@ -199,7 +201,7 @@ D-001..D-007) identified 7 tables with this defect:
 | Audit ID | Table | Non-unique API default | Proposed sort_by |
 |----------|-------|----------------------|-----------------|
 | D-001 | vulnerabilities | `published_date desc` | `adjusted_vulnerability_score desc` + `name asc` |
-| D-002 | audit_logs | undefined (generic SortClause) | `timestamp asc` + `id asc` (id UNVERIFIED — see AC-002) |
+| D-002 | audit_logs | undefined (generic SortClause) | `timestamp asc` (timestamp-only; live-validated 2026-09-02 — `id` in sort_by returns 0 rows; compound form RETIRED) |
 | D-003 | server_interfaces | `server_name asc` (partial — non-unique alone) | `server_name asc` + `interface_name asc` |
 | D-004 | organization_zones | `priority asc` (non-unique) | `zone_name asc` |
 | D-005 | organization_zone_policies | `matching_devices asc` (non-unique) | `policy_name asc` |
@@ -211,13 +213,14 @@ spec-engine production code changes are required. The BC amendments (product-own
 leg) are already complete (BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020,
 BC-2.16.021, all active 2026-09-02).
 
-**Live validation note:** The `audit_logs` `id` tiebreaker is UNVERIFIED at live-API level
-(the `audit_logs` endpoint uses the generic `SortClause` with no field enum, unlike the
-other 6 tables). If the live xDome API rejects `id` (4xx) OR silently ignores it
-(compound sort indistinguishable from timestamp-only), the implementer MUST fall back to
-`[{"field":"timestamp","order":"asc"}]` alone, amend BC-2.16.013 and
-`claroty.sensor.toml` in the same burst, and update both RG-002 and RG-009 (see AC-002
-and Task 7).
+**Live validation outcome (2026-09-02, monroe):** Both compound sort variants
+(`[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` and
+`[{"field":"timestamp","order":"asc"},{"field":"id","order":"desc"}]`) returned 0 rows
+(HTTP 200, empty result set) from the live xDome audit_log endpoint. `id` is NOT a valid
+`audit_logs` sort field. The canonical form `[{"field":"timestamp","order":"asc"}]`
+(timestamp-only) returned live rows and is the ADOPTED sort for `audit_logs`. The compound
+form is RETIRED — live-proven-broken. BC-2.16.013 §Sort-by postcondition reflects this
+outcome. Task 7 is DISCHARGED.
 
 ---
 
@@ -226,7 +229,7 @@ and Task 7).
 | BC | Title | Version | Role in this story |
 |----|-------|---------|-------------------|
 | BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v2.2 | §Postconditions §1 sort-by postcondition: `[adjusted_vulnerability_score desc, name asc]`; `name` is best-available tiebreaker (not unique); EC-016-015-009 pagination determinism with accepted residual for identical-score + identical-name bounded tie case; anchors RG-001 + RG-008 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.44 | §Postconditions §1 `audit_logs` sort-by postcondition (amended — observed-ordering sort + timestamp-only fallback): preferred `[timestamp asc, id asc]`; fallback `[timestamp asc]` if `id` rejected (4xx) OR silently ignored; residual non-determinism accepted; EC-016-013-011 pagination determinism; both RG-002 (parameterized) + RG-009 must be updated on fallback adoption |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.45 | §Postconditions §1 `audit_logs` sort-by postcondition — timestamp-only canonical `[timestamp asc]` (live-validated 2026-09-02: `id` in sort_by returns 0 rows; compound form RETIRED); accepted residual non-determinism (no valid unique tiebreaker; 7-day window bounds blast radius); filter_by coexistence retained; EC-016-013-011 pagination determinism; anchors RG-002 + RG-009 |
 | BC-2.16.019 | Claroty xDome Server Interfaces Table — Queryable Surface, Composite PK, and OCSF inventory_info Mapping (No DTU) | v1.3 | §Postconditions §1 sort-by postcondition: `[server_name asc, interface_name asc]`; EC-016-019-007 pagination determinism (composite PK guarantee); anchors RG-003 + RG-010 |
 | BC-2.16.020 | Claroty xDome Organization Zone Domain — Zones and Zone Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 zones sort-by postcondition: `[zone_name asc]`; EC-016-020-011; §Postconditions §2 zone_policies sort-by: `[policy_name asc]`; EC-016-020-012; anchors RG-004 + RG-005 |
 | BC-2.16.021 | Claroty xDome Organization Firewall Domain — Firewall Groups and Firewall Group Policies Queryable Surface with OCSF entity_management Mapping (No DTU) | v1.3 | §Postconditions §1 firewall_groups sort-by: `[firewall_group_name asc]`; EC-016-021-011; §Postconditions §2 firewall_policies sort-by: `[policy_name asc]`; EC-016-021-012; anchors RG-006 + RG-007 |
@@ -258,43 +261,36 @@ not a defect (EC-016-015-009).
 **Tests:** RG-001 (`test_rg_vulnerabilities_sort_by_in_request_body`),
 RG-008 (`test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field`).
 
-### AC-002: `claroty_audit_logs` body_template contains sort_by alongside filter_by, with id tiebreaker and documented fallback (traces to BC-2.16.013 postcondition 1 audit_logs sort-by postcondition; EC-016-013-011)
+### AC-002: `claroty_audit_logs` body_template contains timestamp-only sort_by alongside filter_by (traces to BC-2.16.013 postcondition 1 audit_logs sort-by postcondition; EC-016-013-011)
 
 The `fetch_audit_logs` step in `claroty.sensor.toml` MUST have a `body_template`
 that contains BOTH `"filter_by"` AND `"sort_by"` keys. The `"filter_by"` key MUST
 NOT be removed or replaced by `"sort_by"` — the template extends the existing bounded
 push-down template.
 
-The preferred `sort_by` value is
-`[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`.
+The canonical `sort_by` value is `[{"field":"timestamp","order":"asc"}]`
+(timestamp-only, live-validated).
 
-**`id` tiebreaker live-validation obligation (OBSERVED ORDERING DETERMINISM required):**
-Before pushing the PR, the implementer MUST verify ordering determinism directly —
-e.g., stable, gap/dup-free row ordering across a page boundary, or that the compound
-form produces pagination stability demonstrably distinct from the timestamp-only form.
-A 2xx HTTP response alone is NOT evidence that `id` is honored; the live xDome API
-uses `SortClause` (free-form, no field enum), meaning it will return HTTP 200 whether
-`id` is honored or silently ignored.
+**Live-validation outcome (2026-09-02, monroe):** Both compound sort variants —
+`[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` and
+`[{"field":"timestamp","order":"asc"},{"field":"id","order":"desc"}]` — returned 0 rows
+(HTTP 200, empty result set) against the live xDome audit_log endpoint. `id` is NOT a
+valid sort field for `audit_logs`; the `GetAuditLogParameters` documented sortable fields
+(`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`) do not include
+`id`. Including `id` in `sort_by` causes xDome to silently return 0 rows rather than a
+4xx response. The compound form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`
+is RETIRED — live-proven-broken.
 
-If live validation demonstrates `id` is honored (compound sort creates a total order
-distinct from timestamp-only) → keep `[{"field":"timestamp","order":"asc"},
-{"field":"id","order":"asc"}]` as the TOML `body_template` sort form.
-
-If `id` is rejected (4xx) OR silently ignored (compound sort indistinguishable from
-timestamp-only) → the implementer MUST:
-1. Change the template to the fallback: `[{"field":"timestamp","order":"asc"}]`
-2. Amend BC-2.16.013 and `claroty.sensor.toml` in the same burst documenting the outcome
-3. Update BOTH RG-002 (parameterized to accept either the compound or the fallback form)
-   AND RG-009 (to assert the fallback form as the confirmed canonical form)
-
-**Residual non-determinism (accepted if fallback adopted):** `audit_logs` exposes no
-unique sortable tiebreaker in its documented `SortClause`/`GetAuditLogParameters` field
-set (`category`, `action`, `user_display_name`, `note`, `timestamp`, `details`), so
-full total-ordering is not achievable via the API contract; the 7-day time-window filter
-bounds the practical blast radius; this residual is accepted, not a defect.
+**Accepted residual non-determinism:** `audit_logs` exposes no valid unique sortable
+tiebreaker in its documented `SortClause`/`GetAuditLogParameters` field set (`category`,
+`action`, `user_display_name`, `note`, `timestamp`, `details`); full total-ordering is not
+achievable via the API contract. Equal-timestamp ties resolve in API-dependent
+(non-guaranteed-stable) order. The 7-day time-window filter bounds the practical blast
+radius. This residual is accepted, not a defect.
 
 **Tests:** RG-002 (`test_rg_audit_logs_sort_by_in_request_body`),
-RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`).
+RG-009 (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`). Both tests assert the
+timestamp-only form — no test-file change is required.
 
 ### AC-003: `claroty_server_interfaces` body_template contains composite sort_by (server_name asc, interface_name asc) (traces to BC-2.16.019 postcondition 1 sort-by postcondition; EC-016-019-007)
 
@@ -370,14 +366,14 @@ REQUIRED PK for `claroty_organization_firewall_policies` per BC-2.16.021
 | ID | Test name | Test type | What it gates |
 |----|-----------|-----------|---------------|
 | RG-001 | `test_rg_vulnerabilities_sort_by_in_request_body` | Unit — `SpecLoader::parse` on `claroty.sensor.toml`; assert `body_template` string for `fetch_vulnerabilities` contains `"sort_by"` key with `adjusted_vulnerability_score` desc and `name` asc | AC-001: vulnerabilities body_template emits the contracted sort_by array (traces to BC-2.16.015 postcondition 1 + EC-016-015-009) |
-| RG-002 | `test_rg_audit_logs_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_audit_logs` contains `"sort_by"` key in either the preferred compound form (`timestamp asc` + `id asc`) or the timestamp-only fallback form — parameterized to accept either after live-validation outcome | AC-002: audit_logs body_template contains sort_by (traces to BC-2.16.013 postcondition 1 + EC-016-013-011); coupled to fallback adoption alongside RG-009 |
+| RG-002 | `test_rg_audit_logs_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_audit_logs` contains `"sort_by"` key with the timestamp-only canonical form `[timestamp asc]` | AC-002: audit_logs body_template contains timestamp-only sort_by (traces to BC-2.16.013 §Sort-by postcondition + EC-016-013-011); no test change required — timestamp-only is the adopted canonical form |
 | RG-003 | `test_rg_server_interfaces_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_server_interfaces` contains `"sort_by"` key | AC-003: server_interfaces sort_by present (traces to BC-2.16.019 postcondition 1 + EC-016-019-007) |
 | RG-004 | `test_rg_organization_zones_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_zones` contains `"sort_by"` with `zone_name asc` | AC-004: organization_zones sort_by (traces to BC-2.16.020 postcondition 1 + EC-016-020-011) |
 | RG-005 | `test_rg_organization_zone_policies_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_zone_policies` contains `"sort_by"` with `policy_name asc` | AC-005: zone_policies sort_by (traces to BC-2.16.020 postcondition 2 + EC-016-020-012) |
 | RG-006 | `test_rg_organization_firewall_groups_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_firewall_groups` contains `"sort_by"` with `firewall_group_name asc` | AC-006: firewall_groups sort_by (traces to BC-2.16.021 postcondition 1 + EC-016-021-011) |
 | RG-007 | `test_rg_organization_firewall_policies_sort_by_in_request_body` | Unit — `SpecLoader::parse`; assert `body_template` for `fetch_organization_firewall_policies` contains `"sort_by"` with `policy_name asc` | AC-007: firewall_policies sort_by (traces to BC-2.16.021 postcondition 2 + EC-016-021-012) |
 | RG-008 | `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field` | Unit — parse spec; extract `body_template` for `fetch_vulnerabilities`; parse the JSON embedded literal; assert `sort_by` array last element has `"field": "name"` and `"order": "asc"`; assert `name` is a member of `Vulnerability__sortable_fields_enum` (hardcode known values) | AC-001 structural: `name` (`finding_info.title`) is the best-available sortable tiebreaker — `id` not in `Vulnerability__sortable_fields_enum`; accepted residual non-determinism for identical-score + identical-name bounded tie case documented (traces to BC-2.16.015 §Postconditions §1 + EC-016-015-009) |
-| RG-009 | `test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback` | Unit — parse spec; assert `body_template` for `fetch_audit_logs` contains BOTH `"filter_by"` AND `"sort_by"` substrings (coexistence); AND assert `sort_by` array contains `"timestamp"` entry; AND assert (if the preferred form): `"id"` entry present or (if the fallback form is used after live-validation confirms silent-ignore or 4xx rejection): `"id"` absent but `"timestamp"` remains the only sort field | AC-002: filter_by preserved (not replaced by sort_by) AND id-tiebreaker or timestamp-only fallback (traces to BC-2.16.013 postcondition 1 audit_logs sort-by + EC-016-013-011) |
+| RG-009 | `test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback` | Unit — parse spec; assert `body_template` for `fetch_audit_logs` contains BOTH `"filter_by"` AND `"sort_by"` substrings (coexistence); AND assert `sort_by` array contains `"timestamp"` entry as the sole sort field; AND assert `"id"` is absent from the sort_by array | AC-002: filter_by preserved (not replaced by sort_by) AND timestamp-only canonical form asserted (`id` absent — live-validated RETIRED; traces to BC-2.16.013 §Sort-by postcondition + EC-016-013-011) |
 | RG-010 | `test_rg_server_interfaces_composite_key_both_present` | Unit — parse spec; extract `body_template` for `fetch_server_interfaces`; assert `sort_by` array contains exactly 2 elements: element 0 has `"field": "server_name"` and element 1 has `"field": "interface_name"`, both with `"order": "asc"` | AC-003 structural: composite key `(server_name, interface_name)` both present in correct order — uniqueness guarantee for total sort order (traces to BC-2.16.019 postcondition 1 + EC-016-019-007) |
 
 **BC-5.38.001 density check:** 10 Red Gate tests (RG-001 through RG-010) /
@@ -452,7 +448,7 @@ Architecture section references:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `audit_logs` `id` sort field rejected (4xx) OR silently ignored by xDome live API (HTTP 200 but compound sort indistinguishable from timestamp-only) | Implementer MUST fall back to `[{"field":"timestamp","order":"asc"}]` alone; amend BC-2.16.013 and `claroty.sensor.toml` in the same burst; update BOTH RG-002 (parameterized to accept either form) AND RG-009 to assert the fallback form; residual non-determinism accepted (no unique tiebreaker in documented SortClause field set — `category`, `action`, `user_display_name`, `note`, `timestamp`, `details`; 7-day window bounds blast radius) (traces to BC-2.16.013 §Sort-by postcondition §id tiebreaker caveat + EC-016-013-011 fallback clause) |
+| EC-001 | `audit_logs` `id` sort field silently produces 0 rows from xDome live API (live-validated 2026-09-02 on monroe: `[timestamp asc, id asc]` and `[timestamp asc, id desc]` both returned HTTP 200 empty; `id` is NOT in `GetAuditLogParameters` documented sortable fields) | Canonical sort is `[{"field":"timestamp","order":"asc"}]` (timestamp-only, adopted). Accepted residual non-determinism: equal-timestamp ties resolve in API-dependent (non-guaranteed-stable) order; 7-day time-window filter bounds blast radius; this residual is accepted, not a defect (traces to BC-2.16.013 §Sort-by postcondition + EC-016-013-011) |
 | EC-002 | `sort_by` key accidentally replaces `filter_by` in audit_logs body_template | `build_claroty_audit_filter_by` value is never injected; xDome returns all audit events without the 7-day time window; silent data inflation. RG-009 explicitly asserts BOTH keys are present to guard against this. |
 | EC-003 | `sort_by` inserted inside the `fields` array literal (wrong placement) | JSON parse error at the `build_request` stage (body_template is not valid JSON after variable substitution). RG-001..007 parse the body_template string to detect malformed JSON structure. |
 | EC-004 | `vulnerabilities` `adjusted_vulnerability_score` field name misspelled in `sort_by` | xDome returns 400 (ValidatingSortClause enum validation failure). RG-001 asserts the exact field name string. |
@@ -508,9 +504,9 @@ edit is made. The TOML edit is the implementation step that turns them green.
   **RG-009** (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`): parse
   `body_template` for `fetch_audit_logs`; assert it contains BOTH the substring
   `"filter_by"` AND the substring `"sort_by"` (coexistence guard); assert it contains
-  `"timestamp"` in the sort_by value; assert it contains either `"id"` (preferred) or
-  exclusively `"timestamp"` (fallback — only valid after live-validation confirms silent-
-  ignore or 4xx rejection). MUST FAIL before Task 5.
+  `"timestamp"` as the sole sort entry; AND assert `"id"` is ABSENT from the sort_by
+  array (timestamp-only canonical — compound form RETIRED; live-validated 2026-09-02).
+  MUST FAIL before Task 5.
 
   **RG-010** (`test_rg_server_interfaces_composite_key_both_present`): parse
   `body_template` for `fetch_server_interfaces`; extract and parse the `sort_by` JSON
@@ -537,8 +533,9 @@ edit is made. The TOML edit is the implementation step that turns them green.
 
   - **audit_logs** (`fetch_audit_logs`): change
     `'{"filter_by": ${query.filter._claroty_audit_filter_by}}'` to
-    `'{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]}'`
-    (PRESERVE `filter_by` — do NOT replace it).
+    `'{"filter_by": ${query.filter._claroty_audit_filter_by}, "sort_by": [{"field":"timestamp","order":"asc"}]}'`
+    (PRESERVE `filter_by` — do NOT replace it). Timestamp-only canonical — compound form
+    with `id` is RETIRED (live-validated 2026-09-02: `id` returns 0 rows).
 
   - **server_interfaces** (`fetch_server_interfaces`): append
     `"sort_by": [{"field":"server_name","order":"asc"},{"field":"interface_name","order":"asc"}]`
@@ -562,34 +559,19 @@ edit is made. The TOML edit is the implementation step that turns them green.
   `just iter prism-sensors`
   All 10 RG tests MUST now pass. Confirm no existing prism-sensors tests regressed.
 
-- [ ] **Task 7 (audit_logs id live-validation — BLOCKING before push):**
-  If live access to the monroe xDome instance is available, validate OBSERVED ORDERING
-  DETERMINISM — NOT merely the HTTP response code. A 200 response does NOT confirm
-  `id` is honored because `SortClause` performs no server-side field-name validation
-  (the `audit_logs` endpoint returns HTTP 200 whether `id` is honored or silently ignored).
-  Run a page-boundary check:
-  `curl -X POST <CLAROTY_INSTANCE_URL>/api/v1/audit_log/get \
-    -H "Authorization: Bearer <token>" \
-    -H "Content-Type: application/json" \
-    -d '{"sort_by": [{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}], "filter_by": {"field": "timestamp", "operation": "greater_or_equal", "value": "<now-7d ISO-8601>"}, "limit": 10, "offset": 0}'`
-  Then repeat with `"offset": 10`. Verify: the row at position 10 in the first page
-  equals the row at position 0 in the second page, confirming stable ordering across
-  the page boundary. Alternatively, compare the compound-sort result against a
-  timestamp-only result to confirm distinct ordering.
-  - If `id` is honored (observed stable ordering distinct from timestamp-only): the
-    preferred compound form is confirmed. RG-009 passes as-is. RG-002 passes as-is.
-  - If `id` is rejected (4xx) OR silently ignored (compound sort indistinguishable
-    from timestamp-only): change audit_logs `sort_by` to
-    `[{"field":"timestamp","order":"asc"}]` alone, amend BC-2.16.013 and
-    `claroty.sensor.toml` in the same burst, and update BOTH RG-002 (parameterized
-    to accept either form) AND RG-009 (to assert the fallback form as canonical).
-    Document the outcome in the PR description. **Residual non-determinism is
-    accepted** — `audit_logs` has no unique sortable tiebreaker in its documented
-    field set (`category`, `action`, `user_display_name`, `note`, `timestamp`,
-    `details`); the 7-day window bounds the blast radius.
-  If live access is unavailable at implementation time: proceed with the preferred form,
-  flag the unverified risk explicitly in the PR description, and mark for validation
-  in the story-level holdout scenarios.
+- [x] **Task 7 (audit_logs id live-validation — DISCHARGED 2026-09-02):**
+  Live validation ran on monroe (2026-09-02). Both compound sort variants
+  (`[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` and
+  `[{"field":"timestamp","order":"asc"},{"field":"id","order":"desc"}]`) returned 0 rows
+  (HTTP 200, empty result set). `[{"field":"timestamp","order":"asc"}]` alone returned
+  live rows. `id` is NOT a valid `audit_logs` sort field — it does not appear in the
+  `GetAuditLogParameters` documented sortable fields (`category`, `action`,
+  `user_display_name`, `note`, `timestamp`, `details`). Including `id` in `sort_by`
+  causes xDome to silently return 0 rows. **Outcome adopted:** timestamp-only form
+  `[{"field":"timestamp","order":"asc"}]` is the canonical sort for `audit_logs`.
+  The compound form is RETIRED. RG-002 and RG-009 both accept the timestamp-only
+  form — no test-file change is required. BC-2.16.013 §Sort-by postcondition amended
+  (product-owner leg complete). This gate is now closed.
 
 - [ ] **Task 8 (SAP-1 self-check):**
   Confirm no new `tracing::*!(event_type = ...)` emissions are added (TOML-only change).
@@ -695,8 +677,9 @@ From ADR-028 §D8 (TOML spec grounding):
 From the `endpoint-conformance-audit` and design doc:
 - The `sort_by` field is optional in the xDome OpenAPI for all 7 tables. The API will
   accept the additional JSON key without error (for the 6 `ValidatingSortClause` tables).
-  For `audit_logs` (`SortClause`), the field value is a free string with no server-side
-  enum validation — `id` is unverified (see AC-002).
+  For `audit_logs` (`SortClause`), the canonical sort is timestamp-only
+  `[{"field":"timestamp","order":"asc"}]` — live-validated 2026-09-02; `id` is NOT a valid
+  `audit_logs` sort field (returns 0 rows) and is not used.
 
 ---
 
@@ -755,15 +738,12 @@ prism-sensors → prism-spec-engine, not reverse).
    Replacing `filter_by` with `sort_by` would break the 7-day time-window enforcement
    (S-CLAROTY-AUDITLOG-TIMEBOX-001), which is a regression.
 
-3. **Live validation for audit_logs `id` tiebreaker is BLOCKING before push.**
-   Task 7 is a blocking gate. A 200 HTTP response does NOT confirm `id` is honored —
-   `audit_logs` uses `SortClause` (no field enum), so xDome silently ignores unknown
-   sort fields rather than returning 4xx. Validate OBSERVED ORDERING DETERMINISM
-   (page-boundary check or compound-vs-timestamp comparison). If `id` is rejected (4xx)
-   OR silently ignored (indistinguishable ordering), use the fallback form and amend
-   BC-2.16.013, `claroty.sensor.toml`, RG-002, and RG-009 in the same burst.
-   Do NOT push the PR without completing live validation OR explicitly flagging
-   the unverified risk in the PR description for holdout evaluation.
+3. **Live validation for audit_logs `id` tiebreaker: COMPLETE (Task 7 DISCHARGED).**
+   Live validation ran on monroe (2026-09-02). Both compound sort variants returned 0 rows
+   (HTTP 200 empty). `id` is NOT a valid `audit_logs` sort field. The timestamp-only form
+   `[{"field":"timestamp","order":"asc"}]` is the canonical form — ADOPTED. The compound
+   form with `id` is RETIRED. RG-002 and RG-009 both assert the timestamp-only form; no
+   test-file change is required. BC-2.16.013 §Sort-by postcondition reflects this outcome.
 
 4. **ORDER BY push-down is explicitly OUT OF SCOPE.** TD-SENSOR-SORTBY-PUSHDOWN-001
    tracks the future work of mapping PrismQL ORDER BY clauses to the API `sort_by`
@@ -797,6 +777,7 @@ prism-sensors → prism-spec-engine, not reverse).
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.6 | 2026-09-02 | story-writer | Aligned audit_logs sort_by to BC-2.16.013 §Sort-by postcondition timestamp-only adoption: live validation on monroe discharged Task 7 — both compound sort variants (timestamp+id) returned 0 rows (HTTP 200 empty); id is not a valid audit_logs sort field; compound form RETIRED (live-proven-broken). AC-002 rewritten — timestamp-only `[timestamp asc]` is the canonical form (contingency framing removed). Task 7 marked DISCHARGED. EC-001 updated from pending-contingency to documented-outcome. §Authority BC-2.16.013 paragraph updated to timestamp-only canonical with live finding. §Background live validation note and D-002 table row updated (id UNVERIFIED removed). Behavioral Contracts table BC-2.16.013 Version cell updated; Role description updated to timestamp-only canonical. RG-002 and RG-009 row descriptions updated to assert timestamp-only form (no test-file change required). §Notes for Implementer Note 3 updated (live validation complete). §Architecture Compliance Rules audit_logs note updated. Frontmatter BC-2.16.013 comment and risk comment updated. |
 | 1.5 | 2026-09-02 | story-writer | MED-001 story↔code test-surface reconciliation (POL-39/TD-VSDD-091): corrected §Purity Classification (removed false "no effectful test paths" claim; documented 3 OBS wire tests as tokio+wiremock+reqwest effectful test-only paths); corrected §Library & Framework Requirements (replaced false "tokio NOT required" row; added wiremock and reqwest rows; clarified serde_json is a production dep; no new Cargo.toml deps needed); added §Red Gate Tests OBS wire-level coverage table documenting test_obs1_vulnerabilities_build_request_emits_sort_by, test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination, test_obs3_remaining_tables_build_request_emits_sort_by beyond RG-001..RG-010 red gates; updated §Token Budget Estimate test file row from 10 to 13 tests; updated §Tasks Task 10 to 13 tests, added Task 11 for OBS wire test additions; updated §File Structure Requirements CREATE row to 13 tests + Cargo.toml not-modified note; corrected frontmatter crates_touched comment (removed false "all RG tests are spec-parse unit tests that do not exercise the full query pipeline"). No BC/mechanism/AC/RG number change. |
 | 1.4 | 2026-09-02 | story-writer | MED-001 closed — POL-7 verbatim-H1 sync: BC-2.16.019 title in §Behavioral Contracts table corrected from "Claroty Server Interfaces Table" to verbatim H1; BC-2.16.020 title corrected from "Claroty Org Zone Domain" to verbatim H1; BC-2.16.021 title corrected from "Claroty Org Firewall Domain" to verbatim H1. §References section added with all 5 anchored BCs (POL-7 completeness). No content, mechanism, AC, or RG change. |
 | 1.3 | 2026-09-02 | state-manager | Records-only micro-burst (TD-VSDD-096): MED-001 CLOSED — BC-2.16.015 version pin synced v2.1→v2.2 in frontmatter behavioral_contracts comment (site 1) and Behavioral Contracts table Version column (site 2). OBS-001 CLOSED (depin per POL-39/TD-VSDD-091) — BC-2.16.013 table role-description volatile version token `(amended v1.44)` replaced with content/section anchor `(amended — observed-ordering sort + timestamp-only fallback)`. No content/mechanism/contract-semantics change. |

@@ -1,24 +1,24 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.051"
+version: "8.052"
 status: current
-timestamp: 2026-09-02T23:59:59Z
+timestamp: 2026-09-03T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2429 (2026-09-02): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade CONVERGED (BC-5.39.001; 3 consecutive CLEAN(strict) passes 10/11/12 on frozen HEAD abd7eeb9f) + story-level holdout gate HS-031 GATE PASS (4/4 must-pass; satisfaction 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP-non-error dims SETUP-FAILURE — prism-dtu-claroty no standalone server binary; [process-gap] logged not codified). HS-031 all 4 scenarios CONSUMED (single-use). HOLDOUT-INDEX v1.36→v1.37. records-lint PASS. STATE v8.958→v8.959. SESSION-HANDOFF v8.050→v8.051. NEXT: live validation on monroe (keychain-gated/human) → demo → push → PR → merge. [D-2428 historical: pass-9 fix-burst COMMITTED; superseded.]**
+> **D-2430 (2026-09-03): DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs timestamp-only FALLBACK ADOPTED after live validation on monroe (2026-09-02/03). xDome audit_log API returns 0 rows with `id` in sort_by (id not in `SortClause` sortable fields); timestamp-only confirmed live. BC-2.16.013 v1.44→v1.45; story v1.5→v1.6 (Task-7 DISCHARGED). TOML + RG-009 tightened on feature branch (7165925ff). All other 6 tables PASS. BC-INDEX v10.04→v10.05; STORY-INDEX v2.985→v2.986. LOCAL 3-CLEAN streak RESET 0/3. records-lint PASS. STATE v8.959→v8.960. SESSION-HANDOFF v8.051→v8.052. NEXT: LOCAL re-gate on fallback HEAD → demo → push → PR → merge. [D-2429 historical: LOCAL CONVERGED + HS-031 holdout GATE PASS; superseded.]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2429 (2026-09-02 — LOCAL CONVERGED + HS-031 holdout GATE PASS; live validation NEXT) [supersedes D-2428]
+## §RESUME SNAPSHOT — D-2430 (2026-09-03 — audit_logs fallback ADOPTED; LOCAL re-gate on fallback HEAD NEXT) [supersedes D-2429]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. D-2429: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade CONVERGED (BC-5.39.001; 3 consecutive CLEAN(strict) passes 10/11/12 on frozen HEAD abd7eeb9f). Story-level holdout gate HS-031 GATE PASS (4/4 must-pass; satisfaction 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP-non-error dims SETUP-FAILURE — prism-dtu-claroty no standalone server binary; corroborated structurally). HS-031 all 4 scenarios CONSUMED. BC-INDEX v10.04; STORY-INDEX v2.985 (322 stories). develop @2edaaca78.
+Phase 3 Wave-5-E. D-2430: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 audit_logs timestamp-only FALLBACK ADOPTED after live validation on monroe (2026-09-02/03). xDome audit_log API returns 0 rows with `id` in sort_by (id not in `SortClause`/`GetAuditLogParameters` sortable field set); timestamp-only form confirmed live. BC-2.16.013 v1.44→v1.45; story v1.5→v1.6 (Task-7 DISCHARGED). TOML audit_logs → timestamp-only on feature branch (7165925ff); RG-009 tightened. All other 6 tables live-validated PASS. D-2429: HS-031 all 4 CONSUMED. BC-INDEX v10.05; STORY-INDEX v2.986 (322 stories). LOCAL 3-CLEAN streak RESET 0/3 (spec perimeter changed). develop @2edaaca78.
 
 ### GOVERNING OBJECTIVE
-Deliver DEFECT-CLAROTY-SORTBY-DETERMINISM-001 to develop: live validation on monroe (keychain-gated/human; audit_logs Task-7 observed-ordering) → demo (live-data-free per D-2410) → push feature branch → pr-manager 9-step PR cycle → squash-merge into develop. Declare v1 RELEASE-READY after merge + live re-validation confirmed.
+Deliver DEFECT-CLAROTY-SORTBY-DETERMINISM-001 to develop: LOCAL re-gate on fallback HEAD (3 consecutive CLEAN(strict) on frozen feature HEAD including 7165925ff TOML + RG-009 tightening) → demo (live-data-free per D-2410) → push feature branch → pr-manager 9-step PR cycle → squash-merge into develop. Declare v1 RELEASE-READY after merge + live re-validation confirmed.
 
 ### HEADS (backup boundary)
 - `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
@@ -30,21 +30,20 @@ Deliver DEFECT-CLAROTY-SORTBY-DETERMINISM-001 to develop: live validation on mon
 
 ### PER-WORKSTREAM NEXT-ACTIONS (exact order)
 1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
-2. **HUMAN PRECONDITION:** Unlock login keychain (`security unlock-keychain`) — required for live validation on monroe.
-3. **Live validation on monroe (keychain-gated):** Per-Claroty-story merge gate (runbook: .factory/ops/live-tenant-validation-runbook.md; Path B). Includes audit_logs Task-7 observed-ordering verification (live API confirms sort_by timestamp accepted without 422). Live-data-free demo per D-2410.
-4. **Demo recording:** demo-recorder (live-data-free per D-2410).
-5. **Push + PR:** push feature branch → pr-manager 9-step PR cycle → squash-merge into develop (human-approved).
-6. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
-7. **Declare v1 RELEASE-READY** after sort_by fix merged + live re-validation confirmed.
+2. **LOCAL re-gate:** Run LOCAL adversary cascade on fallback feature HEAD (frozen at 7165925ff — TOML audit_logs timestamp-only + RG-009 tightening; confirm full HEAD is frozen). BC-5.39.001: 3 consecutive CLEAN(strict) required; streak currently 0/3.
+3. **Demo recording (post-re-gate):** demo-recorder (live-data-free per D-2410).
+4. **Push + PR:** push feature branch → pr-manager 9-step PR cycle → squash-merge into develop (human-approved).
+5. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
+6. **Declare v1 RELEASE-READY** after sort_by fix merged + live re-validation confirmed.
 
 ### CONVERGENCE STATE
-G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: LOCAL 3-CLEAN CONVERGED (passes 10/11/12 @abd7eeb9f; HS-031 holdout GATE PASS; NEXT: live validation → demo → push → PR → merge).
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: audit_logs fallback ADOPTED (D-2430; BC-2.16.013 v1.45; story v1.6; TOML + RG-009 on feature 7165925ff). LOCAL 3-CLEAN streak RESET 0/3. NEXT: LOCAL re-gate on fallback HEAD → demo → push → PR → merge.
 
 ### HEARTBEAT
 Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
 
 ### DECISION DELTA
-D-2429 (LOCAL CONVERGED + HS-031 holdout GATE PASS: 3-CLEAN passes 10/11/12 @abd7eeb9f; HS-031 4/4 PASS sat 0.90/0.90/0.90/0.95; STRUCTURAL dims PASS; MCP SETUP-FAILURE; 4 scenarios CONSUMED; HOLDOUT-INDEX v1.36→v1.37; records-lint PASS; STATE v8.958→v8.959; SESSION-HANDOFF v8.050→v8.051). D-2428 historical: pass-9 fix-burst COMMITTED; superseded.
+D-2430 (audit_logs fallback ADOPTED: BC-2.16.013 v1.44→v1.45; story v1.5→v1.6 Task-7 DISCHARGED; TOML + RG-009 on feature 7165925ff; other 6 tables PASS; BC-INDEX v10.04→v10.05; STORY-INDEX v2.985→v2.986; LOCAL 3-CLEAN RESET 0/3; records-lint PASS; STATE v8.959→v8.960; SESSION-HANDOFF v8.051→v8.052). D-2429 historical: LOCAL CONVERGED + HS-031 holdout GATE PASS; superseded.
 
 ### STANDING DECISIONS (carry forward)
 (a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416), [process-gap] standalone Claroty DTU server for headless holdout MCP dims (D-2429).
