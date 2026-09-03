@@ -148,16 +148,16 @@ fn test_rg_vulnerabilities_sort_by_in_request_body() {
 /// BC-2.16.013 §Postconditions §1 audit_logs sort-by postcondition — AC-002
 /// EC-016-013-011 (offset pagination determinism).
 ///
-/// The `fetch_audit_logs` body_template MUST contain a `"sort_by"` key with EITHER
-/// the preferred form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`
-/// OR the fallback form `[{"field":"timestamp","order":"asc"}]` — both are acceptable
-/// per the BC-2.16.013 §id-tiebreaker-caveat (fallback if live xDome rejects `id`).
+/// The `fetch_audit_logs` body_template MUST contain a `"sort_by"` key with the
+/// CANONICAL form `[{"field":"timestamp","order":"asc"}]`. The compound form
+/// `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]` is RETIRED —
+/// live-validated 2026-09-02: xDome audit_log API returns 0 rows when `"id"` is in
+/// sort_by. BC-2.16.013 v1.45 §Post §1 designates timestamp-only as canonical.
 ///
 /// Invariants asserted by this test: (a) `sort_by` is present, (b) `timestamp` is
-/// referenced as the primary sort field, (c) `filter_by` is preserved alongside
-/// `sort_by` (EC-002 coexistence guard). The `id` tiebreaker is accepted-if-present;
-/// its absence (timestamp-only fallback) is equally valid. The structural array-level
-/// check that accepts either form is in RG-009
+/// referenced as the sort field, (c) `filter_by` is preserved alongside `sort_by`
+/// (EC-002 coexistence guard). This test does NOT assert `id` presence or absence —
+/// the structural array-level enforcement (id ABSENT, length == 1) is in RG-009
 /// (`test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback`).
 ///
 /// RED: `assert!` panics because `"sort_by"` is absent from the current
@@ -204,14 +204,13 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
         body_template.contains("timestamp"),
         "sort_by must reference timestamp field (primary sort, BC-2.16.013 §Post §1)"
     );
-    // BC-2.16.013 fallback protocol (§id-tiebreaker-caveat + EC-001 / Task 7):
-    //   Preferred form: [timestamp asc, id asc]  — use when xDome accepts 'id' as a sort field.
-    //   Fallback form:  [timestamp asc]           — use if live xDome API rejects 'id'.
+    // BC-2.16.013 v1.45 §Post §1 canonical form (live-validated 2026-09-02):
+    //   CANONICAL: [timestamp asc]       — timestamp-only; sole contractually valid form.
+    //   RETIRED:   [timestamp asc, id asc] — compound form retired; xDome returns 0 rows
+    //                                        when 'id' is in sort_by (live-proven broken).
     //
-    // The 'id' tiebreaker is accepted-if-present but its absence (timestamp-only fallback)
-    // is equally valid. This test therefore does NOT hard-assert
-    // body_template.contains("\"id\""), which would spuriously fail if the fallback form
-    // is adopted. The structural array-level check that accepts either form is in RG-009
+    // This test does NOT hard-assert body_template.contains("\"id\"") in either direction —
+    // the structural array-level check (id ABSENT + length == 1) is in RG-009
     // (test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback).
 }
 
@@ -607,18 +606,31 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
 /// BC-2.16.013 §Postconditions §1 audit_logs structural assertion — AC-002
 /// EC-016-013-011 (offset pagination determinism) + EC-002 (filter_by coexistence guard).
 ///
+/// Enforces the CANONICAL timestamp-only sort for `fetch_audit_logs`.
+/// BC-2.16.013 v1.45 §Post §1: CANONICAL sort_by = `[{"field":"timestamp","order":"asc"}]`.
+/// The compound form `[{"field":"timestamp","order":"asc"},{"field":"id","order":"asc"}]`
+/// is RETIRED — live-validated 2026-09-02: xDome audit_log API returns 0 rows when
+/// `"id"` is present in sort_by.
+///
 /// Asserts on the `fetch_audit_logs` body_template:
 /// 1. BOTH `"filter_by"` AND `"sort_by"` substrings are present (coexistence guard —
 ///    EC-002: sort_by MUST NOT replace filter_by; the 7-day time window comes from
 ///    filter_by; removing it causes unbounded queries).
-/// 2. The sort_by JSON array contains a `timestamp` entry.
-/// 3. Either the preferred form (id tiebreaker present) OR the fallback form
-///    (timestamp only) is used — both are acceptable per BC-2.16.013 §id-tiebreaker-caveat.
+/// 2. The sort_by JSON array is present (RED GATE fires here if absent).
+/// 3. sort_by has exactly 1 element, `{field: "timestamp", order: "asc"}`, and
+///    `"id"` is ABSENT — the retired compound form MUST FAIL this test.
 ///
 /// Note: `audit_logs` body_template uses a variable substitution
 /// `${query.filter._claroty_audit_filter_by}` which is NOT valid JSON. The whole
 /// body_template cannot be parsed as JSON. Instead: (a) substring checks for coexistence,
 /// (b) string extraction to isolate the literal `sort_by` JSON array, then JSON parse.
+///
+/// Note on the function name: `_or_fallback` is a legacy suffix from when both the
+/// compound form and the timestamp-only form were both contractually acceptable. Since
+/// live validation on 2026-09-02 proved the compound form broken (0-row response), the
+/// BC was updated to make timestamp-only CANONICAL and the compound form RETIRED. The
+/// name is preserved because the story RG table cites this exact function name; renaming
+/// caused sweep churn. The docstring is the source of truth for current semantics.
 ///
 /// RED: assertion 2 panics because `"sort_by"` is absent from the current body_template.
 /// (Assertion 1, `"filter_by"` presence, passes even in RED state — this is expected;
@@ -675,20 +687,50 @@ fn test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback() {
         sort_by
     );
 
-    // 3b. Either preferred form (id tiebreaker) or fallback form (timestamp only).
-    //     Both forms are contractually acceptable per BC-2.16.013 §id-tiebreaker-caveat.
-    //     Preferred: [timestamp asc, id asc] — use if live xDome accepts id as sort key.
-    //     Fallback:  [timestamp asc]          — use if live xDome rejects id (AC-002 caveat).
-    let has_id_tiebreaker = sort_by
+    // 3b. CANONICAL: sort_by must be exactly [{"field":"timestamp","order":"asc"}].
+    //     The compound form [timestamp asc, id asc] is RETIRED — live-validated 2026-09-02:
+    //     xDome audit_log API returns 0 rows when "id" is present in sort_by.
+    //     BC-2.16.013 v1.45 §Post §1 designates timestamp-only as the sole canonical form.
+    //     The retired compound form MUST FAIL this assertion (length check catches it).
+    assert_eq!(
+        sort_by.len(),
+        1,
+        "BC-2.16.013 §Post §1 (CANONICAL): audit_logs sort_by must have exactly 1 element \
+         [timestamp asc]; the compound form [timestamp asc, id asc] is RETIRED \
+         (live-validated 2026-09-02 — xDome returns 0 rows when 'id' is in sort_by); \
+         got: {:?}",
+        sort_by
+    );
+
+    // Verify the sole element is {field: "timestamp", order: "asc"}.
+    let elem = &sort_by[0];
+    assert_eq!(
+        elem.get("field").and_then(|f| f.as_str()),
+        Some("timestamp"),
+        "BC-2.16.013 §Post §1: sort_by[0].field must be 'timestamp' (sole canonical element); \
+         got: {:?}",
+        elem
+    );
+    assert_eq!(
+        elem.get("order").and_then(|o| o.as_str()),
+        Some("asc"),
+        "BC-2.16.013 §Post §1: sort_by[0].order must be 'asc' (timestamp ascending); \
+         got: {:?}",
+        elem
+    );
+
+    // Retired-form guard: 'id' must be ABSENT from sort_by.
+    // This assertion is the load-bearing gate: if the compound form [timestamp asc, id asc]
+    // were to reappear (e.g., a TOML revert), sort_by.len() == 1 already catches it above,
+    // but this explicit absence check makes the failure message unambiguous.
+    let has_id = sort_by
         .iter()
         .any(|e| e.get("field").and_then(|f| f.as_str()) == Some("id"));
-    let is_timestamp_only = sort_by.len() == 1;
     assert!(
-        has_id_tiebreaker || is_timestamp_only,
-        "sort_by must be the preferred form [timestamp asc, id asc] \
-         OR the fallback form [timestamp asc] (if id is rejected by live xDome API); \
-         BC-2.16.013 §Post §1 id-tiebreaker caveat + EC-016-013-011; \
-         got: {:?}",
+        !has_id,
+        "BC-2.16.013 §Post §1 (RETIRED FORM GUARD): 'id' must be ABSENT from sort_by — \
+         the compound form [timestamp asc, id asc] is RETIRED (live-validated 2026-09-02: \
+         xDome returns 0 rows when 'id' is in sort_by); got: {:?}",
         sort_by
     );
 }
