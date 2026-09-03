@@ -13,6 +13,7 @@ exactly. Do not improvise.
 4. [Step-by-Step: Cutting a Release](#4-step-by-step-cutting-a-release)
 5. [Release Notes Convention](#5-release-notes-convention)
 6. [Recovery Procedures](#6-recovery-procedures)
+7. [Appendix: What Is NOT Released in v1.0.0](#appendix-what-is-not-released-in-v100)
 
 ---
 
@@ -40,8 +41,8 @@ anchor, not a version decree over internal crates.
 
 ### Pre-1.0.0 note
 
-The current workspace starts at `prism-bin = "0.1.0"`. The first public release will
-be tagged `v1.0.0` and `prism-bin` bumped to `1.0.0` at that point. The `0.x`
+The current workspace started at `prism-bin = "0.1.0"`. The first public release is
+`v1.0.0`; `prism-bin` was bumped to `1.0.0` at that point. The `0.x`
 workspace versions used during development do not correspond to distribution versions.
 
 ### Pre-release tags
@@ -113,7 +114,7 @@ protection, or project convention — not just policy.
 | Conventional commit for the release-prep commit | Enforced by lefthook pre-commit hook |
 | All 24 required CI status checks must pass on develop before PR to main | Branch protection on both develop and main |
 | crates.io / Chocolatey / Homebrew publishing is deferred post-v1 | All workspace crates carry `publish = false`; no tap exists; do NOT attempt registry publish for v1.0.0 |
-| `prism-dtu-demo-server` is included in the release build | release.yml builds both `-p prism-bin -p prism-dtu-demo-server`; both archives are uploaded |
+| `prism-dtu-demo-server` is included in the release build | release.yml builds both `-p prism-bin -p prism-dtu-demo-server`; the demo-server archive is retained as a workflow artifact and is NOT uploaded as a GitHub Release asset |
 
 ### Required CI status checks (both develop and main)
 
@@ -430,7 +431,7 @@ sha256sum -c checksums.txt
 
 gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
   --repo drbothen/prism \
-  --signer-workflow release.yml
+  --signer-workflow drbothen/prism/.github/workflows/release.yml
 ```
 
 **Layer 2 — Auto-generated notes** from `--generate-notes` (appended automatically
@@ -465,7 +466,7 @@ If one or more of the 5 build legs fails and the `publish-release` job never ran
 
 **Caution on tag re-push:** deleting and re-creating a tag after any assets were
 partially uploaded can cause confusion in downstream tooling. Prefer to fix via a
-new patch tag (`vX.Y.1`) rather than re-using the original tag if the original
+new patch tag (`vX.Y.(Z+1)`) rather than re-using the original tag if the original
 release was publicly visible.
 
 ### The publish-release job failed mid-upload (partial assets)

@@ -3,7 +3,9 @@
 All notable changes to Prism are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.0.0] — 2026-09-03
+## [Unreleased]
+
+## [1.0.0] - 2026-09-03
 
 Prism v1.0.0 is the inaugural production release of an ephemeral federated query
 engine for MSSP security operations. It exposes a Model Context Protocol (MCP)
@@ -99,10 +101,10 @@ structured audit logging — all in a single operator-deployable binary.
   (S-CLAROTY-DEVVULNREL-001, #247)
 - `servers` and `server_interfaces` tables: 17-col + 10-col spec, null-passthrough,
   `count=null` empty-page halt (S-CLAROTY-SERVERS-001, #248)
-- `zones`, `zone_policies`, `firewall_groups`, `firewall_policies` tables: 4 org
+- `organization_zones`, `organization_zone_policies`, `organization_firewall_groups`, `organization_firewall_policies` tables: 4 org
   policy TOML blocks, `entity_management/3004`, URL↔envelope asymmetry
   (S-CLAROTY-ORGPOLICY-001, #249)
-- `acl_policies` table: pagination-none, mandatory `filter_by`/`policy_acl_syntax`,
+- `organization_acl_policies` table: pagination-none, mandatory `filter_by`/`policy_acl_syntax`,
   `applied_models` JSON array (S-CLAROTY-ACLPOLICY-001, #250)
 - `audit_logs` time-filter push-down: ADR-033 T1 option with `INDEX` eligibility and
   default `>=` time-guard injection (S-CLAROTY-AUDITLOG-TIMEBOX-001, #239)
