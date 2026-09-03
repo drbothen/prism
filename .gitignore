@@ -33,17 +33,15 @@ fuzz/corpus/
 fuzz/artifacts/
 fuzz/Cargo.lock
 
-# Perimeter compile-fail test crate — standalone workspace, lock file generated locally.
-# The crate itself (Cargo.toml + src/) is tracked; only the generated lock is excluded.
-tests/external/perimeter-violation/Cargo.lock
-
 # Plugin sub-crates (standalone, not in workspace).
 # NOTE: plugin Cargo.lock IS tracked (F-MCPRS-PRL10-OBS-001, human ruling 2026-07-14).
 # Rationale: plugins ship as compiled binaries (.prx); locking transitive deps is the
 # same app-binary concern as locking the main workspace binary. Tracking the lockfile
 # closes the transitive-dep drift vector in the staleness gate (hash-plugin-source.py
 # uses git ls-files, so the lockfile is included in the source-tree hash).
-# fuzz/ and perimeter-violation/ lockfiles remain excluded (not shipped binaries).
+# NOTE: perimeter-violation/ and non-exhaustive-violation/ Cargo.lock files ARE tracked
+# to pin transitive deps (e.g. tinyvec) to versions compatible with the pinned toolchain.
+# fuzz/ Cargo.lock remains excluded (not a shipped binary, no toolchain-compat concern).
 
 # prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
 # These are ephemeral process state, not source — never committed.
