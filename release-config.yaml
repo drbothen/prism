@@ -1,0 +1,95 @@
+# AUTHORITATIVE PROCEDURE: RELEASING.md at the repo root is the canonical
+# release procedure for prism. This file is the vsdd-factory:release skill
+# configuration shell that RELEASING.md defers to for automated sub-steps.
+# When the skill runs, it reads RELEASING.md first (per SKILL.md
+# "Defer to RELEASING.md when present") and uses this config only for the
+# sub-steps RELEASING.md does not directly override.
+#
+# Publishing channels are intentionally absent from this config — all deferred
+# post-v1 per the explicit decisions recorded in .github/workflows/release.yml:
+#   DEF-REL-002: Chocolatey deferred (packaging/chocolatey/ does not exist;
+#                re-enable path: create directory, add CHOCOLATEY_API_KEY secret,
+#                reinstate chocolatey-publish job; story S-REL-008)
+#   DEF-REL-003: Homebrew tap deferred (1898co/homebrew-tap does not exist;
+#                re-enable path: create tap repo, add HOMEBREW_TAP_TOKEN secret,
+#                reinstate homebrew-update job; story S-REL-008)
+#   DEF-REL-004: crates.io deferred (all workspace crates carry publish = false;
+#                re-enable path: remove publish = false, add CRATES_IO_TOKEN secret,
+#                reinstate crates-io-publish job; story S-REL-008)
+
+schema: 1
+
+packages:
+  - name: prism-bin
+    path: crates/prism-bin
+    version_sources:
+      # prism-bin is the ONLY crate carrying the product/distribution version.
+      # The git tag vX.Y.Z and this Cargo.toml [package].version field must match
+      # after the release-prep commit (RELEASING.md §4 Step 2).
+      # All other workspace crates (prism-core, prism-query, prism-spec-engine,
+      # prism-sensors, etc.) version independently on their own cadence and are
+      # NOT bumped by the release skill. See RELEASING.md §1 "Product version vs.
+      # library versions."
+      - file: crates/prism-bin/Cargo.toml
+        path: "[package].version"
+        format: toml
+
+# global_version_sources: intentionally absent.
+# No global version sweep across workspace crates. Forcing library crate versions
+# to align with the product tag would violate RELEASING.md §1 versioning philosophy.
+
+changelog:
+  path: CHANGELOG.md
+  # Format: Keep a Changelog (https://keepachangelog.com/en/1.1.0/).
+  # CHANGELOG.md may not yet exist; the release-prep step creates it.
+  # See RELEASING.md §4 Step 3 for the required section format and content sourcing.
+  format: keep-a-changelog
+
+# The tag-triggered GitHub Actions workflow that builds the 5-platform binary
+# matrix (aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu,
+# x86_64-unknown-linux-musl, x86_64-pc-windows-msvc), runs
+# attest-build-provenance on each archive, merges checksums.txt across legs,
+# and creates the GitHub Release via gh release create / upload --clobber.
+# Triggered by a vX.Y.Z tag push on main (RELEASING.md §4 Step 9).
+ci_workflow: .github/workflows/release.yml
+
+quality_gates:
+  # vsdd-partial: runs only the explicitly enabled gates listed below.
+  #
+  # The VSDD pipeline quality gates (convergence, holdout, formal verification,
+  # adversarial passes) are verified by the factory pipeline at each phase
+  # boundary — not re-evaluated by the release skill at tag time. The mechanical
+  # pre-tag gates for prism are:
+  #   (a) just check-ci in pre_release below (fmt + clippy + nextest + doctests
+  #       + crate-layout + cargo deny + cargo audit + semver-checks)
+  #   (b) all 24 required CI status checks on the develop → main PR, enforced
+  #       by branch protection on both develop and main
+  #       (see RELEASING.md §3 "Required CI status checks")
+  #
+  # require_human_approval is the load-bearing gate: the develop → main merge
+  # is a human-only action per RELEASING.md §4 Steps 7–8. No automation may
+  # perform this merge, and the skill must prompt for explicit approval before
+  # proceeding to the tag step.
+  mode: vsdd-partial
+  require_human_approval: true
+  require_convergence: false
+  require_holdout: false
+  require_formal_verification: false
+  require_adversarial_passes: false
+
+pre_release:
+  # CI-equivalent workspace check: cargo fmt (check) + clippy (-D warnings) +
+  # cargo nextest run (all tests, all profiles) + doctests +
+  # workspace crate-layout check (ADR-012) +
+  # cargo deny (license + advisory policy) +
+  # cargo audit (RustSec advisory database) +
+  # cargo semver-checks (API compatibility against published crates).
+  #
+  # lefthook pre-push also runs `just check` (subset of check-ci) on every push.
+  # just check-ci extends that with deny, audit, and semver-checks.
+  # This is the same suite run by CI's required status checks (except the
+  # multi-platform matrix legs, which CI runs; locally this runs on the host
+  # arch only). A passing local just check-ci is a necessary but not sufficient
+  # condition for the 24 required CI checks.
+  - name: "CI-equivalent workspace check (fmt + clippy + nextest + doctests + deny + audit + semver-checks)"
+    command: "just check-ci"
