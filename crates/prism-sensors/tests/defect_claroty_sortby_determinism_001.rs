@@ -23,7 +23,7 @@
 //! | 005 | test_rg_organization_zone_policies_sort_by_in_request_body | BC-2.16.020 §Post §2   |
 //! | 006 | test_rg_organization_firewall_groups_sort_by_in_request_body | BC-2.16.021 §Post §1 |
 //! | 007 | test_rg_organization_firewall_policies_sort_by_in_request_body | BC-2.16.021 §Post §2|
-//! | 008 | test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field | BC-2.16.015 §Post §1   |
+//! | 008 | test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field | BC-2.16.015 §Post §1   |
 //! | 009 | test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback   | BC-2.16.013 §Post §1      |
 //! | 010 | test_rg_server_interfaces_composite_key_both_present   | BC-2.16.019 §Post §1       |
 //!
@@ -453,15 +453,17 @@ fn test_rg_organization_firewall_policies_sort_by_in_request_body() {
 /// body_template and asserts the structural contract:
 /// - Array has exactly 2 elements
 /// - Element [0]: `{"field": "adjusted_vulnerability_score", "order": "desc"}` (primary)
-/// - Element [1]: `{"field": "name", "order": "asc"}` (tiebreaker — provably unique CVE ID)
+/// - Element [1]: `{"field": "name", "order": "asc"}` (tiebreaker — best-available sortable field,
+///   present in Vulnerability__sortable_fields_enum)
 ///
-/// The `name` tiebreaker (CVE ID / advisory title) makes the sort order total,
-/// ensuring deterministic page boundaries under DI-019 10K cap.
+/// The `name` tiebreaker (CVE ID / advisory title) is the best-available sortable field
+/// present in Vulnerability__sortable_fields_enum, providing deterministic page boundaries
+/// under DI-019 10K cap.
 ///
 /// RED: `extract_sort_by_array` panics at the `.expect(...)` for the missing key
 /// because `"sort_by"` is absent from the current body_template.
 #[test]
-fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
+fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
     let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
     let table = spec
         .tables
@@ -514,13 +516,13 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         primary
     );
 
-    // Element [1]: tiebreaker — name asc (CVE ID, provably unique).
+    // Element [1]: tiebreaker — name asc (CVE ID, best-available sortable field).
     // Confirmed member of Vulnerability__sortable_fields_enum (ValidatingSortClause__6).
     let tiebreaker = &sort_by[1];
     assert_eq!(
         tiebreaker.get("field").and_then(|f| f.as_str()),
         Some("name"),
-        "sort_by[1] field must be 'name' (CVE ID tiebreaker, provably unique; \
+        "sort_by[1] field must be 'name' (CVE ID tiebreaker, best-available sortable field; \
          OCSF finding_info.title semantics; Vulnerability__sortable_fields_enum; \
          BC-2.16.015 §Post §1 + EC-016-015-009); got: {:?}",
         tiebreaker
@@ -594,7 +596,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&tiebreaker_field),
         "OBS-2: sort_by[1] field '{}' (tiebreaker) must be a member of \
          Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
-         tiebreaker must be a unique sortable field; \
+         tiebreaker is the best-available sortable field present in the enum; \
          known members: {:?}; BC-2.16.015 §Post §1",
         tiebreaker_field,
         VULNERABILITY_SORTABLE_FIELDS_ENUM
