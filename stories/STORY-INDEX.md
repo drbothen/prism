@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.981"
+version: "2.982"
 status: draft
 producer: state-manager
 timestamp: 2026-09-02T00:00:00Z
 phase: 3
 total_stories: 322
+# D-2425: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-4 fix-burst — story body row BC-2.16.015 pin v2.1→v2.2 (dim-2 downstream-copy sweep: BC-INDEX pin updated). total_stories 322 UNCHANGED. STORY-INDEX v2.981→v2.982. D-2424 NOTE archived.
 # D-2424: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst — story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pin v1.1→v1.2 (§Authority/AC-001 aligned to BC-2.16.015 §Postconditions §1 v2.1; RG-008 renamed test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field; BC version cell v2.0→v2.1; changelog row added). total_stories 322 UNCHANGED. STORY-INDEX v2.980→v2.981. D-2423 NOTE archived.
 # D-2423: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-2 fix-burst — story DEFECT-CLAROTY-SORTBY-DETERMINISM-001 pin v1.0→v1.1 (AC-002/Task 7/EC-001 aligned to BC-2.16.013 §Sort-by postconditions v1.44; POL-39 prose depin 30 narrative version-pins removed; changelog row added). total_stories 322 UNCHANGED. STORY-INDEX v2.979→v2.980. D-2422 NOTE archived.
 # D-2422: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 registered (total_stories 321→322; story v1.0) + status draft→ready (spec complete: 5 BCs amended, SAC-1, HS-031 holdouts authored). STORY-INDEX v2.977→v2.979. D-2415 NOTE archived.
@@ -1120,7 +1121,7 @@ to TD-SENSOR-SORTBY-PUSHDOWN-001.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| DEFECT-CLAROTY-SORTBY-DETERMINISM-001 | Claroty xDome sort_by determinism — add explicit sort_by arrays to 7 tables (vulnerabilities, audit_logs, server_interfaces, organization_zones, zone_policies, firewall_groups, firewall_policies) to fix offset-pagination instability under non-unique API default sorts; 7 ACs + 10 RG tests (density 1.43); audit_logs id tiebreaker UNVERIFIED at live-API — fallback protocol per BC-2.16.013; ORDER BY push-down OUT OF SCOPE (TD-SENSOR-SORTBY-PUSHDOWN-001) [ready v1.2] | prism-sensors | 5 (BC-2.16.015 v2.1, BC-2.16.013 v1.44, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3) | -- | 3 | -- |
+| DEFECT-CLAROTY-SORTBY-DETERMINISM-001 | Claroty xDome sort_by determinism — add explicit sort_by arrays to 7 tables (vulnerabilities, audit_logs, server_interfaces, organization_zones, zone_policies, firewall_groups, firewall_policies) to fix offset-pagination instability under non-unique API default sorts; 7 ACs + 10 RG tests (density 1.43); audit_logs id tiebreaker UNVERIFIED at live-API — fallback protocol per BC-2.16.013; ORDER BY push-down OUT OF SCOPE (TD-SENSOR-SORTBY-PUSHDOWN-001) [ready v1.2] | prism-sensors | 5 (BC-2.16.015 v2.2, BC-2.16.013 v1.44, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3) | -- | 3 | -- |
 
 ## Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)
 
@@ -1701,6 +1702,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.982 | 2026-09-02 | state-manager D-2425: SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-4 fix-burst spec delta. Story body row BC-2.16.015 pin v2.1→v2.2 (dim-2 downstream-copy sweep closed). BC-INDEX v10.03→v10.04 (BC-2.16.015 pin v2.1→v2.2). total_stories 322 UNCHANGED. story_index_version 2.981→2.982. records-lint exit 0. |
 | v2.981 | 2026-09-02 | state-manager D-2424: SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary pass-3 fix-burst spec delta. Story pin v1.1→v1.2 (§Authority/AC-001 aligned to BC-2.16.015 §Postconditions §1 v2.1; RG-008 renamed test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field; BC version cell v2.0→v2.1). BC-INDEX v10.02→v10.03 (BC-2.16.015 pin v2.0→v2.1). total_stories 322 UNCHANGED. story_index_version 2.980→2.981. records-lint exit 0. |
 | v2.977 | 2026-09-01 | state-manager D-2415: POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — G6 (S-CLAROTY-ACLPOLICY-001) PR #250 @672b10b6 squash-merged (D-2400 blanket authority 2026-09-01). POL-14 BC-2.16.022 draft→active (14th and final Claroty xDome table contract). STORY-INDEX pin [ready v1.6]→[merged 672b10b6; PR #250]. total_stories 321 UNCHANGED. story_index_version 2.976→2.977. records-lint exit 0. |
 | v2.976 | 2026-09-01 | state-manager D-2413: SESSION-WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — G6 FIX-A spec edits swept. S-CLAROTY-ACLPOLICY-001 pin [ready v1.5]→[ready v1.6] (filter_by selector + AC-003 + RG-013; BC-2.16.022 v1.3); BC-2.16.022 pin v1.2→v1.3. HOLDOUT-INDEX v1.32→v1.33 (HS-029 HS-001 v1.0→v1.1; gate ATTEMPTED FAILED HTTP 422; FIX-A applied; scenarios NOT consumed). total_stories 321 UNCHANGED. story_index_version 2.975→2.976. records-lint exit 0. |

@@ -136,7 +136,7 @@ Per SAC-1: each story with `tdd_mode: strict` must carry an enumerated RG list b
 | RG-005 | `test_rg_organization_zone_policies_sort_by_in_request_body` | POST body to DTU contains `"sort_by":[{"field":"policy_name","order":"asc"}]` | Same mechanism |
 | RG-006 | `test_rg_organization_firewall_groups_sort_by_in_request_body` | POST body to DTU contains `"sort_by":[{"field":"firewall_group_name","order":"asc"}]` | Same mechanism |
 | RG-007 | `test_rg_organization_firewall_policies_sort_by_in_request_body` | POST body to DTU contains `"sort_by":[{"field":"policy_name","order":"asc"}]` | Same mechanism |
-| RG-008 | `test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field` | `sort_by` array last element `field` value is `"name"` (in `Vulnerability__sortable_fields_enum`); asserts determinism property structurally | Parse the emitted sort_by JSON, assert final element is the unique key |
+| RG-008 | `test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field` | `sort_by` array last element `field` value is `"name"` (in `Vulnerability__sortable_fields_enum`); asserts determinism property structurally | Parse the emitted sort_by JSON, assert final element is the unique key |
 | RG-009 | `test_rg_server_interfaces_composite_key_both_present` | `sort_by` array contains both `server_name` and `interface_name` entries | Structural assertion on the 2-element array |
 | RG-010 | `test_rg_audit_logs_body_template_contains_sort_by_and_filter_by` | The audit_logs body_template expansion produces a JSON object containing BOTH `"filter_by"` and `"sort_by"` keys | Guards against inadvertently replacing filter_by with sort_by; the new body_template must extend the existing one |
 
