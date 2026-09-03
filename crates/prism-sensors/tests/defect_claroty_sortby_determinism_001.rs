@@ -2,7 +2,7 @@
 //! Claroty xDome sort_by determinism — 7 tables, 10 tests (RG-001..RG-010).
 //!
 //! Story: DEFECT-CLAROTY-SORTBY-DETERMINISM-001
-//! BCs: BC-2.16.015 v2.0, BC-2.16.013 v1.43, BC-2.16.019 v1.3, BC-2.16.020 v1.3, BC-2.16.021 v1.3
+//! BCs: BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021
 //!
 //! ## Red Gate invariant
 //!
@@ -16,16 +16,16 @@
 //!
 //! | RG  | Test function                                          | Traces to BC / AC               |
 //! |-----|--------------------------------------------------------|---------------------------------|
-//! | 001 | test_rg_vulnerabilities_sort_by_in_request_body        | BC-2.16.015 v2.0 §Post §1       |
-//! | 002 | test_rg_audit_logs_sort_by_in_request_body             | BC-2.16.013 v1.43 §Post §1      |
-//! | 003 | test_rg_server_interfaces_sort_by_in_request_body      | BC-2.16.019 v1.3 §Post §1       |
-//! | 004 | test_rg_organization_zones_sort_by_in_request_body     | BC-2.16.020 v1.3 §Post §1       |
-//! | 005 | test_rg_organization_zone_policies_sort_by_in_request_body | BC-2.16.020 v1.3 §Post §2   |
-//! | 006 | test_rg_organization_firewall_groups_sort_by_in_request_body | BC-2.16.021 v1.3 §Post §1 |
-//! | 007 | test_rg_organization_firewall_policies_sort_by_in_request_body | BC-2.16.021 v1.3 §Post §2|
-//! | 008 | test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field | BC-2.16.015 v2.0 §Post §1   |
-//! | 009 | test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback   | BC-2.16.013 v1.43 §Post §1      |
-//! | 010 | test_rg_server_interfaces_composite_key_both_present   | BC-2.16.019 v1.3 §Post §1       |
+//! | 001 | test_rg_vulnerabilities_sort_by_in_request_body        | BC-2.16.015 §Post §1       |
+//! | 002 | test_rg_audit_logs_sort_by_in_request_body             | BC-2.16.013 §Post §1      |
+//! | 003 | test_rg_server_interfaces_sort_by_in_request_body      | BC-2.16.019 §Post §1       |
+//! | 004 | test_rg_organization_zones_sort_by_in_request_body     | BC-2.16.020 §Post §1       |
+//! | 005 | test_rg_organization_zone_policies_sort_by_in_request_body | BC-2.16.020 §Post §2   |
+//! | 006 | test_rg_organization_firewall_groups_sort_by_in_request_body | BC-2.16.021 §Post §1 |
+//! | 007 | test_rg_organization_firewall_policies_sort_by_in_request_body | BC-2.16.021 §Post §2|
+//! | 008 | test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field | BC-2.16.015 §Post §1   |
+//! | 009 | test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback   | BC-2.16.013 §Post §1      |
+//! | 010 | test_rg_server_interfaces_composite_key_both_present   | BC-2.16.019 §Post §1       |
 //!
 //! BC-5.38.001 density check: 10 RGTs / 7 ACs = 1.43 (≥ 0.5 threshold). PASS.
 //!
@@ -95,13 +95,13 @@ fn extract_sort_by_array(body_template: &str) -> Vec<serde_json::Value> {
 }
 
 // ── RG-001 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.015 v2.0 §Postconditions §1 sort-by postcondition — AC-001
+/// BC-2.16.015 §Postconditions §1 sort-by postcondition — AC-001
 /// EC-016-015-009 (offset pagination determinism).
 ///
 /// The `fetch_vulnerabilities` body_template MUST contain a `"sort_by"` key
 /// whose value includes `adjusted_vulnerability_score` (primary sort, desc) and
 /// `name` (tiebreaker, asc) — the exact two-element array contracted by
-/// BC-2.16.015 v2.0 §Post §1.
+/// BC-2.16.015 §Post §1.
 ///
 /// RED: `assert!` panics because `"sort_by"` is absent from the current
 /// body_template (only `"fields": [...]` is present before Task 5).
@@ -126,7 +126,7 @@ fn test_rg_vulnerabilities_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-001 RED GATE (BC-2.16.015 v2.0 §Post §1): \
+        "AC-001 RED GATE (BC-2.16.015 §Post §1): \
          fetch_vulnerabilities body_template must contain a \"sort_by\" key \
          with [adjusted_vulnerability_score desc, name asc]; \
          currently absent — EC-016-015-009 offset pagination is non-deterministic"
@@ -135,17 +135,17 @@ fn test_rg_vulnerabilities_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("adjusted_vulnerability_score"),
-        "sort_by must reference adjusted_vulnerability_score (primary sort field, BC-2.16.015 v2.0 §Post §1)"
+        "sort_by must reference adjusted_vulnerability_score (primary sort field, BC-2.16.015 §Post §1)"
     );
     assert!(
         body_template.contains(r#""order":"desc""#),
         "sort_by first element must use order:desc for adjusted_vulnerability_score \
-         (highest-risk records survive DI-019 10K cap, BC-2.16.015 v2.0 §Post §1)"
+         (highest-risk records survive DI-019 10K cap, BC-2.16.015 §Post §1)"
     );
 }
 
 // ── RG-002 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.013 v1.43 §Postconditions §1 audit_logs sort-by postcondition — AC-002
+/// BC-2.16.013 §Postconditions §1 audit_logs sort-by postcondition — AC-002
 /// EC-016-013-011 (offset pagination determinism).
 ///
 /// The `fetch_audit_logs` body_template MUST contain a `"sort_by"` key with EITHER
@@ -183,7 +183,7 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-002 RED GATE (BC-2.16.013 v1.43 §Post §1): \
+        "AC-002 RED GATE (BC-2.16.013 §Post §1): \
          fetch_audit_logs body_template must contain a \"sort_by\" key \
          with [timestamp asc, id asc] (preferred) or [timestamp asc] (fallback); \
          currently absent — EC-016-013-011 offset pagination is non-deterministic"
@@ -196,13 +196,13 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
     // unbounded queries (BC-2.16.013 §2.2 risk note).
     assert!(
         body_template.contains(r#""filter_by""#),
-        "EC-002 COEXISTENCE (BC-2.16.013 v1.43 §Post §1): fetch_audit_logs body_template \
+        "EC-002 COEXISTENCE (BC-2.16.013 §Post §1): fetch_audit_logs body_template \
          must retain \"filter_by\" key — sort_by must not replace it; \
          the 7-day time-window enforcement depends on filter_by"
     );
     assert!(
         body_template.contains("timestamp"),
-        "sort_by must reference timestamp field (primary sort, BC-2.16.013 v1.43 §Post §1)"
+        "sort_by must reference timestamp field (primary sort, BC-2.16.013 §Post §1)"
     );
     // BC-2.16.013 fallback protocol (§id-tiebreaker-caveat + EC-001 / Task 7):
     //   Preferred form: [timestamp asc, id asc]  — use when xDome accepts 'id' as a sort field.
@@ -216,7 +216,7 @@ fn test_rg_audit_logs_sort_by_in_request_body() {
 }
 
 // ── RG-003 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.019 v1.3 §Postconditions §1 sort-by postcondition — AC-003
+/// BC-2.16.019 §Postconditions §1 sort-by postcondition — AC-003
 /// EC-016-019-007 (offset pagination determinism, composite PK guarantee).
 ///
 /// The `fetch_server_interfaces` body_template MUST contain a `"sort_by"` key
@@ -245,7 +245,7 @@ fn test_rg_server_interfaces_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-003 RED GATE (BC-2.16.019 v1.3 §Post §1): \
+        "AC-003 RED GATE (BC-2.16.019 §Post §1): \
          fetch_server_interfaces body_template must contain a \"sort_by\" key \
          with [server_name asc, interface_name asc]; \
          currently absent — EC-016-019-007 offset pagination is non-deterministic \
@@ -255,16 +255,16 @@ fn test_rg_server_interfaces_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("server_name"),
-        "sort_by must reference server_name (primary sort field, BC-2.16.019 v1.3 §Post §1)"
+        "sort_by must reference server_name (primary sort field, BC-2.16.019 §Post §1)"
     );
     assert!(
         body_template.contains("interface_name"),
-        "sort_by must reference interface_name (composite PK tiebreaker, BC-2.16.019 v1.3 §Post §1)"
+        "sort_by must reference interface_name (composite PK tiebreaker, BC-2.16.019 §Post §1)"
     );
 }
 
 // ── RG-004 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.020 v1.3 §Postconditions §1 zones sort-by postcondition — AC-004
+/// BC-2.16.020 §Postconditions §1 zones sort-by postcondition — AC-004
 /// EC-016-020-011 (offset pagination determinism).
 ///
 /// The `fetch_organization_zones` body_template MUST contain a `"sort_by"` key
@@ -293,7 +293,7 @@ fn test_rg_organization_zones_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-004 RED GATE (BC-2.16.020 v1.3 §Post §1): \
+        "AC-004 RED GATE (BC-2.16.020 §Post §1): \
          fetch_organization_zones body_template must contain a \"sort_by\" key \
          with [zone_name asc]; currently absent — EC-016-020-011 \
          offset pagination is non-deterministic (API default: priority asc, non-unique)"
@@ -302,13 +302,13 @@ fn test_rg_organization_zones_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("zone_name"),
-        "sort_by must reference zone_name (REQUIRED PK, BC-2.16.020 v1.3 §Post §1; \
+        "sort_by must reference zone_name (REQUIRED PK, BC-2.16.020 §Post §1; \
          OrganizationZones__sortable_fields_enum)"
     );
 }
 
 // ── RG-005 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.020 v1.3 §Postconditions §2 zone_policies sort-by postcondition — AC-005
+/// BC-2.16.020 §Postconditions §2 zone_policies sort-by postcondition — AC-005
 /// EC-016-020-012 (offset pagination determinism).
 ///
 /// The `fetch_organization_zone_policies` body_template MUST contain a `"sort_by"` key
@@ -339,7 +339,7 @@ fn test_rg_organization_zone_policies_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-005 RED GATE (BC-2.16.020 v1.3 §Post §2): \
+        "AC-005 RED GATE (BC-2.16.020 §Post §2): \
          fetch_organization_zone_policies body_template must contain a \"sort_by\" key \
          with [policy_name asc]; currently absent — EC-016-020-012 \
          offset pagination is non-deterministic (API default: matching_devices asc, non-unique)"
@@ -348,13 +348,13 @@ fn test_rg_organization_zone_policies_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("policy_name"),
-        "sort_by must reference policy_name (REQUIRED PK, BC-2.16.020 v1.3 §Post §2; \
+        "sort_by must reference policy_name (REQUIRED PK, BC-2.16.020 §Post §2; \
          OrganizationZonePolicies__sortable_fields_enum)"
     );
 }
 
 // ── RG-006 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.021 v1.3 §Postconditions §1 firewall_groups sort-by postcondition — AC-006
+/// BC-2.16.021 §Postconditions §1 firewall_groups sort-by postcondition — AC-006
 /// EC-016-021-011 (offset pagination determinism).
 ///
 /// The `fetch_organization_firewall_groups` body_template MUST contain a `"sort_by"` key
@@ -385,7 +385,7 @@ fn test_rg_organization_firewall_groups_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-006 RED GATE (BC-2.16.021 v1.3 §Post §1): \
+        "AC-006 RED GATE (BC-2.16.021 §Post §1): \
          fetch_organization_firewall_groups body_template must contain a \"sort_by\" key \
          with [firewall_group_name asc]; currently absent — EC-016-021-011 \
          offset pagination is non-deterministic (API default: priority asc, non-unique)"
@@ -394,13 +394,13 @@ fn test_rg_organization_firewall_groups_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("firewall_group_name"),
-        "sort_by must reference firewall_group_name (REQUIRED PK, BC-2.16.021 v1.3 §Post §1; \
+        "sort_by must reference firewall_group_name (REQUIRED PK, BC-2.16.021 §Post §1; \
          OrganizationFirewallGroups__sortable_fields_enum)"
     );
 }
 
 // ── RG-007 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.021 v1.3 §Postconditions §2 firewall_policies sort-by postcondition — AC-007
+/// BC-2.16.021 §Postconditions §2 firewall_policies sort-by postcondition — AC-007
 /// EC-016-021-012 (offset pagination determinism).
 ///
 /// The `fetch_organization_firewall_policies` body_template MUST contain a `"sort_by"` key
@@ -431,7 +431,7 @@ fn test_rg_organization_firewall_policies_sort_by_in_request_body() {
     // RED GATE: sort_by is absent before Task-5 TOML edit.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-007 RED GATE (BC-2.16.021 v1.3 §Post §2): \
+        "AC-007 RED GATE (BC-2.16.021 §Post §2): \
          fetch_organization_firewall_policies body_template must contain a \"sort_by\" key \
          with [policy_name asc]; currently absent — EC-016-021-012 \
          offset pagination is non-deterministic (API default: matching_devices asc, non-unique)"
@@ -440,13 +440,13 @@ fn test_rg_organization_firewall_policies_sort_by_in_request_body() {
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
     assert!(
         body_template.contains("policy_name"),
-        "sort_by must reference policy_name (REQUIRED PK, BC-2.16.021 v1.3 §Post §2; \
+        "sort_by must reference policy_name (REQUIRED PK, BC-2.16.021 §Post §2; \
          OrganizationFirewallGroupPolicies__sortable_fields_enum)"
     );
 }
 
 // ── RG-008 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.015 v2.0 §Postconditions §1 structural assertion — AC-001
+/// BC-2.16.015 §Postconditions §1 structural assertion — AC-001
 /// EC-016-015-009 + DI-019 truncation rationale.
 ///
 /// Parses the embedded `sort_by` JSON array from `fetch_vulnerabilities`
@@ -481,7 +481,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
     // Presence check (earlier failure mode — cleaner message than the helper panic).
     assert!(
         body_template.contains(r#""sort_by""#),
-        "RG-008 RED GATE (BC-2.16.015 v2.0 §Post §1): \
+        "RG-008 RED GATE (BC-2.16.015 §Post §1): \
          fetch_vulnerabilities body_template must contain \"sort_by\" key (absent before Task 5)"
     );
 
@@ -491,7 +491,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
     assert_eq!(
         sort_by.len(),
         2,
-        "BC-2.16.015 v2.0 §Post §1: fetch_vulnerabilities sort_by must have exactly 2 elements \
+        "BC-2.16.015 §Post §1: fetch_vulnerabilities sort_by must have exactly 2 elements \
          [adjusted_vulnerability_score desc, name asc]; got {:?}",
         sort_by
     );
@@ -502,7 +502,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         primary.get("field").and_then(|f| f.as_str()),
         Some("adjusted_vulnerability_score"),
         "sort_by[0] field must be 'adjusted_vulnerability_score' (primary sort, \
-         highest-risk records survive DI-019 10K cap; BC-2.16.015 v2.0 §Post §1); \
+         highest-risk records survive DI-019 10K cap; BC-2.16.015 §Post §1); \
          got: {:?}",
         primary
     );
@@ -510,7 +510,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         primary.get("order").and_then(|o| o.as_str()),
         Some("desc"),
         "sort_by[0] order must be 'desc' for adjusted_vulnerability_score \
-         (highest-risk first; BC-2.16.015 v2.0 §Post §1); got: {:?}",
+         (highest-risk first; BC-2.16.015 §Post §1); got: {:?}",
         primary
     );
 
@@ -522,14 +522,14 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         Some("name"),
         "sort_by[1] field must be 'name' (CVE ID tiebreaker, provably unique; \
          OCSF finding_info.title semantics; Vulnerability__sortable_fields_enum; \
-         BC-2.16.015 v2.0 §Post §1 + EC-016-015-009); got: {:?}",
+         BC-2.16.015 §Post §1 + EC-016-015-009); got: {:?}",
         tiebreaker
     );
     assert_eq!(
         tiebreaker.get("order").and_then(|o| o.as_str()),
         Some("asc"),
         "sort_by[1] order must be 'asc' for name tiebreaker \
-         (BC-2.16.015 v2.0 §Post §1); got: {:?}",
+         (BC-2.16.015 §Post §1); got: {:?}",
         tiebreaker
     );
 
@@ -553,11 +553,11 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
 
     // OBS-2: Assert enum membership — the comment "Confirmed member of
     // Vulnerability__sortable_fields_enum (ValidatingSortClause__6)" becomes a
-    // LOAD-BEARING assertion. BC-2.16.015 v2.0 §Post §1: "Both
+    // LOAD-BEARING assertion. BC-2.16.015 §Post §1: "Both
     // adjusted_vulnerability_score and name are confirmed members of
     // Vulnerability__sortable_fields_enum (xDome OpenAPI schema ValidatingSortClause__6)."
     //
-    // Hardcoded from: (a) BC-2.16.015 v2.0 §Post §1 confirmed set, plus (b) other
+    // Hardcoded from: (a) BC-2.16.015 §Post §1 confirmed set, plus (b) other
     // numeric/string fields present in ClarotyVulnerability struct that correspond to
     // known sortable fields in the xDome OpenAPI Vulnerability__fields_enum.
     const VULNERABILITY_SORTABLE_FIELDS_ENUM: &[&str] = &[
@@ -582,7 +582,7 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&primary_field),
         "OBS-2: sort_by[0] field '{}' must be a member of \
          Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
-         known members: {:?}; BC-2.16.015 v2.0 §Post §1",
+         known members: {:?}; BC-2.16.015 §Post §1",
         primary_field,
         VULNERABILITY_SORTABLE_FIELDS_ENUM
     );
@@ -595,14 +595,14 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_unique_field() {
         "OBS-2: sort_by[1] field '{}' (tiebreaker) must be a member of \
          Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
          tiebreaker must be a unique sortable field; \
-         known members: {:?}; BC-2.16.015 v2.0 §Post §1",
+         known members: {:?}; BC-2.16.015 §Post §1",
         tiebreaker_field,
         VULNERABILITY_SORTABLE_FIELDS_ENUM
     );
 }
 
 // ── RG-009 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.013 v1.43 §Postconditions §1 audit_logs structural assertion — AC-002
+/// BC-2.16.013 §Postconditions §1 audit_logs structural assertion — AC-002
 /// EC-016-013-011 (offset pagination determinism) + EC-002 (filter_by coexistence guard).
 ///
 /// Asserts on the `fetch_audit_logs` body_template:
@@ -651,7 +651,7 @@ fn test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback() {
     // 2. sort_by presence: RED GATE — this assertion FAILS in RED state.
     assert!(
         body_template.contains(r#""sort_by""#),
-        "AC-002 RED GATE (BC-2.16.013 v1.43 §Post §1): \
+        "AC-002 RED GATE (BC-2.16.013 §Post §1): \
          fetch_audit_logs body_template must contain a \"sort_by\" key \
          alongside \"filter_by\" (currently absent — EC-016-013-011 offset pagination \
          is non-deterministic without an explicit sort order)"
@@ -669,7 +669,7 @@ fn test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback() {
     assert!(
         has_timestamp,
         "sort_by must contain a 'timestamp' entry (primary sort field, \
-         BC-2.16.013 v1.43 §Post §1, EC-016-013-011); got: {:?}",
+         BC-2.16.013 §Post §1, EC-016-013-011); got: {:?}",
         sort_by
     );
 
@@ -685,14 +685,14 @@ fn test_rg_audit_logs_sort_by_id_tiebreaker_or_fallback() {
         has_id_tiebreaker || is_timestamp_only,
         "sort_by must be the preferred form [timestamp asc, id asc] \
          OR the fallback form [timestamp asc] (if id is rejected by live xDome API); \
-         BC-2.16.013 v1.43 §Post §1 id-tiebreaker caveat + EC-016-013-011; \
+         BC-2.16.013 §Post §1 id-tiebreaker caveat + EC-016-013-011; \
          got: {:?}",
         sort_by
     );
 }
 
 // ── RG-010 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.019 v1.3 §Postconditions §1 structural assertion — AC-003
+/// BC-2.16.019 §Postconditions §1 structural assertion — AC-003
 /// EC-016-019-007 (offset pagination determinism, composite PK uniqueness guarantee).
 ///
 /// Parses the embedded `sort_by` JSON array from `fetch_server_interfaces`
@@ -728,7 +728,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
     // Presence check (earlier failure mode — cleaner message than the helper panic).
     assert!(
         body_template.contains(r#""sort_by""#),
-        "RG-010 RED GATE (BC-2.16.019 v1.3 §Post §1): \
+        "RG-010 RED GATE (BC-2.16.019 §Post §1): \
          fetch_server_interfaces body_template must contain \"sort_by\" key (absent before Task 5)"
     );
 
@@ -738,7 +738,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
     assert_eq!(
         sort_by.len(),
         2,
-        "BC-2.16.019 v1.3 §Post §1: fetch_server_interfaces sort_by must have exactly 2 elements \
+        "BC-2.16.019 §Post §1: fetch_server_interfaces sort_by must have exactly 2 elements \
          [server_name asc, interface_name asc]; composite PK guarantee; got {:?}",
         sort_by
     );
@@ -749,7 +749,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
         primary.get("field").and_then(|f| f.as_str()),
         Some("server_name"),
         "sort_by[0] field must be 'server_name' (primary sort; \
-         ServerInterfaces__sortable_fields_enum; BC-2.16.019 v1.3 §Post §1); \
+         ServerInterfaces__sortable_fields_enum; BC-2.16.019 §Post §1); \
          got: {:?}",
         primary
     );
@@ -757,7 +757,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
         primary.get("order").and_then(|o| o.as_str()),
         Some("asc"),
         "sort_by[0] order must be 'asc' for server_name \
-         (BC-2.16.019 v1.3 §Post §1); got: {:?}",
+         (BC-2.16.019 §Post §1); got: {:?}",
         primary
     );
 
@@ -768,7 +768,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
         tiebreaker.get("field").and_then(|f| f.as_str()),
         Some("interface_name"),
         "sort_by[1] field must be 'interface_name' (composite PK tiebreaker; \
-         ServerInterfaces__sortable_fields_enum; BC-2.16.019 v1.3 §Post §1 + §Post §3); \
+         ServerInterfaces__sortable_fields_enum; BC-2.16.019 §Post §1 + §Post §3); \
          got: {:?}",
         tiebreaker
     );
@@ -776,7 +776,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
         tiebreaker.get("order").and_then(|o| o.as_str()),
         Some("asc"),
         "sort_by[1] order must be 'asc' for interface_name \
-         (BC-2.16.019 v1.3 §Post §1); got: {:?}",
+         (BC-2.16.019 §Post §1); got: {:?}",
         tiebreaker
     );
 }
@@ -813,7 +813,7 @@ fn test_rg_server_interfaces_composite_key_both_present() {
 /// catches that regression.
 ///
 /// Seam: `PipelineExecutor::execute_with_max_requests` → `build_request` → wiremock.
-/// BC-2.16.015 v2.0 §Post §1 + EC-016-015-009.
+/// BC-2.16.015 §Post §1 + EC-016-015-009.
 #[tokio::test]
 async fn test_obs1_vulnerabilities_build_request_emits_sort_by() {
     use std::collections::HashMap;
@@ -959,7 +959,7 @@ async fn test_obs1_vulnerabilities_build_request_emits_sort_by() {
 /// keys to be present simultaneously.
 ///
 /// Seam: `PipelineExecutor::execute_with_max_requests` → `build_request` → wiremock.
-/// BC-2.16.013 v1.43 §Post §1 + EC-002 + EC-016-013-011.
+/// BC-2.16.013 §Post §1 + EC-002 + EC-016-013-011.
 #[tokio::test]
 async fn test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagination() {
     use std::collections::HashMap;
@@ -1097,4 +1097,210 @@ async fn test_obs1_audit_logs_build_request_emits_sort_by_with_filter_and_pagina
         "OBS-1 Case 1 (EC-002 coexistence invariant): POST body must contain ALL OF \
          filter_by + sort_by + offset + limit simultaneously; body={body}"
     );
+}
+
+// ── OBS-3 Wire-level coverage for the remaining 5 tables ─────────────────────
+//
+// vulnerabilities and audit_logs already have wire-level (serialized POST body)
+// assertions in the OBS-1 tests above. The remaining 5 tables had only
+// spec-parse (`body_template.contains`) coverage — this test closes that gap.
+//
+// Seam: PipelineExecutor::execute_with_max_requests + wiremock received_requests().
+// All 5 tables use offset_limit pagination (page_size=1000). Each mock returns
+// an empty array → 0 < 1000 records → pipeline halts after one page.
+//
+// SAP-1: no tracing emissions added — request-body assertion tests only.
+// SAP-2: N/A — sort_by is a request-body parameter, not a DTU response field.
+
+/// OBS-3: Wire-level sort_by coverage for the 5 remaining Claroty tables.
+///
+/// Verifies each table emits its BC-contracted sort_by array in the SERIALIZED
+/// outgoing POST body, not merely in the body_template string.
+///
+/// Tables and BC anchors (no version pins per LOW-001 fix):
+/// - server_interfaces:           BC-2.16.019 §Sort-by postcondition / EC-016-019-007
+/// - organization_zones:          BC-2.16.020 §Sort-by postcondition §1 / EC-016-020-011
+/// - organization_zone_policies:  BC-2.16.020 §Sort-by postcondition §2 / EC-016-020-012
+/// - organization_firewall_groups: BC-2.16.021 §Sort-by postcondition §1 / EC-016-021-011
+/// - organization_firewall_policies: BC-2.16.021 §Sort-by postcondition §2 / EC-016-021-012
+///
+/// Note on abbreviated URLs (EC-016-021-006 asymmetry):
+/// - organization_firewall_groups path:    /api/v1/organization_fw_groups/  (abbreviated _fw_)
+/// - organization_firewall_policies path:  /api/v1/organization_fw_group_policies/  (abbreviated)
+/// Both use the full spelling for their response envelope keys. The mock paths
+/// must match the abbreviated URL form or the mock will never be hit.
+#[tokio::test]
+async fn test_obs3_remaining_tables_build_request_emits_sort_by() {
+    use std::collections::HashMap;
+
+    use prism_core::OrgSlug;
+    use prism_spec_engine::{FetchContext, NullAuthProvider, PipelineExecutor, SpecLoader};
+    use wiremock::{
+        matchers::{method as wm_method, path as wm_path},
+        Mock as WmMock, MockServer, ResponseTemplate,
+    };
+
+    // (table_name, POST path, response envelope key, expected sort_by: [(field, order)])
+    let cases: Vec<(&str, &str, &str, Vec<(&str, &str)>)> = vec![
+        (
+            "server_interfaces",
+            "/api/v1/server_interfaces/",
+            "server_interfaces",
+            vec![("server_name", "asc"), ("interface_name", "asc")],
+        ),
+        (
+            "organization_zones",
+            "/api/v1/organization_zones/",
+            "organization_zones",
+            vec![("zone_name", "asc")],
+        ),
+        (
+            "organization_zone_policies",
+            "/api/v1/organization_zone_policies/",
+            "organization_zone_policies",
+            vec![("policy_name", "asc")],
+        ),
+        (
+            // CRITICAL: URL uses abbreviated _fw_groups; envelope uses full spelling.
+            // EC-016-021-006: using $.organization_fw_groups as response_path causes
+            // silent empty results — verified asymmetry in TOML comments.
+            "organization_firewall_groups",
+            "/api/v1/organization_fw_groups/",
+            "organization_firewall_groups",
+            vec![("firewall_group_name", "asc")],
+        ),
+        (
+            // CRITICAL: URL uses abbreviated _fw_group_policies; envelope full spelling.
+            "organization_firewall_policies",
+            "/api/v1/organization_fw_group_policies/",
+            "organization_firewall_policies",
+            vec![("policy_name", "asc")],
+        ),
+    ];
+
+    let mock_server = MockServer::start().await;
+
+    // Mount one mock per table path. Empty array response → 0 records < page_size=1000
+    // → offset_limit pagination halts after a single page.
+    for &(_, path, envelope_key, _) in &cases {
+        let mut body_map = serde_json::Map::new();
+        body_map.insert(envelope_key.to_string(), serde_json::json!([]));
+        WmMock::given(wm_method("POST"))
+            .and(wm_path(path))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::Value::Object(body_map)),
+            )
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+    }
+
+    let mut spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    spec.base_url = mock_server.uri();
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+
+    // Execute each table through the pipeline.
+    for &(table_name, _, _, _) in &cases {
+        let table = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == table_name)
+            .unwrap_or_else(|| {
+                panic!("OBS-3: table '{table_name}' must exist in claroty.sensor.toml")
+            })
+            .clone();
+        PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &NullAuthProvider,
+            2,
+        )
+        .await
+        .unwrap_or_else(|e| {
+            panic!("OBS-3 ({table_name}): pipeline must succeed with mock server; error: {e}")
+        });
+    }
+
+    // Inspect all received POST bodies.
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock must record received requests");
+
+    assert_eq!(
+        received.len(),
+        cases.len(),
+        "OBS-3: must have received exactly {} POST requests (one per table); got {}",
+        cases.len(),
+        received.len(),
+    );
+
+    for (table_name, path, _envelope_key, expected_sort_by) in &cases {
+        let post_req = received
+            .iter()
+            .find(|r| r.url.path() == *path)
+            .unwrap_or_else(|| {
+                panic!("OBS-3: must have received a POST to {path} (table: {table_name})")
+            });
+
+        let body: serde_json::Value = serde_json::from_slice(&post_req.body).unwrap_or_else(|e| {
+            panic!(
+                "OBS-3 ({table_name}): POST body must be valid JSON; error: {e}; raw: {:?}",
+                String::from_utf8_lossy(&post_req.body)
+            )
+        });
+
+        // sort_by must survive offset/limit injection (BC §Sort-by postcondition).
+        let sort_by = body.get("sort_by").unwrap_or_else(|| {
+            panic!(
+                "OBS-3 ({table_name}): POST body must contain 'sort_by' key — \
+                 offset/limit injection must NOT clobber sort_by; body={body}"
+            )
+        });
+        let sort_by_arr = sort_by.as_array().unwrap_or_else(|| {
+            panic!("OBS-3 ({table_name}): 'sort_by' must be a JSON array; got: {sort_by}")
+        });
+
+        assert_eq!(
+            sort_by_arr.len(),
+            expected_sort_by.len(),
+            "OBS-3 ({table_name}): sort_by must have exactly {} element(s); got: {sort_by_arr:?}",
+            expected_sort_by.len(),
+        );
+
+        for (i, (expected_field, expected_order)) in expected_sort_by.iter().enumerate() {
+            let elem = &sort_by_arr[i];
+            assert_eq!(
+                elem.get("field").and_then(|f| f.as_str()),
+                Some(*expected_field),
+                "OBS-3 ({table_name}): sort_by[{i}].field must be '{expected_field}'; \
+                 got: {elem}"
+            );
+            assert_eq!(
+                elem.get("order").and_then(|o| o.as_str()),
+                Some(*expected_order),
+                "OBS-3 ({table_name}): sort_by[{i}].order must be '{expected_order}'; \
+                 got: {elem}"
+            );
+        }
+
+        // offset and limit must be present (build_request offset_limit injection).
+        assert!(
+            body.get("offset").is_some(),
+            "OBS-3 ({table_name}): POST body must contain 'offset' (injected by build_request); \
+             body={body}"
+        );
+        assert!(
+            body.get("limit").is_some(),
+            "OBS-3 ({table_name}): POST body must contain 'limit' (injected by build_request); \
+             body={body}"
+        );
+    }
 }
