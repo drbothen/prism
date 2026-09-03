@@ -174,10 +174,17 @@ Edit `crates/prism-bin/Cargo.toml`:
 version = "X.Y.Z"   # was 0.1.0 or previous version
 ```
 
-Run a quick check to confirm the build still compiles with the new version:
+Regenerate both lockfiles that the version bump invalidates, then confirm the
+build compiles. Both lockfiles must be committed — `release.yml` runs
+`cargo build --locked` for every build leg.
 
 ```bash
-cargo check -p prism-bin --locked
+# Regenerate both lockfiles that the version bump invalidates.
+# Both must be committed — release.yml runs `cargo build --locked`.
+cargo update -p prism-bin --precise X.Y.Z
+cargo update --manifest-path tests/external/non-exhaustive-violation/Cargo.toml \
+             -p prism-bin --precise X.Y.Z
+cargo check -p prism-bin --locked   # now passes
 ```
 
 ### Step 3 — Author the CHANGELOG entry
@@ -191,10 +198,10 @@ All notable changes to Prism are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ```
 
-Add the new release section at the top (below the header), above any prior entries:
+Add the new release section immediately below `[Unreleased]` (and above any prior entries):
 
 ```markdown
-## [X.Y.Z] — YYYY-MM-DD
+## [X.Y.Z] - YYYY-MM-DD
 
 ### Added
 - ...
@@ -223,8 +230,11 @@ understand what changed without reading the full diff.
 ### Step 4 — Commit and push the release-prep branch
 
 ```bash
-git add crates/prism-bin/Cargo.toml CHANGELOG.md
-git commit -m "chore(release): bump prism-bin to vX.Y.Z, add CHANGELOG entry"
+git add crates/prism-bin/Cargo.toml \
+        Cargo.lock \
+        tests/external/non-exhaustive-violation/Cargo.lock \
+        CHANGELOG.md
+git commit -m "chore(release): bump prism-bin to vX.Y.Z, update Cargo.lock, add CHANGELOG entry"
 git push -u origin release/vX.Y.Z
 ```
 
@@ -380,10 +390,24 @@ Verify all of the following before declaring the release complete:
 4. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
 5. Generated release notes (from `--generate-notes`) are present.
 
-### Step 12 — Update README version badge
+### Step 12 — Update README version badge and install block
 
-Update the version badge and install-from-release instructions in `README.md` on
-`develop` to reference `vX.Y.Z`. Open a follow-up PR to develop.
+The README version badge and install block are authored in the release-prep commit
+(Steps 3/4). For the first release, this was done as part of this release-prep PR.
+For subsequent releases, update the version badge and install URLs in `README.md`
+to reference the new tag version and commit those changes to the release-prep branch
+(Step 4) alongside the CHANGELOG entry and version bump — not in a separate
+follow-up PR.
+
+Specifically, update:
+- The `[![vX.Y.Z](...)]` shield badge URL in the README header to match the new tag
+- All install URL paths (e.g., `prism-v1.0.0-` → `prism-vX.Y.Z-`) in the `## Install` section
+
+Stage the updated `README.md` as part of the `git add` in Step 4.
+
+**Note:** From the moment the release-prep PR merges to `main` until `release.yml`
+finishes publishing the GitHub Release (~45 min), the install URLs in `README.md`
+reference an unpublished release. This is expected and acceptable.
 
 ---
 
@@ -459,7 +483,9 @@ If one or more of the 5 build legs fails and the `publish-release` job never ran
 
 1. Diagnose the failure: `gh run view <run-id> --repo drbothen/prism --log-failed`
 2. Fix the root cause on `main` (commit to `main` via develop→main flow or a
-   direct hotfix PR to main — do NOT cherry-pick to avoid divergence).
+   direct hotfix PR to main — do NOT cherry-pick to avoid divergence). If a
+   direct hotfix to `main` is taken, immediately back-merge `main` → `develop`
+   via a separate PR to keep the branches in sync.
 3. Delete the tag: `git push origin :vX.Y.Z && git tag -d vX.Y.Z`
 4. Re-create the annotated tag on the fixed `main` HEAD: `git tag -a vX.Y.Z -m "..."`
 5. Re-push: `git push origin vX.Y.Z`

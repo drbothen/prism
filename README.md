@@ -1,6 +1,6 @@
 # Prism
 
-[![CI](https://github.com/drbothen/prism/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/drbothen/prism/actions/workflows/ci.yml)
+[![CI](https://github.com/drbothen/prism/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/drbothen/prism/actions/workflows/ci.yml)
 [![v1.0.0](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/drbothen/prism/releases/tag/v1.0.0)
 
 Prism is a Rust MCP server that unifies multi-client security sensor management
@@ -34,22 +34,44 @@ chmod +x prism
 ```bash
 curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0/prism-v1.0.0-x86_64-apple-darwin.tar.gz
 tar xzf prism-v1.0.0-x86_64-apple-darwin.tar.gz
+chmod +x prism
+./prism --version
 ```
 
 **Linux (glibc — most distros):**
 ```bash
 curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0/prism-v1.0.0-x86_64-unknown-linux-gnu.tar.gz
 tar xzf prism-v1.0.0-x86_64-unknown-linux-gnu.tar.gz
+chmod +x prism
+./prism --version
 ```
 
 **Linux (musl — Alpine, static binary):**
 ```bash
 curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0/prism-v1.0.0-x86_64-unknown-linux-musl.tar.gz
 tar xzf prism-v1.0.0-x86_64-unknown-linux-musl.tar.gz
+chmod +x prism
+./prism --version
 ```
 
 **Windows (x86_64):**
 Download `prism-v1.0.0-x86_64-pc-windows-msvc.zip` from the [v1.0.0 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0).
+
+### Verify
+
+Verify checksums (from the [release page](https://github.com/drbothen/prism/releases/tag/v1.0.0)):
+
+```bash
+sha256sum -c checksums.txt
+```
+
+Verify build provenance:
+
+```bash
+gh attestation verify prism-v1.0.0-<target>.tar.gz \
+  --repo drbothen/prism \
+  --signer-workflow drbothen/prism/.github/workflows/release.yml
+```
 
 ## Developer Quick Start
 
