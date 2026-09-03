@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.964"
+version: "8.965"
 producer: state-manager
-timestamp: 2026-09-03T12:00:00Z
+timestamp: 2026-09-03T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2435 (TD-VSDD-053) — POST-MERGE BURST — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03; harness auto-mode classifier blocks agent-executed merges on coordinator-relayed approval — same class as PR #251/D-2418; NOT a quality gate). POL-14: all 5 BCs already active — NO-OP. STORY-INDEX v2.989→v2.990 (story [ready v1.7]→[merged v1.7; PR #252 @11493aeb5]). develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.964→v8.965. SESSION-HANDOFF v8.056→v8.057. NEXT: live re-validation on monroe → v1 RELEASE-READY declaration."
+current_step: "D-2436 (TD-VSDD-053) — SESSION WRAP — RESUME SNAPSHOT D-2436 authored. Phase 3 Wave-5-E, Claroty xDome v1. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed (LOCAL 3-CLEAN, holdout HS-031, live validation, CI 24/24, pr-reviewer APPROVE). Both D-2420 v1 gates CLEARED: Action-1 vulnerabilities = NO DEFECT (transport fixed by PR #237; deep offsets work); Action-2 conformance audit = done (0 critical) + its one actionable class D-001..D-007 fixed and merged. SESSION-HANDOFF D-2435 SUPERSEDED; §RESUME SNAPSHOT D-2436 inserted. NEXT: (1) confirmatory live re-validation on monroe; (2) v1 RELEASE process. TD-VSDD-097: N/A (wrap-only; no spec/code changes). Count-propagation sweep: no BC/VP/story/ADR count changes. records-lint L1/L7/L9/L10 PASS. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.964→v8.965. SESSION-HANDOFF v8.057→v8.058."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-03 D-2435: POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged @11493aeb5; POL-14 NO-OP (5 BCs already active); STORY-INDEX v2.989→v2.990; develop_head 2edaaca78→11493aeb5. trajectory-tail →8→0→1→2. STATE v8.964→v8.965. |
+| **Last Updated** | 2026-09-03 D-2436: SESSION WRAP (TD-VSDD-053) — RESUME SNAPSHOT D-2436 authored. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED to develop @11493aeb5 (PR #252; D-2435). NEXT: confirmatory live re-validation on monroe → v1 RELEASE process. trajectory-tail →8→0→1→2. STATE v8.964→v8.965. SESSION-HANDOFF v8.057→v8.058. |
 
 ## Phase Progress
 
@@ -167,6 +167,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 | ID | Author | Date | Decision | Cycle | Updated |
 |----|--------|------|----------|-------|---------|
+| D-2436 | state-manager | 2026-09-03 | **SESSION WRAP (TD-VSDD-053) — RESUME SNAPSHOT D-2436 authored. Phase 3 Wave-5-E, Claroty xDome v1. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed (LOCAL 3-CLEAN, holdout HS-031, live validation, CI 24/24, pr-reviewer APPROVE). Both D-2420 v1 gates CLEARED: Action-1 vulnerabilities = NO DEFECT (transport fixed by PR #237; deep offsets work); Action-2 conformance audit = done (0 critical) + its one actionable class D-001..D-007 fixed and merged. SESSION-HANDOFF D-2435 SUPERSEDED; §RESUME SNAPSHOT D-2436 inserted. NEXT: (1) confirmatory live re-validation on monroe; (2) v1 RELEASE process. TD-VSDD-097: N/A (wrap-only; no spec/code changes). Count-propagation sweep: no BC/VP/story/ADR count changes (story_index v2.990, total_stories 322, bc_index v10.06, arch_index v2.357, vp_index v2.22 all UNCHANGED). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.964→v8.965. SESSION-HANDOFF v8.057→v8.058.** | wave-5-e-demo-fidelity | 2026-09-03 |
 | D-2435 | state-manager | 2026-09-03 | **SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03). All pre-merge quality gates had passed: LOCAL 3-CLEAN ✓ (BC-5.39.001; 3 consecutive CLEAN(strict) on frozen HEAD 1fcf91af1); holdout gate HS-031 GATE PASS ✓ (D-2429); live validation monroe ✓ (D-2430). Merge path: human-executed via `gh pr merge 252 --squash --delete-branch` because harness auto-mode classifier blocks agent-executed merges on coordinator-relayed approval (known harness boundary, same as PR #251/D-2418 — NOT a quality gate). POL-14: all 5 BCs (BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021) already active — NO-OP; no BC-INDEX draft/active count change. STORY-INDEX v2.989→v2.990 (story row [ready v1.7]→[merged v1.7; PR #252 @11493aeb5]). develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE; 3 tracked follow-ups remain open post-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. Cycle-closing lessons (a)–(d) appended to cycles/wave-5-e-demo-fidelity/lessons.md ([codification-assess]; no new codification required this burst). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair spec artifact edited). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs introduced). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.964→v8.965. SESSION-HANDOFF v8.056→v8.057. bc_index UNCHANGED v10.06. arch_index UNCHANGED v2.357. vp_index UNCHANGED v2.22.** | wave-5-e-demo-fidelity | 2026-09-03 |
 | D-2434 | state-manager | 2026-09-03 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade RE-CONVERGED on fallback HEAD; BC-5.39.001 satisfied; all pre-merge gates passed.** After D-2430 audit_logs timestamp-only fallback adoption + D-2431/D-2432/D-2433 propagation gap sweeps re-settled the spec perimeter, LOCAL cascade re-run on frozen feature HEAD 1fcf91af1 achieved 3 consecutive CLEAN(strict) passes; BC-5.39.001 satisfied (re-convergence). Independent corroboration (pass-4 adversary): xDome GetAuditLogParameters.sort_by schema default IS `[{"field":"timestamp","order":"asc"}]` — byte-identical to the timestamp-only canonical adopted at D-2430; VERDICT confirmed. ALL pre-merge quality gates now satisfied: (1) LOCAL 3-CLEAN ✓ (3 passes on frozen HEAD 1fcf91af1; factory-artifacts HEAD 3260409dd); (2) story holdout gate HS-031 GATE PASS ✓ (D-2429; evaluated pre-fallback; unaffected — audit_logs coexistence scenario HS-002 holds under timestamp-only; other 3 scenarios non-audit; all 4 consumed single-use); (3) live validation on monroe ✓ (D-2430; 6 non-audit tables live-validated PASS; audit_logs corrected to timestamp-only — the live-validated form and OpenAPI default). NEXT (per per-story flow): demo (live-data-free per D-2410) → push feature branch → pr-manager 9-step PR cycle → merge (human-approved). bc_index/story_index/arch_index/vp_index UNCHANGED (convergence-recording burst only). TD-VSDD-097: Dim-1 CLEAR (no spec sibling pair edited). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs introduced). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.963→v8.964. SESSION-HANDOFF v8.055→v8.056. develop_head UNCHANGED 2edaaca78. | wave-5-e-demo-fidelity | 2026-09-03 |
 | D-2433 | state-manager | 2026-09-03 | **RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46.** Dim-2 propagation gap from D-2432: §Sensor Defect Fixes intro paragraph in STORY-INDEX.md (`BC amendments (PO leg) are already active: …, BC-2.16.013 v1.45, …`) was not swept when D-2432 updated the table row and BCs column; paragraph corrected to v1.46. Same class of gap as D-2431 (which fixed D-2430's §Sensor-Defect-Fixes paragraph v1.44→v1.45). Self-certification: NO content/mechanism/algorithm/contract-semantics change — pin correction only. STORY-INDEX v2.988→v2.989 (total_stories 322 UNCHANGED). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED (paragraph was the missed downstream prose-section). Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.962→v8.963. SESSION-HANDOFF v8.054→v8.055. develop_head UNCHANGED 2edaaca78. | wave-5-e-demo-fidelity | 2026-09-03 |
@@ -332,38 +333,26 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2435 — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED; sort_by workstream COMPLETE; v1 RELEASE-READY next) [supersedes D-2434]
+## Session Resume Checkpoint (D-2436 — SESSION WRAP; confirmatory live re-validation + v1 RELEASE PROCESS next; SAFE TO CLEAR) [supersedes D-2435]
 
 ### RESUME IN ONE BREATH
-Phase 3 Wave-5-E. D-2435: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03). POL-14: all 5 BCs already active — NO-OP. STORY-INDEX v2.989→v2.990 (story row [ready v1.7]→[merged v1.7; PR #252 @11493aeb5]). develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. G1–G6 ALL MERGED + sort_by fix MERGED = v1 Claroty xDome sensor FULLY DELIVERED. BC-INDEX v10.06; STORY-INDEX v2.990 (322 stories). develop @11493aeb5.
+Phase 3 Wave-5-E, Claroty xDome v1. DEFECT-CLAROTY-SORTBY-DETERMINISM-001 (deterministic per-table sort_by on 7 Claroty tables; audit_logs timestamp-only after live validation proved `id`→0 rows) MERGED to develop @11493aeb5 (PR #252; D-2435). ALL quality gates passed (LOCAL 3-CLEAN, holdout HS-031, live validation, CI 24/24, pr-reviewer APPROVE). Both D-2420 v1 gates CLEARED: Action-1 vulnerabilities = NO DEFECT (transport fixed by PR #237; deep offsets work); Action-2 conformance audit = done (0 critical) + its one actionable class D-001..D-007 fixed & merged. NEXT: (1) confirmatory live re-validation on the MERGED develop binary on monroe, then (2) v1 RELEASE process (capture → release → merge develop→main).
 
 **NEXT ACTIONS (in order):**
-0. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
-1. **Live re-validation on monroe:** confirm 7-table sort_by fix → stable pagination (live data; AD-017 opaque; DO NOT SAVE output per D-2410).
-2. **Declare v1 RELEASE-READY:** record in STATE.md + SESSION-HANDOFF after live re-validation confirmed.
-3. **Post-v1 backlog:** TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, DEFECT-CLAROTY-VULN-PAGINATION-001.
-
-**TRACKED POST-v1 FOLLOW-UPS (NOT blocking v1):**
-- TD-SENSOR-SORTBY-PUSHDOWN-001: ORDER BY push-down (translate PrismQL ORDER BY into per-sensor sort_by).
-- TD-DI019-RECORDS-CAP-001: make MAX_PIPELINE_RECORDS 10K cap configurable.
-- TD-CONFIG-SURFACE-EPIC-001: config-surface epic — expose all magic numbers as configurable params.
-- O-3: NullAuthProvider live-test hardening across G4/G5/G6 wire tests.
-- .gitignore live-data guards PR (normal PR, not direct push).
-- GitHub ~30-day dangling-object cache from D-2416 purge (no action needed; self-expiring).
-- Housekeeping: removable merged worktrees — optional cleanup, non-blocking.
-- [process-gap] standalone Claroty DTU server for headless holdout MCP dims (D-2429, logged not codified).
-- [process-gap] STORY-INDEX §Sensor Defect Fixes intro prose version-pin POL-39/POL-40 cleanup (D-2433 class, logged not codified).
-
-**CONVERGENCE STATE:** G1–G6 ALL MERGED (develop@11493aeb5; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. sort_by DEFECT: MERGED PR #252 @11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. v1 Claroty xDome sensor FULLY DELIVERED. NEXT: live re-validation → v1 RELEASE-READY.
+0. **RESUME STEP 0:** CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+1. **HUMAN PRECONDITION:** unlock login keychain (`security unlock-keychain`) for the live test.
+2. **CONFIRMATORY LIVE RE-VALIDATION (human-directed 2026-09-03):** devops rebuild canonical release binary from develop@11493aeb5 → deploy to /Users/jmagady/Dev/test-soc/bin/prism + the merged 14-table claroty.sensor.toml to /Users/jmagady/Dev/test-soc/.prism-live/specs/ → boot → READ-ONLY monroe sweep confirming all 7 sort_by tables behave on the MERGED release binary: audit_logs (timestamp-only) returns LIVE ROWS not 0; the other 6 (vulnerabilities, server_interfaces, organization_zones, organization_zone_policies, organization_firewall_groups, organization_firewall_policies) emit their sort_by + return live rows; sanity of the remaining tables. AD-017 credential-opaque; D-2410 NO live tenant data into repo (report counts/wire-shape/pass-fail only). Direct HTTPS to api.claroty.com works (DEFECT-1 resolved, PR #237) — no relay.
+3. **On PASS → declare v1 Claroty xDome RELEASE-READY.**
+4. **v1 RELEASE PROCESS (human-directed):** capture → release → merge develop→main. Use /vsdd-factory:release + .factory/release-config.yaml (version bump, CHANGELOG, git tag, GitHub Release, any registry publish). Merge develop→main: force-push to main FORBIDDEN; the develop→main merge will require human-executed or fresh direct in-transcript approval (harness auto-mode classifier boundary — a coordinator/agent relay does NOT satisfy it; confirmed on PR #252 and #251/D-2418).
 
 **HEADS (backup boundary):**
-- `develop`: origin/develop = local develop = `11493aeb5` (D-2435 PR #252 squash-merge 2026-09-03). PUSHED.
-- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
-- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
-- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename DEFECT-CLAROTY-VULN-PAGINATION-001 before editing).
-- G1–G6 + sort_by fix: ALL MERGED; worktrees REMOVABLE (teardown deferred).
-- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+- `develop`: origin = local = `11493aeb5` (PR #252 squash-merge 2026-09-03). PUSHED.
+- `factory-artifacts`: `e3bad23a4` before this wrap; run `git -C .factory log -1 --format='%h'` for the wrap HEAD. PUSHED.
+- Worktrees: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 TORN DOWN (branch deleted). Surviving: .factory (factory-artifacts); PARKED S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch); REMOVABLE-deferred S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- No open PRs.
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**STANDING DECISIONS (carry forward):** (a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 CONVERGENCE-BAR satisfied for G1–G6. (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only.
+**PENDING USER-APPROVED WORK:** Merge authority for PR #252: EXERCISED (human ran the merge; done). No other pending fix lists or scope approvals.
+
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 autonomy grant in force. (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) HARNESS BOUNDARY: merges (PR→develop AND develop→main) require human-executed OR fresh direct in-transcript human approval — an orchestrator/coordinator relay of a prior grant does NOT satisfy the auto-mode classifier (empirically confirmed PR #252 + #251/D-2418). (f) DEFECT-1 (rustls direct transport) RESOLVED by PR #237 — direct api.claroty.com works; relay decommissioned (banner added in test-soc). (g) TRACKED POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001 (ORDER BY push-down), TD-DI019-RECORDS-CAP-001 (configurable 10K cap), TD-CONFIG-SURFACE-EPIC-001 (magic-numbers config). (h) 4 cycle-close lessons [codification-assess] logged in cycles/wave-5-e-demo-fidelity/lessons.md for session-reviewer.
