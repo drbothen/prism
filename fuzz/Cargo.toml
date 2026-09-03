@@ -82,3 +82,12 @@ version = "=5.0.0"
 
 [dependencies.alloc-stdlib]
 version = "=0.2.2"
+
+# tinyvec 1.13.0 uses `use alloc::vec::{self, Vec}` which shadows the `vec!` macro
+# name; a recent nightly compiler change (observed nightly 1.98.1, 2026-09-01) treats
+# this shadow as an error under the sanitizer build, causing "cannot find macro `vec`
+# in this scope". Pin to 1.11.0 (known-good with nightly ASAN) until tinyvec resolves
+# the upstream incompatibility. The main workspace Cargo.lock already pins tinyvec
+# 1.11.0; this entry replicates that pin here since fuzz/Cargo.lock is gitignored.
+[dependencies.tinyvec]
+version = "=1.11.0"
