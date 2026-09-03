@@ -182,7 +182,7 @@ layout:
   run: scripts/check-crate-layout.sh
 ```
 
-The hook runs the full 22-crate workspace scan once per commit (not once per staged
+The hook runs the full 25-crate workspace scan once per commit (not once per staged
 file). Runtime is under 1 second per ADR-012 §5 analysis.
 
 ---
