@@ -1,18 +1,58 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.055"
+version: "8.056"
 status: current
-timestamp: 2026-09-03T02:00:00Z
+timestamp: 2026-09-03T12:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2433 (2026-09-03): RECORDS-ONLY MICRO-BURST — §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46 (Dim-2 propagation gap from D-2432). STORY-INDEX v2.989. records-lint PASS. STATE v8.962→v8.963. SESSION-HANDOFF v8.054→v8.055. [audit_logs fallback fully landed; LOCAL re-gate cascade in progress.]**
+> **D-2434 (2026-09-03): SINGLE-COMMIT BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL cascade RE-CONVERGED on fallback HEAD 1fcf91af1; BC-5.39.001 satisfied; all pre-merge gates passed (LOCAL 3-CLEAN ✓; HS-031 GATE PASS ✓; live validation ✓). records-lint PASS. STATE v8.963→v8.964. SESSION-HANDOFF v8.055→v8.056.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2433 (2026-09-03 — §Sensor-Defect-Fixes paragraph pin corrected; LOCAL re-gate on fallback HEAD NEXT) [supersedes D-2432]
+## §RESUME SNAPSHOT — D-2434 (2026-09-03 — LOCAL re-convergence COMPLETE on fallback HEAD; all gates passed; demo/push/PR NEXT) [supersedes D-2433]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E. D-2434: SINGLE-COMMIT BURST — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 LOCAL adversary cascade RE-CONVERGED on fallback HEAD 1fcf91af1 (3 consecutive CLEAN(strict) passes; BC-5.39.001 satisfied). ALL pre-merge quality gates passed: (1) LOCAL 3-CLEAN ✓ (factory-artifacts HEAD 3260409dd); (2) holdout gate HS-031 GATE PASS ✓ (D-2429; HS-002 audit_logs coexistence holds under timestamp-only; all 4 consumed single-use); (3) live validation on monroe ✓ (D-2430; 6 non-audit tables PASS; audit_logs corrected to timestamp-only — the live-validated form and OpenAPI default). Independent corroboration: xDome sort_by default = `[{"field":"timestamp","order":"asc"}]` — byte-identical to adopted canonical. BC-INDEX v10.06; STORY-INDEX v2.989 (322 stories). develop @2edaaca78.
+
+### GOVERNING OBJECTIVE
+Deliver DEFECT-CLAROTY-SORTBY-DETERMINISM-001 to develop: demo (live-data-free per D-2410) → push feature branch → pr-manager 9-step PR cycle → squash-merge into develop (human-approved). Declare v1 RELEASE-READY after merge + live re-validation confirmed.
+
+### HEADS (backup boundary)
+- `develop`: origin/develop = local develop = `2edaaca78` (D-2419 PR #251 squash-merge 2026-09-02). PUSHED.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `fix/DEFECT-LIVE-ENVELOPE-OBS-001`: LOCAL branch only — LEFT IN PLACE (stale pointer; harmless).
+- DEFECT-CLAROTY-VULN-PAGESIZE-001: .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78 (recommend rename before editing).
+- G1–G6: ALL MERGED; worktrees REMOVABLE (teardown deferred).
+- Parked: S-3.09 @`43c41389d` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. **RESUME STEP 0:** CronList → re-arm heartbeat if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. **Demo recording:** demo-recorder (live-data-free per D-2410).
+3. **Push + PR:** push feature branch → pr-manager 9-step PR cycle → squash-merge into develop (human-approved).
+4. **Post-merge state burst:** BC auto-promotion N/A (5 amended BCs already active); STATE/SESSION-HANDOFF v1 RELEASE-READY update.
+5. **Declare v1 RELEASE-READY** after sort_by fix merged + live re-validation confirmed.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@2edaaca78; BC-2.16.015..BC-2.16.022 all active). OBS-1/OBS-2 CLOSED. v1 transport blockers CLEARED. sort_by DEFECT: LOCAL 3-CLEAN RE-CONVERGED on fallback HEAD 1fcf91af1 (D-2434); HS-031 holdout GATE PASS (D-2429); live validation PASS (D-2430). ALL pre-merge gates satisfied. NEXT: demo → push → PR → merge.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2434 (SINGLE-COMMIT BURST: LOCAL cascade RE-CONVERGED; all pre-merge gates passed; STATE v8.963→v8.964; SESSION-HANDOFF v8.055→v8.056). D-2433 historical: §Sensor-Defect-Fixes paragraph BC-2.16.013 pin v1.45→v1.46; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: no pragmatic convergence / fix all issues. (b) Autonomy grant D-989 in force. (c) D-2396 convergence bar satisfied (G1–G6 all merged). (d) D-2400 BLANKET AUTHORITY expended. (e) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (f) SAP-4/POL-42 in force. (g) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO (supersedes SEC-004). (h) D-2416 GIT-HISTORY PURGE COMPLETE. (i) D-2417 L4 AUTONOMY GRANT exercised (OBS-1/OBS-2 fix stream complete; merge done). (j) Federated principle affirmed (D-2420): server-side filters NOT offline inventory; option C REJECTED by human. Harness-level guards (force-push/admin-merge/filter-repo) still human-only. TRACKED POST-v1 FOLLOW-UPS (NOT blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001, O-3 (NullAuthProvider hardening), .gitignore guards PR, GitHub ~30-day dangling-object cache (D-2416), [process-gap] standalone Claroty DTU server for headless holdout MCP dims (D-2429).
+
+### WORKTREE INVENTORY
+ACTIVE: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 feature branch LOCAL-ONLY — frozen HEAD 1fcf91af1; demo + push + PR pending. DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend rename before editing). REMOVABLE: G1–G6 worktrees + fix/DEFECT-LIVE-ENVELOPE-OBS-001 local branch (stale pointer). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch).
+
+---
+
+## §RESUME SNAPSHOT — D-2433 (2026-09-03 — §Sensor-Defect-Fixes paragraph pin corrected; LOCAL re-gate on fallback HEAD NEXT) [SUPERSEDED by D-2434]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. D-2433: RECORDS-ONLY MICRO-BURST — §Sensor-Defect-Fixes intro paragraph in STORY-INDEX.md BC-2.16.013 pin corrected v1.45→v1.46 (Dim-2 propagation gap from D-2432; same class as D-2431 for D-2430). All spec pins now consistent. BC-2.16.013 v1.46; story v1.7; BC-INDEX v10.06; STORY-INDEX v2.989 (322 stories). LOCAL 3-CLEAN streak RESET 0/3 (spec perimeter changed at D-2430). develop @2edaaca78.
