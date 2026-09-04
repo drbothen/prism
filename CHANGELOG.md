@@ -28,9 +28,9 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
   the binary and a `prism.toml.example` configuration template. A fresh install is
   bootable without cloning the source repository: extract the archive, point
   `spec_dir` at the bundled `specs/` directory, and run `prism start` (#253).
-  Enrichment infusion specs ship with the demo bundle (S-REL-004); they are not
-  included in the plain binary archive for rc.1 because the enrichment pipeline
-  requires plugins and sensor-specific data that are deferred.
+  Enrichment (ENRICH clause, infusions, ThreatIntel, NVD) is not available in
+  v1.0.0-rc.1; the enrichment engine binary is present but infusion specs and
+  required WASM plugins are not bundled. Enrichment ships in a later release.
 - Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
   (S-0.02, #2)
@@ -81,13 +81,14 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
 - `SpecDrivenSensorAdapter`: TOML-spec-driven sensor abstraction bridging
   `PipelineExecutor` to `AdapterRegistry`, replacing hardcoded per-sensor adapters
   (S-DEMO-001, #166)
-- Config-driven sensor TOML specs for all built-in sensors: CrowdStrike, Cyberint,
-  Claroty, Armis ship as TOML specs processed by the spec engine (PLUGIN-MIGRATION-001-D, #153)
+- Config-driven sensor TOML specs: CrowdStrike, Cyberint, Claroty, and Armis were
+  implemented as TOML specs processed by the spec engine; only claroty.sensor.toml
+  ships in rc.1 (see Deferred) (PLUGIN-MIGRATION-001-D, #153)
 - `SpecParser` hot reload: runtime spec reloading with `ArcSwap` config snapshots
   (S-1.12, #24)
 - Plugin framework: WASM plugin runtime with host-function security boundary,
-  PRX plugin format, CrowdStrike OAuth2 refresh-on-401 plugin
-  (S-1.15, PLUGIN-MIGRATION-001-E, S-PLUGIN-PREREQ-D, #22, #149, #154)
+  PRX plugin format (S-1.15, PLUGIN-MIGRATION-001-E, S-PLUGIN-PREREQ-D, #22, #149, #154);
+  the CrowdStrike OAuth2 refresh-on-401 plugin ships with CrowdStrike support (see Deferred)
 - `SensorAuth` open trait + `CustomAdapter` deprecation for extensible plugin
   authentication (S-PLUGIN-PREREQ-E, #151)
 - `${env.VAR}` interpolation resolution in sensor-spec string fields (S-SPEC-ENV-VAR-001)
