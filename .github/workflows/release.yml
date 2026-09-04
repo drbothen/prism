@@ -255,19 +255,27 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
             # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            # ADJ-002 (S-REL-003): install.sh + install.ps1 uploaded as release assets so consumers
+            # can use them directly from the release page without a repo clone.
             gh release upload "$TAG" --clobber \
               artifacts/release-*/*.tar.gz \
               artifacts/release-*/*.zip \
-              checksums.txt
+              checksums.txt \
+              scripts/install.sh \
+              scripts/install.ps1
           else
             # empty-array-safe under set -u on any bash; F-REL001-PR1-002
             # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
             # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            # ADJ-002 (S-REL-003): install.sh + install.ps1 uploaded as release assets so consumers
+            # can use them directly from the release page without a repo clone.
             gh release create "$TAG" \
               --title "Prism $TAG" \
               --generate-notes \
               ${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"} \
               artifacts/release-*/*.tar.gz \
               artifacts/release-*/*.zip \
-              checksums.txt
+              checksums.txt \
+              scripts/install.sh \
+              scripts/install.ps1
           fi

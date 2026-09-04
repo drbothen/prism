@@ -1878,8 +1878,85 @@ jobs:
           shellcheck scripts/demo-*.sh
           echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
 
+  shellcheck-install-scripts:
+    name: Shellcheck install scripts (S-REL-003 AC-001 / AC-009)
+    # Required PR gate per S-REL-003 AC-001 and AC-009.
+    # Runs shellcheck on scripts/install.sh to catch shell scripting errors,
+    # undefined variable references, and unsafe patterns before they reach consumers.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install shellcheck
+        run: |
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+      - name: Run shellcheck on install.sh
+        run: |
+          # AC-001 / AC-009 (S-REL-003): shellcheck must pass with zero errors on install.sh.
+          # This is a required PR gate — failures block merge.
+          shellcheck scripts/install.sh
+          echo "shellcheck: scripts/install.sh passes (S-REL-003 AC-001 / AC-009)"
+
+  psscriptanalyzer-install-ps1:
+    name: PSScriptAnalyzer install.ps1 (S-REL-003 AC-005 / AC-009)
+    # Required PR gate per S-REL-003 AC-005 and AC-009.
+    # Runs PSScriptAnalyzer on scripts/install.ps1 to catch PowerShell errors
+    # and unsafe patterns before they reach consumers.
+    # PSScriptAnalyzer is NOT pre-installed on windows-latest (U33); must be installed
+    # explicitly with Install-Module (S-REL-003 AC-009 risk mitigation).
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          # U33: PSScriptAnalyzer is NOT pre-installed on windows-latest.
+          # SEC-002/SEC-008 (CWE-1104): pin to current stable; 1.22.0 was EOL (2+ majors behind).
+          # 1.25.0 is the current stable on PSGallery as of 2026-03-20 (verified 2026-09-04).
+          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.25.0
+      - name: Lint install.ps1 (PS 5.1 compatibility scope)
+        shell: pwsh
+        run: |
+          # AC-005 / AC-009 (S-REL-003): PSScriptAnalyzer must pass at Severity Error on install.ps1.
+          # SEC-001: capture $results and exit 1 on any finding — gate cannot pass vacuously.
+          # N8: install.ps1 targets PowerShell 5.1 consumers; validate at PS 5.1 compat scope.
+          $results = Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Error
+          if ($results) {
+              $results | Format-List
+              exit 1
+          }
+          Write-Host "PSScriptAnalyzer: scripts/install.ps1 passes (S-REL-003 AC-005 / AC-009)"
+
   verify-workflow-structure:
-    name: Verify workflow structure (reachability + config invariants, 25 assertions)
+    name: Verify workflow structure (reachability + config invariants, 27 assertions)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -2111,7 +2188,19 @@ jobs:
             exit 1
           }
           echo 'F-REL001-P11-001 Justfile recipe assertion passed: test-release-gate recipe present.'
-          echo 'All verify-workflow-structure assertions pass (25 total: 23 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2, scoped) + F-REL001-P11-001 (Justfile) — 23 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 25 total checks.'
+          # S-REL-003 shellcheck-install-scripts job reachability assertion (AC-009):
+          grep -qE '^  shellcheck-install-scripts:' .github/workflows/ci.yml || {
+            echo "::error::S-REL-003 AC-009: 'shellcheck-install-scripts' job is missing from ci.yml — shellcheck gate for install.sh removed"
+            exit 1
+          }
+          echo 'S-REL-003 AC-009 reachability check passed: shellcheck-install-scripts job definition present.'
+          # S-REL-003 psscriptanalyzer-install-ps1 job reachability assertion (AC-009):
+          grep -qE '^  psscriptanalyzer-install-ps1:' .github/workflows/ci.yml || {
+            echo "::error::S-REL-003 AC-009: 'psscriptanalyzer-install-ps1' job is missing from ci.yml — PSScriptAnalyzer gate for install.ps1 removed"
+            exit 1
+          }
+          echo 'S-REL-003 AC-009 reachability check passed: psscriptanalyzer-install-ps1 job definition present.'
+          echo 'All verify-workflow-structure assertions pass (27 total: 25 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2, scoped) + F-REL001-P11-001 (Justfile) + S-REL-003-AC-009 (×2) — 25 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 27 total checks.'
 
   release-gate:
     name: Release gate (S-REL-001 AC-012)

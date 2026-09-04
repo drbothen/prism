@@ -29,8 +29,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 #   3. README.md "Floor constants" section assertion count
 # This floor exists so silent coverage shrink fails loud (F-REL001-P7-001).
 # Precedent: scripts/check-non-exhaustive.sh EXPECTED=92 pattern.
-EXPECTED_TEST_FILES=11
-EXPECTED_ASSERTIONS=81
+EXPECTED_TEST_FILES=12
+EXPECTED_ASSERTIONS=123
 
 PASS=0
 FAIL=0
