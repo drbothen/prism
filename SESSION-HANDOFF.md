@@ -1,18 +1,63 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.063"
+version: "8.064"
 status: current
 timestamp: 2026-09-04T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2442 (2026-09-04): SESSION WRAP (TD-VSDD-053) — S-REL-003 install scripts BUILT LOCAL on feature/S-REL-003@59fcc17a2 (NOT pushed). §RESUME SNAPSHOT D-2442 inserted. D-2441 SUPERSEDED. develop_head UNCHANGED 18646aa44. NEXT: push feature/S-REL-003 → pr-manager review + CI → PR→develop→merge; then S-REL-004→S-REL-007→S-REL-006→live RC gate→tag v1.0.0-rc.1. records-lint PASS. STATE v8.969→v8.970. SESSION-HANDOFF v8.062→v8.063.**
+> **D-2443 (2026-09-04): SINGLE-COMMIT BURST (TD-VSDD-053) — Human-directed deferral: v1.0.0-rc.1 ships WITHOUT demo bundle. S-CLAROTY-DTU-PARITY-001 REGISTERED (governing story; blocks S-REL-004). S-REL-004 v0.4→v0.5 + S-REL-007 v0.2→v0.3 + S-REL-006 v0.1→v0.2 (all DEFERRED post-rc.1). §RESUME SNAPSHOT D-2443 inserted. D-2442 SUPERSEDED. develop_head UNCHANGED 18646aa44. NEXT: push feature/S-REL-003 → PR → merge → live monroe RC gate → tag v1.0.0-rc.1. records-lint PASS. STATE v8.970→v8.971. SESSION-HANDOFF v8.063→v8.064.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2442 (2026-09-04 — SESSION WRAP; Move-3 S-REL-003 built local; SAFE TO CLEAR) [supersedes D-2441]
+## §RESUME SNAPSHOT — D-2443 (2026-09-04 — v1.0.0-rc.1 WITHOUT demo bundle; SAFE TO CLEAR) [supersedes D-2442]
+
+### RESUME IN ONE BREATH
+Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. DEFERRAL (D-2443, human decision 2026-09-04): demo bundle (S-REL-004) and Claroty DTU 14-table parity (S-CLAROTY-DTU-PARITY-001) are POST-rc.1. Root cause: prism-dtu-claroty implements only ~7 of 14 tables declared in claroty.sensor.toml (G2–G6 routes missing). S-REL-003 install scripts BUILT LOCAL @59fcc17a2 (NOT pushed). REVISED rc.1 path: push S-REL-003 → PR → merge → live monroe RC gate → tag v1.0.0-rc.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-rc.1 as a Claroty-xDome-only evaluation release validated on the live xDome/monroe RC gate (NOT DTU-backed). S-REL-003 is the last rc.1 blocker. Demo bundle and Claroty DTU parity are post-rc.1. After rc.1 ships: execute S-CLAROTY-DTU-PARITY-001 batch (5 DTU stories for G2–G6) → S-REL-004 → S-REL-007 → S-REL-006 → GA v1.0.0.
+
+### HEADS (backup boundary)
+- `develop`: origin = `18646aa44` (PR #253 squash-merge 2026-09-04). LOCAL current.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- `feature/S-REL-003` @59fcc17a2 — LOCAL-ONLY, NOT pushed. clean tree.
+- No open PRs.
+- Worktrees: ACTIVE: feature/S-REL-003 (.worktrees/S-REL-003 @59fcc17a2). PARKED: S-3.09 @43c41389d (KEEP), W3-FIX-S307-001 @fcab8717c (DIRTY do-NOT-touch). REMOVABLE-deferred: S-CLAROTY-VULNS-001 @423fc7659, S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a, S-ENGINE-LIMIT-EARLY-STOP-001 @704aac24a.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. Housekeeping: optionally remove the 3 removable-deferred worktrees.
+3. S-REL-003 delivery: push feature/S-REL-003 (pre-push just check runs) → pr-manager scoped review + CI (NOTE: 2 NEW CI jobs — shellcheck-install-scripts, psscriptanalyzer-install-ps1 — not yet in branch protection; release-gate floor now 12 files/107 assertions; verify-workflow-structure 25→27) → PR→develop → merge (fresh human merge-approval required per harness boundary).
+4. Live secops-factory RC gate (Claroty demo on live monroe; human-involved; AD-017 opaque, D-2410 no live data into repo). rc.1 validated on LIVE xDome/monroe only.
+5. Tag v1.0.0-rc.1 on main after develop→main merge — BOTH require SEPARATE fresh in-transcript human approval (harness auto-mode classifier; NOT a coordinator relay).
+6. POST-rc.1: dispatch S-CLAROTY-DTU-PARITY-001 governing story batch (G2–G6 DTU stories) → S-REL-004 → S-REL-007 → S-REL-006.
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 MERGED (pre-session). S-REL-002 + S-REL-005 MERGED via PR #253 (D-2441). S-REL-003 BUILT LOCAL (feature/S-REL-003@59fcc17a2; install.sh 270L shellcheck-clean, install.ps1 145L, release-gate test_AC-012 26 assertions, release.yml publish-release uploads scripts, ci.yml +2 jobs). S-REL-004 v0.5 DEFERRED post-rc.1 (D-2443; depends on S-CLAROTY-DTU-PARITY-001). S-REL-007 v0.3 DEFERRED post-rc.1. S-REL-006 v0.2 DEFERRED post-rc.1. S-CLAROTY-DTU-PARITY-001 REGISTERED v1.0 (governing story for 5 DTU stubs; blocks S-REL-004). ADR-062 ACCEPTED + ARCH-INDEX.
+
+### PENDING USER-APPROVED WORK
+- User directive D-2443 (2026-09-04): rc.1 WITHOUT demo bundle; DTU parity post-rc.1.
+- S-REL-003: push + PR + merge pending (fresh human merge-approval required per harness boundary).
+- Each future PR merge needs FRESH in-transcript human approval.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2443 (this burst): human-directed deferral; S-CLAROTY-DTU-PARITY-001 registered; S-REL-004/007/006 deferred post-rc.1; DEMO-SCOPE v1.9→v2.0; STATE v8.970→v8.971; SESSION-HANDOFF v8.063→v8.064. D-2442 (prior: S-REL-003 built local @59fcc17a2). D-2441 (PR #253 merged; develop_head→18646aa44).
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) HARNESS BOUNDARY: PR→develop AND develop→main merges + tag pushes require FRESH direct in-transcript human approval (coordinator relay does NOT satisfy the classifier). (f) Claroty-only v1.0.0-rc.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237). (j) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-rc.1 per D-2443.
+
+### WORKTREE INVENTORY
+ACTIVE: feature/S-REL-003 (.worktrees/S-REL-003 @59fcc17a2). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2442 (2026-09-04 — SESSION WRAP; Move-3 S-REL-003 built local; SAFE TO CLEAR) [supersedes D-2441] [SUPERSEDED by D-2443]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. PR #253 (Claroty-only rc.1 release-prep) MERGED to develop@18646aa44 (D-2441). Move 3 in flight: S-REL-003 install scripts BUILT LOCAL on feature/S-REL-003@59fcc17a2 (NOT pushed). NEXT: push feature/S-REL-003 → pr-manager scoped review + CI → PR→develop→merge; then S-REL-004 (Claroty demo bundle) → S-REL-007 (Windows) → S-REL-006 (consumer-contract) → live secops-factory RC gate → tag v1.0.0-rc.1.

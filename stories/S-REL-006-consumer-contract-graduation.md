@@ -6,7 +6,7 @@ wave: F-B
 epic_id: E-REL
 priority: P1
 status: draft
-version: "0.1"
+version: "0.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -67,10 +67,12 @@ phase: "F3"
 
 **Story ID:** S-REL-006
 **Status:** draft
-**Version:** v0.1
+**Version:** v0.2
 **Wave:** F-B
 **Priority:** P1
 **Points:** 2
+
+**Deferral notice (2026-09-04):** DEFERRED out of v1.0.0-rc.1 as a downstream consequence of the S-REL-004 deferral (chain: S-REL-006 → S-REL-007 → S-REL-004 → S-CLAROTY-DTU-PARITY-001). Executes post-rc.1 after Claroty DTU parity lands.
 
 ---
 
@@ -271,4 +273,5 @@ No code dependencies — documentation copy/edit only.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.2 | 2026-09-04 | DEFERRED out of v1.0.0-rc.1 as downstream consequence of S-REL-004 deferral. Chain: S-REL-006 depends_on S-REL-007 → S-REL-004 → S-CLAROTY-DTU-PARITY-001. Human decision 2026-09-04. Executes post-rc.1 after Claroty DTU parity lands. |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

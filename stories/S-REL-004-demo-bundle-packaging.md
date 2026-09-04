@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.4"
+version: "0.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -22,7 +22,7 @@ behavioral_contracts: []
 # BC status: N/A — packaging and CI tooling. No subsystem BC governs demo bundle assembly.
 # Conforming per W3-FIX-CI-001 precedent.
 verification_properties: []
-depends_on: [S-REL-001, S-REL-002]
+depends_on: [S-REL-001, S-REL-002, S-CLAROTY-DTU-PARITY-001]
 # Dependency anchor justifications:
 #   depends_on S-REL-001: The demo bundle release asset is uploaded alongside the main
 #     binary archives — it depends on the repaired release.yml base (dead jobs removed,
@@ -30,6 +30,11 @@ depends_on: [S-REL-001, S-REL-002]
 #   depends_on S-REL-002: The bundle archive is named `prism-demo-bundle-${TAG}-${target}.tar.gz`
 #     where TAG must correspond to the correct prism-bin version (1.0.0-rc.1). S-REL-002
 #     ensures the version string in the release tag and binary match.
+#   depends_on S-CLAROTY-DTU-PARITY-001: The demo bundle runs against claroty.sensor.toml which
+#     declares 14 tables. prism-dtu-claroty currently serves only 7. If the DTU is missing routes
+#     for any of the G2-G6 tables, the bundled demo fails at runtime for those query surfaces.
+#     S-CLAROTY-DTU-PARITY-001 brings the DTU to full 14-table fidelity + demo-server seeding
+#     before the bundle can be assembled and validated. Human decision 2026-09-04.
 blocks: [S-REL-007, S-REL-005]
 # Dependency anchor justifications:
 #   blocks S-REL-007: Windows PowerShell demo scripts (demo-setup.ps1 etc.) go INSIDE the
@@ -96,7 +101,7 @@ inputs:
   - "scripts/demo-run.sh"
   - "scripts/demo-teardown.sh"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "984d7b6"
+input-hash: "71df370"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -122,6 +127,12 @@ RC acceptance gate — the demo bundle must be downloadable from the RC release.
 
 Human decision (OQ-1, 2026-07-19): the bundle MUST include pre-built `.prx` plugin
 artifacts so consumers can run the demo without a Rust toolchain.
+
+**Deferral (human decision 2026-09-04):** S-REL-004 is DEFERRED out of v1.0.0-rc.1. The demo
+bundle cannot function until `prism-dtu-claroty` serves all 14 Claroty tables declared in
+`claroty.sensor.toml` (it currently serves 7; G2-G6 routes are missing). S-CLAROTY-DTU-PARITY-001
+(5 missing G2-G6 DTU routes + demo-server seeding) must complete first. rc.1 ships without the
+demo bundle, validated on the live xDome/monroe RC gate.
 
 **Sensor scope (D-2440, 2026-09-03):** v1.0.0-rc.1 ships **Claroty xDome only**. The bundle
 specs/ directory contains only `claroty.sensor.toml`. Cyberint, Armis, and CrowdStrike
@@ -457,6 +468,12 @@ artifacts are pre-built.
 
 ## Previous Story Intelligence
 
+**Deferral context (2026-09-04):** S-REL-004 is gated behind S-CLAROTY-DTU-PARITY-001 (Claroty
+DTU 14-table parity, post-rc.1). When S-CLAROTY-DTU-PARITY-001 ships, read its Phase C integration
+evidence (all 14 tables return non-empty rows via `prism-dtu-demo-server`) before beginning S-REL-004
+implementation. The demo-bundle assembly scripts reference `claroty.sensor.toml`; all 14 tables in
+that spec must have working DTU routes and demo-server seeding before the bundle can be validated.
+
 S-DEMO-003 established the demo scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`)
 and the `scripts/demo.toml` pattern. Read those scripts before writing `demo-bundle.sh`
 to understand the exact file layout expected by the setup scripts.
@@ -577,6 +594,7 @@ S-ADR054-WAVE-A-001; Cyberint/Armis deferred per D-2440. Code remains in workspa
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.5 | 2026-09-04 | S-REL-004 DEFERRED out of v1.0.0-rc.1 per human decision 2026-09-04. Demo bundle requires all 14 Claroty DTU tables; prism-dtu-claroty currently serves 7. Added S-CLAROTY-DTU-PARITY-001 (5 missing G2-G6 DTU routes + demo seeding) to depends_on. S-REL-004 gated behind Claroty DTU parity completion. rc.1 ships without the demo bundle, validated on the live xDome/monroe RC gate. |
 | 0.4 | 2026-09-03 | D-2440 sensor-scope: v1.0.0-rc.1 Claroty-only — crowdstrike-oauth2.prx build step removed from build-plugins job; crowdstrike/armis/cyberint sensor TOMLs removed from bundle; Windows bundle sensor glob narrowed to claroty.sensor.toml; AC-001/002/003/004 updated; deferral note added in Origin and Previous Story Intelligence; Forbidden Dependencies updated |
 | 0.3 | 2026-07-20 | Forward-note (F-REL001-PR2-OBS-2): attestation + checksum coverage for demo bundle public release assets must be explicitly decided at implementation time — risk_mitigations entry added; Task 9 attestation decision gate inserted; shellcheck task renumbered to Task 10 |
 | 0.2 | 2026-07-19 | Fix-burst: U13 demo-server downloaded from artifact (no rebuild); U15 build-demo-bundle needs publish-release; U16 infusion paths corrected to specs/infusions/; U17 manifest path corrected to plugins/threatintel-lookup/; U18 if-no-files-found error + prx glob; U19 build-plugins parallel to build-release; U21 taiki-e/install-action for wasm-tools; U22 Windows bundle is .zip with .ps1 scripts; research file added to inputs |

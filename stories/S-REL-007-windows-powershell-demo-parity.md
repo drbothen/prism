@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.2"
+version: "0.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -88,7 +88,7 @@ inputs:
   - "scripts/demo-teardown.sh"
   - "docs/DEMO-RUNBOOK.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "9457bcd"
+input-hash: "7890ffc"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -98,10 +98,12 @@ phase: "F3"
 
 **Story ID:** S-REL-007
 **Status:** draft
-**Version:** v0.2
+**Version:** v0.3
 **Wave:** F-A
 **Priority:** P0
 **Points:** 8
+
+**Deferral notice (2026-09-04):** DEFERRED out of v1.0.0-rc.1. S-REL-007 depends on S-REL-004, which is gated behind S-CLAROTY-DTU-PARITY-001 (Claroty DTU 14-table parity). Executes post-rc.1 after Claroty DTU parity lands.
 
 ---
 
@@ -484,5 +486,6 @@ Key lessons from fix-burst research:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.3 | 2026-09-04 | DEFERRED out of v1.0.0-rc.1 as downstream consequence of S-REL-004 deferral. S-REL-007 depends_on S-REL-004; S-REL-004 is gated behind S-CLAROTY-DTU-PARITY-001 (Claroty DTU 14-table parity). Human decision 2026-09-04. Executes post-rc.1 after Claroty DTU parity lands. |
 | 0.2 | 2026-07-19 | Fix-burst: U22 Windows bundle is .zip (AC-011/012 updated); U28 DTU URL via sidecar poll not prism dtu status; U29 #Requires -Version 5.1 mandatory; U30 no -AsHashtable + PSObject.Properties; U31 credential delivery via Process+StreamWriter (no $secret pipe) + Parser::ParseFile for syntax check; U32 DEMO_CONFIG_DIR not %APPDATA%; U33 PSScriptAnalyzer explicit install; research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

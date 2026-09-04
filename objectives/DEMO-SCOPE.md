@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.9"
-timestamp: 2026-08-29T11:00:00Z
+version: "2.0"
+timestamp: 2026-09-04T00:00:00Z
 project: prism
 ---
 
@@ -22,6 +22,8 @@ project: prism
 > **GOVERNING DECISION (D-2264, human-directed 2026-08-21).** This section supersedes the broader multi-sensor SOC-analyst demo framing below for the purposes of v1. The multi-sensor demo remains the long-term product vision; for v1, scope is intentionally narrowed to Claroty xDome.
 >
 > **SCOPE AMENDMENT (D-2357, human-directed 2026-08-29).** Full xDome endpoint expansion G2–G6 (+4 pre-work spikes) is IN v1 scope. Supersedes the implicit 4-table framing of D-2264 for surface-completeness. See §Endpoint Expansion below.
+>
+> **RELEASE SCOPING DECISION (D-2443, human-directed 2026-09-04).** v1.0.0-rc.1 ships WITHOUT the demo bundle. The demo bundle (S-REL-004) and the Claroty DTU 14-table parity effort (S-CLAROTY-DTU-PARITY-001: 5 missing G2–G6 routes) are DEFERRED post-rc.1. rc.1 is validated on the LIVE xDome/monroe RC gate only (not DTU-backed). Demo bundle ships after S-CLAROTY-DTU-PARITY-001 completes.
 
 ### v1 Target
 
@@ -74,8 +76,14 @@ The following stories are NOT v1 blockers and are de-scoped to post-v1:
 - **S-OCSF-FIDELITY-ARMIS-001** — Armis OCSF fidelity stub
 - **S-ADR058-DTU-PARITY-MIGRATION-001** — DTU parity test migration (already parked post-v1)
 - **Write-back / actions (TDE)** — deferred; requires `prism-operations` crate + dead write path
+- **S-REL-004 (demo bundle packaging)** — DEFERRED post-rc.1 per D-2443 (human decision 2026-09-04). Root cause: `prism-dtu-claroty` implements only ~7 of the 14 tables declared in `claroty.sensor.toml`; G2–G6 routes (OT events, device-vulnerability relations, servers/interfaces, org-policy, ACL policies) are missing. A DTU-backed demo bundle cannot function until all 14 routes are present. Gate: `S-CLAROTY-DTU-PARITY-001` must ship first.
+- **S-CLAROTY-DTU-PARITY-001 (Claroty DTU 14-table parity)** — DEFERRED post-rc.1 per D-2443. Governing story for the 5-sub-story batch (G2–G6 DTU routes). Execute after v1.0.0-rc.1 ships and is validated on the live xDome/monroe RC gate.
+- **S-REL-007 (Windows PowerShell demo parity)** — DEFERRED post-rc.1 per D-2443; downstream of S-REL-004 deferral.
+- **S-REL-006 (consumer-contract graduation)** — DEFERRED post-rc.1 per D-2443; downstream of S-REL-007/S-REL-004 deferral chain.
 
-These stories remain in the backlog for post-v1 work. They are not v1 blockers.
+> **NOTE (D-2443, human-directed 2026-09-04):** v1.0.0-rc.1 is validated on the **LIVE xDome/monroe RC gate ONLY** — not the DTU demo-server. The demo bundle and Claroty DTU parity work are the first post-rc.1 priority.
+
+These stories remain in the backlog for post-v1/post-rc.1 work. They are not rc.1 blockers.
 
 ---
 
@@ -355,5 +363,6 @@ All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consoli
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.0 | 2026-09-04 | state-manager | D-2443: amended §v1 FIRST RELEASE — demo bundle (S-REL-004) DEFERRED post-rc.1 per human decision 2026-09-04; Claroty DTU 14-table parity (S-CLAROTY-DTU-PARITY-001; 5 missing G2–G6 routes) DEFERRED post-rc.1; rc.1 validated on LIVE xDome/monroe only (not DTU-backed). §Explicitly DE-SCOPED updated with demo bundle + DTU parity deferral entries. §v1 FIRST RELEASE amended with D-2443 note. |
 | 1.9 | 2026-08-29 | state-manager | D-2357: amended §v1 FIRST RELEASE — full xDome G2–G6 expansion + 4 pre-work spikes IN v1 scope (human-directed); §Endpoint Expansion subsection added; §Explicitly DE-SCOPED updated with D-2357 note + write-back entry. xdome-endpoint-expansion-plan.md cross-ref added. |
 | 1.8 | 2026-08-21 | state-manager | D-2264: v1 FIRST RELEASE section added (GOVERNING DECISION — Claroty xDome end-to-end as v1 target; POST-v1 de-scopings listed). |
