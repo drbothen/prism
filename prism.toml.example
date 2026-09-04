@@ -4,12 +4,15 @@
 # Place your config directory path in the PRISM_CONFIG_DIR environment variable,
 # or pass it via `prism start --config-dir <path>`.
 #
-# QUICK START (extract → configure → run):
-#   1. Extract the release archive; it contains this file plus the bundled
-#      Claroty xDome sensor spec under specs/.
+# QUICK START (install → configure → run):
+#   1. Install the binary via scripts/install.sh (macOS/Linux) or install.ps1 (Windows).
+#      See docs/SETUP.md §2 and README.md for install commands.
 #   2. Decide where your config directory lives (e.g., /etc/prism/ or ~/prism/).
 #   3. Copy this file there as prism.toml.
-#   4. Copy the bundled specs/ directory to spec_dir (or set spec_dir to point at it).
+#   4. Download the Claroty xDome sensor spec from the GitHub repository and place
+#      it in spec_dir. See docs/SETUP.md §4 for the exact curl command.
+#      (Note: a future release (S-REL-010) will embed built-in sensor specs directly
+#      in the binary; rc.1 requires the operator to supply spec files.)
 #   5. Set state_dir to a writable path for RocksDB persistent state.
 #   6. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
 #   7. Configure credentials with `prism credential set` (see `prism credential --help`).
@@ -24,8 +27,9 @@
 # spec_dir (required)
 # ---------------------------------------------------------------------------
 # Path to the directory containing *.sensor.toml spec files.
-# The Claroty xDome sensor spec is bundled in the release archive under specs/.
-# Copy that directory to a permanent location and point spec_dir at it.
+# In v1.0.0-rc.1, sensor specs are NOT bundled in the release archive; download
+# them from the GitHub repository. See docs/SETUP.md §4 for the exact command.
+# (Future releases (S-REL-010) will embed built-in sensor specs in the binary.)
 #
 # Relative paths are resolved from the config directory (where prism.toml lives).
 spec_dir = "./specs"
