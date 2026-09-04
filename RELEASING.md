@@ -118,31 +118,38 @@ protection, or project convention — not just policy.
 
 ### Required CI status checks (both develop and main)
 
-These 24 checks must all pass before a PR merges to either branch:
+These 24 checks must all pass before a PR merges to either branch. The names below
+match the `name:` fields in the workflow files and the configured branch-protection
+context strings. To retrieve the exact strings from the live branch protection rule:
 
-- ADR-023 No-Hardcoded-Sensors compile-fail gate
+```bash
+gh api repos/drbothen/prism/branches/develop/protection \
+  --jq '.required_status_checks.contexts[]'
+```
+
+- ADR-023 No-Hardcoded-Sensors compile-fail gate (AC-006 PLUGIN-MIGRATION-001-F)
 - Cargo audit (RustSec)
 - Cargo deny (license + advisory)
 - Clippy (AD-008)
-- Deep-recursion test stack-guard lint
+- Deep-recursion test stack-guard lint (OBS-002)
 - E2E smoke
 - Format check
 - Fuzz smoke (vp021_parse_fuzz)
-- Non-exhaustive violation compile-fail check
-- Perimeter compile-fail check
-- Perimeter symbols sync check
+- Non-exhaustive violation compile-fail check (AC-5 S-PLUGIN-PREREQ-C)
+- Perimeter compile-fail check (BC-2.11.006 v1.10)
+- Perimeter symbols sync check (BC-2.11.006 OBS-001)
 - Release gate (S-REL-001 AC-012)
 - Semver compatibility
-- Shellcheck demo scripts
+- Shellcheck demo scripts (S-DEMO-003 HIGH-2 / AC-014)
 - Test (aarch64-apple-darwin)
 - Test (no-default-features)
 - Test (x86_64-apple-darwin)
 - Test (x86_64-pc-windows-msvc)
 - Test (x86_64-unknown-linux-gnu)
 - Test (x86_64-unknown-linux-musl)
-- ThreatIntel .prx staleness guard
-- Verify workflow structure
-- WASM32 compile check + .prx build
+- ThreatIntel .prx staleness guard (F-MCPNULL-P2-OBS-002)
+- Verify workflow structure (reachability + config invariants, 25 assertions)
+- WASM32 compile check + .prx build (S-PLUGIN-CI-001 AC-001)
 - Workspace crate layout (ADR-012)
 
 ---

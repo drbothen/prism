@@ -43,7 +43,7 @@ fuzz/Cargo.lock
 # Cargo.lock files ARE tracked to pin transitive deps (e.g. tinyvec) to versions
 # compatible with the pinned toolchain.
 # fuzz/ Cargo.lock remains excluded (not a shipped binary); toolchain-compat pins
-# (tinyvec, brotli, alloc-stdlib) are declared directly in fuzz/Cargo.toml instead.
+# (tinyvec, brotli, brotli-decompressor, alloc-stdlib) are declared directly in fuzz/Cargo.toml instead.
 
 # prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
 # These are ephemeral process state, not source — never committed.

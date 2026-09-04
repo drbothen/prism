@@ -3548,6 +3548,7 @@ dependencies = [
  "brotli-decompressor",
  "prism-core",
  "prism-query",
+ "tinyvec",
 ]
 
 [[package]]
