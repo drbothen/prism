@@ -1,6 +1,7 @@
 # Prism
 
-<!-- TODO: S-0.01 — CI badge (add once GitHub Actions workflow is wired) -->
+[![CI](https://github.com/drbothen/prism/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/drbothen/prism/actions/workflows/ci.yml)
+[![v1.0.0-rc.1](https://img.shields.io/badge/version-v1.0.0--rc.1-blue)](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1)
 
 Prism is a Rust MCP server that unifies multi-client security sensor management
 for MSSP analysts. It provides a single PrismQL query interface over live sensor
@@ -11,12 +12,66 @@ system and a confirmation-token workflow.
 
 ## Status
 
-This project is under active development. The workspace contains 24 Rust crates.
-Core data types, credential isolation, security primitives, and the DTU behavioral
-clone test infrastructure are implemented. The query engine runtime, MCP server,
-and several subsystems are planned for upcoming waves.
+Prism v1.0.0-rc.1 is the first release candidate. It ships with Claroty xDome as the
+sole supported sensor (14 tables), the full PrismQL query engine, MCP server,
+multi-tenant architecture, formal verification, and structured audit logging.
+CrowdStrike Falcon, Cyberint, and Armis code is present in the workspace but not
+supported in rc.1; they return in the final v1.0.0 release.
 
-See `.factory/STATE.md` for the current pipeline phase and active work.
+See `CHANGELOG.md` for the full list of what shipped in v1.0.0-rc.1.
+
+## Install
+
+**macOS (Apple Silicon):**
+```bash
+curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz
+tar xzf prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz
+chmod +x prism
+./prism --version
+```
+
+**macOS (Intel):**
+```bash
+curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz
+tar xzf prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz
+chmod +x prism
+./prism --version
+```
+
+**Linux (glibc — most distros):**
+```bash
+curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
+tar xzf prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
+chmod +x prism
+./prism --version
+```
+
+**Linux (musl — Alpine, static binary):**
+```bash
+curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz
+tar xzf prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz
+chmod +x prism
+./prism --version
+```
+
+**Windows (x86_64):**
+Download `prism-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` from the [v1.0.0-rc.1 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1).
+
+### Verify
+
+Verify checksums (from the [release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1)):
+
+```bash
+sha256sum -c checksums.txt
+```
+
+Verify build provenance:
+
+```bash
+gh attestation verify prism-v1.0.0-rc.1-<target>.tar.gz \
+  --repo drbothen/prism \
+  --signer-workflow drbothen/prism/.github/workflows/release.yml
+```
 
 ## Developer Quick Start
 
@@ -41,5 +96,5 @@ just check
 | `.factory/specs/behavioral-contracts/BC-INDEX.md` | Behavioral contract registry (222 active) |
 | `.factory/specs/verification-properties/VP-INDEX.md` | Verification property registry |
 | `.factory/stories/STORY-INDEX.md` | Per-story implementation specs |
-| `crates/` | 24-crate Rust workspace |
+| `crates/` | 25-crate Rust workspace |
 | `Justfile` | Task runner — `just --list` for all recipes |

@@ -156,7 +156,7 @@ It implements the validated recommendations from `.factory/research/build-optimi
 | `just timings` | Diagnostic — capture `cargo build --timings` HTML report | Whole workspace |
 
 `just iter` targets <60s for a single-crate incremental run. **Do not use `just check` during
-the TDD inner loop** — it runs the full 24-crate workspace and is reserved for pre-push.
+the TDD inner loop** — it runs the full 25-crate workspace and is reserved for pre-push.
 
 ### sccache (optional compilation cache)
 

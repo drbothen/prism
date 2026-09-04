@@ -390,7 +390,7 @@ fn test_AC_5_first_log_line_is_prism_version() {
     };
 
     // AC-5: the `fields.message` or `message` key must start with "Prism v".
-    // tracing-subscriber json format: {"timestamp":"...","level":"INFO","fields":{"message":"Prism v0.1.0"},...}
+    // tracing-subscriber json format: {"timestamp":"...","level":"INFO","fields":{"message":"Prism v<version>"},...}
     let message = parsed
         .get("fields")
         .and_then(|f| f.get("message"))

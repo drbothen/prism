@@ -1,0 +1,102 @@
+# prism.toml.example — Prism v1.0.0-rc.1 configuration template
+#
+# Copy this file to prism.toml in your config directory.
+# Place your config directory path in the PRISM_CONFIG_DIR environment variable,
+# or pass it via `prism start --config-dir <path>`.
+#
+# QUICK START (extract → configure → run):
+#   1. Extract the release archive; it contains this file plus the bundled
+#      Claroty xDome sensor spec under specs/.
+#   2. Decide where your config directory lives (e.g., /etc/prism/ or ~/prism/).
+#   3. Copy this file there as prism.toml.
+#   4. Copy the bundled specs/ directory to spec_dir (or set spec_dir to point at it).
+#   5. Set state_dir to a writable path for RocksDB persistent state.
+#   6. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
+#   7. Configure credentials with `prism credential set` (see `prism credential --help`).
+#   8. Run: prism start
+#
+# Note: the ENRICH clause and LocalLookup (MMDB/CSV/JSON) code path are present
+# in the binary; no infusion specs or WASM plugins are bundled in v1.0.0-rc.1.
+# Enrichment is not part of the validated rc.1 surface. See the Enrichment
+# section near the bottom of this file.
+
+# ---------------------------------------------------------------------------
+# spec_dir (required)
+# ---------------------------------------------------------------------------
+# Path to the directory containing *.sensor.toml spec files.
+# The Claroty xDome sensor spec is bundled in the release archive under specs/.
+# Copy that directory to a permanent location and point spec_dir at it.
+#
+# Relative paths are resolved from the config directory (where prism.toml lives).
+spec_dir = "./specs"
+
+# ---------------------------------------------------------------------------
+# state_dir (required)
+# ---------------------------------------------------------------------------
+# Path to the RocksDB persistent state directory.
+# Prism creates this directory at boot if it does not exist.
+# Must be writable by the prism process.
+state_dir = "/var/lib/prism/state"
+
+# ---------------------------------------------------------------------------
+# plugin_dir (optional; default: "./plugins" relative to config directory)
+# ---------------------------------------------------------------------------
+# Path to the directory scanned for *.prx WASM plugin files.
+# Place any WASM enrichment plugins here. Enrichment plugins are not bundled in
+# v1.0.0-rc.1. Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
+# plugin_dir = "./plugins"
+
+# ---------------------------------------------------------------------------
+# orgs (required; at least one entry)
+# ---------------------------------------------------------------------------
+# Each org entry maps an org_id (UUID v7) to an org_slug (kebab-case).
+# org_id must be a UUID version 7 (time-ordered). Prism validates this at boot
+# and exits 2 with "must be a UUID v7" if a non-v7 UUID is supplied.
+#
+# Note: plain `uuidgen` (no flags) generates UUID v4 — rejected.
+#       `uuidgen --time` generates UUID v1 — also rejected.
+#
+# Generate a UUID v7 with one of these verified methods:
+#   Linux (util-linux 2.41+):  uuidgen -7   (or: uuidgen --time-v7)
+#   Python (any version 3.6+): pip install uuid6 && python3 -c "import uuid6; print(uuid6.uuid7())"
+#   Python 3.14+ (stdlib):     python3 -c "import uuid; print(uuid.uuid7())"
+#
+# Note: macOS BSD `uuidgen` and most LTS Linux distros (RHEL 9, Ubuntu 24.04)
+# predate util-linux 2.41 and do not support -7. The `pip install uuid6` method
+# works on all platforms with Python 3.6+; produces RFC-9562-compliant v7 UUIDs
+# (time-ordered, 48-bit unix_ts_ms, version nibble = 7).
+#
+# Multiple orgs are supported for multi-tenant deployments.
+
+[[orgs]]
+org_id = "REPLACE-WITH-UUID-V7"   # e.g. "0196f000-0000-7000-8000-000000000001"
+org_slug = "my-org"               # kebab-case; used in audit logs and MCP context
+# name = "My Organization"        # optional display name (surfaces in prism://config/clients)
+
+# Add additional orgs below for multi-tenant deployments:
+# [[orgs]]
+# org_id = "REPLACE-WITH-ANOTHER-UUID-V7"
+# org_slug = "second-org"
+
+# ---------------------------------------------------------------------------
+# credential_backend (optional; default: keyring)
+# ---------------------------------------------------------------------------
+# Controls where sensor API credentials are stored and retrieved.
+# Prism v1.0.0-rc.1 supports the OS keyring backend only.
+# "keyring" — OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager)
+#
+# [credential_backend]
+# type = "keyring"
+#
+# Note: the encrypted_file backend (Argon2id-encrypted file store) is not
+# available in v1.0.0-rc.1; it is planned for a future release.
+
+# ---------------------------------------------------------------------------
+# Enrichment / infusion (engine present; not validated in v1.0.0-rc.1)
+# ---------------------------------------------------------------------------
+# The binary includes the ENRICH clause and file-backed LocalLookup (MMDB/CSV/JSON)
+# infusion code path. No infusion specs (e.g. threatintel.infusion.toml,
+# nvd.infusion.toml) or WASM enrichment plugins are bundled with this release.
+# Enrichment is not part of the validated rc.1 surface; plugin-based enrichment
+# (ThreatIntel via .prx) and NVD-dependent paths ship in a later release.
+# Prism boots cleanly without an infusions/ directory.

@@ -139,14 +139,35 @@ jobs:
       - name: Create archive
         shell: bash
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           ARCHIVE="prism-${TAG}-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          # Stage binary + Claroty xDome sensor spec + example config.
+          # rc.1 ships Claroty xDome as the sole supported sensor; CrowdStrike/Cyberint/
+          # Armis specs and enrichment infusion specs are excluded (infusions require
+          # plugins/sensor-data not present in the plain binary archive — demo bundle scope).
+          # Sensor spec (crates/prism-sensors/specs/claroty.sensor.toml) is present in the
+          # source checkout at tag time — no build artifact needed.
+          # The example config (prism.toml.example) is a committed file at the repo root.
+          # Archive layout (flat root, no parent-directory wrapper):
+          #   prism[.exe]          — compiled binary
+          #   prism.toml.example   — configuration template with install instructions
+          #   specs/               — Claroty xDome sensor TOML spec (spec_dir target)
+          mkdir -p _stage/specs
           if [ "${{ matrix.archive_ext }}" = "zip" ]; then
-            cd target/${{ matrix.target }}/release
-            7z a "../../../${ARCHIVE}" prism.exe
+            cp "target/${{ matrix.target }}/release/prism.exe" _stage/
           else
-            tar czf "${ARCHIVE}" -C target/${{ matrix.target }}/release prism
+            cp "target/${{ matrix.target }}/release/prism" _stage/
           fi
+          cp crates/prism-sensors/specs/claroty.sensor.toml \
+             _stage/specs/
+          cp prism.toml.example _stage/
+          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+            cd _stage && 7z a "../${ARCHIVE}" prism.exe prism.toml.example specs && cd ..
+          else
+            tar czf "${ARCHIVE}" -C _stage prism prism.toml.example specs
+          fi
+          rm -rf _stage
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
       - name: Wrap prism-dtu-demo-server for artifact upload
         shell: bash

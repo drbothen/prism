@@ -890,8 +890,37 @@ pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
     tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"));
 }
 
-/// Step 2 [BLOCKING]: Load `prism.toml` from config directory.
+/// Resolve relative path fields in [`PrismConfig`] against `config_dir`.
 ///
+/// Called from both [`step2_load_config`] (boot path) and
+/// `credential_cli::load_prism_config_for_cli` (CLI path) so both sites share
+/// identical resolution semantics (BLOCKING-3 / S-REL-005 AC-009).
+///
+/// All three mutable path fields are resolved:
+/// - `spec_dir` — directory containing sensor TOML spec files
+/// - `state_dir` — RocksDB / credential-store root (CWE-22 critical)
+/// - `plugin_dir` — directory containing plugin binaries
+///
+/// A relative value for any of these fields declared in `prism.toml`
+/// (e.g. `state_dir = "./state"`) is rebased as `config_dir.join(path)`.
+/// Absolute paths pass through unchanged.
+///
+/// Without this call a relative `state_dir` resolves differently depending on the
+/// process CWD at runtime — causing silent credential loss between `prism credential set`
+/// (CLI path) and `prism start` (boot path) when run from different directories
+/// (CWE-22 traversal surface SEC-001).
+pub(crate) fn resolve_config_paths(config: &mut PrismConfig, config_dir: &Path) {
+    if config.spec_dir.is_relative() {
+        config.spec_dir = config_dir.join(&config.spec_dir);
+    }
+    if config.state_dir.is_relative() {
+        config.state_dir = config_dir.join(&config.state_dir);
+    }
+    if config.plugin_dir.is_relative() {
+        config.plugin_dir = config_dir.join(&config.plugin_dir);
+    }
+}
+
 /// ADR-022 §B step 2; BC-2.06.011.
 /// Reads `prism.toml`, deserializes via serde/toml, validates schema.
 /// `$PRISM_CONFIG_DIR` always overrides the default; does NOT fall back to
@@ -939,7 +968,7 @@ pub async fn step2_load_config(config_dir: &Path) -> Result<PrismConfig, BootErr
     // AC-4: stderr must contain the line number and field name of the parse error.
     // `toml::de::Error` includes line/column context in its Display output.
     // We also extract the field path from the error's span_info when available.
-    let config: PrismConfig = toml::from_str(&content).map_err(|e| {
+    let mut config: PrismConfig = toml::from_str(&content).map_err(|e| {
         // toml::de::Error::to_string() includes both the error message and the
         // field context when available (e.g., "missing field `spec_dir` at line 1").
         // The Display output includes the key name in serde missing-field errors.
@@ -949,6 +978,11 @@ pub async fn step2_load_config(config_dir: &Path) -> Result<PrismConfig, BootErr
              (AC-4: see line/field context above)"
         ))
     })?;
+
+    // S-REL-005 AC-009 + BLOCKING-3: resolve relative spec_dir / state_dir / plugin_dir
+    // against config_dir.  Absolute paths pass through unchanged.  See `resolve_config_paths`
+    // doc comment for the credential-loss / CWE-22 rationale.
+    resolve_config_paths(&mut config, config_dir);
 
     tracing::info!(
         config_dir = %config_dir.display(),
@@ -1611,7 +1645,7 @@ pub async fn step5_init_credential_store(
             Err(BootError::ConfigInvalid(format!(
                 "encrypted_file backend requires passphrase resolution \
                  (deferred to S-1.07-FOLLOWUP); \
-                 use keyring backend for v0.1.0. \
+                 use the keyring backend instead. \
                  Path: {}",
                 path.display()
             )))
@@ -1674,7 +1708,7 @@ pub async fn step5_init_credential_store_with_probe(
             return Err(BootError::ConfigInvalid(format!(
                 "encrypted_file backend requires passphrase resolution \
                  (deferred to S-1.07-FOLLOWUP); \
-                 use keyring backend for v0.1.0. \
+                 use the keyring backend instead. \
                  Path: {}",
                 path.display()
             )));
@@ -4022,6 +4056,140 @@ mod table_registry_swap_listener_tests {
             !registry.is_registered("crowdstrike_devices"),
             "multi-swap: crowdstrike_devices must be deregistered after swap-2 (remove). \
              The production listener must stay live across repeated swaps."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-REL-005 AC-009: relative-path resolution for spec_dir and plugin_dir
+// ---------------------------------------------------------------------------
+//
+// Red Gate test (RG-002): step2_load_config must resolve relative spec_dir /
+// plugin_dir values against the config directory. Current code returns them
+// unmodified (PathBuf::from("./specs")), which causes boot step 4 to resolve
+// paths against the process CWD instead of the config dir — breaking operators
+// who place prism.toml in /etc/prism/ and run `prism start` from a different
+// working directory.
+//
+// Fix (AC-009): after deserialization, for each of spec_dir and plugin_dir,
+// if the path is_relative() → rebase as config_dir.join(path). Absolute paths
+// pass through unchanged.
+//
+// SID-1 compliance: in-process unit tests; no subprocess spawning; no #[ignore].
+// Tests exercise the production `step2_load_config` code path directly.
+
+#[cfg(test)]
+mod step2_path_resolution_tests {
+    use super::*;
+
+    /// S-REL-005 AC-009 RG-002: relative `spec_dir`, `state_dir`, and `plugin_dir` declared
+    /// in `prism.toml` must be resolved against the config directory after
+    /// `step2_load_config`, not returned as raw relative paths that resolve against the
+    /// process CWD.
+    ///
+    /// Scenario: prism.toml declares `spec_dir = "./specs"`, `state_dir = "./state"`, and
+    /// `plugin_dir = "./plugins"`. The test is run by nextest whose CWD is the workspace
+    /// root — NOT the tempdir config directory. After `step2_load_config`, all three paths
+    /// must equal `config_dir.join("<name>")` (absolute, config-dir-relative).
+    #[tokio::test]
+    async fn test_s_rel_005_ac_009_rg_002_relative_spec_and_plugin_dir_resolved_against_config_dir()
+    {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+        let config_dir = dir.path();
+
+        // Write prism.toml with relative paths. CWD at test runtime is the workspace
+        // root (set by nextest), NOT config_dir — so an unresolved "./specs" would
+        // resolve to {workspace_root}/specs, which does not exist and is wrong.
+        std::fs::write(
+            config_dir.join("prism.toml"),
+            r#"spec_dir = "./specs"
+state_dir = "./state"
+plugin_dir = "./plugins"
+"#,
+        )
+        .expect("write prism.toml");
+
+        let config = step2_load_config(config_dir)
+            .await
+            .expect("step2_load_config must succeed for a syntactically valid prism.toml");
+
+        // AC-009 (spec_dir): relative path must be rebased to config_dir.join("specs").
+        assert_eq!(
+            config.spec_dir,
+            config_dir.join("specs"),
+            "S-REL-005 AC-009: spec_dir './specs' must be resolved to '{}/specs' \
+             (config_dir-relative), not remain as a raw relative path. \
+             Fix: config_dir.join(spec_dir) when spec_dir.is_relative().",
+            config_dir.display()
+        );
+
+        // AC-009 (plugin_dir): relative path must be rebased to config_dir.join("plugins").
+        assert_eq!(
+            config.plugin_dir,
+            config_dir.join("plugins"),
+            "S-REL-005 AC-009: plugin_dir './plugins' must be resolved to '{}/plugins' \
+             (config_dir-relative), not remain as a raw relative path. \
+             Fix: config_dir.join(plugin_dir) when plugin_dir.is_relative().",
+            config_dir.display()
+        );
+
+        // BLOCKING-3 (state_dir): relative state_dir must also be rebased to
+        // config_dir.join("state").  A relative state_dir causes `prism credential set`
+        // (CLI) and `prism start` (server) to resolve to different dirs when run from
+        // different CWDs — silent credential loss + CWE-22 surface.
+        assert_eq!(
+            config.state_dir,
+            config_dir.join("state"),
+            "BLOCKING-3: state_dir './state' must be resolved to '{}/state' \
+             (config_dir-relative), not remain as a raw relative path. \
+             Fix: extend resolve_config_paths to include state_dir.",
+            config_dir.display()
+        );
+    }
+
+    /// S-REL-005 AC-009 guard: absolute `spec_dir` and `plugin_dir` must pass through
+    /// unchanged after `step2_load_config`. The fix must only rebase relative paths.
+    ///
+    /// This test MUST PASS both before and after the fix (guards against over-correction
+    /// that would break operators who supply absolute paths in prism.toml).
+    #[tokio::test]
+    async fn test_s_rel_005_ac_009_absolute_paths_pass_through_unchanged() {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+        let config_dir = dir.path();
+
+        // Construct absolute paths outside config_dir to confirm they are not rebased.
+        let abs_spec_dir = dir.path().join("external_specs");
+        let abs_plugin_dir = dir.path().join("external_plugins");
+        let abs_state_dir = dir.path().join("external_state");
+
+        // Use TOML literal strings (single quotes) so that backslashes in
+        // Windows paths (e.g. C:\Users\...) are not interpreted as TOML
+        // escape sequences.  TOML literal strings do not process escapes.
+        let prism_toml = format!(
+            "spec_dir = '{spec}'\nstate_dir = '{state}'\nplugin_dir = '{plugin}'\n",
+            spec = abs_spec_dir.display(),
+            state = abs_state_dir.display(),
+            plugin = abs_plugin_dir.display(),
+        );
+        std::fs::write(config_dir.join("prism.toml"), &prism_toml)
+            .expect("write prism.toml with absolute paths");
+
+        let config = step2_load_config(config_dir)
+            .await
+            .expect("step2_load_config must succeed for absolute-path prism.toml");
+
+        // Absolute paths must be returned unchanged — the fix must not alter them.
+        assert_eq!(
+            config.spec_dir, abs_spec_dir,
+            "S-REL-005 AC-009 guard: absolute spec_dir must be returned unchanged"
+        );
+        assert_eq!(
+            config.plugin_dir, abs_plugin_dir,
+            "S-REL-005 AC-009 guard: absolute plugin_dir must be returned unchanged"
+        );
+        assert_eq!(
+            config.state_dir, abs_state_dir,
+            "BLOCKING-3 guard: absolute state_dir must be returned unchanged"
         );
     }
 }

@@ -545,7 +545,17 @@ pub fn load_prism_config_for_cli(
     let toml_path = config_dir.join("prism.toml");
     match std::fs::read_to_string(&toml_path) {
         Ok(contents) => toml::from_str::<crate::boot::PrismConfig>(&contents)
-            .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display())),
+            .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display()))
+            .map(|mut config| {
+                // BLOCKING-3 (S-REL-005 AC-009): resolve relative path fields against
+                // config_dir so that `prism credential set` (CLI) resolves state_dir to
+                // the same absolute path as `prism start` (boot), regardless of CWD.
+                // Without this call a relative state_dir = "./state" in prism.toml causes
+                // CLI and server to write/read credential indexes from different directories
+                // — silent credential loss.
+                crate::boot::resolve_config_paths(&mut config, config_dir);
+                config
+            }),
         Err(e) => {
             // prism.toml missing or unreadable — AC-012 canonical error message.
             //
@@ -890,5 +900,62 @@ mod tests {
             "AC-012: error must mention 'prism credential set'. Got: {err_msg:?}"
         );
         // Must NOT silently return "demo-org" or any default — this is a hard-error path only.
+    }
+
+    // ---------------------------------------------------------------------------
+    // BLOCKING-3: load_prism_config_for_cli must resolve relative state_dir
+    // ---------------------------------------------------------------------------
+
+    /// BLOCKING-3 fix verification — `load_prism_config_for_cli` must resolve a relative
+    /// `state_dir` against `config_dir`, identical to the boot path.
+    ///
+    /// Without this fix, `prism credential set` (CLI path) and `prism start` (boot path)
+    /// would each call their respective config loaders and, if `state_dir = "./state"` is
+    /// declared in prism.toml, resolve to different directories depending on CWD — causing
+    /// silent credential-index divergence and a CWE-22 path-traversal surface.
+    ///
+    /// This test exercises the production `load_prism_config_for_cli` code path directly
+    /// (SID-1 compliance: no subprocess, no `#[ignore]`).
+    ///
+    /// BLOCKING-3 / S-REL-005 AC-009 (CLI site).
+    #[test]
+    fn test_load_prism_config_for_cli_resolves_relative_state_dir() {
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let config_dir = tmp.path();
+
+        // Write prism.toml with a relative state_dir (and relative spec_dir / plugin_dir
+        // to mirror the typical operator configuration).
+        std::fs::write(
+            config_dir.join("prism.toml"),
+            "spec_dir = \"./specs\"\nstate_dir = \"./state\"\nplugin_dir = \"./plugins\"\n",
+        )
+        .expect("write prism.toml");
+
+        let config = load_prism_config_for_cli(config_dir)
+            .expect("load_prism_config_for_cli must succeed for syntactically valid prism.toml");
+
+        // BLOCKING-3: state_dir must be an absolute path rooted at config_dir.
+        // Before the fix the function returned "./state" unresolved.
+        assert_eq!(
+            config.state_dir,
+            config_dir.join("state"),
+            "BLOCKING-3: load_prism_config_for_cli must resolve state_dir './state' to \
+             '{}/state'. Got: {:?}",
+            config_dir.display(),
+            config.state_dir,
+        );
+
+        // Guard: spec_dir and plugin_dir must also be resolved (covered by boot tests but
+        // verified here to confirm the shared resolve_config_paths helper is called).
+        assert_eq!(
+            config.spec_dir,
+            config_dir.join("specs"),
+            "BLOCKING-3 guard: spec_dir must also be resolved at CLI site"
+        );
+        assert_eq!(
+            config.plugin_dir,
+            config_dir.join("plugins"),
+            "BLOCKING-3 guard: plugin_dir must also be resolved at CLI site"
+        );
     }
 }

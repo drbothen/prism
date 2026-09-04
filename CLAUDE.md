@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Toolchain:** Rust stable (per `rust-toolchain.toml`), edition 2024, resolver 2. Components: rustfmt, clippy, rust-src. Cross-compile targets: aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc. 26-crate workspace (25 once ADR-037 retires prism-customer-config; root Cargo.toml `members` is the source of truth).
+> **Toolchain:** Rust stable (per `rust-toolchain.toml`), edition 2024, resolver 2. Components: rustfmt, clippy, rust-src. Cross-compile targets: aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc. 25-crate workspace; root Cargo.toml `members` is the source of truth.
 
 ---
 
@@ -618,7 +618,7 @@ To avoid the multi-commit-chain block:
 | `.factory/research/` | Cited research artifacts (e.g., build-optimization-2026.md) |
 | `.factory/policies.yaml` | Project governance policy registry (10 baseline + project-specific) |
 | `docs/dev-setup.md` | Dev environment setup + build performance notes |
-| `crates/` | 24-crate Rust workspace (parser, sensors, DTU clones, MCP, etc.) |
+| `crates/` | 25-crate Rust workspace (parser, sensors, DTU clones, MCP, etc.) |
 | `tests/external/perimeter-violation/` | Compile-fail test crate enforcing prism-query security perimeter |
 | `fuzz/` | cargo-fuzz targets (vp021_parse_fuzz, etc.) |
 | `Justfile` | Task runner — `just --list` for current recipes |

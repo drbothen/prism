@@ -82,3 +82,14 @@ version = "=5.0.0"
 
 [dependencies.alloc-stdlib]
 version = "=0.2.2"
+
+# tinyvec 1.13.0 fails to compile under this crate's alloc-without-std feature
+# resolution: `use alloc::vec::{self, Vec}` at tinyvec-1.13.0/src/tinyvec.rs:3
+# produces "cannot find macro `vec` in this scope" because the module import shadows
+# the `vec!` macro in this feature configuration (symptom confirmed in CI fuzz job
+# at `tinyvec-1.13.0/src/tinyvec.rs:710`). Pin to 1.11.0 (known-good). The main
+# workspace Cargo.lock already pins tinyvec 1.11.0; this entry replicates that pin
+# here since fuzz/Cargo.lock is gitignored.
+# Remove when tinyvec fixes the alloc-without-std feature resolution upstream.
+[dependencies.tinyvec]
+version = "=1.11.0"
