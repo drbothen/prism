@@ -1,18 +1,62 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.066"
+version: "8.067"
 status: current
-timestamp: 2026-09-04T19:15:00Z
+timestamp: 2026-09-04T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2445 (2026-09-04): SINGLE-COMMIT BURST (TD-VSDD-053) — GOVERNANCE: FULL AUTONOMOUS MERGE + TAG AUTHORITY GRANTED (operator's explicit autonomy selection + direct confirmation 2026-09-04). Standing Decision (e) HARNESS BOUNDARY REPLACED by autonomous grant per D-2445. §RESUME SNAPSHOT D-2445 inserted. D-2444 SUPERSEDED. develop_head UNCHANGED 725cf413d. records-lint PASS. STATE v8.972→v8.973. SESSION-HANDOFF v8.065→v8.066.**
+> **D-2450 (2026-09-04): SINGLE-COMMIT BURST SESSION CATCH-UP (TD-VSDD-053) — 5 decisions D-2446..D-2450 recorded. D-2446: DEFECT-CLAROTY-VULN-PAGESIZE-001 CLOSED (PR #256 @7d09567f6). D-2447: S-REL-011 MERGED (PR #257 @68a64ad0b). D-2448: rc.1 CI/CD established (PR #258 OPEN; release-main env). D-2449: RELEASE-CHANNEL STRATEGY GOVERNING. D-2450: S-REL-CHANNELS-001 stub registered. develop_head 725cf413d→68a64ad0b. §RESUME SNAPSHOT D-2450 inserted; D-2445 SUPERSEDED. records-lint PASS. STATE v8.973→v8.978. SESSION-HANDOFF v8.066→v8.067.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2445 (2026-09-04 — AUTONOMOUS MERGE+TAG AUTHORITY GRANTED; live monroe RC gate NEXT; SAFE TO CLEAR) [supersedes D-2444]
+## §RESUME SNAPSHOT — D-2450 (2026-09-04 — SESSION CATCH-UP BURST; PR #258 OPEN; rc.1 CI/CD READY; SAFE TO CLEAR) [supersedes D-2445]
+
+### RESUME IN ONE BREATH
+Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. Session catch-up burst D-2446..D-2450 recorded. DEFECT-CLAROTY-VULN-PAGESIZE-001 CLOSED (PR #256 @7d09567f6; sort_by regression from PR #252 fixed; all 14 Claroty tables live on monroe in ~2.2s). S-REL-011 setup docs MERGED (PR #257 @68a64ad0b). rc.1 CI/CD established: PR #258 OPEN (release-promote.yml + release-prep.yml; release-main GitHub Environment + RELEASE_PROMOTE_TOKEN PAT; D-2448). RELEASE-CHANNEL STRATEGY approved (GOVERNING, D-2449; nightly/dev/alpha/beta/rc/stable ladder; pre-release lanes deferred to S-REL-CHANNELS-001 post-rc.1). S-REL-CHANNELS-001 stub registered (post-rc.1 follow-up, D-2450). develop_head 725cf413d→68a64ad0b. AUTONOMOUS MERGE + TAG per D-2445 in force.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-rc.1 as a Claroty-xDome-only evaluation release via the rc.1 CI/CD workflow (PR #258). All 14 Claroty tables live on monroe. S-REL-001 through S-REL-005 + S-REL-011 MERGED. NEXT: merge PR #258 → release-promote dry_run → release-promote real (release-main approval) → tag v1.0.0-rc.1 → release.yml publishes.
+
+### HEADS (backup boundary)
+- `develop`: origin = `68a64ad0b` (PR #257 admin squash-merge 2026-09-04).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- Open PRs: #258 (release-promote.yml + release-prep.yml + RELEASING.md rewrite).
+- Worktrees: ACTIVE: none. PARKED: S-3.09 @43c41389d (KEEP), W3-FIX-S307-001 @fcab8717c (DIRTY do-NOT-touch). REMOVABLE: .worktrees/S-REL-003 (admin-merged; remote deleted), .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 (PR #256 merged; teardown pending), S-CLAROTY-VULNS-001 @423fc7659, S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a, S-ENGINE-LIMIT-EARLY-STOP-001 @704aac24a.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. Merge PR #258 (release-promote.yml + release-prep.yml + RELEASING.md rewrite) on CI green (autonomous per D-2445).
+3. Run release-promote workflow dry_run=true to validate develop→main join + tag↔prism-bin version guard.
+4. Run release-promote real: release-main approval gate fires (drbothen) → develop→main merge (--allow-unrelated-histories) → tag v1.0.0-rc.1 → release.yml CI builds all 5 platforms → GitHub Release published.
+5. POST-rc.1: dispatch S-CLAROTY-DTU-PARITY-001 governing story batch + S-REL-CHANNELS-001 fuller authorship (PO) + S-REL-004 → S-REL-007 → S-REL-006.
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 + S-REL-002 + S-REL-003 + S-REL-005 + S-REL-011 MERGED. S-REL-004 v0.5 DEFERRED (D-2443; depends on S-CLAROTY-DTU-PARITY-001). S-REL-007 v0.3 DEFERRED (D-2443). S-REL-006 v0.2 DEFERRED (D-2443). S-CLAROTY-DTU-PARITY-001 REGISTERED v1.0 (governing story; blocks S-REL-004). S-REL-CHANNELS-001 REGISTERED draft stub v0.1 (post-rc.1; D-2450). ADR-062 ACCEPTED.
+
+### PENDING USER-APPROVED WORK
+- PR #258 merge (autonomous per D-2445 on CI green + objective gates).
+- release-promote real run requires release-main GitHub Environment approval (drbothen — this is a GitHub-enforced gate, not a harness boundary).
+- S-REL-CHANNELS-001 PO authorship needed (fuller story + ACs).
+- Force-push to any branch still requires explicit human approval (D-2445 EXCLUSION unchanged).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2446 (DEFECT-CLAROTY-VULN-PAGESIZE-001 CLOSED; PR #256; develop 725cf413d→7d09567f6). D-2447 (S-REL-011 MERGED; PR #257; develop 7d09567f6→68a64ad0b). D-2448 (rc.1 CI/CD established; PR #258 OPEN; release-main env). D-2449 (RELEASE-CHANNEL STRATEGY GOVERNING). D-2450 (S-REL-CHANNELS-001 stub; session catch-up anchor; STATE v8.973→v8.978; SESSION-HANDOFF v8.066→v8.067).
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) Claroty-only v1.0.0-rc.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-010 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237). (j) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-rc.1 per D-2443. (k) RELEASE-CHANNEL STRATEGY (D-2449, 2026-09-04): nightly/dev/alpha/beta/rc/stable ladder; pre-release lanes deferred to S-REL-CHANNELS-001.
+
+### WORKTREE INVENTORY
+ACTIVE: none. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: .worktrees/S-REL-003 (admin-merged; remote deleted), .worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 (PR #256 merged; teardown pending), S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2445 (2026-09-04 — AUTONOMOUS MERGE+TAG AUTHORITY GRANTED; live monroe RC gate NEXT; SAFE TO CLEAR) [supersedes D-2444] [SUPERSEDED by D-2450]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. D-2445: FULL AUTONOMOUS MERGE + TAG AUTHORITY configured per operator's explicit autonomy selection + direct confirmation 2026-09-04 (Joshua — solo developer). Operator selected scope "Full: merges + tags" and directly confirmed recording the standing grant; rationale: solo-dev automated factory must not stall waiting on manual merge approval while operator is away. Prior Standing Decision (e) HARNESS BOUNDARY (required fresh direct in-transcript human approval for every PR→develop merge, develop→main merge, and tag push) REPLACED by this autonomous grant. Scope = Full: merges + tags. S-REL-003 MERGED @725cf413d (D-2444). NEXT: live secops-factory RC gate on monroe (Claroty demo; human-involved per AD-017 opaque) → develop→main merge (autonomous per D-2445) → tag v1.0.0-rc.1 (autonomous per D-2445). Force-push to any branch still FORBIDDEN without explicit human approval.

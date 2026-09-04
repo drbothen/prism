@@ -1,13 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.995"
+version: "2.997"
 status: draft
 producer: state-manager
-timestamp: 2026-09-04T18:06:10Z
+timestamp: 2026-09-04T23:00:00Z
 phase: 3
-total_stories: 325
-# D-2444: S-REL-003 MERGED — PR #254 (feat(S-REL-003): install.sh + install.ps1) admin squash-merged to develop @725cf413d 2026-09-04, human-directed. S-REL-003 [draft v0.3]→[merged v0.3; PR #254 @725cf413d]. POL-14 NO-OP (behavioral_contracts: []). total_stories 325 UNCHANGED. STORY-INDEX v2.994→v2.995. D-2443 NOTE archived.
+total_stories: 326
+# D-2450 — STORY-INDEX v2.996→v2.997: S-REL-CHANNELS-001 REGISTERED (draft stub v0.1; post-rc.1; release-channel implementation; docs/RELEASE-CHANNELS.md spec). total_stories 325→326.
+# D-2447 — STORY-INDEX v2.995→v2.996: S-REL-011 [draft stub v0.1]→[merged v0.1; PR #257 @68a64ad0b]. POL-14 NO-OP (behavioral_contracts: []). total_stories 325 UNCHANGED. D-2444 NOTE archived.
 # D-2443: D-2443 human-directed deferral 2026-09-04 — S-CLAROTY-DTU-PARITY-001 REGISTERED (governing story; 5 sub-stubs; v1.0 draft; 3 pts; blocks S-REL-004). S-REL-004 v0.4→v0.5 + input-hash 984d7b6→71df370 (D-2443 deferral notes + depends_on S-CLAROTY-DTU-PARITY-001 added). S-REL-007 v0.2→v0.3 + input-hash 9457bcd→7890ffc (deferral notice). S-REL-006 v0.1→v0.2 (deferral notice; input-hash UNCHANGED a1b92a0). total_stories 324→325. STORY-INDEX v2.993→v2.994.
 # D-2440: E-REL deconfliction amendments 2026-09-03 — S-REL-002 ADR renumber 053→062 (file renamed to S-REL-002-version-alignment-adr-062.md, v0.2→v0.3); S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle, v0.3→v0.4); S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13); S-REL-008→S-REL-010 (rename stub); S-REL-009→S-REL-011 (rename stub; depends_on S-REL-004→S-REL-005). total_stories 324 UNCHANGED. STORY-INDEX v2.991→v2.992 (state-manager finalizes).
 # D-2439: post-v1.0.0 deferred stubs — S-REL-008 (embedded built-in specs, E-REL, P1, 13 pts, draft v0.1) + S-REL-009 (operator setup + installation docs, E-REL, P1, 3 pts, draft v0.1) registered per human-directed deferral 2026-09-03. New section "Post-v1.0.0 Deferred Stubs (E-REL)" added after Wave F-A/F-B table. total_stories 322→324. STORY-INDEX v2.990→v2.991.
@@ -1169,15 +1170,13 @@ RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst)
 
 ## Post-v1.0.0 Deferred Stubs (E-REL)
 
-These 2 stories are post-v1.0.0 deferrals registered 2026-09-03 (D-2439 human-directed deferral). v1.0.0 ships
-the archive-bundled spec model (Option 1, PR #253). These stories capture the next evolution and the install-doc
-gap identified during v1.0.0 release prep. All `behavioral_contracts: []` pending PO authorship or waiver
-before status: ready (Spec-First Gate S-7.01).
+These 3 stories are post-v1.0.0 deferrals (S-REL-010 and S-REL-011 registered 2026-09-03 per D-2439 human-directed deferral; S-REL-CHANNELS-001 registered 2026-09-04 per D-2450 after operator approval of release-channel strategy). v1.0.0 ships the archive-bundled spec model (Option 1, PR #253). These stories capture the next evolution, install-doc gap, and release-channel maturity ladder. All `behavioral_contracts: []` pending PO authorship or waiver before status: ready (Spec-First Gate S-7.01).
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
 | S-REL-010 | Binary self-sufficiency — embed built-in sensor+infusion specs as BASE layer, make spec_dir optional; disk overrides by sensor_id; per-org overlay compatibility; single-source-of-truth embed via existing BUNDLED_SPEC_SCHEMAS static; ADR required [draft stub v0.1] | prism-bin, prism-spec-engine, prism-query | 0 (pending PO authorship) | -- | 13 | -- |
-| S-REL-011 | Operator setup and installation documentation for v1.0.0 archive-bundled model — docs/SETUP.md covering download, checksum+attestation verify, bundle extraction, spec placement, prism.toml, UUID-v7 org_id, credential set, first boot [draft stub v0.1] | docs | 0 (N/A docs) | -- | 3 | S-REL-003, S-REL-005 |
+| S-REL-011 | Operator setup and installation documentation for v1.0.0 archive-bundled model — docs/SETUP.md covering download, checksum+attestation verify, bundle extraction, spec placement, prism.toml, UUID-v7 org_id, credential set, first boot [merged v0.1; PR #257 @68a64ad0b] | docs | 0 (N/A docs) | -- | 3 | S-REL-003, S-REL-005 |
+| S-REL-CHANNELS-001 | Release-channel maturity ladder implementation — nightly/dev/alpha/beta/rc/stable continuous-release channel workflows; pre-release tags develop ONLY; stable promotes to main (release-main gated); per-channel retention policies; moving edge pointer; channel-transition rubric; spec: docs/RELEASE-CHANNELS.md (PR pending); fuller story authoring required before status: ready (PO authorship needed) [draft stub v0.1; D-2450 2026-09-04; operator-approved strategy D-2449] | devops | 0 (pending PO authorship) | -- | 21 | S-REL-001, S-REL-002 |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -1724,6 +1723,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.997 | 2026-09-04 | state-manager D-2450: SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-CHANNELS-001 REGISTERED (draft stub v0.1; post-rc.1 release-channel implementation; spec: docs/RELEASE-CHANNELS.md; PO authorship required before status:ready). total_stories 325→326. TD-VSDD-097: Dim-1 CLEAR (no spec sibling pair). Dim-2 CLEAR (RELEASE-CHANNELS.md not yet a copy-source for any spec section). Dim-3 CLEAR (no new unanchored MUSTs; S-REL-CHANNELS-001 MUSTs pending PO authorship per Canonical Principle Rule 3 — concrete future dependency). records-lint exit 0. story_index_version 2.996→2.997. |
+| v2.996 | 2026-09-04 | state-manager D-2447: SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-011 operator setup+install docs MERGED. PR #257 (feat(S-REL-011)) admin squash-merged to develop @68a64ad0b 2026-09-04. S-REL-011 [draft stub v0.1]→[merged v0.1; PR #257 @68a64ad0b]. POL-14 NO-OP (behavioral_contracts: []). develop_head 7d09567f6→68a64ad0b. total_stories 325 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no spec sibling). Dim-2 CLEAR (docs/SETUP.md not a spec copy-source). Dim-3 CLEAR (no new MUSTs). records-lint exit 0. story_index_version 2.995→2.996. |
 | v2.995 | 2026-09-04 | state-manager D-2444: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — PR #254 (feat(S-REL-003): install.sh + install.ps1 — checksum-verified 5-platform consumer install scripts) admin squash-merged to develop @725cf413d (human-directed --admin bypass 2026-09-04; precedent-consistent with prior admin-merges e.g. PR #240; security-reviewer PASS CLEAN(strict)=yes 0 findings @9724a350a; pr-reviewer READY covered_sha 9724a350a; CI 51/51; tests 42/42+123/123 release-gate; just check 6022/6022). S-REL-003 [draft v0.3]→[merged v0.3; PR #254 @725cf413d]. POL-14: behavioral_contracts: [] — NO BC auto-promotion (NO-OP). develop_head 18646aa44→725cf413d. feature/S-REL-003 remote deleted. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs). total_stories 325 UNCHANGED. records-lint exit 0. story_index_version 2.994→2.995. |
 | v2.994 | 2026-09-04 | state-manager D-2443: SINGLE-COMMIT BURST (TD-VSDD-053) — Human-directed deferral: v1.0.0-rc.1 ships WITHOUT demo bundle. S-CLAROTY-DTU-PARITY-001 REGISTERED as governing story (5 sub-stubs; v1.0 draft; 3 pts; blocks S-REL-004; post-rc.1 cycle; depends_on: []). S-REL-004 v0.4→v0.5 (depends_on += S-CLAROTY-DTU-PARITY-001; deferral notes; input-hash 984d7b6→71df370). S-REL-007 v0.2→v0.3 (deferral notice; input-hash 9457bcd→7890ffc). S-REL-006 v0.1→v0.2 (deferral notice; input-hash UNCHANGED a1b92a0). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (DEMO-SCOPE+STATE+SESSION-HANDOFF co-updated this burst). Dim-3 CLEAR (no new unanchored MUSTs). total_stories 324→325. records-lint exit 0. story_index_version 2.993→2.994. |
 | v2.993 | 2026-09-04 | state-manager D-2441: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — PR #253 (chore(release): v1.0.0 release prep) squash-merged to develop @18646aa44 (human-executed 2026-09-04; pr-reviewer APPROVE; CI 24/24 GREEN). S-REL-002 [draft v0.3]→[merged v0.3; PR #253 @18646aa44]; S-REL-005 [draft v0.4]→[merged v0.4; PR #253 @18646aa44]. POL-14: S-REL-002 + S-REL-005 behavioral_contracts: [] — NO BC auto-promotion (NO-OP). develop_head 11493aeb5→18646aa44. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs). total_stories 324 UNCHANGED. records-lint exit 0. story_index_version 2.992→2.993. |
