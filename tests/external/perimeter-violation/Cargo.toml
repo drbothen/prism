@@ -40,6 +40,7 @@ prism-core = { path = "../../../crates/prism-core" }
 brotli = "=8.0.2"
 brotli-decompressor = "=5.0.0"
 alloc-stdlib = "=0.2.2"
+tinyvec = "=1.11.0"
 
 # Empty workspace table: opts this crate out of the parent workspace resolver
 # so it can be compiled standalone (required for the CI compile-fail pattern).
