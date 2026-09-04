@@ -73,7 +73,9 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
   with those sensors to a future release
   (S-DEMO-ENRICHMENT-PIVOT-001/002/003, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
 - Full infusion engine: MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin
-  runtime wiring, SEC-001 source-size guard (S-1.14-REDO)
+  runtime wiring, SEC-001 source-size guard — code path present in binary; only
+  file-backed LocalLookup (MMDB/CSV/JSON) is exercised in rc.1, and no infusion
+  specs or WASM plugins are bundled (S-1.14-REDO)
 - `E-QUERY-042` gate for `Literal::Timestamp` in GROUP BY/ORDER BY
   (ADR-052 §D4 arms 6+7; DEFECT-EQUERY042-GROUPBY-DEADARM-001, #220)
 - `E-QUERY-038` plan-time column gate expanded to 14-position binding-context walk
@@ -266,7 +268,8 @@ in rc.1**. They will return in a future release with full native authentication:
 - **Armis**: AQL search endpoint fidelity, DTU `/api/v1/search` push-down, AQL
   validator (multi-occurrence SELECT + single-quote rejection).
 - **Sensor-specific enrichment demos**: IOC stamping for Cyberint/CrowdStrike, NVD
-  CVSS enrichment on Armis CVE data — enrichment engine ships; sensor pipelines deferred.
+  CVSS enrichment on Armis CVE data — enrichment code path present in the binary;
+  sensor pipelines deferred.
 
 ### Fixed
 
