@@ -142,35 +142,30 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           ARCHIVE="prism-${TAG}-${{ matrix.target }}.${{ matrix.archive_ext }}"
-          # Stage binary + bundled sensor specs + infusion specs + example config.
-          # Sensor specs (crates/prism-sensors/specs/*.sensor.toml) and infusion specs
-          # (specs/infusions/*.infusion.toml) are present in the source checkout at tag
-          # time — no build artifact needed.  The example config (prism.toml.example)
-          # is a committed file at the repo root.
+          # Stage binary + Claroty xDome sensor spec + example config.
+          # rc.1 ships Claroty xDome as the sole supported sensor; CrowdStrike/Cyberint/
+          # Armis specs and enrichment infusion specs are excluded (infusions require
+          # plugins/sensor-data not present in the plain binary archive — demo bundle scope).
+          # Sensor spec (crates/prism-sensors/specs/claroty.sensor.toml) is present in the
+          # source checkout at tag time — no build artifact needed.
+          # The example config (prism.toml.example) is a committed file at the repo root.
           # Archive layout (flat root, no parent-directory wrapper):
           #   prism[.exe]          — compiled binary
           #   prism.toml.example   — configuration template with install instructions
-          #   specs/               — built-in sensor TOML specs (spec_dir target)
-          #   infusions/           — built-in infusion TOML specs (auto-scanned from config_dir)
-          mkdir -p _stage/specs _stage/infusions
+          #   specs/               — Claroty xDome sensor TOML spec (spec_dir target)
+          mkdir -p _stage/specs
           if [ "${{ matrix.archive_ext }}" = "zip" ]; then
             cp "target/${{ matrix.target }}/release/prism.exe" _stage/
           else
             cp "target/${{ matrix.target }}/release/prism" _stage/
           fi
-          cp crates/prism-sensors/specs/armis.sensor.toml \
-             crates/prism-sensors/specs/claroty.sensor.toml \
-             crates/prism-sensors/specs/crowdstrike.sensor.toml \
-             crates/prism-sensors/specs/cyberint.sensor.toml \
+          cp crates/prism-sensors/specs/claroty.sensor.toml \
              _stage/specs/
-          cp specs/infusions/threatintel.infusion.toml \
-             specs/infusions/nvd.infusion.toml \
-             _stage/infusions/
           cp prism.toml.example _stage/
           if [ "${{ matrix.archive_ext }}" = "zip" ]; then
-            cd _stage && 7z a "../${ARCHIVE}" prism.exe prism.toml.example specs infusions && cd ..
+            cd _stage && 7z a "../${ARCHIVE}" prism.exe prism.toml.example specs && cd ..
           else
-            tar czf "${ARCHIVE}" -C _stage prism prism.toml.example specs infusions
+            tar czf "${ARCHIVE}" -C _stage prism prism.toml.example specs
           fi
           rm -rf _stage
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"

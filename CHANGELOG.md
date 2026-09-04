@@ -5,15 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-09-03
+## [1.0.0-rc.1] - 2026-09-03
 
-Prism v1.0.0 is the inaugural production release of an ephemeral federated query
-engine for MSSP security operations. It exposes a Model Context Protocol (MCP)
-server that enables LLM-native analysis across heterogeneous security sensors
-(Claroty xDome, CrowdStrike Falcon, Cyberint, Armis) without persisting raw sensor
-data. Analysts issue PrismQL queries over live sensor APIs; Prism handles
-authentication, multi-tenant isolation, OCSF normalization, query push-down, and
-structured audit logging — all in a single operator-deployable binary.
+Prism v1.0.0-rc.1 is the first release candidate of an ephemeral federated query
+engine for MSSP security operations. This release candidate ships with **Claroty
+xDome as the sole supported sensor** — 14 tables, full PrismQL query engine, MCP
+server, multi-tenant isolation, OCSF normalization, query push-down, and structured
+audit logging in a single operator-deployable binary. Code for CrowdStrike Falcon,
+Cyberint, and Armis sensors exists in the workspace but is not supported in rc.1;
+those sensors return with full native-auth support in a future release (see Deferred
+section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment.
 
 ### Added
 
@@ -23,11 +24,13 @@ structured audit logging — all in a single operator-deployable binary.
   `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `x86_64-pc-windows-msvc`)
   with static musl via `cargo-zigbuild`, build-provenance attestations, and
   `checksums.txt` generation (S-0.01, S-REL-001, #1, #228)
-- Release archives now bundle the four built-in sensor TOML specs (`specs/`) and the
-  two built-in infusion TOML specs (`infusions/`) alongside the binary and a
-  `prism.toml.example` configuration template. A fresh install is bootable without
-  cloning the source repository: extract the archive, place `specs/` at `spec_dir`
-  and `infusions/` alongside `prism.toml`, then run `prism start` (#253)
+- Release archives bundle the Claroty xDome sensor TOML spec (`specs/`) alongside
+  the binary and a `prism.toml.example` configuration template. A fresh install is
+  bootable without cloning the source repository: extract the archive, point
+  `spec_dir` at the bundled `specs/` directory, and run `prism start` (#253).
+  Enrichment infusion specs ship with the demo bundle (S-REL-004); they are not
+  included in the plain binary archive for rc.1 because the enrichment pipeline
+  requires plugins and sensor-specific data that are deferred.
 - Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
   (S-0.02, #2)
@@ -62,8 +65,9 @@ structured audit logging — all in a single operator-deployable binary.
 - OCSF column-naming and routing: Stage 1 coercion gap closure, Stage 2 push-down
   (ADR-058; S-ADR058-OCSF-COERCION-001, S-ADR058-OCSF-ROUTING-001, #240)
 - Enrichment chain: PrismQL `ENRICH` clause, ThreatIntel/NVD dual-path enrichment
-  (HttpLookup + WASM plugin infusion), IOC stamping across Cyberint and CrowdStrike,
-  typed UDF output with consistent `ColumnType` coercion
+  engine (HttpLookup + WASM plugin infusion), typed UDF output with consistent
+  `ColumnType` coercion — engine ships; sensor-specific enrichment demos (IOC stamping
+  for Cyberint/CrowdStrike) are deferred with those sensors to a future release
   (S-DEMO-ENRICHMENT-PIVOT-001/002/003, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
 - Full infusion engine: MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin
   runtime wiring, SEC-001 source-size guard (S-1.14-REDO)
@@ -117,20 +121,19 @@ structured audit logging — all in a single operator-deployable binary.
 - HTTPS transport hardening, deterministic `sort_by` for offset-pagination stability
   across all 7 paginated tables (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, #252)
 
-#### CrowdStrike / Cyberint / Armis Sensor Adapters
+#### Deferred to a Future Release
 
-- CrowdStrike Falcon: multi-region base URL via env var, CrowdStrike `devices` POST
-  fan-out with empty MemTable pre-registration and `E-QUERY-043` gate
-  (S-DEMO-CROWDSTRIKE-MULTIREGION-001, DEFECT-CSDEVICES-EMPTY-PIPELINE-001, #170, #221)
-- CrowdStrike OAuth2 refresh-on-401 PRX WASM plugin (PLUGIN-MIGRATION-001-E, #154)
-- Cyberint DTU: `access_token` auth, `StaticCookieAuthProvider`, sensor-spec fidelity
-  bundle (S-DTU-CYBERINT-AUTH-FIDELITY-001, #164)
-- Armis AQL search endpoint fidelity: DTU `/api/v1/search` push-down, AQL validator
-  (multi-occurrence SELECT + single-quote rejection) (S-DEMO-ARMIS-AQL-001, #168)
-- OCSF class migration: all sensor TOMLs migrated
-  `security_finding` → `detection_finding` (OCSF v1.1; OCSF-CLASS-MIGRATION-001, #174)
-- Query push-down (LIMIT + time-window) into `PipelineExecutor`: ADR-033 T1 + Armis
-  AQL full wiring (S-DEMO-QUERY-PUSHDOWN-001, #173)
+The following sensor adapters are present in the workspace but are **not supported
+in rc.1**. They will return in a future release with full native authentication:
+
+- **CrowdStrike Falcon**: multi-region base URL, `devices` POST fan-out, `E-QUERY-043`
+  gate; OAuth2 refresh-on-401 via PRX WASM plugin. Blocked pending S-ADR054-WAVE-A-001
+  (native CrowdStrike auth without the crowdstrike-oauth2.prx plugin dependency).
+- **Cyberint**: `access_token` auth, `StaticCookieAuthProvider`, sensor-spec fidelity.
+- **Armis**: AQL search endpoint fidelity, DTU `/api/v1/search` push-down, AQL
+  validator (multi-occurrence SELECT + single-quote rejection).
+- **Sensor-specific enrichment demos**: IOC stamping for Cyberint/CrowdStrike, NVD
+  CVSS enrichment on Armis CVE data — enrichment engine ships; sensor pipelines deferred.
 
 #### Multi-tenant Architecture
 
@@ -322,5 +325,5 @@ structured audit logging — all in a single operator-deployable binary.
   and corporate MITM proxy interception path for sensor API credentials
   (ADR-050; DEFECT-ADAPTER-TLS-XDOME-LIVE-001)
 
-[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/drbothen/prism/releases/tag/v1.0.0
+[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1

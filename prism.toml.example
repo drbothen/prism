@@ -1,25 +1,28 @@
-# prism.toml.example — Prism v1.0.0 configuration template
+# prism.toml.example — Prism v1.0.0-rc.1 configuration template
 #
 # Copy this file to prism.toml in your config directory.
 # Place your config directory path in the PRISM_CONFIG_DIR environment variable,
 # or pass it via `prism start --config-dir <path>`.
 #
 # QUICK START (extract → configure → run):
-#   1. Extract the release archive; it contains this file plus bundled sensor specs.
+#   1. Extract the release archive; it contains this file plus the bundled
+#      Claroty xDome sensor spec under specs/.
 #   2. Decide where your config directory lives (e.g., /etc/prism/ or ~/prism/).
 #   3. Copy this file there as prism.toml.
 #   4. Copy the bundled specs/ directory to spec_dir (or set spec_dir to point at it).
-#   5. Copy the bundled infusions/ directory alongside prism.toml (auto-scanned).
-#   6. Set state_dir to a writable path for RocksDB persistent state.
-#   7. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
-#   8. Configure credentials with `prism credential set` (see `prism credential --help`).
-#   9. Run: prism start
+#   5. Set state_dir to a writable path for RocksDB persistent state.
+#   6. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
+#   7. Configure credentials with `prism credential set` (see `prism credential --help`).
+#   8. Run: prism start
+#
+# Note: enrichment infusion specs (ENRICH clause / ThreatIntel / NVD) ship with the
+# separate demo bundle, not the plain binary archive.
 
 # ---------------------------------------------------------------------------
 # spec_dir (required)
 # ---------------------------------------------------------------------------
 # Path to the directory containing *.sensor.toml spec files.
-# The four built-in sensor specs are bundled in the release archive under specs/.
+# The Claroty xDome sensor spec is bundled in the release archive under specs/.
 # Copy that directory to a permanent location and point spec_dir at it.
 #
 # Relative paths are resolved from the config directory (where prism.toml lives).
@@ -37,9 +40,8 @@ state_dir = "/var/lib/prism/state"
 # plugin_dir (optional; default: "./plugins" relative to config directory)
 # ---------------------------------------------------------------------------
 # Path to the directory scanned for *.prx WASM plugin files.
-# The CrowdStrike OAuth2 plugin (crowdstrike-oauth2.prx) must be placed here
-# for CrowdStrike sensor authentication to work.
-# Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
+# Place any WASM enrichment plugins here (e.g., threatintel-lookup.prx from the
+# demo bundle). Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
 # plugin_dir = "./plugins"
 
 # ---------------------------------------------------------------------------
@@ -53,10 +55,8 @@ state_dir = "/var/lib/prism/state"
 #       `uuidgen --time` generates UUID v1 — also rejected.
 #
 # Generate a v7 UUID with one of:
+#   Linux (util-linux 2.41+): uuidgen -7   (or: uuidgen --time-v7)
 #   Python 3.14+:             python3 -c "import uuid; print(uuid.uuid7())"
-#   Linux (util-linux 2.40+): uuidgen -v 7
-#   Python 3.x (any version): pip install uuid7 && \
-#                               python3 -c "import uuid7; print(uuid7.uuid7())"
 #
 # Multiple orgs are supported for multi-tenant deployments.
 
@@ -74,16 +74,24 @@ org_slug = "my-org"               # kebab-case; used in audit logs and MCP conte
 # credential_backend (optional; default: keyring)
 # ---------------------------------------------------------------------------
 # Controls where sensor API credentials are stored and retrieved.
-# "keyring"    — OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager)
-# "env"        — environment variables (useful in containerized deployments)
+# "keyring"        — OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager)
+# "encrypted_file" — Argon2id-encrypted file backend; requires a `path` field
 #
+# Default (OS keyring — recommended):
 # [credential_backend]
 # type = "keyring"
+#
+# Encrypted-file backend (useful in environments without an OS keyring):
+# [credential_backend]
+# type = "encrypted_file"
+# path = "/etc/prism/credentials.bin"
 
 # ---------------------------------------------------------------------------
-# Infusion specs (auto-scanned; no config required)
+# Infusion specs (auto-scanned; NOT included in the rc.1 plain binary archive)
 # ---------------------------------------------------------------------------
-# The bundled infusions/ directory (threatintel.infusion.toml, nvd.infusion.toml)
-# is auto-scanned from {config_dir}/infusions/ at boot.
-# Place the infusions/ directory alongside this prism.toml file.
-# If infusions/ is absent, boot continues without enrichment (non-fatal).
+# Enrichment infusion specs (threatintel.infusion.toml, nvd.infusion.toml) ship
+# with the separate demo bundle (S-REL-004), not the plain binary archive.
+# The threatintel infusion requires the threatintel-lookup.prx WASM plugin;
+# the NVD infusion requires sensor data not present in the Claroty-only rc.1.
+# When using the demo bundle: place infusions/ alongside this prism.toml file;
+# it is auto-scanned from {config_dir}/infusions/ at boot (non-fatal if absent).
