@@ -247,24 +247,35 @@ fi
 assert_contains "$INSTALL_SH" "grep -F" "SEC-004"
 
 # ===========================================================================
-# SEC-005: VERSION format must be validated before URL/path construction
-# RED: neither script validates VERSION format on current HEAD.
+# SEC-007 (tightens SEC-005, CWE-20): VERSION guard must be a FULL semver
+# anchor — prefix-only ^v[0-9] permits values like v1@evil.com to flow into
+# URL/path construction.  Fix: ^v[0-9]+\.[0-9]+\.[0-9]+(-...)?$ with $ end anchor.
+# RED on current HEAD (prefix-only ^v[0-9]); GREEN after full anchor is applied.
 # ===========================================================================
 
-# install.sh: bash regex guard (=~ ^v<digits>)
-if grep -qE '=~ \^v' "$INSTALL_SH" 2>/dev/null; then
-  tap_pass "SEC-005: VERSION format validation (bash regex) present in install.sh"
+# install.sh: block-scoped — extract the =~ VERSION guard line (fixed-string
+# match on ' =~ ^v') and verify:
+#   (1) \.[0-9] dot-notation present (semver minor.patch components)
+#   (2) $ end anchor immediately precedes ]] (rejects prefix-only patterns)
+_VERSION_RE_BLOCK="$(grep -F ' =~ ^v' "$INSTALL_SH" 2>/dev/null || true)"
+if echo "$_VERSION_RE_BLOCK" | grep -qF '\.[0-9]' && \
+   echo "$_VERSION_RE_BLOCK" | grep -qE '\$[[:space:]]*\]\]'; then
+  tap_pass "SEC-007: VERSION guard has full semver anchor (\\.[0-9]+... with \$ end anchor) in install.sh"
 else
-  tap_fail "SEC-005: VERSION format validation absent from install.sh" \
-    "SEC-005 FAIL: VERSION must be validated (e.g. [[ \${VERSION} =~ ^v[0-9] ]]) before URL construction"
+  tap_fail "SEC-007: VERSION guard is prefix-only or missing \$ end anchor in install.sh" \
+    "SEC-007 FAIL: VERSION must use ^v[0-9]+\\.[0-9]+\\.[0-9]+(-...)?$ not prefix-only ^v[0-9] (CWE-20)"
 fi
 
-# install.ps1: PowerShell match/notmatch on \$Version
-if grep -qE '\$Version -(not)?match' "$INSTALL_PS1" 2>/dev/null; then
-  tap_pass "SEC-005: VERSION format validation present in install.ps1"
+# install.ps1: check the -notmatch guard line for full semver anchor.
+#   (1) \.[0-9] dot-notation present in the -notmatch pattern
+#   (2) $ end anchor present before closing single quote ($')
+_NOTMATCH_BLOCK="$(grep -F '$Version -notmatch' "$INSTALL_PS1" 2>/dev/null || true)"
+if echo "$_NOTMATCH_BLOCK" | grep -qF '\.[0-9]' && \
+   echo "$_NOTMATCH_BLOCK" | grep -q "[$]'"; then
+  tap_pass "SEC-007: VERSION guard has full semver anchor in install.ps1"
 else
-  tap_fail "SEC-005: VERSION format validation absent from install.ps1" \
-    "SEC-005 FAIL: \$Version must be validated (e.g. -notmatch) before URL/path construction"
+  tap_fail "SEC-007: VERSION guard is prefix-only or missing \$ end anchor in install.ps1" \
+    "SEC-007 FAIL: \$Version -notmatch must use ^v[0-9]+\\.[0-9]+\\.[0-9]+(-...)?$ not prefix-only (CWE-20)"
 fi
 
 # ===========================================================================

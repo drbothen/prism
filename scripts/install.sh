@@ -110,9 +110,10 @@ if [[ -z "${VERSION}" ]]; then
   fi
 fi
 
-# SEC-005: validate VERSION format before URL construction (reject malformed tags)
-if [[ ! "${VERSION}" =~ ^v[0-9] ]]; then
-  printf 'ERROR: VERSION must start with "v" followed by a digit (e.g. v1.0.0-rc.1); got: %s\n' "${VERSION}" >&2
+# SEC-005/SEC-007: validate VERSION format before URL construction — full semver anchor
+# rejects prefix-only matches (e.g. "v1evil") and non-semver forms (e.g. "v1", "v1.0").
+if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+  printf 'ERROR: VERSION must be a full semver tag (e.g. v1.0.0 or v1.0.0-rc.1); got: %s\n' "${VERSION}" >&2
   exit 1
 fi
 

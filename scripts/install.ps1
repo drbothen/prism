@@ -82,9 +82,10 @@ if (-not $Version) {
     }
 }
 
-# SEC-005: validate Version format before URL/path construction (reject malformed tags)
-if ($Version -notmatch '^v[0-9]') {
-    Write-Error "Version must start with 'v' followed by a digit (e.g. v1.0.0-rc.1); got: $Version"
+# SEC-005/SEC-007: validate Version format before URL/path construction — full semver anchor
+# rejects prefix-only matches (e.g. "v1evil") and non-semver forms (e.g. "v1", "v1.0").
+if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$') {
+    Write-Error "Version must be a full semver tag (e.g. v1.0.0 or v1.0.0-rc.1); got: $Version"
     exit 1
 }
 

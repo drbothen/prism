@@ -1939,8 +1939,9 @@ jobs:
         shell: pwsh
         run: |
           # U33: PSScriptAnalyzer is NOT pre-installed on windows-latest.
-          # SEC-002 (CWE-494): pin to known-good version to prevent supply-chain substitution.
-          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.22.0
+          # SEC-002/SEC-008 (CWE-1104): pin to current stable; 1.22.0 was EOL (2+ majors behind).
+          # 1.25.0 is the current stable on PSGallery as of 2026-03-20 (verified 2026-09-04).
+          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.25.0
       - name: Lint install.ps1 (PS 5.1 compatibility scope)
         shell: pwsh
         run: |
