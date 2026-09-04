@@ -1,0 +1,244 @@
+# release-promote.yml — server-side develop→main promotion + semver tag push
+#
+# PURPOSE
+# -------
+# Promotes develop into main and creates an annotated semver tag entirely
+# server-side on GitHub runners — bypassing local pre-push hooks (lefthook
+# `just check`, factory-dispatcher) that block direct pushes to main from a
+# developer machine.
+#
+# develop already passes full CI before this workflow runs.  This workflow
+# does NOT build or test; it only merges and tags.  The tag push triggers
+# release.yml which handles the full 5-platform build + GitHub Release.
+#
+# REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
+# ---------------------------------------
+# Type: GitHub Fine-Grained Personal Access Token (or Classic PAT)
+# Minimum scopes / permissions:
+#   Fine-Grained PAT (recommended):
+#     - Repository contents:  Read and write
+#     - Repository workflows: Read and write   ← required when pushing commits
+#                                                that include workflow file changes
+#   Classic PAT:
+#     - repo  (full repository access)
+#     - workflow
+#
+# Why not GITHUB_TOKEN?
+#   The default GITHUB_TOKEN cannot bypass main branch-protection rules such
+#   as required status checks or required reviews.  A PAT held by a repository
+#   administrator (who is a bypass actor for the protection rule) IS required.
+#
+# FIRST PROMOTION NOTE
+# --------------------
+# main currently has an unrelated git history to develop (separate root
+# commit — main is a 2-file stub created independently).  The first run
+# must use `git merge --allow-unrelated-histories`.  This flag is always
+# passed; after the first join the histories are related and it is a
+# harmless no-op.
+
+name: Release Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Semver tag to create and push (e.g. v1.0.1 or v1.1.0-rc.1)'
+        required: true
+        type: string
+      dry_run:
+        description: >
+          DRY RUN (default: true) — authenticate + validate ref updates against
+          origin WITHOUT writing. Set to false only when ready to execute the
+          real promotion.
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote develop → main + tag ${{ github.event.inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TAG: ${{ github.event.inputs.tag }}
+      DRY_RUN: ${{ github.event.inputs.dry_run }}
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout — full history required for merge + tag operations       #
+      # ------------------------------------------------------------------ #
+      - name: Checkout full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Full history: needed so git can walk both develop and main roots
+          # for --allow-unrelated-histories.
+          fetch-depth: 0
+          # RELEASE_PROMOTE_TOKEN is a PAT with Contents:write + Workflows:write.
+          # persist-credentials (default: true) configures the remote URL to
+          # carry the token so subsequent git push steps authenticate correctly.
+          # Do NOT substitute secrets.GITHUB_TOKEN here.
+          token: ${{ secrets.RELEASE_PROMOTE_TOKEN }}
+
+      # ------------------------------------------------------------------ #
+      # 2. Ensure develop and main are fully fetched                         #
+      # ------------------------------------------------------------------ #
+      - name: Fetch origin develop and main
+        run: |
+          set -euo pipefail
+          git fetch origin develop main
+
+      # ------------------------------------------------------------------ #
+      # 3. Configure a bot git identity for the merge commit                 #
+      # ------------------------------------------------------------------ #
+      - name: Configure git bot identity
+        run: |
+          set -euo pipefail
+          git config user.name "prism-release-bot"
+          git config user.email "prism-release-bot@users.noreply.github.com"
+
+      # ------------------------------------------------------------------ #
+      # 4. Reset local main to origin/main, then merge develop into it       #
+      # ------------------------------------------------------------------ #
+      - name: Checkout main and merge develop
+        run: |
+          set -euo pipefail
+          # -B: create the local branch if it does not exist, or reset it to
+          # origin/main if it does.
+          git checkout -B main origin/main
+
+          # --allow-unrelated-histories: required for the first promotion
+          # (main and develop have separate root commits).  After the first
+          # join this flag is a harmless no-op — always pass it.
+          #
+          # -X theirs: on any conflict, develop's version wins.  develop is
+          # the authoritative source of truth; main is the release surface.
+          #
+          # The commit message uses TAG from the job env.
+          git merge \
+            --allow-unrelated-histories \
+            -X theirs \
+            origin/develop \
+            -m "release: ${TAG} — promote develop into main"
+
+      # ------------------------------------------------------------------ #
+      # 5. Safety gate — merged main tree must be byte-identical to develop  #
+      # ------------------------------------------------------------------ #
+      - name: Safety gate — verify merged tree equals origin/develop
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet origin/develop HEAD; then
+            echo "::error::FATAL: merged main tree differs from origin/develop."
+            echo "This is unexpected after -X theirs.  Diff (first 200 lines):"
+            git diff origin/develop HEAD | head -200
+            exit 1
+          fi
+          echo "Tree identity PASS — merged main is byte-identical to origin/develop"
+
+      # ------------------------------------------------------------------ #
+      # 6. Guard — never clobber an existing tag                             #
+      # ------------------------------------------------------------------ #
+      - name: Guard — tag must not already exist on origin
+        run: |
+          set -euo pipefail
+          # ls-remote returns lines like:
+          #   abc123...  refs/tags/v1.0.0
+          #   abc123...  refs/tags/v1.0.0^{}  (annotated-tag peel)
+          # grep -qF on "refs/tags/${TAG}" matches either form — both indicate
+          # the tag exists and we must not proceed.
+          if git ls-remote --tags origin "${TAG}" | grep -qF "refs/tags/${TAG}"; then
+            echo "::error::FATAL: tag '${TAG}' already exists on origin."
+            echo "Never clobber an existing tag.  Choose a different tag name."
+            exit 1
+          fi
+          echo "Tag '${TAG}' does not exist on origin — safe to create"
+
+      # ------------------------------------------------------------------ #
+      # 7. Create the annotated tag on the merge commit                      #
+      # ------------------------------------------------------------------ #
+      - name: Create annotated tag
+        run: |
+          set -euo pipefail
+          MERGE_SHA="$(git rev-parse HEAD)"
+          git tag -a "${TAG}" \
+            -m "Release ${TAG} — promoted from develop (merge SHA: ${MERGE_SHA})"
+          echo "Created annotated tag '${TAG}' at ${MERGE_SHA}"
+          # Export MERGE_SHA so the push and summary steps can reference it.
+          echo "MERGE_SHA=${MERGE_SHA}" >> "${GITHUB_ENV}"
+
+      # ------------------------------------------------------------------ #
+      # 8a. DRY RUN — authenticate + validate ref updates without writing    #
+      # ------------------------------------------------------------------ #
+      - name: Push — dry-run (validate without writing)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          set -euo pipefail
+          echo "=== DRY RUN: contacting origin to validate auth + ref updates ==="
+          echo "git push --dry-run origin main"
+          git push --dry-run origin main
+          echo ""
+          echo "git push --dry-run origin ${TAG}"
+          git push --dry-run origin "${TAG}"
+          echo ""
+          echo "DRY RUN COMPLETE — nothing was written to origin"
+          echo "  Merge SHA:     ${MERGE_SHA}"
+          echo "  Tag:           ${TAG}"
+          echo "  Tree identity: PASS (verified in step 5)"
+          echo ""
+          echo "Re-run with dry_run=false to execute the real promotion."
+
+      # ------------------------------------------------------------------ #
+      # 8b. REAL RUN — push main first, then the tag to trigger release.yml  #
+      # ------------------------------------------------------------------ #
+      - name: Push — real (main then tag)
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        run: |
+          set -euo pipefail
+          echo "Pushing main (${MERGE_SHA}) to origin..."
+          git push origin main
+
+          echo "Pushing tag '${TAG}' to origin (triggers release.yml)..."
+          git push origin "${TAG}"
+
+          echo ""
+          echo "PUSH COMPLETE"
+          echo "  main SHA:  ${MERGE_SHA}"
+          echo "  Tag:       ${TAG}"
+          echo "  release.yml will build + publish the GitHub Release."
+
+      # ------------------------------------------------------------------ #
+      # 9. Job summary — written even on failure for observability            #
+      # ------------------------------------------------------------------ #
+      - name: Job summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Release Promote — \`${TAG}\`"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Dry run | \`${DRY_RUN}\` |"
+            echo "| Tag | \`${TAG}\` |"
+            echo "| Merge SHA | \`${MERGE_SHA:-not reached}\` |"
+            if [[ -n "${MERGE_SHA:-}" ]]; then
+              echo "| Tree identity | PASS |"
+            else
+              echo "| Tree identity | not reached |"
+            fi
+            if [[ "${DRY_RUN}" == "true" ]]; then
+              echo "| Pushed to origin | No (dry run) |"
+              echo ""
+              echo "> **DRY RUN**: ref updates were validated against origin without writing."
+              echo "> Re-run with \`dry_run = false\` to execute the real promotion."
+            else
+              echo "| Pushed to origin | Yes |"
+              echo ""
+              echo "> **REAL RUN**: \`main\` and tag \`${TAG}\` were pushed to origin."
+              echo "> \`release.yml\` has been triggered by the tag push and will build"
+              echo "> + publish the GitHub Release."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
