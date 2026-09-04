@@ -683,3 +683,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2436 2026-09-03):** develop `11493aeb5` (origin=local=PUSHED); factory-artifacts: `e3bad23a4` pre-wrap; no open PRs; PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch); REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **NOTE: Superseded by D-2437 — CONFIRMATORY LIVE RE-VALIDATION PASSED; v1 Claroty xDome RELEASE-READY DECLARED (develop@11493aeb5). STATE v8.965→v8.966. SESSION-HANDOFF v8.058→v8.059.**
+
+---
+
+## Archived: D-2443 — 2026-09-04; STATE v8.970→v8.971 — v1.0.0-rc.1 WITHOUT demo bundle; S-REL-003 delivery NEXT
+
+**RESUME IN ONE BREATH:** Phase 3 Wave-5-E, Claroty-xDome-ONLY v1.0.0-rc.1. DEFERRAL (D-2443): demo bundle (S-REL-004) + Claroty DTU 14-table parity (S-CLAROTY-DTU-PARITY-001) deferred post-rc.1. S-REL-003 install scripts BUILT LOCAL on feature/S-REL-003 (NOT pushed). REVISED rc.1 critical path: push S-REL-003 → PR → merge → live secops-factory RC gate on monroe → tag v1.0.0-rc.1. S-REL-004/007/006 are post-rc.1.
+
+**HEADS (D-2443 2026-09-04):** develop: origin = `18646aa44` (PR #253 squash-merge 2026-09-04); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-003 LOCAL-ONLY, NOT pushed; ACTIVE: feature/S-REL-003; PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch); REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**NOTE: Superseded by D-2444 — S-REL-003 MERGED @725cf413d PR #254 (admin squash-merge, human-directed). develop_head 18646aa44→725cf413d. STATE v8.971→v8.972. SESSION-HANDOFF v8.064→v8.065. Further superseded by D-2445 — FULL AUTONOMOUS MERGE + TAG AUTHORITY GRANTED. STATE v8.972→v8.973.**
