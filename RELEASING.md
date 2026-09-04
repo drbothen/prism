@@ -29,6 +29,11 @@ version of Prism is running on this machine?"
 field in `Cargo.toml`. When a release is cut, **bump `prism-bin` to match the tag**.
 This makes `prism --version` report the correct product version.
 
+The `release-promote` workflow mechanically enforces this invariant: if the
+dispatched `tag` input (e.g. `v1.0.0-rc.2`) does not exactly match the `prism-bin`
+Cargo.toml `version` field (e.g. `1.0.0-rc.2`) on the develop tree, the promotion
+fails with a clear error before anything is written to `main`.
+
 All other workspace crates (prism-core, prism-query, prism-spec-engine, prism-sensors,
 etc.) carry **independent semver versions on their own cadence**. They are all
 `publish = false`. You never force-align library crate versions to the product tag.
@@ -65,38 +70,61 @@ stable releases and are marked Latest on GitHub.
 | `release/vX.Y.Z` | Short-lived release-prep branch off `develop`. |
 | `factory-artifacts` | Orphan branch. Mounted at `.factory/` as a worktree. Never touched during release. |
 
+### Default branch
+
+`develop` is the default branch (changed 2026-09-04). This makes `workflow_dispatch`
+workflows dispatchable against the active development branch without specifying
+`--ref develop` each time in the GitHub UI, though the CLI commands in §4 include
+the flag explicitly for clarity. `main` remains the release branch.
+
 ### High-level flow
 
 ```
 develop (release-ready HEAD)
     │
-    ├─► release/vX.Y.Z branch
-    │       version bump + CHANGELOG authored
-    │       PR → develop (CI must pass)
+    ├─► Dispatch release-prep.yml (--field version=X.Y.Z)
+    │       Creates release/vX.Y.Z branch off develop
+    │       Bumps prism-bin + scaffolds CHANGELOG
+    │       Opens PR to develop — human reviews, curates, merges
     │
     ▼
-develop (merge commit with bump + CHANGELOG)
+develop (merged release-prep PR — CI all green)
     │
-    ├─► PR develop → main (CI must pass — all 24 required checks)
-    │       HUMAN MERGES — no auto-merge, no harness merge
+    ├─► Dispatch release-promote.yml (dry_run=true)  ← validates, nothing written
+    │       merge + tree-identity + tag guard + version guard + push --dry-run
+    │
+    ├─► Dispatch release-promote.yml (dry_run=false)
+    │       validate job (same guards, no approval)
+    │       promote job → pauses at release-main environment gate
+    │           required-reviewer approves in GitHub UI
+    │       develop → main merge + annotated tag pushed to origin
     │
     ▼
-main
+main + vX.Y.Z tag
     │
-    ├─► git tag -a vX.Y.Z on main HEAD
-    ├─► git push origin vX.Y.Z  ← triggers release.yml
+    ├─► Tag push triggers release.yml
     │
     ▼
 GitHub Release (automated by release.yml)
     5-platform binaries + checksums.txt + attestations
 ```
 
-### Why develop → main is human-only
+### Why develop → main goes through release-promote
 
-The harness auto-mode classifier treats a develop→main merge as a deployment event
-that crosses an environment boundary. The project git-safety protocol also prohibits
-force-pushing main under any circumstances and requires explicit human approval for
-all merges to main. No CI automation or agent may perform the develop→main merge.
+The `release-promote` workflow handles the develop→main promotion with a
+required-reviewer approval gate (the `release-main` GitHub Environment). No
+manual PR to main is created; the environment gate IS the approval. The
+`RELEASE_PROMOTE_TOKEN` (a PAT with Contents:write + Workflows:write) is required
+because the default `GITHUB_TOKEN` cannot bypass main branch-protection rules such
+as required status checks or required reviews.
+
+### First-promotion note
+
+The first promotion must handle the unrelated git histories between `main` (a
+2-commit stub initialized independently) and `develop`. The `release-promote`
+workflow always passes `--allow-unrelated-histories` to the merge; after the first
+join it becomes a harmless no-op. The tree-identity safety gate confirms the merged
+result equals `origin/develop` regardless.
 
 ---
 
@@ -111,8 +139,11 @@ protection, or project convention — not just policy.
 | Never skip git hooks (`--no-verify`) | TD-FACTORY-HOOK-BYPASS-001 P0 violation |
 | No AI attribution in commits | Project convention; see CLAUDE.md §Git Workflow |
 | Tag must live on `main`, not `develop` | release.yml triggers on `v*` tags; a tag on develop produces a release from the wrong base |
-| Conventional commit for the release-prep commit | Enforced by lefthook pre-commit hook |
-| All 24 required CI status checks must pass on develop before PR to main | Branch protection on both develop and main |
+| Tag input to `release-promote` must equal `prism-bin` Cargo.toml version | `release-promote` validate job fails; promotion is blocked. Mechanically enforced — see §1 note. |
+| Conventional commit for the release-prep commit | Enforced by lefthook pre-commit hook (local) or by workflow convention (CI-generated commit) |
+| All 24 required CI status checks must pass on develop | Branch protection on develop enforces this before the release-prep PR can merge |
+| `RELEASE_PROMOTE_TOKEN` secret must be configured | `release-promote` cannot authenticate to push `main` or the semver tag (GITHUB_TOKEN cannot bypass main branch protection) |
+| `release-main` GitHub Environment must exist with at least one required reviewer | The `promote` job runs without an approval gate (security regression); configure at Settings ▸ Environments ▸ release-main ▸ Required reviewers |
 | crates.io / Chocolatey / Homebrew publishing is deferred post-v1 | All workspace crates carry `publish = false`; no tap exists; do NOT attempt registry publish for v1.0.0 |
 | `prism-dtu-demo-server` is included in the release build | release.yml builds both `-p prism-bin -p prism-dtu-demo-server`; the demo-server archive is retained as a workflow artifact and is NOT uploaded as a GitHub Release asset |
 
@@ -156,214 +187,113 @@ gh api repos/drbothen/prism/branches/develop/protection \
 
 ## 4. Step-by-Step: Cutting a Release
 
+Follow this procedure exactly. Do not improvise. The two release workflows
+(`release-prep.yml` and `release-promote.yml`) mechanize the steps that are
+safe to automate; human decisions (CHANGELOG curation, final approval) remain
+explicit gates.
+
+Replace `X.Y.Z` throughout with the actual version (e.g. `1.0.0-rc.2`).
+
 ### Prerequisites
 
-- `gh` CLI authenticated to drbothen/prism with `contents: write` scope
-- `git` with GPG or SSH signing configured (if project requires signed tags)
-- Develop HEAD is confirmed release-ready (all CI green, no open blocking defects)
+- `gh` CLI authenticated to drbothen/prism
+- `RELEASE_PROMOTE_TOKEN` secret configured in the repository
+  (Fine-Grained PAT: Contents:write + Workflows:write; or Classic PAT: `repo` + `workflow`)
+- `release-main` GitHub Environment configured with at least one required reviewer
+  (Settings ▸ Environments ▸ release-main ▸ Required reviewers)
+- Develop HEAD is confirmed release-ready: all 24 required CI checks green, no open
+  blocking defects
 - Human approval to proceed
 
-### Step 1 — Create the release-prep branch
+### Step 1 — Dispatch release-prep
 
 ```bash
-git fetch origin
-git checkout -b release/vX.Y.Z origin/develop
+gh workflow run release-prep.yml \
+  --repo drbothen/prism \
+  --ref develop \
+  --field version=X.Y.Z
 ```
 
-Replace `X.Y.Z` throughout with the actual version (e.g., `1.0.0`).
+This workflow:
+1. Creates branch `release/vX.Y.Z` off `develop`
+2. Bumps `crates/prism-bin/Cargo.toml` `[package].version` to `X.Y.Z`
+3. Updates both Cargo.lock files (root + `tests/external/non-exhaustive-violation/`)
+4. Scaffolds a `## [X.Y.Z] - YYYY-MM-DD` CHANGELOG section seeded with merged-PR
+   subjects since the previous tag
+5. Commits, pushes the branch, and opens a PR targeting `develop`
 
-### Step 2 — Bump prism-bin version
-
-Edit `crates/prism-bin/Cargo.toml`:
-
-```toml
-[package]
-version = "X.Y.Z"   # was 0.1.0 or previous version
-```
-
-Regenerate both lockfiles that the version bump invalidates, then confirm the
-build compiles. Both lockfiles must be committed — `release.yml` runs
-`cargo build --locked` for every build leg.
+Monitor the run:
 
 ```bash
-# Regenerate both lockfiles that the version bump invalidates.
-# Both must be committed — release.yml runs `cargo build --locked`.
-cargo update -p prism-bin --precise X.Y.Z
-cargo update --manifest-path tests/external/non-exhaustive-violation/Cargo.toml \
-             -p prism-bin --precise X.Y.Z
-cargo check -p prism-bin --locked   # now passes
+gh run list --repo drbothen/prism --workflow release-prep.yml --limit 3
+gh run watch --repo drbothen/prism
 ```
 
-### Step 3 — Author the CHANGELOG entry
+### Step 2 — Review and merge the release-prep PR
 
-If `CHANGELOG.md` does not yet exist, create it with this header:
+The PR body contains a checklist. Before merging:
 
-```markdown
-# Changelog
+1. Curate the CHANGELOG scaffold: categorize entries under Added / Fixed / Changed /
+   Security / Removed; remove the `> **SCAFFOLD**` notice when done.
+2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
+3. Update the README version badge and install URLs if this is not a pre-release:
+   - The `[![vX.Y.Z](...)]` shield badge URL in the README header
+   - All install URL paths (e.g. `prism-v1.0.0-rc.1-` → `prism-vX.Y.Z-`) in the `## Install` section
+   Push these to the release branch before merging.
+4. Wait for all 24 required CI checks to pass.
+5. Merge the PR to `develop` (squash or merge commit per project convention).
 
-All notable changes to Prism are documented here.
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-```
-
-Add the new release section immediately below `[Unreleased]` (and above any prior entries):
-
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
-
-### Added
-- ...
-
-### Fixed
-- ...
-
-### Changed
-- ...
-
-### Security
-- ...
-```
-
-Pull the content from `git log` since the last tag (or since project inception for
-the first release):
+### Step 3 — Dry-run release-promote (validate without writing)
 
 ```bash
-git log --oneline $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD
+gh workflow run release-promote.yml \
+  --repo drbothen/prism \
+  --ref develop \
+  --field tag=vX.Y.Z \
+  --field dry_run=true
 ```
 
-Group by type: feat commits → Added, fix commits → Fixed, etc. Include story IDs
-and PR numbers where they exist. Be concise but specific enough that an operator can
-understand what changed without reading the full diff.
+The `validate` job runs the full gate sequence — merge, tree-identity check, tag
+guard, version guard — then calls `git push --dry-run` to confirm auth and ref-update
+validity. Nothing is written to origin. No approval required.
 
-### Step 4 — Commit and push the release-prep branch
+Review the job summary (Actions tab ▸ Release Promote ▸ latest run ▸ Summary).
+All rows should show PASS / not "not reached". Confirm `prism-bin version` matches
+the tag you dispatched.
+
+### Step 4 — Real release-promote (promote develop → main + tag)
 
 ```bash
-git add crates/prism-bin/Cargo.toml \
-        Cargo.lock \
-        tests/external/non-exhaustive-violation/Cargo.lock \
-        CHANGELOG.md
-git commit -m "chore(release): bump prism-bin to vX.Y.Z, update Cargo.lock, add CHANGELOG entry"
-git push -u origin release/vX.Y.Z
+gh workflow run release-promote.yml \
+  --repo drbothen/prism \
+  --ref develop \
+  --field tag=vX.Y.Z \
+  --field dry_run=false
 ```
 
-Lefthook runs fmt + clippy + crate-layout on pre-commit and the full `just check`
-on pre-push. Do not skip them.
+The `validate` job runs the same gates as the dry-run (no approval required). After
+it succeeds, the `promote` job is queued and **pauses at the `release-main`
+environment gate** for required-reviewer approval.
 
-### Step 5 — Open the release-prep PR to develop
+To approve:
 
-```bash
-gh pr create \
-  --base develop \
-  --head release/vX.Y.Z \
-  --title "chore(release): vX.Y.Z release prep" \
-  --body "$(cat <<'EOF'
-## Release prep: vX.Y.Z
+1. Navigate to Actions tab ▸ Release Promote ▸ the new run.
+2. Click **Review deployments**.
+3. Select `release-main` and click **Approve and deploy**.
 
-- Bumps `prism-bin` to `X.Y.Z`
-- Adds CHANGELOG entry
+After approval the `promote` job:
+- Deterministically re-performs the merge + version guard (idempotent: same
+  develop HEAD, same `-X theirs` strategy → identical tree)
+- Pushes `main` to origin
+- Pushes tag `vX.Y.Z` to origin, which triggers `release.yml`
 
-## Checklist
-- [ ] All 24 required CI checks pass
-- [ ] CHANGELOG entry reviewed for accuracy
-- [ ] prism-bin version matches the intended tag
-EOF
-)"
-```
-
-Wait for all required CI checks to pass. Merge the PR to develop (squash or merge
-commit — follow project convention for this PR type). Do not merge until CI is
-fully green.
-
-### Step 6 — Preview with /vsdd-factory:release --dry-run (optional)
-
-Before the develop→main PR, run the release skill in dry-run mode to confirm the
-release artifact list, version, and any automation steps:
-
-```
-/vsdd-factory:release --dry-run
-```
-
-Review its output. If it reports unexpected findings, resolve them before proceeding.
-
-### Step 7 — Open the develop → main PR
-
-This PR is human-reviewed and human-merged. No automation performs this merge.
-
-```bash
-git fetch origin
-gh pr create \
-  --base main \
-  --head develop \
-  --title "release: vX.Y.Z" \
-  --body "$(cat <<'EOF'
-## Release vX.Y.Z
-
-Merges develop into main to cut the vX.Y.Z release.
-
-All 24 required CI checks must pass before merge. Merging this PR is a
-human action — do not use auto-merge.
-
-After merge: create and push the annotated tag on main.
-EOF
-)"
-```
-
-All 24 required status checks must pass on this PR. Do not merge if any check is
-red.
-
-### Step 8 — Human merges develop → main
-
-The human (Joshua) reviews and merges the PR in the GitHub UI. Merge strategy:
-merge commit (preserves history lineage). Do not squash the develop→main merge.
-
-After merge, pull the updated main locally:
-
-```bash
-git fetch origin
-git checkout main
-git pull origin main
-```
-
-Confirm the tip commit is the merge commit:
-
-```bash
-git log --oneline -3 main
-```
-
-### Step 9 — Create and push the annotated tag
-
-The tag must be created on the `main` HEAD after the merge commit is confirmed.
-
-```bash
-git tag -a vX.Y.Z -m "$(cat <<'EOF'
-Release vX.Y.Z
-
-See CHANGELOG.md for the full change list.
-EOF
-)"
-```
-
-Verify the tag points to the correct commit:
-
-```bash
-git log --oneline -1 vX.Y.Z
-```
-
-Push the tag. This triggers `release.yml`:
-
-```bash
-git push origin vX.Y.Z
-```
-
-**Do not push any other commits to main at this moment.** The tag push alone is what
-triggers the release workflow.
-
-### Step 10 — Watch the release workflow
+### Step 5 — Watch the release workflow
 
 ```bash
 gh run watch --repo drbothen/prism
 ```
 
-The workflow runs the 5-platform build matrix in parallel:
+`release.yml` runs the 5-platform build matrix in parallel:
 
 | Target | Runner | Archive |
 |--------|--------|---------|
@@ -378,9 +308,9 @@ The musl leg uses `cargo-zigbuild` to avoid glibc symbol contamination
 `prism-dtu-demo-server`.
 
 Expected total wall-clock time: approximately 30–45 minutes (60-minute per-job
-timeout). The publish-release job runs after all 5 build legs succeed.
+timeout). The `publish-release` job runs after all 5 build legs succeed.
 
-### Step 11 — Verify the GitHub Release
+### Step 6 — Verify the GitHub Release
 
 ```bash
 gh release view vX.Y.Z --repo drbothen/prism
@@ -404,28 +334,10 @@ Verify all of the following before declaring the release complete:
    Expected: four `specs/*.sensor.toml` entries, two `infusions/*.infusion.toml`
    entries, and `prism.toml.example` — all at archive root level.
 
-### Step 12 — Update README version badge and install block
+### Step 7 — Update the GitHub Release body
 
-The README version badge and install block are authored in the release-prep commit
-(Steps 3/4). For the first release, this was done as part of this release-prep PR.
-For subsequent releases, update the version badge and install URLs in `README.md`
-to reference the new tag version and commit those changes to the release-prep branch
-(Step 4) alongside the CHANGELOG entry and version bump — not in a separate
-follow-up PR.
-
-Specifically, update:
-- The `[![vX.Y.Z](...)]` shield badge URL in the README header to match the new tag
-- All install URL paths (e.g., `prism-v1.0.0-` → `prism-vX.Y.Z-`) in the `## Install` section
-
-Stage the updated `README.md` as part of the `git add` in Step 4.
-
-**Note:** The install URLs in `README.md` reference an unpublished release from
-the moment the release-prep PR merges to `develop` (when the badge/install block
-lands in the public tree) until `release.yml` finishes publishing the GitHub
-Release. The full window spans: release-prep PR merge → develop→main PR review
-and merge → annotated tag → ~45-minute release.yml build. On a public repository
-this is typically a few hours, but may extend to days if tag-cutting is delayed.
-This is expected; the README is the intended install surface, not a live endpoint.
+The workflow creates the release with `--generate-notes` but without the curated
+install/verify narrative. Edit the body as described in §5 Release Notes Convention.
 
 ---
 
@@ -520,13 +432,13 @@ If one or more of the 5 build legs fails and the `publish-release` job never ran
 (it `needs: build-release` — a partial matrix failure means no release was created):
 
 1. Diagnose the failure: `gh run view <run-id> --repo drbothen/prism --log-failed`
-2. Fix the root cause on `main` (commit to `main` via develop→main flow or a
-   direct hotfix PR to main — do NOT cherry-pick to avoid divergence). If a
-   direct hotfix to `main` is taken, immediately back-merge `main` → `develop`
-   via a separate PR to keep the branches in sync.
+2. Fix the root cause on `develop` via the normal feature/fix PR flow, then
+   back-merge `main` → `develop` via a direct hotfix PR if `main` has diverged.
+   Do NOT cherry-pick to avoid divergence.
 3. Delete the tag: `git push origin :vX.Y.Z && git tag -d vX.Y.Z`
-4. Re-create the annotated tag on the fixed `main` HEAD: `git tag -a vX.Y.Z -m "..."`
-5. Re-push: `git push origin vX.Y.Z`
+4. Prefer a new patch tag (`vX.Y.(Z+1)`) if the original release was publicly visible
+   to avoid confusion in downstream tooling. Otherwise re-dispatch `release-promote`
+   with the original tag after deleting it from origin.
 
 **Caution on tag re-push:** deleting and re-creating a tag after any assets were
 partially uploaded can cause confusion in downstream tooling. Prefer to fix via a
@@ -554,12 +466,22 @@ without deleting the tag or the release is safe.
 workflow (see above). Do not manually construct or upload a `checksums.txt` — it
 must come from the CI build.
 
-### A required CI check is red on the develop → main PR
+### A required CI check is red on the release-prep PR
 
 Do not merge. Fix the underlying issue on `develop` via the normal feature/fix PR
-flow. Return to Step 7 once all checks are green. There is no bypass for a failing
-required check — lefthook's `--no-verify` is forbidden, and branch protection
-enforces all 24 checks.
+flow. Rebase the release-prep branch onto develop and push before re-running CI.
+Return to §4 Step 2 once all checks are green. There is no bypass for a failing
+required check — `--no-verify` is forbidden (TD-FACTORY-HOOK-BYPASS-001) and branch
+protection enforces all 24 checks.
+
+### release-promote fails the version guard
+
+If the `validate` job fails with `tag vX.Y.Z does not match prism-bin version Y.Z`:
+- The release-prep PR's CHANGELOG curation was merged but the prism-bin version was
+  not bumped, OR the wrong tag was dispatched.
+- Fix: re-run release-prep with the correct version, or manually push a fix commit
+  to `develop` bumping `crates/prism-bin/Cargo.toml` to the correct version, then
+  re-dispatch `release-promote`.
 
 ### Anything else
 

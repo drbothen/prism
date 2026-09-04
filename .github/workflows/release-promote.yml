@@ -188,7 +188,29 @@ jobs:
           echo "Tag '${TAG}' does not exist on origin — safe to create"
 
       # ------------------------------------------------------------------ #
-      # 7. Create the annotated tag on the merge commit                      #
+      # 7. Version guard — tag must match prism-bin Cargo.toml version      #
+      # ------------------------------------------------------------------ #
+      - name: Version guard — tag must match prism-bin version
+        run: |
+          set -euo pipefail
+          # Parse [package].version from prism-bin/Cargo.toml.  At this point
+          # the working tree has passed the safety gate and is byte-identical to
+          # origin/develop, so this reads the authoritative develop version.
+          PRISM_BIN_VERSION="$(grep -m1 '^version = ' crates/prism-bin/Cargo.toml \
+            | sed 's/version = "//;s/"//')"
+          # Always export before the comparison so the summary step can report
+          # the actual prism-bin version even when the guard fails.
+          echo "PRISM_BIN_VERSION=${PRISM_BIN_VERSION}" >> "${GITHUB_ENV}"
+          # Tag form: vX.Y.Z[-pre].  Strip leading 'v' and compare exactly.
+          TAG_VERSION="${TAG#v}"
+          if [[ "${TAG_VERSION}" != "${PRISM_BIN_VERSION}" ]]; then
+            echo "::error::tag ${TAG} does not match prism-bin version ${PRISM_BIN_VERSION} — bump prism-bin (release-prep) or fix the tag input"
+            exit 1
+          fi
+          echo "Version guard PASS — tag ${TAG} matches prism-bin ${PRISM_BIN_VERSION}"
+
+      # ------------------------------------------------------------------ #
+      # 8. Create the annotated tag on the merge commit                      #
       # ------------------------------------------------------------------ #
       - name: Create annotated tag
         run: |
@@ -201,7 +223,7 @@ jobs:
           echo "MERGE_SHA=${MERGE_SHA}" >> "${GITHUB_ENV}"
 
       # ------------------------------------------------------------------ #
-      # 8. DRY RUN — authenticate + validate ref updates without writing     #
+      # 9. DRY RUN — authenticate + validate ref updates without writing     #
       #    Only executed when dry_run == true.                               #
       # ------------------------------------------------------------------ #
       - name: Push — dry-run (validate without writing)
@@ -223,7 +245,7 @@ jobs:
           echo "Re-run with dry_run=false to execute the real promotion."
 
       # ------------------------------------------------------------------ #
-      # 9. Job summary — written even on failure for observability            #
+      # 10. Job summary — written even on failure for observability           #
       # ------------------------------------------------------------------ #
       - name: Job summary
         if: always()
@@ -236,6 +258,7 @@ jobs:
             echo "|---|---|"
             echo "| Dry run | \`${DRY_RUN}\` |"
             echo "| Tag | \`${TAG}\` |"
+            echo "| prism-bin version | \`${PRISM_BIN_VERSION:-not reached}\` |"
             echo "| Merge SHA | \`${MERGE_SHA:-not reached}\` |"
             if [[ -n "${MERGE_SHA:-}" ]]; then
               echo "| Tree identity | PASS |"
@@ -365,7 +388,23 @@ jobs:
           echo "MERGE_SHA=${MERGE_SHA}" >> "${GITHUB_ENV}"
 
       # ------------------------------------------------------------------ #
-      # 8. REAL PUSH — push main first, then the tag to trigger release.yml  #
+      # 8. Version guard (defense in depth) — re-verify before real push     #
+      # ------------------------------------------------------------------ #
+      - name: Version guard (defense in depth) — re-verify tag matches prism-bin
+        run: |
+          set -euo pipefail
+          PRISM_BIN_VERSION="$(grep -m1 '^version = ' crates/prism-bin/Cargo.toml \
+            | sed 's/version = "//;s/"//')"
+          echo "PRISM_BIN_VERSION=${PRISM_BIN_VERSION}" >> "${GITHUB_ENV}"
+          TAG_VERSION="${TAG#v}"
+          if [[ "${TAG_VERSION}" != "${PRISM_BIN_VERSION}" ]]; then
+            echo "::error::tag ${TAG} does not match prism-bin version ${PRISM_BIN_VERSION} — bump prism-bin (release-prep) or fix the tag input"
+            exit 1
+          fi
+          echo "Version guard PASS — tag ${TAG} matches prism-bin ${PRISM_BIN_VERSION}"
+
+      # ------------------------------------------------------------------ #
+      # 9. REAL PUSH — push main first, then the tag to trigger release.yml  #
       # ------------------------------------------------------------------ #
       - name: Push — real (main then tag)
         run: |
@@ -383,7 +422,7 @@ jobs:
           echo "  release.yml will build + publish the GitHub Release."
 
       # ------------------------------------------------------------------ #
-      # 9. Job summary — written even on failure for observability            #
+      # 10. Job summary — written even on failure for observability           #
       # ------------------------------------------------------------------ #
       - name: Job summary
         if: always()
@@ -396,6 +435,7 @@ jobs:
             echo "|---|---|"
             echo "| Dry run | \`${DRY_RUN}\` |"
             echo "| Tag | \`${TAG}\` |"
+            echo "| prism-bin version | \`${PRISM_BIN_VERSION:-not reached}\` |"
             echo "| Merge SHA | \`${MERGE_SHA:-not reached}\` |"
             if [[ -n "${MERGE_SHA:-}" ]]; then
               echo "| Tree identity | PASS |"

@@ -1,0 +1,309 @@
+# release-prep.yml — mechanize the version bump + CHANGELOG scaffold for a release
+#
+# PURPOSE
+# -------
+# Automates the mechanical preparation steps for cutting a release:
+#   1. Creates a release/vX.Y.Z branch off develop
+#   2. Bumps crates/prism-bin/Cargo.toml [package].version to the requested version
+#   3. Updates both Cargo.lock files (root + non-exhaustive-violation)
+#   4. Scaffolds a ## [X.Y.Z] CHANGELOG section seeded with commits since the
+#      previous tag so the human has a categorization starting point
+#   5. Commits, pushes the branch, and opens a PR targeting develop
+#
+# The human still owns:
+#   - Reviewing and curating the CHANGELOG scaffold
+#   - Approving and merging the PR to develop
+#   - Dispatching release-promote.yml after the PR merges
+#
+# AUTHENTICATION
+# --------------
+# Uses the built-in GITHUB_TOKEN (contents: write + pull-requests: write).
+# This workflow only pushes a release/* branch and opens a PR to develop —
+# it does NOT write to main and requires no PAT.
+#
+# VERSIONING NOTE
+# ---------------
+# Only crates/prism-bin/Cargo.toml is bumped.  All other workspace crates
+# carry independent semver versions and are NOT touched.  See RELEASING.md
+# §1 Versioning Philosophy.
+
+name: Release Prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: >
+          Version to prepare (e.g. 1.0.0-rc.2 or 1.1.0) — WITHOUT leading v,
+          matching the Cargo.toml form.  The tag that release-promote.yml will
+          push will be v${version}.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-prep:
+    name: Release prep v${{ github.event.inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout develop — full history needed for git log seed           #
+      # ------------------------------------------------------------------ #
+      - name: Checkout develop (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------------ #
+      # 2. Configure git bot identity for the release-prep commit            #
+      # ------------------------------------------------------------------ #
+      - name: Configure git bot identity
+        run: |
+          set -euo pipefail
+          git config user.name "prism-release-bot"
+          git config user.email "prism-release-bot@users.noreply.github.com"
+
+      # ------------------------------------------------------------------ #
+      # 3. Create release branch off develop                                 #
+      # ------------------------------------------------------------------ #
+      - name: Create release branch
+        run: |
+          set -euo pipefail
+          BRANCH="release/v${VERSION}"
+          if git ls-remote --heads origin "${BRANCH}" | grep -q "${BRANCH}"; then
+            echo "::error::branch ${BRANCH} already exists on origin — delete it or choose a different version"
+            exit 1
+          fi
+          git checkout -b "${BRANCH}"
+          echo "BRANCH=${BRANCH}" >> "${GITHUB_ENV}"
+          echo "Created branch ${BRANCH} off develop"
+
+      # ------------------------------------------------------------------ #
+      # 4. Bump crates/prism-bin/Cargo.toml [package].version               #
+      #    Only prism-bin carries the product version (RELEASING.md §1).    #
+      #    All other workspace crates are untouched.                         #
+      # ------------------------------------------------------------------ #
+      - name: Bump prism-bin version in Cargo.toml
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import re, os
+          version = os.environ['VERSION']
+          path = 'crates/prism-bin/Cargo.toml'
+          content = open(path).read()
+          # Replace the first occurrence of version = "..." (the [package] version).
+          new_content = re.sub(
+              r'^version = "[^"]*"',
+              f'version = "{version}"',
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if new_content == content:
+              raise SystemExit(f'ERROR: no version line found in {path} — check Cargo.toml format')
+          open(path, 'w').write(new_content)
+          print(f'Bumped prism-bin version to {version}')
+          PYEOF
+
+      # ------------------------------------------------------------------ #
+      # 5. Install Rust toolchain (required for cargo update)                #
+      #    cargo update is a pure metadata operation — no compilation,       #
+      #    no protoc or other build tools needed.                            #
+      # ------------------------------------------------------------------ #
+      - name: Install Rust toolchain (stable, for cargo update)
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      # ------------------------------------------------------------------ #
+      # 6. Update Cargo.lock files for the prism-bin version bump            #
+      #    Two lockfiles: root workspace + non-exhaustive-violation.         #
+      #    Both are committed — release.yml runs `cargo build --locked`.    #
+      # ------------------------------------------------------------------ #
+      - name: Update Cargo.lock files (prism-bin version only)
+        run: |
+          set -euo pipefail
+          # Root workspace lockfile
+          cargo update -p prism-bin --precise "${VERSION}"
+          echo "Root Cargo.lock updated"
+          # Non-exhaustive-violation external test crate lockfile
+          cargo update \
+            --manifest-path tests/external/non-exhaustive-violation/Cargo.toml \
+            -p prism-bin --precise "${VERSION}"
+          echo "tests/external/non-exhaustive-violation/Cargo.lock updated"
+
+      # ------------------------------------------------------------------ #
+      # 7. Scaffold CHANGELOG entry                                          #
+      #    Inserts a ## [X.Y.Z] section after ## [Unreleased], seeded with  #
+      #    merged-PR/commit subjects since the previous tag.  The human     #
+      #    curates the scaffold before merging the PR.                       #
+      # ------------------------------------------------------------------ #
+      - name: Scaffold CHANGELOG entry
+        run: |
+          set -euo pipefail
+          TODAY="$(date -u +%Y-%m-%d)"
+          PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          echo "PREV_TAG=${PREV_TAG:-'(first release)'}" >> "${GITHUB_ENV}"
+          if [[ -n "${PREV_TAG}" ]]; then
+            GIT_RANGE="${PREV_TAG}..HEAD"
+          else
+            GIT_RANGE="$(git rev-list --max-parents=0 HEAD)..HEAD"
+          fi
+          # Prefer merge commits (PR subjects) as the seed list; fall back to
+          # all commits when there are none (e.g., first release).
+          COMMITS="$(git log "${GIT_RANGE}" --merges --oneline | head -100 || true)"
+          if [[ -z "${COMMITS}" ]]; then
+            COMMITS="$(git log "${GIT_RANGE}" --oneline | head -60 || true)"
+          fi
+          printf '%s\n' "${COMMITS}" > /tmp/changelog-commits.txt
+          export PREP_VERSION="${VERSION}"
+          export PREP_TODAY="${TODAY}"
+          python3 - <<'PYEOF'
+          import os
+          from pathlib import Path
+
+          version = os.environ['PREP_VERSION']
+          today   = os.environ['PREP_TODAY']
+
+          commits_path = Path('/tmp/changelog-commits.txt')
+          raw = commits_path.read_text().strip() if commits_path.exists() else ''
+          lines = [l.strip() for l in raw.splitlines() if l.strip()]
+          formatted = '\n'.join(f'- {l}' for l in lines) if lines else '- (no commits found — fill in manually)'
+
+          scaffold = (
+              f'## [{version}] - {today}\n\n'
+              '> **SCAFFOLD** — review and categorize before merging this release-prep PR.\n'
+              '> Group entries under Added / Fixed / Changed / Security / Removed.\n'
+              '> Remove this notice when done.\n\n'
+              '### Changed/Added/Fixed (seed list — review + categorize)\n\n'
+              + formatted
+              + '\n\n'
+          )
+
+          changelog = Path('CHANGELOG.md')
+          content = changelog.read_text()
+
+          marker = '## [Unreleased]\n'
+          idx = content.find(marker)
+          if idx != -1:
+              insert_at = idx + len(marker)
+              new_content = content[:insert_at] + '\n' + scaffold + content[insert_at:]
+          else:
+              new_content = content + '\n' + scaffold
+
+          changelog.write_text(new_content)
+          print(f'Scaffolded CHANGELOG entry for v{version}')
+          PYEOF
+
+      # ------------------------------------------------------------------ #
+      # 8. Commit the release-prep changes                                   #
+      # ------------------------------------------------------------------ #
+      - name: Commit release prep
+        run: |
+          set -euo pipefail
+          git add \
+            crates/prism-bin/Cargo.toml \
+            Cargo.lock \
+            tests/external/non-exhaustive-violation/Cargo.lock \
+            CHANGELOG.md
+          git commit -m "chore(release): prep v${VERSION} — bump prism-bin + CHANGELOG scaffold"
+          echo "Committed release prep for v${VERSION}"
+
+      # ------------------------------------------------------------------ #
+      # 9. Push the release branch to origin                                 #
+      # ------------------------------------------------------------------ #
+      - name: Push release branch
+        run: |
+          set -euo pipefail
+          git push -u origin "${BRANCH}"
+          echo "Pushed ${BRANCH} to origin"
+
+      # ------------------------------------------------------------------ #
+      # 10. Open a pull request to develop                                   #
+      # ------------------------------------------------------------------ #
+      - name: Open pull request to develop
+        run: |
+          set -euo pipefail
+          # Build PR body using a Python list of lines — every line stays
+          # indented within the YAML block scalar (no column-0 content).
+          python3 - <<'PYEOF'
+          import os
+          version  = os.environ['VERSION']
+          prev_tag = os.environ.get('PREV_TAG', '(first release)')
+          lines = [
+              f'## Release prep: v{version}',
+              '',
+              f'This PR was created by the `release-prep` workflow. It bumps `prism-bin`',
+              f'to `{version}` and scaffolds a CHANGELOG entry seeded from commits since',
+              f'the previous tag (`{prev_tag}`).',
+              '',
+              '**Before merging:**',
+              '1. Review and curate the CHANGELOG entry — categorize entries under',
+              '   Added / Fixed / Changed / Security / Removed; remove the scaffold notice.',
+              f'2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`v{version}`).',
+              '3. Wait for all required CI checks to pass.',
+              '4. Merge this PR to `develop` (squash or merge commit per project convention).',
+              '',
+              '**After merge — to promote (see RELEASING.md §4):**',
+              '```bash',
+              '# Dry run first (validates without writing):',
+              f'gh workflow run release-promote.yml --repo drbothen/prism --ref develop --field tag=v{version} --field dry_run=true',
+              '',
+              '# Real promotion (requires release-main environment approval):',
+              f'gh workflow run release-promote.yml --repo drbothen/prism --ref develop --field tag=v{version} --field dry_run=false',
+              '```',
+              '',
+              '## Checklist',
+              '- [ ] CHANGELOG entry reviewed and categorized',
+              f'- [ ] `prism-bin` version in `Cargo.toml` matches intended tag `v{version}`',
+              '- [ ] All required CI checks pass',
+              '- [ ] PR merged to `develop` before dispatching `release-promote`',
+          ]
+          with open('/tmp/pr-body.md', 'w') as f:
+              f.write('\n'.join(lines) + '\n')
+          print('PR body written to /tmp/pr-body.md')
+          PYEOF
+
+          PR_URL="$(gh pr create \
+            --base develop \
+            --head "${BRANCH}" \
+            --title "chore(release): prep v${VERSION}" \
+            --body-file /tmp/pr-body.md)"
+          echo "PR_URL=${PR_URL}" >> "${GITHUB_ENV}"
+          echo "Opened PR: ${PR_URL}"
+
+      # ------------------------------------------------------------------ #
+      # 11. Job summary                                                       #
+      # ------------------------------------------------------------------ #
+      - name: Job summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Release Prep — v${VERSION}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Branch | \`${BRANCH:-not reached}\` |"
+            echo "| Previous tag | \`${PREV_TAG:-not reached}\` |"
+            if [[ -n "${PR_URL:-}" ]]; then
+              echo "| Pull request | ${PR_URL} |"
+              echo ""
+              echo "> Release-prep PR opened."
+              echo "> Review and curate the CHANGELOG before merging."
+              echo "> After merge to develop, dispatch \`release-promote\` with"
+              echo "> \`tag=v${VERSION}\`."
+            else
+              echo "| Pull request | not reached |"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
