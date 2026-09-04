@@ -892,6 +892,32 @@ pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
 
 /// Step 2 [BLOCKING]: Load `prism.toml` from config directory.
 ///
+/// Resolve relative path fields in [`PrismConfig`] against `config_dir`.
+///
+/// Called from both [`step2_load_config`] (boot path) and
+/// `credential_cli::load_prism_config_for_cli` (CLI path) so both sites share
+/// identical resolution semantics (BLOCKING-3 / S-REL-005 AC-009).
+///
+/// A relative `state_dir`, `spec_dir`, or `plugin_dir` declared in `prism.toml`
+/// (e.g. `state_dir = "./state"`) is rebased as `config_dir.join(path)`.
+/// Absolute paths pass through unchanged.
+///
+/// Without this call a relative `state_dir` resolves differently depending on the
+/// process CWD at runtime — causing silent credential loss between `prism credential set`
+/// (CLI path) and `prism start` (boot path) when run from different directories
+/// (CWE-22 traversal surface SEC-001).
+pub(crate) fn resolve_config_paths(config: &mut PrismConfig, config_dir: &Path) {
+    if config.spec_dir.is_relative() {
+        config.spec_dir = config_dir.join(&config.spec_dir);
+    }
+    if config.state_dir.is_relative() {
+        config.state_dir = config_dir.join(&config.state_dir);
+    }
+    if config.plugin_dir.is_relative() {
+        config.plugin_dir = config_dir.join(&config.plugin_dir);
+    }
+}
+
 /// ADR-022 §B step 2; BC-2.06.011.
 /// Reads `prism.toml`, deserializes via serde/toml, validates schema.
 /// `$PRISM_CONFIG_DIR` always overrides the default; does NOT fall back to
@@ -950,15 +976,10 @@ pub async fn step2_load_config(config_dir: &Path) -> Result<PrismConfig, BootErr
         ))
     })?;
 
-    // S-REL-005 AC-009: resolve relative spec_dir / plugin_dir against the config
-    // directory so downstream boot steps receive absolute paths regardless of the
-    // process CWD at runtime.  Absolute paths pass through unchanged.
-    if config.spec_dir.is_relative() {
-        config.spec_dir = config_dir.join(&config.spec_dir);
-    }
-    if config.plugin_dir.is_relative() {
-        config.plugin_dir = config_dir.join(&config.plugin_dir);
-    }
+    // S-REL-005 AC-009 + BLOCKING-3: resolve relative spec_dir / state_dir / plugin_dir
+    // against config_dir.  Absolute paths pass through unchanged.  See `resolve_config_paths`
+    // doc comment for the credential-loss / CWE-22 rationale.
+    resolve_config_paths(&mut config, config_dir);
 
     tracing::info!(
         config_dir = %config_dir.display(),
@@ -1621,7 +1642,7 @@ pub async fn step5_init_credential_store(
             Err(BootError::ConfigInvalid(format!(
                 "encrypted_file backend requires passphrase resolution \
                  (deferred to S-1.07-FOLLOWUP); \
-                 use keyring backend for v0.1.0. \
+                 use the keyring backend instead. \
                  Path: {}",
                 path.display()
             )))
@@ -1684,7 +1705,7 @@ pub async fn step5_init_credential_store_with_probe(
             return Err(BootError::ConfigInvalid(format!(
                 "encrypted_file backend requires passphrase resolution \
                  (deferred to S-1.07-FOLLOWUP); \
-                 use keyring backend for v0.1.0. \
+                 use the keyring backend instead. \
                  Path: {}",
                 path.display()
             )));
@@ -4115,6 +4136,22 @@ plugin_dir = "./plugins"
              Fix: config_dir.join(plugin_dir) when plugin_dir.is_relative().",
             config_dir.display()
         );
+
+        // BLOCKING-3 (state_dir): relative state_dir must also be rebased to
+        // config_dir.join("state"). Before BLOCKING-3 fix, only spec_dir / plugin_dir
+        // were resolved; state_dir was returned unmodified.  A relative state_dir causes
+        // `prism credential set` (CLI) and `prism start` (server) to resolve to different
+        // dirs when run from different CWDs — silent credential loss + CWE-22 surface.
+        //
+        // This assertion FAILS on current code (RED GATE for state_dir).
+        assert_eq!(
+            config.state_dir,
+            config_dir.join("state"),
+            "BLOCKING-3: state_dir './state' must be resolved to '{}/state' \
+             (config_dir-relative), not remain as a raw relative path. \
+             Fix: extend resolve_config_paths to include state_dir.",
+            config_dir.display()
+        );
     }
 
     /// S-REL-005 AC-009 guard: absolute `spec_dir` and `plugin_dir` must pass through
@@ -4153,6 +4190,10 @@ plugin_dir = "./plugins"
         assert_eq!(
             config.plugin_dir, abs_plugin_dir,
             "S-REL-005 AC-009 guard: absolute plugin_dir must be returned unchanged"
+        );
+        assert_eq!(
+            config.state_dir, abs_state_dir,
+            "BLOCKING-3 guard: absolute state_dir must be returned unchanged"
         );
     }
 }
