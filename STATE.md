@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.971"
+version: "8.972"
 producer: state-manager
-timestamp: 2026-09-04T00:00:00Z
+timestamp: 2026-09-04T18:06:10Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,22 +16,22 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "18646aa44"
-# NOTE: D-2441 — PR #253 (chore(release): v1.0.0 release prep) squash-merged to develop @18646aa44 (human-executed 2026-09-04). develop_head 11493aeb5→18646aa44. D-2435 NOTE archived.
+develop_head: "725cf413d"
+# NOTE: D-2444 — PR #254 (feat(S-REL-003): install.sh + install.ps1 — checksum-verified 5-platform consumer install scripts) admin squash-merged to develop @725cf413d (human-directed --admin bypass 2026-09-04). develop_head 18646aa44→725cf413d. D-2441 NOTE archived.
 bc_index_version: "10.06"
 # NOTE: D-2432 — BC-INDEX v10.05→v10.06: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst — BC-2.16.013 pin v1.45→v1.46 (LOW-002: coupling + EC-016-013-011 Test-coupling note corrected; RG-009 hardened to strictly enforce timestamp-only id-absent). draft/active/total UNCHANGED 3/261/277. D-2430 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.994"
-# NOTE: D-2443 — STORY-INDEX v2.993→v2.994: S-CLAROTY-DTU-PARITY-001 REGISTERED (governing story; 5 sub-stubs; v1.0; 3 pts; blocks S-REL-004). S-REL-004 v0.4→v0.5 + S-REL-007 v0.2→v0.3 + S-REL-006 v0.1→v0.2 (deferral chain post-rc.1). total_stories 324→325. D-2441 NOTE archived.
+story_index_version: "2.995"
+# NOTE: D-2444 — STORY-INDEX v2.994→v2.995: S-REL-003 [draft v0.3]→[merged v0.3; PR #254 @725cf413d]. POL-14 NO-OP (behavioral_contracts: []). total_stories 325 UNCHANGED. D-2443 NOTE archived.
 arch_index_version: "2.358"
 # NOTE: D-2440 — ARCH-INDEX v2.357→v2.358: ADR-062 NEW ACCEPTED v1.0 (Product Version Alignment; git tag canonical; prism-bin tracks tag; other crates independent; no workspace.package; D1–D5; anchored S-REL-002; SS-22). D-2373 NOTE archived.
-workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exit 0)"
-# NOTE: D-2371 — workspace_test_count 5880 verified at @1c1159c68 (D-2365). Feature HEAD advanced to @704aac24a (D-2371 B1 multi-batch fix; pr-manager push); re-verify pending (adversary B1 verification + squash-merge into develop). D-2365 NOTE archived.
+workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
+# NOTE: D-2444 — workspace_test_count 6022 verified at @725cf413d (S-REL-003 merged; just check 6022/6022 per merge gate). D-2371 NOTE archived.
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2443 (TD-VSDD-053) — HUMAN-DIRECTED DEFERRAL: v1.0.0-rc.1 ships WITHOUT demo bundle. Root cause: prism-dtu-claroty implements only ~7 of 14 tables declared in claroty.sensor.toml (G2–G6 surfaces missing); demo-server-backed bundle cannot function until parity. S-CLAROTY-DTU-PARITY-001 REGISTERED (governing story; 5 sub-stubs; v1.0 draft; 3 pts; blocks S-REL-004; post-rc.1 cycle; depends_on: []). S-REL-004 v0.4→v0.5 + S-REL-007 v0.2→v0.3 + S-REL-006 v0.1→v0.2 (all DEFERRED post-rc.1 per deferral chain). REVISED rc.1 critical path: S-REL-003 (PR in flight @59fcc17a2) → merge (fresh human approval) → live secops-factory RC gate on monroe → tag v1.0.0-rc.1 (+develop→main; separate fresh human approvals). S-REL-004/007/006 deferred post-rc.1 behind S-CLAROTY-DTU-PARITY-001. develop_head UNCHANGED 18646aa44. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED (DEMO-SCOPE+STATE+SESSION-HANDOFF co-updated this burst). Dim-3 CLEAR (no new unanchored MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). Count-propagation sweep: total_stories 324→325; story_index v2.993→v2.994; bc_index v10.06/arch_index v2.358/vp_index v2.22/develop_head 18646aa44 ALL UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.970→v8.971. SESSION-HANDOFF v8.063→v8.064."
+current_step: "D-2444 (TD-VSDD-053) — S-REL-003 MERGED: PR #254 (feat(S-REL-003): install.sh + install.ps1 — checksum-verified 5-platform consumer install scripts) admin squash-merged to develop @725cf413d (human-directed --admin bypass 2026-09-04; precedent-consistent with prior prism admin-merges e.g. PR #240; security-reviewer PASS CLEAN(strict)=yes 0 findings @9724a350a; pr-reviewer READY covered_sha 9724a350a; CI 51/51; tests 42/42+123/123 release-gate; just check 6022/6022). POL-14 NO-OP (behavioral_contracts: []). feature/S-REL-003 remote deleted. REVISED rc.1 critical path: S-REL-003 DONE → live secops-factory RC gate on monroe (Claroty demo on live xDome/monroe; human-involved; AD-017 opaque; D-2410 no live data into repo) → develop→main merge + tag v1.0.0-rc.1 (EACH requires separate fresh in-transcript human approval). S-REL-004/007/006 remain DEFERRED post-rc.1 behind S-CLAROTY-DTU-PARITY-001 (D-2443 unchanged). develop_head 18646aa44→725cf413d. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). Count-propagation sweep: total_stories 325 UNCHANGED; story_index v2.994→v2.995; bc_index v10.06/arch_index v2.358/vp_index v2.22 ALL UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.971→v8.972. SESSION-HANDOFF v8.064→v8.065."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-04 D-2443: Human-directed deferral — v1.0.0-rc.1 ships WITHOUT demo bundle. S-CLAROTY-DTU-PARITY-001 REGISTERED. S-REL-004/007/006 deferred post-rc.1. Revised rc.1 path: S-REL-003 → merge → monroe RC gate → tag. §RESUME SNAPSHOT D-2443 inserted. D-2442 SUPERSEDED. trajectory-tail →8→0→1→2. STATE v8.970→v8.971. SESSION-HANDOFF v8.063→v8.064. |
+| **Last Updated** | 2026-09-04 D-2444: S-REL-003 MERGED @725cf413d (PR #254, admin squash-merge human-directed). rc.1 critical path: live monroe RC gate → develop→main + tag v1.0.0-rc.1 (separate fresh human approvals). develop_head 18646aa44→725cf413d. §RESUME SNAPSHOT D-2444 inserted. D-2443 SUPERSEDED. trajectory-tail →8→0→1→2. STATE v8.971→v8.972. SESSION-HANDOFF v8.064→v8.065. |
 
 ## Phase Progress
 
