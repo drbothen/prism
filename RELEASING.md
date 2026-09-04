@@ -405,9 +405,13 @@ Specifically, update:
 
 Stage the updated `README.md` as part of the `git add` in Step 4.
 
-**Note:** From the moment the release-prep PR merges to `main` until `release.yml`
-finishes publishing the GitHub Release (~45 min), the install URLs in `README.md`
-reference an unpublished release. This is expected and acceptable.
+**Note:** The install URLs in `README.md` reference an unpublished release from
+the moment the release-prep PR merges to `develop` (when the badge/install block
+lands in the public tree) until `release.yml` finishes publishing the GitHub
+Release. The full window spans: release-prep PR merge → develop→main PR review
+and merge → annotated tag → ~45-minute release.yml build. On a public repository
+this is typically a few hours, but may extend to days if tag-cutting is delayed.
+This is expected; the README is the intended install surface, not a live endpoint.
 
 ---
 

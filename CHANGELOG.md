@@ -27,8 +27,9 @@ structured audit logging — all in a single operator-deployable binary.
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
   (S-0.02, #2)
 - GitHub Actions CI with 24 required status checks including compile-fail gates,
-  fuzz smoke, Kani proof job, WASM32 compile check, `.prx` build, and
-  cross-platform test matrix (#1, #46, #241)
+  fuzz smoke, WASM32 compile check, `.prx` build, and cross-platform test
+  matrix; Kani formal proofs run as a separate post-merge job (`post-merge.yml`,
+  not a PR gate) (#1, #46, #241)
 - Workspace crate-layout enforcement via `check-crate-layout.sh` CI gate
   (`src/` convention, ADR-012; S-3.5.01, #82)
 
@@ -315,3 +316,6 @@ structured audit logging — all in a single operator-deployable binary.
 - `rustls-tls` mandatory workspace-wide: eliminates ~65 s macOS Keychain init
   and corporate MITM proxy interception path for sensor API credentials
   (ADR-050; DEFECT-ADAPTER-TLS-XDOME-LIVE-001)
+
+[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/drbothen/prism/releases/tag/v1.0.0
