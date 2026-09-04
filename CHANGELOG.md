@@ -271,6 +271,12 @@ in rc.1**. They will return in a future release with full native authentication:
   CVSS enrichment on Armis CVE data — enrichment code path present in the binary;
   sensor pipelines deferred.
 
+### Known Limitations
+
+- **claroty_vulnerabilities**: live row retrieval can time out on large tenants
+  (LIMIT not yet early-stopping the offset-pagination fetch); schema/describe
+  works. Fix tracked for v1.0.0-rc.2 under DEFECT-CLAROTY-VULN-PAGESIZE-001.
+
 ### Fixed
 
 - `_meta` envelope: `sensors_queried` Err-arm + `has_more` invariant
