@@ -1939,13 +1939,19 @@ jobs:
         shell: pwsh
         run: |
           # U33: PSScriptAnalyzer is NOT pre-installed on windows-latest.
-          # Must be installed explicitly (S-REL-003 AC-009).
-          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
-      - name: Lint install.ps1
+          # SEC-002 (CWE-494): pin to known-good version to prevent supply-chain substitution.
+          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -RequiredVersion 1.22.0
+      - name: Lint install.ps1 (PS 5.1 compatibility scope)
         shell: pwsh
         run: |
           # AC-005 / AC-009 (S-REL-003): PSScriptAnalyzer must pass at Severity Error on install.ps1.
-          Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Error
+          # SEC-001: capture $results and exit 1 on any finding — gate cannot pass vacuously.
+          # N8: install.ps1 targets PowerShell 5.1 consumers; validate at PS 5.1 compat scope.
+          $results = Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Error
+          if ($results) {
+              $results | Format-List
+              exit 1
+          }
           Write-Host "PSScriptAnalyzer: scripts/install.ps1 passes (S-REL-003 AC-005 / AC-009)"
 
   verify-workflow-structure:
