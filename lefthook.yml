@@ -8,7 +8,7 @@ pre-commit:
       glob: "*.rs"
       run: cargo clippy --all-features -- -D warnings
     # layout: runs the full workspace scan once per commit when any crates/** file is staged.
-    # Runtime must be under 1 second for the 24 direct crates/*/ subdirectories (ADR-012 §2.5, BC-3.7.001 precondition 4).
+    # Runtime must be under 1 second for the 24 crates/*/ subdirectories with Cargo.toml (ADR-012 §2.5, BC-3.7.001 precondition 4).
     layout:
       glob: "crates/**"
       run: scripts/check-crate-layout.sh
