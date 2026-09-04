@@ -40,6 +40,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# N3: Runtime version check — #Requires is inert under 'irm | iex' (the primary documented path).
+# Abort early with a clear message on PowerShell < 5.1.
+if ($PSVersionTable.PSVersion.Major -lt 5 -or
+    ($PSVersionTable.PSVersion.Major -eq 5 -and $PSVersionTable.PSVersion.Minor -lt 1)) {
+    Write-Error "PowerShell 5.1 or later is required. Current version: $($PSVersionTable.PSVersion)"
+    exit 1
+}
+
+# N2: Force TLS 1.2 for PS 5.1 compatibility.
+# PS 5.1 on older Windows defaults to TLS 1.0/1.1 for .NET WebClient/ServicePoint; GitHub
+# requires TLS 1.2+. Append Tls12 with -bor to avoid disabling other negotiated protocols.
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
 $Repo = "drbothen/prism"
 $Target = "x86_64-pc-windows-msvc"
 $InstallDir = Join-Path $env:LOCALAPPDATA "prism\bin"
@@ -57,6 +70,7 @@ if (-not $Version) {
         $ReleasesJson = Invoke-WebRequest `
             -Uri "https://api.github.com/repos/$Repo/releases?per_page=1" `
             -UseBasicParsing `
+            -TimeoutSec 30 `
             -ErrorAction Stop
         # U30: PSObject.Properties enumeration — 5.1-safe, no -AsHashtable (requires PS 7.0+)
         $Releases = $ReleasesJson.Content | ConvertFrom-Json
@@ -66,6 +80,12 @@ if (-not $Version) {
             exit 1
         }
     }
+}
+
+# SEC-005: validate Version format before URL/path construction (reject malformed tags)
+if ($Version -notmatch '^v[0-9]') {
+    Write-Error "Version must start with 'v' followed by a digit (e.g. v1.0.0-rc.1); got: $Version"
+    exit 1
 }
 
 $Archive = "prism-$Version-$Target.zip"
@@ -96,8 +116,8 @@ try {
     # Download
     # ---------------------------------------------------------------------------
     Write-Host "Downloading prism $Version for Windows ($Target)..."
-    Invoke-WebRequest -Uri $Url -OutFile $ArchivePath -UseBasicParsing -ErrorAction Stop
-    Invoke-WebRequest -Uri $ChecksumUrl -OutFile $ChecksumPath -UseBasicParsing -ErrorAction Stop
+    Invoke-WebRequest -Uri $Url -OutFile $ArchivePath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+    Invoke-WebRequest -Uri $ChecksumUrl -OutFile $ChecksumPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
 
     # ---------------------------------------------------------------------------
     # SHA-256 verification (AC-006: abort on mismatch)
@@ -115,7 +135,7 @@ try {
     }
 
     if ($null -eq $MatchedLine) {
-        Write-Error "ERROR: $Archive not found in checksums.txt"
+        Write-Host "ERROR: $Archive not found in checksums.txt" -ForegroundColor Red
         exit 1
     }
 
@@ -124,9 +144,9 @@ try {
     $ExpectedHash = $Parts[0].ToLower()
 
     if ($ActualHash -ne $ExpectedHash) {
-        Write-Error "ERROR: Checksum mismatch for $Archive"
-        Write-Error "  Expected: $ExpectedHash"
-        Write-Error "  Actual:   $ActualHash"
+        Write-Host "ERROR: Checksum mismatch for $Archive" -ForegroundColor Red
+        Write-Host "  Expected: $ExpectedHash" -ForegroundColor Red
+        Write-Host "  Actual:   $ActualHash" -ForegroundColor Red
         exit 1
     }
 
@@ -154,10 +174,12 @@ try {
     # ---------------------------------------------------------------------------
     $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
     if ($null -eq $UserPath -or $UserPath -notlike "*$InstallDir*") {
+        # B3: deduplicate — append only to user-scoped PATH; never reference machine PATH.
+        $NewUserPath = if ($null -ne $UserPath -and $UserPath.Length -gt 0) { "$InstallDir;$UserPath" } else { $InstallDir }
         Write-Host ""
         Write-Host "NOTE: $InstallDir is not in your PATH."
-        Write-Host "  To add it permanently, run the following in an elevated terminal:"
-        Write-Host "  [Environment]::SetEnvironmentVariable('PATH', `"$InstallDir;`$env:PATH`", 'User')"
+        Write-Host "  To add it permanently (user scope only — no machine PATH duplication), run:"
+        Write-Host "  [Environment]::SetEnvironmentVariable('PATH', '$NewUserPath', 'User')"
         Write-Host "  Then restart your terminal."
     }
 
@@ -172,6 +194,16 @@ try {
             Write-Host "Version: $Version"
         }
     }
+
+    # ---------------------------------------------------------------------------
+    # Post-install notice (binary-only install; specs ship via demo bundle)
+    # ---------------------------------------------------------------------------
+    Write-Host ""
+    Write-Host "NOTE: This installer deploys the prism binary only (binary-only install is intentional)."
+    Write-Host "  Configuration: obtain prism.toml.example from the repository or demo bundle:"
+    Write-Host "    https://github.com/$Repo/blob/main/prism.toml.example"
+    Write-Host "  Sensor specs:  see RELEASING.md or the forthcoming demo bundle for sensor spec files."
+    Write-Host "  See RELEASING.md for the full post-install setup guide."
 
 } finally {
     # Always clean up temp directory
