@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.992"
+version: "2.993"
 status: draft
 producer: state-manager
-timestamp: 2026-09-03T01:00:00Z
+timestamp: 2026-09-04T00:00:00Z
 phase: 3
 total_stories: 324
 # D-2440: E-REL deconfliction amendments 2026-09-03 — S-REL-002 ADR renumber 053→062 (file renamed to S-REL-002-version-alignment-adr-062.md, v0.2→v0.3); S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle, v0.3→v0.4); S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13); S-REL-008→S-REL-010 (rename stub); S-REL-009→S-REL-011 (rename stub; depends_on S-REL-004→S-REL-005). total_stories 324 UNCHANGED. STORY-INDEX v2.991→v2.992 (state-manager finalizes).
@@ -1157,11 +1157,11 @@ RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst)
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
 | S-REL-001 | release.yml repair — remove dead jobs (DEF-REL-001/002/003/004), add v*-rc.* prerelease handling [merged v0.24] | devops | 0 (N/A infra) | -- | 3 | -- |
-| S-REL-002 | prism-bin version alignment to 1.0.0-rc.1 + ADR-062 product version policy [draft v0.3] | prism-bin | 0 (N/A infra) | -- | 2 | -- |
+| S-REL-002 | prism-bin version alignment to 1.0.0-rc.1 + ADR-062 product version policy [merged v0.3; PR #253 @18646aa44] | prism-bin | 0 (N/A infra) | -- | 2 | -- |
 | S-REL-003 | install.sh + install.ps1 — checksum-verified consumer install scripts for all 5 platforms [draft v0.3] | devops | 0 (N/A infra) | -- | 3 | S-REL-001 |
 | S-REL-004 | demo-bundle packaging — build-plugins CI job (wasm-tools 1.248.0, single Linux runner) + per-platform demo bundle release asset; Claroty xDome ONLY (D-2440; crowdstrike/armis/cyberint deferred) [draft v0.4] | devops | 0 (N/A infra) | -- | 8 | S-REL-001, S-REL-002 |
 | S-REL-007 | Windows PowerShell demo parity — demo-setup.ps1, demo-run.ps1, demo-teardown.ps1; ConvertFrom-Json; stdin-pipe credentials; DEMO-RUNBOOK.md Windows section [draft v0.1] | devops | 0 (N/A infra) | -- | 8 | S-REL-004 |
-| S-REL-005 | RELEASING.md operator runbook (repo root) + .factory/release-config.yaml (schema 1, quality_gates vsdd-partial, require_human_approval: true) + boot.rs CWD fix + prism.toml.example (Claroty-only) [draft v0.4] | prism-bin, devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
+| S-REL-005 | RELEASING.md operator runbook (repo root) + .factory/release-config.yaml (schema 1, quality_gates vsdd-partial, require_human_approval: true) + boot.rs CWD fix + prism.toml.example (Claroty-only) [merged v0.4; PR #253 @18646aa44] | prism-bin, devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
 | S-REL-006 | Graduate prism-consumer-contract.md to docs/consumer-contract.md + DEMO-RUNBOOK.md Windows cross-reference [draft v0.1] | devops | 0 (N/A infra) | -- | 2 | S-REL-002, S-REL-007 |
 
 ## Post-v1.0.0 Deferred Stubs (E-REL)
@@ -1721,6 +1721,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.993 | 2026-09-04 | state-manager D-2441: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — PR #253 (chore(release): v1.0.0 release prep) squash-merged to develop @18646aa44 (human-executed 2026-09-04; pr-reviewer APPROVE; CI 24/24 GREEN). S-REL-002 [draft v0.3]→[merged v0.3; PR #253 @18646aa44]; S-REL-005 [draft v0.4]→[merged v0.4; PR #253 @18646aa44]. POL-14: S-REL-002 + S-REL-005 behavioral_contracts: [] — NO BC auto-promotion (NO-OP). develop_head 11493aeb5→18646aa44. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs). total_stories 324 UNCHANGED. records-lint exit 0. story_index_version 2.992→2.993. |
 | v2.992 | 2026-09-03 | state-manager D-2440: SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL deconfliction finalized. S-REL-002 file renamed S-REL-002-version-alignment-adr-062.md (v0.2→v0.3; ADR renumber 053→062). S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle; v0.3→v0.4). S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC-009 + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13). S-REL-008→S-REL-010 (rename; embedded-builtin-specs stub); S-REL-009→S-REL-011 (rename; install-setup-docs stub). ADR-062 registered (ARCH-INDEX v2.357→v2.358). D-2439 stub registration absorbed (stubs never committed; landing renamed). TD-VSDD-097: Dim-1 CLEAR (ADR-062 has no sibling ADR). Dim-2 CLEAR (no verbatim copy-source section). Dim-3: S-REL-002 MUST anchors cite S-REL-002 ACs per story; S-REL-004/005 MUSTs anchored to their own ACs; S-REL-010/011 stubs pending PO authorship (defer anchor to story materialization). total_stories 324 UNCHANGED. records-lint exit 0. story_index_version 2.991→2.992. |
 | v2.991 | 2026-09-03 | story-writer D-2439: post-v1.0.0 deferred stubs registered — S-REL-008 (embedded built-in specs, E-REL, P1, 13 pts, draft stub v0.1) + S-REL-009 (operator setup + installation docs, E-REL, P1, 3 pts, draft stub v0.1) per human-directed deferral 2026-09-03. New section "Post-v1.0.0 Deferred Stubs (E-REL)" added. total_stories 322→324. story_index_version 2.990→2.991. |
 | v2.990 | 2026-09-03 | state-manager D-2435: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03). Story row [ready v1.7]→[merged v1.7; PR #252 @11493aeb5]. POL-14: all 5 BCs (BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021) already active — NO-OP; no BC-INDEX draft/active count change. develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.989→2.990. records-lint exit 0. |
