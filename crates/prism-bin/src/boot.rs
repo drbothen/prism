@@ -890,15 +890,18 @@ pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
     tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"));
 }
 
-/// Step 2 [BLOCKING]: Load `prism.toml` from config directory.
-///
 /// Resolve relative path fields in [`PrismConfig`] against `config_dir`.
 ///
 /// Called from both [`step2_load_config`] (boot path) and
 /// `credential_cli::load_prism_config_for_cli` (CLI path) so both sites share
 /// identical resolution semantics (BLOCKING-3 / S-REL-005 AC-009).
 ///
-/// A relative `state_dir`, `spec_dir`, or `plugin_dir` declared in `prism.toml`
+/// All three mutable path fields are resolved:
+/// - `spec_dir` — directory containing sensor TOML spec files
+/// - `state_dir` — RocksDB / credential-store root (CWE-22 critical)
+/// - `plugin_dir` — directory containing plugin binaries
+///
+/// A relative value for any of these fields declared in `prism.toml`
 /// (e.g. `state_dir = "./state"`) is rebased as `config_dir.join(path)`.
 /// Absolute paths pass through unchanged.
 ///
@@ -4079,18 +4082,15 @@ mod table_registry_swap_listener_tests {
 mod step2_path_resolution_tests {
     use super::*;
 
-    /// S-REL-005 AC-009 RG-002 (RED GATE): relative `spec_dir` and `plugin_dir` declared
+    /// S-REL-005 AC-009 RG-002: relative `spec_dir`, `state_dir`, and `plugin_dir` declared
     /// in `prism.toml` must be resolved against the config directory after
     /// `step2_load_config`, not returned as raw relative paths that resolve against the
     /// process CWD.
     ///
-    /// Scenario: prism.toml declares `spec_dir = "./specs"` and `plugin_dir = "./plugins"`.
-    /// The test is run by nextest whose CWD is the workspace root — NOT the tempdir
-    /// config directory. After `step2_load_config`, both paths must equal
-    /// `config_dir.join("specs")` and `config_dir.join("plugins")` respectively.
-    ///
-    /// Current code returns `PathBuf::from("./specs")` unchanged.
-    /// `PathBuf::from("./specs") != config_dir.join("specs")` → assertion FAILS → RED.
+    /// Scenario: prism.toml declares `spec_dir = "./specs"`, `state_dir = "./state"`, and
+    /// `plugin_dir = "./plugins"`. The test is run by nextest whose CWD is the workspace
+    /// root — NOT the tempdir config directory. After `step2_load_config`, all three paths
+    /// must equal `config_dir.join("<name>")` (absolute, config-dir-relative).
     #[tokio::test]
     async fn test_s_rel_005_ac_009_rg_002_relative_spec_and_plugin_dir_resolved_against_config_dir()
     {
@@ -4114,8 +4114,6 @@ plugin_dir = "./plugins"
             .expect("step2_load_config must succeed for a syntactically valid prism.toml");
 
         // AC-009 (spec_dir): relative path must be rebased to config_dir.join("specs").
-        // Current code returns PathBuf::from("./specs") — NOT equal to an absolute path.
-        // This assertion FAILS on current code (RED GATE).
         assert_eq!(
             config.spec_dir,
             config_dir.join("specs"),
@@ -4126,8 +4124,6 @@ plugin_dir = "./plugins"
         );
 
         // AC-009 (plugin_dir): relative path must be rebased to config_dir.join("plugins").
-        // Current code returns PathBuf::from("./plugins") — NOT equal to an absolute path.
-        // This assertion FAILS on current code (RED GATE).
         assert_eq!(
             config.plugin_dir,
             config_dir.join("plugins"),
@@ -4138,12 +4134,9 @@ plugin_dir = "./plugins"
         );
 
         // BLOCKING-3 (state_dir): relative state_dir must also be rebased to
-        // config_dir.join("state"). Before BLOCKING-3 fix, only spec_dir / plugin_dir
-        // were resolved; state_dir was returned unmodified.  A relative state_dir causes
-        // `prism credential set` (CLI) and `prism start` (server) to resolve to different
-        // dirs when run from different CWDs — silent credential loss + CWE-22 surface.
-        //
-        // This assertion FAILS on current code (RED GATE for state_dir).
+        // config_dir.join("state").  A relative state_dir causes `prism credential set`
+        // (CLI) and `prism start` (server) to resolve to different dirs when run from
+        // different CWDs — silent credential loss + CWE-22 surface.
         assert_eq!(
             config.state_dir,
             config_dir.join("state"),
@@ -4169,8 +4162,11 @@ plugin_dir = "./plugins"
         let abs_plugin_dir = dir.path().join("external_plugins");
         let abs_state_dir = dir.path().join("external_state");
 
+        // Use TOML literal strings (single quotes) so that backslashes in
+        // Windows paths (e.g. C:\Users\...) are not interpreted as TOML
+        // escape sequences.  TOML literal strings do not process escapes.
         let prism_toml = format!(
-            "spec_dir = \"{spec}\"\nstate_dir = \"{state}\"\nplugin_dir = \"{plugin}\"\n",
+            "spec_dir = '{spec}'\nstate_dir = '{state}'\nplugin_dir = '{plugin}'\n",
             spec = abs_spec_dir.display(),
             state = abs_state_dir.display(),
             plugin = abs_plugin_dir.display(),
