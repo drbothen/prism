@@ -23,6 +23,11 @@ structured audit logging — all in a single operator-deployable binary.
   `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `x86_64-pc-windows-msvc`)
   with static musl via `cargo-zigbuild`, build-provenance attestations, and
   `checksums.txt` generation (S-0.01, S-REL-001, #1, #228)
+- Release archives now bundle the four built-in sensor TOML specs (`specs/`) and the
+  two built-in infusion TOML specs (`infusions/`) alongside the binary and a
+  `prism.toml.example` configuration template. A fresh install is bootable without
+  cloning the source repository: extract the archive, place `specs/` at `spec_dir`
+  and `infusions/` alongside `prism.toml`, then run `prism start` (#253)
 - Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
   (S-0.02, #2)

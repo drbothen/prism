@@ -1,0 +1,89 @@
+# prism.toml.example — Prism v1.0.0 configuration template
+#
+# Copy this file to prism.toml in your config directory.
+# Place your config directory path in the PRISM_CONFIG_DIR environment variable,
+# or pass it via `prism start --config-dir <path>`.
+#
+# QUICK START (extract → configure → run):
+#   1. Extract the release archive; it contains this file plus bundled sensor specs.
+#   2. Decide where your config directory lives (e.g., /etc/prism/ or ~/prism/).
+#   3. Copy this file there as prism.toml.
+#   4. Copy the bundled specs/ directory to spec_dir (or set spec_dir to point at it).
+#   5. Copy the bundled infusions/ directory alongside prism.toml (auto-scanned).
+#   6. Set state_dir to a writable path for RocksDB persistent state.
+#   7. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
+#   8. Configure credentials with `prism credential set` (see `prism credential --help`).
+#   9. Run: prism start
+
+# ---------------------------------------------------------------------------
+# spec_dir (required)
+# ---------------------------------------------------------------------------
+# Path to the directory containing *.sensor.toml spec files.
+# The four built-in sensor specs are bundled in the release archive under specs/.
+# Copy that directory to a permanent location and point spec_dir at it.
+#
+# Relative paths are resolved from the config directory (where prism.toml lives).
+spec_dir = "./specs"
+
+# ---------------------------------------------------------------------------
+# state_dir (required)
+# ---------------------------------------------------------------------------
+# Path to the RocksDB persistent state directory.
+# Prism creates this directory at boot if it does not exist.
+# Must be writable by the prism process.
+state_dir = "/var/lib/prism/state"
+
+# ---------------------------------------------------------------------------
+# plugin_dir (optional; default: "./plugins" relative to config directory)
+# ---------------------------------------------------------------------------
+# Path to the directory scanned for *.prx WASM plugin files.
+# The CrowdStrike OAuth2 plugin (crowdstrike-oauth2.prx) must be placed here
+# for CrowdStrike sensor authentication to work.
+# Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
+# plugin_dir = "./plugins"
+
+# ---------------------------------------------------------------------------
+# orgs (required; at least one entry)
+# ---------------------------------------------------------------------------
+# Each org entry maps an org_id (UUID v7) to an org_slug (kebab-case).
+# org_id must be a UUID version 7 (time-ordered). Prism validates this at boot
+# and exits 2 with "must be a UUID v7" if a non-v7 UUID is supplied.
+#
+# Note: plain `uuidgen` (no flags) generates UUID v4 — rejected.
+#       `uuidgen --time` generates UUID v1 — also rejected.
+#
+# Generate a v7 UUID with one of:
+#   Python 3.14+:             python3 -c "import uuid; print(uuid.uuid7())"
+#   Linux (util-linux 2.40+): uuidgen -v 7
+#   Python 3.x (any version): pip install uuid7 && \
+#                               python3 -c "import uuid7; print(uuid7.uuid7())"
+#
+# Multiple orgs are supported for multi-tenant deployments.
+
+[[orgs]]
+org_id = "REPLACE-WITH-UUID-V7"   # e.g. "0196f000-0000-7000-8000-000000000001"
+org_slug = "my-org"               # kebab-case; used in audit logs and MCP context
+# name = "My Organization"        # optional display name (surfaces in prism://config/clients)
+
+# Add additional orgs below for multi-tenant deployments:
+# [[orgs]]
+# org_id = "REPLACE-WITH-ANOTHER-UUID-V7"
+# org_slug = "second-org"
+
+# ---------------------------------------------------------------------------
+# credential_backend (optional; default: keyring)
+# ---------------------------------------------------------------------------
+# Controls where sensor API credentials are stored and retrieved.
+# "keyring"    — OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager)
+# "env"        — environment variables (useful in containerized deployments)
+#
+# [credential_backend]
+# type = "keyring"
+
+# ---------------------------------------------------------------------------
+# Infusion specs (auto-scanned; no config required)
+# ---------------------------------------------------------------------------
+# The bundled infusions/ directory (threatintel.infusion.toml, nvd.infusion.toml)
+# is auto-scanned from {config_dir}/infusions/ at boot.
+# Place the infusions/ directory alongside this prism.toml file.
+# If infusions/ is absent, boot continues without enrichment (non-fatal).

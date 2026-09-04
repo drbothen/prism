@@ -396,6 +396,13 @@ Verify all of the following before declaring the release complete:
    workflow run's artifact attestations, verifiable via `gh attestation verify`).
 4. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
 5. Generated release notes (from `--generate-notes`) are present.
+6. **Bundled specs** are present in each archive. Spot-check a tar.gz:
+   ```bash
+   curl -sL https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
+     | tar tzf - | grep -E 'specs/|infusions/|prism\.toml\.example'
+   ```
+   Expected: four `specs/*.sensor.toml` entries, two `infusions/*.infusion.toml`
+   entries, and `prism.toml.example` — all at archive root level.
 
 ### Step 12 — Update README version badge and install block
 
@@ -437,6 +444,25 @@ The GitHub Release body combines two layers:
 
 ### Install
 
+Each release archive contains the `prism` binary plus bundled sensor and infusion
+specs needed for a bootable installation — no source repository clone required.
+
+**Archive contents:**
+- `prism` (or `prism.exe` on Windows) — the compiled binary
+- `prism.toml.example` — configuration template with inline instructions
+- `specs/` — the four built-in sensor TOML specs (`armis`, `claroty`, `crowdstrike`, `cyberint`)
+- `infusions/` — the two built-in infusion TOML specs (`threatintel`, `nvd`)
+
+**Install steps (all platforms):**
+1. Extract the archive (see platform commands below).
+2. Copy `prism.toml.example` to `prism.toml` in your chosen config directory.
+3. Copy `specs/` to the path you set as `spec_dir` in `prism.toml` (or leave it
+   adjacent and set `spec_dir = "./specs"`).
+4. Copy `infusions/` alongside `prism.toml` — it is auto-scanned from the config
+   directory at boot (`{config_dir}/infusions/`).
+5. Edit `prism.toml`: set `state_dir`, add `[[orgs]]` entries, configure credentials.
+6. Run `prism start`.
+
 **macOS (Apple Silicon):**
 curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 tar xzf prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
@@ -457,6 +483,7 @@ tar xzf prism-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
 
 **Windows (x86_64):**
 Download prism-vX.Y.Z-x86_64-pc-windows-msvc.zip from the assets below.
+Extract with Windows Explorer or: Expand-Archive prism-vX.Y.Z-x86_64-pc-windows-msvc.zip .
 
 ### Verify checksums
 

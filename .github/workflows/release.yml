@@ -139,14 +139,40 @@ jobs:
       - name: Create archive
         shell: bash
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           ARCHIVE="prism-${TAG}-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          # Stage binary + bundled sensor specs + infusion specs + example config.
+          # Sensor specs (crates/prism-sensors/specs/*.sensor.toml) and infusion specs
+          # (specs/infusions/*.infusion.toml) are present in the source checkout at tag
+          # time — no build artifact needed.  The example config (prism.toml.example)
+          # is a committed file at the repo root.
+          # Archive layout (flat root, no parent-directory wrapper):
+          #   prism[.exe]          — compiled binary
+          #   prism.toml.example   — configuration template with install instructions
+          #   specs/               — built-in sensor TOML specs (spec_dir target)
+          #   infusions/           — built-in infusion TOML specs (auto-scanned from config_dir)
+          mkdir -p _stage/specs _stage/infusions
           if [ "${{ matrix.archive_ext }}" = "zip" ]; then
-            cd target/${{ matrix.target }}/release
-            7z a "../../../${ARCHIVE}" prism.exe
+            cp "target/${{ matrix.target }}/release/prism.exe" _stage/
           else
-            tar czf "${ARCHIVE}" -C target/${{ matrix.target }}/release prism
+            cp "target/${{ matrix.target }}/release/prism" _stage/
           fi
+          cp crates/prism-sensors/specs/armis.sensor.toml \
+             crates/prism-sensors/specs/claroty.sensor.toml \
+             crates/prism-sensors/specs/crowdstrike.sensor.toml \
+             crates/prism-sensors/specs/cyberint.sensor.toml \
+             _stage/specs/
+          cp specs/infusions/threatintel.infusion.toml \
+             specs/infusions/nvd.infusion.toml \
+             _stage/infusions/
+          cp prism.toml.example _stage/
+          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+            cd _stage && 7z a "../${ARCHIVE}" prism.exe prism.toml.example specs infusions && cd ..
+          else
+            tar czf "${ARCHIVE}" -C _stage prism prism.toml.example specs infusions
+          fi
+          rm -rf _stage
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
       - name: Wrap prism-dtu-demo-server for artifact upload
         shell: bash
