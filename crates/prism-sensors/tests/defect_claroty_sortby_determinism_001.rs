@@ -99,9 +99,14 @@ fn extract_sort_by_array(body_template: &str) -> Vec<serde_json::Value> {
 /// EC-016-015-009 (offset pagination determinism).
 ///
 /// The `fetch_vulnerabilities` body_template MUST contain a `"sort_by"` key
-/// whose value includes `adjusted_vulnerability_score` (primary sort, desc) and
-/// `name` (tiebreaker, asc) — the exact two-element array contracted by
-/// BC-2.16.015 §Post §1.
+/// whose primary sort is `published_date` (desc) with `name` (asc) as tiebreaker.
+///
+/// AMENDMENT (DEFECT-CLAROTY-VULN-PAGESIZE-001): the original primary sort field
+/// `adjusted_vulnerability_score` caused >30s live-query timeouts because it is an
+/// unindexed computed composite risk score — xDome must score the full corpus before
+/// returning row 1. The primary sort was changed to `published_date`, a native-indexed
+/// datetime (xDome OpenAPI default for /vulnerabilities/). The tiebreaker `name` asc is
+/// unchanged. `adjusted_vulnerability_score` is still in the fields projection.
 ///
 /// RED: `assert!` panics because `"sort_by"` is absent from the current
 /// body_template (only `"fields": [...]` is present before Task 5).
@@ -128,19 +133,24 @@ fn test_rg_vulnerabilities_sort_by_in_request_body() {
         body_template.contains(r#""sort_by""#),
         "AC-001 RED GATE (BC-2.16.015 §Post §1): \
          fetch_vulnerabilities body_template must contain a \"sort_by\" key \
-         with [adjusted_vulnerability_score desc, name asc]; \
+         with [published_date desc, name asc]; \
          currently absent — EC-016-015-009 offset pagination is non-deterministic"
     );
 
     // Additional field-presence assertions (reached only after RED gate passes at GREEN time).
+    // Primary sort must be published_date (fast native-indexed datetime), NOT
+    // adjusted_vulnerability_score (unindexed computed field — causes >30s timeout).
+    // DEFECT-CLAROTY-VULN-PAGESIZE-001 amendment.
     assert!(
-        body_template.contains("adjusted_vulnerability_score"),
-        "sort_by must reference adjusted_vulnerability_score (primary sort field, BC-2.16.015 §Post §1)"
+        body_template.contains("published_date"),
+        "sort_by must reference published_date as primary sort field \
+         (DEFECT-CLAROTY-VULN-PAGESIZE-001: fast native-indexed datetime; \
+         BC-2.16.015 §Post §1 amended)"
     );
     assert!(
         body_template.contains(r#""order":"desc""#),
-        "sort_by first element must use order:desc for adjusted_vulnerability_score \
-         (highest-risk records survive DI-019 10K cap, BC-2.16.015 §Post §1)"
+        "sort_by first element must use order:desc for published_date \
+         (most-recent first; BC-2.16.015 §Post §1 amended)"
     );
 }
 
@@ -447,18 +457,22 @@ fn test_rg_organization_firewall_policies_sort_by_in_request_body() {
 
 // ── RG-008 ────────────────────────────────────────────────────────────────────
 /// BC-2.16.015 §Postconditions §1 structural assertion — AC-001
-/// EC-016-015-009 + DI-019 truncation rationale.
+/// EC-016-015-009 + DEFECT-CLAROTY-VULN-PAGESIZE-001 amendment.
 ///
 /// Parses the embedded `sort_by` JSON array from `fetch_vulnerabilities`
 /// body_template and asserts the structural contract:
 /// - Array has exactly 2 elements
-/// - Element [0]: `{"field": "adjusted_vulnerability_score", "order": "desc"}` (primary)
-/// - Element [1]: `{"field": "name", "order": "asc"}` (tiebreaker — best-available sortable field,
-///   present in Vulnerability__sortable_fields_enum)
+/// - Element [0]: `{"field": "published_date", "order": "desc"}` (primary — fast indexed datetime)
+/// - Element [1]: `{"field": "name", "order": "asc"}` (tiebreaker — indexed string)
 ///
-/// The `name` tiebreaker (CVE ID / advisory title) is the best-available sortable field
-/// present in Vulnerability__sortable_fields_enum, providing deterministic page boundaries
-/// under DI-019 10K cap.
+/// AMENDMENT (DEFECT-CLAROTY-VULN-PAGESIZE-001): the original primary sort
+/// `adjusted_vulnerability_score desc` caused >30s live-query timeouts. That field is
+/// an unindexed computed composite risk score — xDome must score the entire corpus before
+/// returning row 1. `published_date` is the xDome OpenAPI default sort for /vulnerabilities/
+/// and is a native-indexed datetime; queries return within timeout.
+///
+/// The `name` tiebreaker (CVE ID / advisory title) is unchanged — it remains the
+/// best-available indexed string tiebreaker present in Vulnerability__sortable_fields_enum.
 ///
 /// RED: `extract_sort_by_array` panics at the `.expect(...)` for the missing key
 /// because `"sort_by"` is absent from the current body_template.
@@ -493,26 +507,30 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
     assert_eq!(
         sort_by.len(),
         2,
-        "BC-2.16.015 §Post §1: fetch_vulnerabilities sort_by must have exactly 2 elements \
-         [adjusted_vulnerability_score desc, name asc]; got {:?}",
+        "BC-2.16.015 §Post §1 (DEFECT-CLAROTY-VULN-PAGESIZE-001 amended): \
+         fetch_vulnerabilities sort_by must have exactly 2 elements \
+         [published_date desc, name asc]; got {:?}",
         sort_by
     );
 
-    // Element [0]: primary sort — adjusted_vulnerability_score desc.
+    // Element [0]: primary sort — published_date desc (fast native-indexed datetime).
+    // DEFECT-CLAROTY-VULN-PAGESIZE-001: adjusted_vulnerability_score is NO LONGER the
+    // primary sort — it caused >30s live-query timeout (unindexed computed score).
     let primary = &sort_by[0];
     assert_eq!(
         primary.get("field").and_then(|f| f.as_str()),
-        Some("adjusted_vulnerability_score"),
-        "sort_by[0] field must be 'adjusted_vulnerability_score' (primary sort, \
-         highest-risk records survive DI-019 10K cap; BC-2.16.015 §Post §1); \
+        Some("published_date"),
+        "sort_by[0] field must be 'published_date' (primary sort, \
+         fast native-indexed datetime — xDome OpenAPI default for /vulnerabilities/; \
+         DEFECT-CLAROTY-VULN-PAGESIZE-001 amendment; BC-2.16.015 §Post §1); \
          got: {:?}",
         primary
     );
     assert_eq!(
         primary.get("order").and_then(|o| o.as_str()),
         Some("desc"),
-        "sort_by[0] order must be 'desc' for adjusted_vulnerability_score \
-         (highest-risk first; BC-2.16.015 §Post §1); got: {:?}",
+        "sort_by[0] order must be 'desc' for published_date \
+         (most-recent first; BC-2.16.015 §Post §1 amended); got: {:?}",
         primary
     );
 
@@ -536,7 +554,6 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
     );
 
     // Verify desc-before-asc ordering: primary is desc, tiebreaker is asc.
-    // This is the structural contract that proves non-trivial sort ordering.
     let primary_order = primary.get("order").and_then(|o| o.as_str()).unwrap_or("");
     let tiebreaker_order = tiebreaker
         .get("order")
@@ -544,8 +561,8 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
         .unwrap_or("");
     assert_eq!(
         primary_order, "desc",
-        "sort_by[0] (adjusted_vulnerability_score) must be 'desc' — \
-         desc-before-asc ordering confirms DI-019 truncation rationale"
+        "sort_by[0] (published_date) must be 'desc' — \
+         desc ordering: most-recent vulnerabilities first (DEFECT-CLAROTY-VULN-PAGESIZE-001)"
     );
     assert_eq!(
         tiebreaker_order, "asc",
@@ -553,15 +570,8 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
          asc tiebreaker after desc primary confirms total sort order"
     );
 
-    // OBS-2: Assert enum membership — the comment "Confirmed member of
-    // Vulnerability__sortable_fields_enum (ValidatingSortClause__6)" becomes a
-    // LOAD-BEARING assertion. BC-2.16.015 §Post §1: "Both
-    // adjusted_vulnerability_score and name are confirmed members of
-    // Vulnerability__sortable_fields_enum (xDome OpenAPI schema ValidatingSortClause__6)."
-    //
-    // Hardcoded from: (a) BC-2.16.015 §Post §1 confirmed set, plus (b) other
-    // numeric/string fields present in ClarotyVulnerability struct that correspond to
-    // known sortable fields in the xDome OpenAPI Vulnerability__fields_enum.
+    // OBS-2: Assert enum membership — both fields must be in Vulnerability__sortable_fields_enum.
+    // Hardcoded from BC-2.16.015 §Post §1 confirmed set + xDome OpenAPI ValidatingSortClause__6.
     const VULNERABILITY_SORTABLE_FIELDS_ENUM: &[&str] = &[
         "name",
         "adjusted_vulnerability_score",
@@ -596,7 +606,6 @@ fn test_rg_vulnerabilities_sort_by_tiebreaker_is_best_available_field() {
         VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&tiebreaker_field),
         "OBS-2: sort_by[1] field '{}' (tiebreaker) must be a member of \
          Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
-         tiebreaker is the best-available sortable field present in the enum; \
          known members: {:?}; BC-2.16.015 §Post §1",
         tiebreaker_field,
         VULNERABILITY_SORTABLE_FIELDS_ENUM
@@ -946,13 +955,16 @@ async fn test_obs1_vulnerabilities_build_request_emits_sort_by() {
         "OBS-1 Case 2: sort_by must have exactly 2 elements; got: {sort_by_arr:?}"
     );
 
-    // DESC-first ordering must be preserved post-injection (BC-2.16.015 §Post §1).
+    // Primary sort must be published_date desc (fast native-indexed datetime).
+    // DEFECT-CLAROTY-VULN-PAGESIZE-001: adjusted_vulnerability_score was replaced with
+    // published_date to prevent >30s live-query timeout (unindexed computed score).
     let sort0 = &sort_by_arr[0];
     assert_eq!(
         sort0.get("field").and_then(|f| f.as_str()),
-        Some("adjusted_vulnerability_score"),
-        "OBS-1 Case 2: sort_by[0].field must be adjusted_vulnerability_score (DESC primary); \
-         got: {sort0}"
+        Some("published_date"),
+        "OBS-1 Case 2: sort_by[0].field must be 'published_date' (DESC primary, \
+         fast native-indexed datetime; DEFECT-CLAROTY-VULN-PAGESIZE-001 amendment; \
+         BC-2.16.015 §Post §1); got: {sort0}"
     );
     assert_eq!(
         sort0.get("order").and_then(|o| o.as_str()),
@@ -1348,4 +1360,145 @@ async fn test_obs3_remaining_tables_build_request_emits_sort_by() {
              body={body}"
         );
     }
+}
+
+// ── DEFECT-CLAROTY-VULN-PAGESIZE-001 ─────────────────────────────────────────
+/// DEFECT-CLAROTY-VULN-PAGESIZE-001 Red Gate: `fetch_vulnerabilities` sort_by
+/// primary field MUST be a fast, native-indexed field (`published_date`) — NOT
+/// the unindexed computed composite risk score `adjusted_vulnerability_score`.
+///
+/// Root cause: `adjusted_vulnerability_score` requires xDome to score the full corpus
+/// before returning row 1, causing >30s HTTP timeout on live queries (real monroe endpoint).
+/// The other 6 tables fixed in PR #252 used fast indexed fields and are unaffected.
+///
+/// Fix: change primary sort from `adjusted_vulnerability_score desc` to
+/// `published_date desc`. `published_date` is a native-indexed datetime (xDome OpenAPI
+/// default sort for /vulnerabilities/); `name` asc remains the string tiebreaker —
+/// fast AND deterministic for offset-pagination stability.
+///
+/// Both `published_date` and `name` are confirmed members of
+/// Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6).
+///
+/// RED: asserts `published_date` is sort_by[0].field; FAILS on the current spec
+/// (body_template has `adjusted_vulnerability_score` as primary sort).
+/// GREEN after the one-line TOML fix.
+///
+/// BC-2.16.015 §Post §1 (amended); DEFECT-CLAROTY-VULN-PAGESIZE-001.
+#[test]
+fn test_defect_vuln_pagesize_001_sort_by_primary_is_published_date_not_adjusted_score() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist in claroty.sensor.toml");
+    let step = table
+        .steps
+        .iter()
+        .find(|s| s.name == "fetch_vulnerabilities")
+        .expect("fetch_vulnerabilities step must exist in vulnerabilities table");
+    let body_template = step
+        .body_template
+        .as_deref()
+        .expect("fetch_vulnerabilities step must have a body_template");
+
+    // Structural parse of the sort_by JSON array.
+    let sort_by = extract_sort_by_array(body_template);
+
+    assert_eq!(
+        sort_by.len(),
+        2,
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by must have exactly 2 elements \
+         [published_date desc, name asc]; got {:?}",
+        sort_by
+    );
+
+    let primary = &sort_by[0];
+
+    // LOAD-BEARING RED GATE: primary sort field MUST be `published_date`.
+    // `adjusted_vulnerability_score` is an unindexed computed composite risk score that
+    // causes >30s HTTP timeout on live queries (confirmed: real monroe endpoint).
+    assert_eq!(
+        primary.get("field").and_then(|f| f.as_str()),
+        Some("published_date"),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001 RED GATE: sort_by[0].field MUST be 'published_date' \
+         (fast native-indexed datetime — xDome OpenAPI default sort for /vulnerabilities/). \
+         'adjusted_vulnerability_score' is an unindexed computed composite risk score that \
+         causes >30s HTTP timeout on live queries. BC-2.16.015 §Post §1 amended. Got: {:?}",
+        primary
+    );
+
+    // LOAD-BEARING NOT-adjusted assertion: adjusted_vulnerability_score must not be primary.
+    // It stays in the `fields` projection (still returned as data) — just not sort_by[0].
+    let primary_field = primary.get("field").and_then(|f| f.as_str()).unwrap_or("");
+    assert_ne!(
+        primary_field, "adjusted_vulnerability_score",
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001 RED GATE: 'adjusted_vulnerability_score' MUST NOT \
+         be sort_by[0].field — it is an unindexed computed score causing >30s live timeout. \
+         BC-2.16.015 §Post §1 amended."
+    );
+
+    assert_eq!(
+        primary.get("order").and_then(|o| o.as_str()),
+        Some("desc"),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by[0] order must be 'desc' \
+         (most-recent first); got: {:?}",
+        primary
+    );
+
+    // Tiebreaker: name asc (unchanged from original contract).
+    let tiebreaker = &sort_by[1];
+    assert_eq!(
+        tiebreaker.get("field").and_then(|f| f.as_str()),
+        Some("name"),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by[1].field must be 'name' \
+         (indexed string tiebreaker; Vulnerability__sortable_fields_enum); got: {:?}",
+        tiebreaker
+    );
+    assert_eq!(
+        tiebreaker.get("order").and_then(|o| o.as_str()),
+        Some("asc"),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by[1] order must be 'asc'; got: {:?}",
+        tiebreaker
+    );
+
+    // Verify both fields are in the Vulnerability__sortable_fields_enum
+    // (xDome OpenAPI schema ValidatingSortClause__6).
+    const VULNERABILITY_SORTABLE_FIELDS_ENUM: &[&str] = &[
+        "name",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v2_score",
+        "epss_score",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "exploits_count",
+        "is_known_exploited",
+        "vulnerability_type",
+        "source_name",
+    ];
+
+    assert!(
+        VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&primary_field),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by[0] field '{}' must be a confirmed member of \
+         Vulnerability__sortable_fields_enum (xDome OpenAPI ValidatingSortClause__6); \
+         known members: {:?}",
+        primary_field,
+        VULNERABILITY_SORTABLE_FIELDS_ENUM
+    );
+
+    let tiebreaker_field = tiebreaker
+        .get("field")
+        .and_then(|f| f.as_str())
+        .unwrap_or("");
+    assert!(
+        VULNERABILITY_SORTABLE_FIELDS_ENUM.contains(&tiebreaker_field),
+        "DEFECT-CLAROTY-VULN-PAGESIZE-001: sort_by[1] field '{}' must be a confirmed member of \
+         Vulnerability__sortable_fields_enum; known members: {:?}",
+        tiebreaker_field,
+        VULNERABILITY_SORTABLE_FIELDS_ENUM
+    );
 }
