@@ -1,18 +1,58 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.060"
+version: "8.061"
 status: current
-timestamp: 2026-09-03T21:00:00Z
+timestamp: 2026-09-03T22:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2438 (2026-09-03): SINGLE-COMMIT BURST (TD-VSDD-053) — v1 RELEASE PROCESS STARTED (human-approved). RELEASING.md authored on release/v1.0.0 @a326c4ae5 (off develop@11493aeb5, not pushed). .factory/release-config.yaml bootstrapped. NEXT: version bump + CHANGELOG + dry-run + release-prep PR + develop→main (human merge) + tag v1.0.0 + release.yml. SESSION-HANDOFF D-2437 SUPERSEDED; §RESUME SNAPSHOT D-2438 inserted. records-lint PASS. STATE v8.966→v8.967. SESSION-HANDOFF v8.059→v8.060.**
+> **D-2440 (2026-09-03): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL DECONFLICTION COMPLETE (Move-1). ADR-062 ACCEPTED v1.0 (Product Version Alignment; git tag canonical; prism-bin tracks tag; other crates independent; no workspace.package; D1–D5; anchored S-REL-002). Sensor scope Claroty-only confirmed. S-REL-002/004/005 amended. S-REL-010/011 stubs landed (D-2439 absorbed). PR #253 to be repurposed in Move 2. ARCH-INDEX v2.358. STORY-INDEX v2.992. SESSION-HANDOFF D-2438 SUPERSEDED; §RESUME SNAPSHOT D-2440 inserted. records-lint PASS. STATE v8.967→v8.968. SESSION-HANDOFF v8.060→v8.061.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2438 (2026-09-03 — v1 RELEASE PROCESS STARTED; SAFE TO CLEAR) [supersedes D-2437]
+## §RESUME SNAPSHOT — D-2440 (2026-09-03 — E-REL DECONFLICTION COMPLETE; Move-2 NEXT; SAFE TO CLEAR) [supersedes D-2438]
+
+### RESUME IN ONE BREATH
+Phase 3 Wave-5-E, Claroty xDome v1 RELEASE-READY. E-REL Move-1 COMPLETE (D-2440): ADR-062 ACCEPTED v1.0 (Product Version Alignment — git tag canonical; prism-bin tracks tag; all other crates independent; no workspace.package; D1–D5; anchored S-REL-002; SS-22). Sensor scope for v1.0.0-rc.1 = Claroty xDome ONLY (Cyberint/Armis/CrowdStrike code stays; not shipped/claimed; CrowdStrike returns via S-ADR054-WAVE-A-001 native auth; Cyberint/Armis tracked as release-scope deferrals). S-REL-002 v0.2→v0.3 (ADR 053→062; file renamed). S-REL-004 v0.3→v0.4 (Claroty-only bundle). S-REL-005 v0.3→v0.4 (RELEASING.md→repo root; vsdd-partial; boot.rs CWD fix AC-009; prism.toml.example ACs; ACs 8→13). S-REL-010/011 stubs landed (renamed from never-committed S-REL-008/009; D-2439 absorbed). PR #253 exists on release/v1.0.0 — REPURPOSE in Move 2 with corrected version 1.0.0-rc.1 + 4 defect fixes (prism.toml.example uuidgen/uuid7/credential_backend + boot.rs CWD relative-path).
+
+### GOVERNING OBJECTIVE
+Complete v1 release per RELEASING.md §4: Move 2 (repurpose PR #253: fix defects + push + pr-manager delivery) → release/v1.0.0→develop PR (merge-commit, human merge) → develop→main PR (human merge, merge-commit, NOT squash) → git tag v1.0.0-rc.1 on main → release.yml CI builds GitHub Release. Develop→main merge requires fresh in-transcript human approval.
+
+### HEADS (backup boundary)
+- `develop`: origin = local = `11493aeb5` (PR #252 squash-merge 2026-09-03). PUSHED.
+- `release/v1.0.0`: LOCAL only, not pushed. HEAD a326c4ae5 (RELEASING.md authored). Needs Move-2 defect fixes + push.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053). PUSHED.
+- Worktrees: ACTIVE: none. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001. No open PRs.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. Move 2 (PR #253 repurpose): On release/v1.0.0 — correct prism-bin Cargo.toml version to 1.0.0-rc.1; fix prism.toml.example (uuidgen→uuid7 or credential_backend values); fix boot.rs CWD-relative spec_dir/plugin_dir paths per S-REL-005 AC-009; push release/v1.0.0; pr-manager 9-step PR cycle on PR #253.
+3. Release flow: PR release/v1.0.0→develop (merge-commit) → human merge → PR develop→main (merge-commit, NOT squash) → human merge → git tag v1.0.0-rc.1 on main → release.yml.
+4. develop→main merge: REQUIRES fresh direct in-transcript human approval (harness auto-mode classifier boundary confirmed PR #252 + #251/D-2418). force-push to main FORBIDDEN.
+
+### CONVERGENCE STATE
+G1–G6 ALL MERGED (develop@11493aeb5; BC-2.16.015..BC-2.16.022 all active). DEFECT-CLAROTY-SORTBY-DETERMINISM-001 MERGED (PR #252 @11493aeb5; D-2435). OBS-1/OBS-2 CLOSED. Confirmatory live re-validation PASS (D-2437). v1 Claroty xDome sensor RELEASE-READY. E-REL Move-1 COMPLETE (D-2440).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md).
+
+### DECISION DELTA
+D-2440 (this burst: E-REL DECONFLICTION COMPLETE Move-1; ADR-062 ACCEPTED; S-REL-002/004/005/010/011 amended; ARCH-INDEX v2.358; STORY-INDEX v2.992; STATE v8.967→v8.968; SESSION-HANDOFF v8.060→v8.061). D-2438 historical: v1 RELEASE PROCESS STARTED; RELEASING.md authored on release/v1.0.0 @a326c4ae5; superseded.
+
+### STANDING DECISIONS (carry forward)
+(a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 autonomy grant in force. (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) HARNESS BOUNDARY: merges (PR→develop AND develop→main) require human-executed OR fresh direct in-transcript human approval — an orchestrator/coordinator relay of a prior grant does NOT satisfy the auto-mode classifier (empirically confirmed PR #252 + #251/D-2418). (f) DEFECT-1 (rustls direct transport) RESOLVED by PR #237 — direct api.claroty.com works; relay decommissioned. (g) TRACKED POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001 (ORDER BY push-down), TD-DI019-RECORDS-CAP-001 (configurable 10K cap), TD-CONFIG-SURFACE-EPIC-001 (magic-numbers config). (h) Sensor scope v1: Claroty xDome ONLY (D-2440). (i) 4 cycle-close lessons [codification-assess] logged in cycles/wave-5-e-demo-fidelity/lessons.md for session-reviewer.
+
+### PENDING USER-APPROVED WORK
+v1 RELEASE PROCESS in flight. Move 2: repurpose PR #253 (fix + push + pr-manager). develop→main merge requires fresh in-transcript human approval. No other pending fix lists.
+
+### WORKTREE INVENTORY
+ACTIVE: none. REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001. PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). DEFECT-CLAROTY-VULN-PAGESIZE-001 (.worktrees/DEFECT-CLAROTY-VULN-PAGESIZE-001 EMPTY off develop@2edaaca78; recommend DELETE per D-2421). fix/DEFECT-LIVE-ENVELOPE-OBS-001: LOCAL branch only (stale pointer; harmless). release/v1.0.0: LOCAL branch off develop@11493aeb5 (@a326c4ae5 RELEASING.md authored; not pushed; needs Move-2 defect fixes before push).
+
+---
+
+## §RESUME SNAPSHOT — D-2438 (2026-09-03 — v1 RELEASE PROCESS STARTED; SAFE TO CLEAR) [supersedes D-2437] [SUPERSEDED by D-2440]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, Claroty xDome v1 RELEASE-READY. v1 RELEASE PROCESS STARTED (human-approved 2026-09-03). RELEASING.md canonical release procedure authored at repo root on branch release/v1.0.0 (commit a326c4ae5, off develop@11493aeb5, not yet pushed to origin). .factory/release-config.yaml bootstrapped. NEXT: prism-bin 0.1.0→1.0.0 version bump + CHANGELOG [1.0.0] section + dry-run + push release/v1.0.0 + PR release/v1.0.0→develop (merge-commit) + human merge + PR develop→main (human merge, merge-commit, NOT squash) + git tag v1.0.0 on main + release.yml.

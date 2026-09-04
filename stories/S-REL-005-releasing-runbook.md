@@ -6,17 +6,17 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.3"
+version: "0.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
 tdd_mode: strict
 subsystems: []
 # Subsystem anchor justification:
-#   docs/RELEASING.md and .factory/release-config.yaml are release-process documentation
+#   RELEASING.md and .factory/release-config.yaml are release-process documentation
 #   and configuration artifacts. No ARCH-INDEX subsystem owns operator runbooks or release
 #   config schemas. subsystems: [] per S-0.01 infra story precedent.
-crates_touched: []
+crates_touched: [prism-bin]
 target_module: devops
 capabilities: []
 behavioral_contracts: []
@@ -29,7 +29,7 @@ depends_on: [S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007]
 #     release.yml (S-REL-001) is the workflow being documented. The runbook cannot
 #     accurately describe steps that don't exist yet.
 #   depends_on S-REL-002: RELEASING.md documents the version bump procedure
-#     (bump prism-bin Cargo.toml per ADR-053); S-REL-002 establishes that procedure.
+#     (bump prism-bin Cargo.toml per ADR-062); S-REL-002 establishes that procedure.
 #   depends_on S-REL-003: RELEASING.md documents the install scripts as the consumer
 #     download path; S-REL-003 creates those scripts.
 #   depends_on S-REL-004: RELEASING.md documents the demo bundle as a required release
@@ -42,8 +42,8 @@ estimated_days: 1
 risk: LOW
 # Risk justification: Documentation and configuration artifact only. No Rust code changes.
 # YAML schema for release-config is simple (schema 1). RELEASING.md cannot break anything.
-acceptance_criteria_count: 8
-red_gate_tests: 1
+acceptance_criteria_count: 13
+red_gate_tests: 2
 estimated_passes: "1 LOCAL adversary pass"
 holdout_scenarios: []
 assumption_validations: []
@@ -53,11 +53,14 @@ risk_mitigations:
   - "RELEASING.md must reference actual file paths, not aspirational ones. All paths
     documented (scripts/install.sh, scripts/install.ps1, scripts/demo-bundle.sh, etc.)
     must exist after S-REL-001 through S-REL-007 are merged."
-  - "quality_gates is a MAP (U24/U25): the vsdd release skill schema requires quality_gates
-    to be a mapping with mode: vsdd-full plus individual gate keys (require_convergence,
-    min_convergence_dimensions, require_holdout, min_holdout_satisfaction,
-    require_formal_verification, require_adversarial_passes, require_human_approval).
-    Do NOT write quality_gates as a bare scalar (quality_gates: vsdd-full is INVALID schema)."
+  - "quality_gates is a MAP with mode: vsdd-partial (U24/U25, D-2440): the vsdd release skill
+    schema requires quality_gates to be a mapping with mode: vsdd-partial plus individual gate
+    keys (require_convergence, min_convergence_dimensions, require_holdout,
+    min_holdout_satisfaction, require_formal_verification, require_adversarial_passes,
+    require_human_approval). Do NOT write quality_gates as a bare scalar.
+    require_human_approval: true is load-bearing regardless of mode.
+    Note: the original delta-analysis §9 spec said 'mode: vsdd-full' — this was a doc error;
+    the correct value for a v1.0.0-rc.1 release gate is vsdd-partial (D-2440)."
   - "packages/version_sources (U25): the schema requires a packages array with version_sources
     pointing to crates/prism-bin/Cargo.toml (format: toml) so the release tooling knows
     where to read the canonical product version."
@@ -72,7 +75,7 @@ inputs:
   - ".github/workflows/release.yml"
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "a40f30a"
+input-hash: "92db479"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -82,7 +85,7 @@ phase: "F3"
 
 **Story ID:** S-REL-005
 **Status:** draft
-**Version:** v0.3
+**Version:** v0.4
 **Wave:** F-A (terminal story — depends on all other F-A stories)
 **Priority:** P0
 **Points:** 2
@@ -91,7 +94,7 @@ phase: "F3"
 
 ## Origin
 
-Delta-analysis §2 (missing artifacts): No `docs/RELEASING.md` exists. No `release-config.yaml`
+Delta-analysis §2 (missing artifacts): No `RELEASING.md` exists. No `release-config.yaml`
 exists. An operator preparing the 1.0.0-rc.1 release has no documented procedure. These
 artifacts are required for the RC gate: human approval must be anchored to a written runbook,
 and the factory pipeline must have a machine-readable quality gate config.
@@ -113,8 +116,8 @@ This story has no subsystem BCs — operator runbook and release config are proc
 | Architecture Source | Clause |
 |--------------------|--------|
 | `delta-analysis.md` §2 (missing artifacts) | RELEASING.md and release-config.yaml both missing |
-| `delta-analysis.md` §11 S-REL-005 scope | docs/RELEASING.md + .factory/release-config.yaml |
-| `delta-analysis.md` §9 (quality gates) | quality_gates MAP with mode: vsdd-full; require_human_approval: true |
+| `delta-analysis.md` §11 S-REL-005 scope | RELEASING.md + .factory/release-config.yaml |
+| `delta-analysis.md` §9 (quality gates) | quality_gates MAP with mode: vsdd-partial; require_human_approval: true (load-bearing; prior vsdd-full was a doc error per D-2440) |
 | `prism-consumer-contract.md` §5.2 | Version string pinned to 1.0.0-rc.1; runbook must cite this |
 
 ---
@@ -141,7 +144,7 @@ Well within the 30% context window budget.
 
 2. **Read `delta-analysis.md` §9** for the quality gate list.
 
-3. **Create `docs/RELEASING.md`** with the following structure:
+3. **Create `RELEASING.md`** at the repo root (NOT under `docs/`) with the following structure:
 
    ```markdown
    # Releasing Prism
@@ -152,7 +155,7 @@ Well within the 30% context window budget.
    - Human release approval obtained (PR review + merge of version bump PR)
 
    ## Version bump (prism-bin only)
-   Per ADR-053: bump `crates/prism-bin/Cargo.toml` version to match the release tag.
+   Per ADR-062: bump `crates/prism-bin/Cargo.toml` version to match the release tag.
    All other crates remain unchanged.
 
    Steps:
@@ -233,7 +236,7 @@ Well within the 30% context window budget.
            format: toml
 
    quality_gates:
-     mode: vsdd-full
+     mode: vsdd-partial    # vsdd-full was a doc error; vsdd-partial is the correct rc.1 gate (D-2440)
      require_convergence: true
      min_convergence_dimensions: 7
      require_holdout: true
@@ -263,28 +266,55 @@ Well within the 30% context window budget.
    Either path: the decision is written into RELEASING.md before the story is closed
    (Canonical Principle Rule 3 — no bare TODO). AC-008 verifies this.
 
+6. **Fix boot.rs relative path resolution for spec_dir and plugin_dir:**
+   Read `crates/prism-bin/src/boot.rs`. Find the code that resolves `spec_dir` and
+   `plugin_dir` from the config. If the current code resolves them relative to the process
+   CWD (e.g., via `Path::new(spec_dir)` without joining to config_dir), change it to
+   resolve relative to the config file's parent directory:
+   ```rust
+   // Instead of: PathBuf::from(&config.spec_dir)
+   // Use: config_dir.join(&config.spec_dir)
+   ```
+   where `config_dir` = the parent directory of the prism.toml file that was loaded.
+   Write a failing Red Gate test (RG-002) BEFORE making the code change: a test that starts
+   prism with a relative `spec_dir` from a working directory DIFFERENT from config_dir and
+   asserts that spec files are found (not that CWD/spec_dir is attempted).
+
+7. **Create `prism.toml.example`** at the repo root with the following constraints:
+   - UUID-v7 org_id guidance: document `uuidgen -7` (util-linux 2.41+) OR
+     `python3 -c "import uuid; print(uuid.uuid7())"` (Python 3.14+ stdlib).
+     Do NOT use `python3 -c "import uuid7; ..."` (third-party package — not stdlib).
+   - credential_backend: document only `keyring` and `encrypted_file` types.
+     Do NOT list `env` (nonexistent backend type).
+   - Sensor configuration examples: Claroty xDome ONLY. Remove all crowdstrike, cyberint,
+     armis sensor blocks, crowdstrike-oauth2.prx plugin_dir references.
+     Keep infusions/threatintel examples.
+   - spec_dir: document as a path that is resolved relative to the directory containing
+     prism.toml (config_dir), not the process CWD. Add a comment to this effect.
+
 ---
 
 ## Acceptance Criteria
 
-### AC-001: `docs/RELEASING.md` exists with required sections
+### AC-001: `RELEASING.md` exists at repo root with required sections
 Given: The story is implemented.
-When: `ls docs/RELEASING.md` is run.
-Then: File exists. It contains all required sections: Prerequisites, Version bump, Tagging,
-What the release workflow does, Pre-release tags, Consumer install paths, Demo bundle,
-Rollback, Hotfix releases (with S-REL-hotfix-001 anchor per U27 — no bare TODO).
-(traces to delta-analysis.md §2: "docs/RELEASING.md is missing")
+When: `ls RELEASING.md` is run from the repo root (NOT `ls docs/RELEASING.md`).
+Then: File exists at the repo root. It contains all required sections: Prerequisites,
+Version bump, Tagging, What the release workflow does, Pre-release tags, Consumer install
+paths, Demo bundle, Rollback, Hotfix releases (with S-REL-hotfix-001 anchor per U27 — no
+bare TODO). Note: the file is at REPO_ROOT/RELEASING.md, not docs/RELEASING.md (D-2440).
+(traces to delta-analysis.md §2: "RELEASING.md is missing"; D-2440: repo-root location)
 
-### AC-002: RELEASING.md cites ADR-053 for the version bump procedure
-Given: `docs/RELEASING.md` is read.
-When: `grep 'ADR-053' docs/RELEASING.md` is run.
-Then: At least one reference to ADR-053 is present, citing the policy that only prism-bin
+### AC-002: RELEASING.md cites ADR-062 for the version bump procedure
+Given: `RELEASING.md` is read.
+When: `grep 'ADR-062' RELEASING.md` is run.
+Then: At least one reference to ADR-062 is present, citing the policy that only prism-bin
 version changes per release.
-(traces to delta-analysis.md §2: "ADR-053 policy documented in runbook")
+(traces to delta-analysis.md §2: "version policy documented in runbook"; D-2440 ADR renumber 053→062)
 
 ### AC-003: RELEASING.md documents both Unix and Windows install paths
-Given: `docs/RELEASING.md` is read.
-When: `grep -i 'install.sh\|install.ps1' docs/RELEASING.md` is run.
+Given: `RELEASING.md` is read.
+When: `grep -i 'install.sh\|install.ps1' RELEASING.md` is run.
 Then: Both `scripts/install.sh` (Unix) and `scripts/install.ps1` (Windows) are referenced
 in the Consumer install paths section.
 (traces to delta-analysis.md §11 S-REL-005: "consumer install paths documented")
@@ -295,15 +325,18 @@ When: `ls .factory/release-config.yaml` is run.
 Then: File exists. `grep 'schema: 1' .factory/release-config.yaml` returns one match.
 (traces to delta-analysis.md §11 S-REL-005: ".factory/release-config.yaml (schema 1)")
 
-### AC-005: release-config.yaml has quality_gates as a MAP with mode: vsdd-full
+### AC-005: release-config.yaml has quality_gates as a MAP with mode: vsdd-partial
 Given: `.factory/release-config.yaml` is read.
 When: The quality_gates block is inspected.
 Then: `quality_gates:` is a YAML mapping (not a scalar). The mapping contains
-`mode: vsdd-full`. The mapping also contains `require_convergence: true`,
-`min_convergence_dimensions: 7`, `require_holdout: true`, `min_holdout_satisfaction: 1.0`,
-`require_formal_verification: true`, `require_adversarial_passes: 3`.
+`mode: vsdd-partial` (NOT vsdd-full; the original delta-analysis §9 said vsdd-full but
+that was a doc error — the correct mode for v1.0.0-rc.1 is vsdd-partial per D-2440).
+The mapping also contains `require_convergence: true`, `min_convergence_dimensions: 7`,
+`require_holdout: true`, `min_holdout_satisfaction: 1.0`, `require_formal_verification: true`,
+`require_adversarial_passes: 3`.
 The top-level scalar `quality_gates: vsdd-full` pattern is NOT present.
-(traces to delta-analysis.md §9: "quality_gates: vsdd-full"; research U24/U25: MAP schema)
+(traces to delta-analysis.md §9: "quality_gates MAP"; research U24/U25: MAP schema;
+D-2440: mode: vsdd-partial correction)
 
 ### AC-006: release-config.yaml has require_human_approval: true inside quality_gates
 Given: `.factory/release-config.yaml` is read.
@@ -321,7 +354,7 @@ schema keys — they may appear only as YAML comments.
 (traces to delta-analysis.md §11 S-REL-005; research U25: packages/version_sources)
 
 ### AC-008: RELEASING.md documents tag-naming discipline and records trigger-scope decision
-Given: `docs/RELEASING.md` is read.
+Given: `RELEASING.md` is read.
 When: The "Tag-naming discipline" section is inspected.
 Then: The section (a) states that only `vMAJOR.MINOR.PATCH` (GA) and
 `vMAJOR.MINOR.PATCH-rc.N` (prerelease) tags may be pushed to origin; (b) states that
@@ -330,6 +363,50 @@ decision — either a rationale for keeping `v*` or a reference to a tightened p
 with the updated workflow — as explicit prose (not a placeholder, not a bare TODO).
 (traces to F-REL001-PR6-003: release.yml v* trigger matches any v-prefixed tag;
  a non-release v* tag with `-` would publish as an unintended prerelease)
+
+### AC-009: boot.rs resolves relative spec_dir and plugin_dir against config_dir, not process CWD
+Given: A `prism.toml` with `spec_dir = "specs"` (relative path) at `/etc/prism/prism.toml`.
+When: `prism start --config /etc/prism/prism.toml` is run from a working directory other
+  than `/etc/prism` (e.g., `cd /tmp && prism start --config /etc/prism/prism.toml`).
+Then: prism resolves `spec_dir` as `/etc/prism/specs` (joining config_dir + spec_dir),
+  NOT as `/tmp/specs` (process CWD + spec_dir). Boot succeeds; spec files are found.
+  The Red Gate test (RG-002): starts prism from a CWD different from config_dir with a
+  relative spec_dir, asserts the specs are found (not a CWD-relative path error).
+(traces to boot.rs CWD bug: D-2440 — spec_dir/plugin_dir must use config_dir.join())
+
+### AC-010: prism.toml.example UUID-v7 org_id guidance uses accurate stdlib commands
+Given: `prism.toml.example` is read.
+When: The org_id / UUID-v7 guidance comment or example is inspected.
+Then: The documented commands are `uuidgen -7` / `uuidgen --time-v7` (util-linux 2.41+) OR
+  `python3 -c "import uuid; print(uuid.uuid7())"` (Python 3.14+ stdlib).
+  The broken `python3 -c "import uuid7; ..."` pattern is NOT present (uuid7 is a third-party
+  package, not Python stdlib).
+(traces to D-2440: accurate UUID-v7 guidance in prism.toml.example)
+
+### AC-011: prism.toml.example credential_backend lists only supported types
+Given: `prism.toml.example` is read.
+When: Any `credential_backend` type values or comments are inspected.
+Then: Only `keyring` and `encrypted_file` are listed as valid credential_backend types.
+  The nonexistent `env` type is NOT present.
+(traces to D-2440: env credential backend does not exist; only keyring + encrypted_file
+  are implemented in prism-bin)
+
+### AC-012: prism.toml.example sensor examples reference only Claroty xDome
+Given: `prism.toml.example` is read.
+When: All sensor configuration sections and comments are inspected.
+Then: Only Claroty xDome sensor examples appear. References to `crowdstrike`, `cyberint`,
+  `armis`, `crowdstrike-oauth2.prx`, and plugin_dir configurations for CrowdStrike are
+  absent. Infusion configuration examples (`threatintel`) may be present.
+(traces to D-2440 sensor-scope: v1.0.0-rc.1 ships Claroty xDome only;
+  CrowdStrike returns via S-ADR054-WAVE-A-001)
+
+### AC-013: prism.toml.example spec_dir guidance reflects config_dir-relative resolution
+Given: `prism.toml.example` is read (after boot.rs fix from AC-009).
+When: The spec_dir configuration example/comment is inspected.
+Then: The example documents that a relative spec_dir value is resolved relative to the
+  directory containing prism.toml (config_dir), not relative to the process CWD. A comment
+  or note to this effect is present alongside the spec_dir example value.
+(traces to AC-009: boot.rs fix; D-2440: spec_dir guidance must be accurate once fix lands)
 
 ---
 
@@ -346,18 +423,24 @@ details differ from spec).
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| version bump = prism-bin only per ADR-053 | S-REL-002 + ADR-053 | AC-002 |
-| quality_gates is a MAP (not scalar) | Research U24/U25 | AC-005 no scalar form |
+| version bump = prism-bin only per ADR-062 | S-REL-002 + ADR-062 | AC-002 |
+| quality_gates is a MAP with mode: vsdd-partial (not scalar, not vsdd-full) | Research U24/U25; D-2440 | AC-005 |
 | packages/version_sources in release-config | Research U25 | AC-007 |
 | No invented top-level schema keys | Research U24 | AC-007 comment-only check |
 | require_human_approval: true (inside quality_gates) | delta-analysis §9 | AC-006 |
 | Hotfix deferral uses story anchor S-REL-hotfix-001 | Research U27; Canonical Principle Rule 3 | AC-001 no bare TODO |
+| spec_dir/plugin_dir resolved vs config_dir, not CWD | D-2440 boot.rs CWD bug | AC-009 Red Gate test |
+| prism.toml.example: UUID-v7 stdlib only, keyring+encrypted_file, Claroty-only | D-2440 | AC-010/011/012 |
 
 ---
 
 ## Library & Framework Requirements
 
-No code dependencies — documentation and YAML only.
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| Rust toolchain | Per `rust-toolchain.toml` | For boot.rs fix only; no new crate deps |
+
+The boot.rs path-resolution fix uses only existing `std::path::Path::join()` — no new crate dependencies.
 
 ---
 
@@ -365,8 +448,10 @@ No code dependencies — documentation and YAML only.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `docs/RELEASING.md` | Create | Operator release runbook; hotfix deferred to S-REL-hotfix-001 |
-| `.factory/release-config.yaml` | Create | Machine-readable release quality gate config; schema 1 MAP format |
+| `RELEASING.md` | Create | Operator release runbook at repo root (NOT docs/); hotfix deferred to S-REL-hotfix-001 |
+| `.factory/release-config.yaml` | Create | Machine-readable release quality gate config; schema 1 MAP format; mode: vsdd-partial |
+| `crates/prism-bin/src/boot.rs` | Modify | Fix spec_dir/plugin_dir relative-path resolution — use config_dir.join() not process CWD |
+| `prism.toml.example` | Create | Config template: UUID-v7 guidance (uuidgen -7 / Python stdlib), keyring+encrypted_file only, Claroty-only sensor examples, accurate spec_dir relative-path note |
 
 ---
 
@@ -374,8 +459,10 @@ No code dependencies — documentation and YAML only.
 
 | Component | Module | Pure/Effectful |
 |-----------|--------|----------------|
-| `docs/RELEASING.md` | `docs/` | N/A (documentation) |
+| `RELEASING.md` | repo root | N/A (documentation) |
 | `.factory/release-config.yaml` | `.factory/` | N/A (configuration) |
+| `crates/prism-bin/src/boot.rs §spec_dir/plugin_dir resolution` | `prism-bin` | Effectful (reads config path, joins to produce absolute path) |
+| `prism.toml.example` | repo root | N/A (configuration template) |
 
 ---
 
@@ -383,8 +470,10 @@ No code dependencies — documentation and YAML only.
 
 | Module | Classification | Justification |
 |--------|----------------|---------------|
-| `docs/RELEASING.md` | N/A | Documentation — no Rust purity boundary applies |
+| `RELEASING.md` | N/A | Documentation — no Rust purity boundary applies |
 | `.factory/release-config.yaml` | N/A | YAML configuration — no Rust purity boundary applies |
+| `boot.rs §spec_dir/plugin_dir path resolution` | Effectful | Resolves paths against config_dir — touches filesystem-relative semantics |
+| `prism.toml.example` | N/A | Configuration template — no Rust purity boundary applies |
 
 ---
 
@@ -401,10 +490,12 @@ No code dependencies — documentation and YAML only.
 
 ## Forbidden Dependencies
 
-- No Rust code changes (documentation story only)
+- Rust code changes limited to `crates/prism-bin/src/boot.rs` (spec_dir/plugin_dir CWD fix only — no other production code changes)
 - No changes to existing CI/CD files (those are owned by S-REL-001 and S-REL-004)
-- No `quality_gates: vsdd-full` scalar form in release-config.yaml (must be MAP)
+- No `quality_gates: vsdd-full` scalar form in release-config.yaml (must be MAP with mode: vsdd-partial)
 - No bare TODO in RELEASING.md hotfix section (must reference S-REL-hotfix-001)
+- prism.toml.example must NOT reference crowdstrike, cyberint, or armis sensors (Claroty-only per D-2440)
+- prism.toml.example must NOT use `import uuid7` (third-party package; use stdlib uuid.uuid7())
 
 ---
 
@@ -412,6 +503,7 @@ No code dependencies — documentation and YAML only.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.4 | 2026-09-03 | D-2440 amendments: all docs/RELEASING.md refs → repo-root RELEASING.md; quality_gates vsdd-full→vsdd-partial (doc error corrected); ADR-053→ADR-062 in AC-002/Task-3/Behavioral-Contracts/Arch-Rules; boot.rs CWD bug fix added as Task-6 + AC-009 (RG-002); prism.toml.example Tasks-7 + ACs-010/011/012/013 (UUID-v7 stdlib, keyring+encrypted_file only, Claroty-only sensors, spec_dir relative guidance); crates_touched [prism-bin]; acceptance_criteria_count 8→13; red_gate_tests 1→2 |
 | 0.3 | 2026-07-20 | F-REL001-PR6-003 (OBS): scope extended — RELEASING.md tag-naming discipline section added (only vMAJOR.MINOR.PATCH[-rc.N] tags to origin; non-release v* tags forbidden); Task 5 added to evaluate and record workflow trigger-scope decision (decision must be present in runbook, not deferred-TBD); AC-008 added; EC-004 non-release v* tag edge case; acceptance_criteria_count 7→8 |
 | 0.2 | 2026-07-19 | Fix-burst: U24/U25 release-config.yaml quality_gates rewritten as MAP (mode+individual gate keys); packages/version_sources added; invented top-level keys (release_series/platforms/artifacts) moved to comments only; AC-005/007 updated to verify MAP structure; U27 EC-003 and RELEASING.md Hotfix section use S-REL-hotfix-001 story anchor instead of bare TODO; research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

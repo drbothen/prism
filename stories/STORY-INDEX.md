@@ -1,12 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.990"
+version: "2.992"
 status: draft
 producer: state-manager
 timestamp: 2026-09-03T01:00:00Z
 phase: 3
-total_stories: 322
+total_stories: 324
+# D-2440: E-REL deconfliction amendments 2026-09-03 — S-REL-002 ADR renumber 053→062 (file renamed to S-REL-002-version-alignment-adr-062.md, v0.2→v0.3); S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle, v0.3→v0.4); S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13); S-REL-008→S-REL-010 (rename stub); S-REL-009→S-REL-011 (rename stub; depends_on S-REL-004→S-REL-005). total_stories 324 UNCHANGED. STORY-INDEX v2.991→v2.992 (state-manager finalizes).
+# D-2439: post-v1.0.0 deferred stubs — S-REL-008 (embedded built-in specs, E-REL, P1, 13 pts, draft v0.1) + S-REL-009 (operator setup + installation docs, E-REL, P1, 3 pts, draft v0.1) registered per human-directed deferral 2026-09-03. New section "Post-v1.0.0 Deferred Stubs (E-REL)" added after Wave F-A/F-B table. total_stories 322→324. STORY-INDEX v2.990→v2.991.
 # D-2435: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 POST-MERGE BURST (TD-VSDD-053) — story row [ready v1.7]→[merged v1.7; PR #252 @11493aeb5] (human-merged 2026-09-03). POL-14: all 5 BCs already active — NO-OP. total_stories 322 UNCHANGED. STORY-INDEX v2.989→v2.990. D-2433 NOTE archived.
 # D-2433: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46 (Dim-2 propagation gap from D-2432 — §Sensor Defect Fixes paragraph at line ~1121 not swept when D-2432 updated the table row and BCs column). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.988→v2.989. D-2432 NOTE archived.
 # D-2432: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst — story row [ready v1.6]→[ready v1.7] (story v1.6→v1.7: AC-002 Tests para + RG-002 table row + Task-7 + Notes-for-Implementer-3 corrected to RG-002-unchanged/RG-009-hardened formulation; BC-2.16.013 v1.45→v1.46 in BCs column). RECORDS-ONLY MICRO-BURST (TD-VSDD-096). total_stories 322 UNCHANGED. STORY-INDEX v2.987→v2.988. D-2431 NOTE archived.
@@ -1155,12 +1157,24 @@ RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst)
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
 | S-REL-001 | release.yml repair — remove dead jobs (DEF-REL-001/002/003/004), add v*-rc.* prerelease handling [merged v0.24] | devops | 0 (N/A infra) | -- | 3 | -- |
-| S-REL-002 | prism-bin version alignment to 1.0.0-rc.1 + ADR-053 product version policy [draft v0.1] | prism-bin | 0 (N/A infra) | -- | 2 | -- |
+| S-REL-002 | prism-bin version alignment to 1.0.0-rc.1 + ADR-062 product version policy [draft v0.3] | prism-bin | 0 (N/A infra) | -- | 2 | -- |
 | S-REL-003 | install.sh + install.ps1 — checksum-verified consumer install scripts for all 5 platforms [draft v0.3] | devops | 0 (N/A infra) | -- | 3 | S-REL-001 |
-| S-REL-004 | demo-bundle packaging — build-plugins CI job (wasm-tools 1.248.0, single Linux runner) + per-platform demo bundle release asset [draft v0.3] | devops | 0 (N/A infra) | -- | 8 | S-REL-001, S-REL-002 |
+| S-REL-004 | demo-bundle packaging — build-plugins CI job (wasm-tools 1.248.0, single Linux runner) + per-platform demo bundle release asset; Claroty xDome ONLY (D-2440; crowdstrike/armis/cyberint deferred) [draft v0.4] | devops | 0 (N/A infra) | -- | 8 | S-REL-001, S-REL-002 |
 | S-REL-007 | Windows PowerShell demo parity — demo-setup.ps1, demo-run.ps1, demo-teardown.ps1; ConvertFrom-Json; stdin-pipe credentials; DEMO-RUNBOOK.md Windows section [draft v0.1] | devops | 0 (N/A infra) | -- | 8 | S-REL-004 |
-| S-REL-005 | docs/RELEASING.md operator runbook + .factory/release-config.yaml (schema 1, quality_gates vsdd-full, require_human_approval: true) [draft v0.3] | devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
+| S-REL-005 | RELEASING.md operator runbook (repo root) + .factory/release-config.yaml (schema 1, quality_gates vsdd-partial, require_human_approval: true) + boot.rs CWD fix + prism.toml.example (Claroty-only) [draft v0.4] | prism-bin, devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
 | S-REL-006 | Graduate prism-consumer-contract.md to docs/consumer-contract.md + DEMO-RUNBOOK.md Windows cross-reference [draft v0.1] | devops | 0 (N/A infra) | -- | 2 | S-REL-002, S-REL-007 |
+
+## Post-v1.0.0 Deferred Stubs (E-REL)
+
+These 2 stories are post-v1.0.0 deferrals registered 2026-09-03 (D-2439 human-directed deferral). v1.0.0 ships
+the archive-bundled spec model (Option 1, PR #253). These stories capture the next evolution and the install-doc
+gap identified during v1.0.0 release prep. All `behavioral_contracts: []` pending PO authorship or waiver
+before status: ready (Spec-First Gate S-7.01).
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-REL-010 | Binary self-sufficiency — embed built-in sensor+infusion specs as BASE layer, make spec_dir optional; disk overrides by sensor_id; per-org overlay compatibility; single-source-of-truth embed via existing BUNDLED_SPEC_SCHEMAS static; ADR required [draft stub v0.1] | prism-bin, prism-spec-engine, prism-query | 0 (pending PO authorship) | -- | 13 | -- |
+| S-REL-011 | Operator setup and installation documentation for v1.0.0 archive-bundled model — docs/SETUP.md covering download, checksum+attestation verify, bundle extraction, spec placement, prism.toml, UUID-v7 org_id, credential set, first boot [draft stub v0.1] | docs | 0 (N/A docs) | -- | 3 | S-REL-003, S-REL-005 |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -1707,6 +1721,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.992 | 2026-09-03 | state-manager D-2440: SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL deconfliction finalized. S-REL-002 file renamed S-REL-002-version-alignment-adr-062.md (v0.2→v0.3; ADR renumber 053→062). S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle; v0.3→v0.4). S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC-009 + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13). S-REL-008→S-REL-010 (rename; embedded-builtin-specs stub); S-REL-009→S-REL-011 (rename; install-setup-docs stub). ADR-062 registered (ARCH-INDEX v2.357→v2.358). D-2439 stub registration absorbed (stubs never committed; landing renamed). TD-VSDD-097: Dim-1 CLEAR (ADR-062 has no sibling ADR). Dim-2 CLEAR (no verbatim copy-source section). Dim-3: S-REL-002 MUST anchors cite S-REL-002 ACs per story; S-REL-004/005 MUSTs anchored to their own ACs; S-REL-010/011 stubs pending PO authorship (defer anchor to story materialization). total_stories 324 UNCHANGED. records-lint exit 0. story_index_version 2.991→2.992. |
+| v2.991 | 2026-09-03 | story-writer D-2439: post-v1.0.0 deferred stubs registered — S-REL-008 (embedded built-in specs, E-REL, P1, 13 pts, draft stub v0.1) + S-REL-009 (operator setup + installation docs, E-REL, P1, 3 pts, draft stub v0.1) per human-directed deferral 2026-09-03. New section "Post-v1.0.0 Deferred Stubs (E-REL)" added. total_stories 322→324. story_index_version 2.990→2.991. |
 | v2.990 | 2026-09-03 | state-manager D-2435: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 PR #252 squash-merged to develop @11493aeb5 (human-executed 2026-09-03). Story row [ready v1.7]→[merged v1.7; PR #252 @11493aeb5]. POL-14: all 5 BCs (BC-2.16.015, BC-2.16.013, BC-2.16.019, BC-2.16.020, BC-2.16.021) already active — NO-OP; no BC-INDEX draft/active count change. develop_head 2edaaca78→11493aeb5. conformance-audit-driven sort_by workstream COMPLETE. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.989→2.990. records-lint exit 0. |
 | v2.989 | 2026-09-03 | state-manager D-2433: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 §Sensor-Defect-Fixes prose paragraph BC-2.16.013 pin v1.45→v1.46. Dim-2 propagation gap from D-2432 (§Sensor Defect Fixes paragraph at STORY-INDEX §Sensor-Defect-Fixes not swept when D-2432 updated the table row and BCs column). TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLOSED. Dim-3 CLEAR (no new MUSTs). total_stories 322 UNCHANGED. story_index_version 2.988→2.989. records-lint exit 0. |
 | v2.988 | 2026-09-03 | state-manager D-2432: RECORDS-ONLY MICRO-BURST (TD-VSDD-096; TD-VSDD-053) — DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst. Story row [ready v1.6]→[ready v1.7] (story v1.6→v1.7: AC-002 Tests para + RG-002 table row + Task-7 + Notes-for-Implementer-3 corrected to RG-002-unchanged/RG-009-hardened formulation). BC-2.16.013 v1.45→v1.46 in BCs column. BC-INDEX v10.05→v10.06. TD-VSDD-097: Dim-1 CLEAR (BC-2.01.013 sibling has no sort_by coupling — CLEAR). Dim-2 DISCHARGED (story AC-002 + EC-016-013-011 Test-coupling co-updated in same burst). Dim-3 CLEAR (no new unanchored MUSTs). total_stories 322 UNCHANGED. story_index_version 2.987→2.988. records-lint exit 0. |

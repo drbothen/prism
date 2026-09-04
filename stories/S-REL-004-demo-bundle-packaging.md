@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.3"
+version: "0.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -65,12 +65,13 @@ risk_mitigations:
     creating an empty artifact that causes confusing failures downstream."
   - ".prx glob path (U18): use `crates/prism-spec-engine/plugins/*/*.prx` — the actual
     plugin build outputs .prx files under the plugin crate directory, not workspace root."
-  - "crowdstrike-oauth2.manifest.toml NOT in bundle: the manifest is dynamically generated
-    by demo-setup.sh because it extends production allowed_urls with 127.0.0.1 for DTU mode.
-    It cannot be pre-baked. This is an explicit exclusion from the bundle per delta-analysis §7."
+  - "crowdstrike-oauth2 deferred entirely (D-2440 sensor-scope decision): v1.0.0-rc.1 ships
+    Claroty xDome only. CrowdStrike sensor, crowdstrike-oauth2.prx plugin, and associated
+    TOML spec are NOT shipped in the release bundle. CrowdStrike returns via S-ADR054-WAVE-A-001
+    (native auth, draft). Cyberint and Armis are also deferred per D-2440."
   - "ocsf-complex-transforms not in scope: delta-analysis §7 explicitly defers
-    ocsf-complex-transforms. Only crowdstrike-oauth2.prx and threatintel-lookup.prx are
-    in scope for this story."
+    ocsf-complex-transforms. Only threatintel-lookup.prx is in scope for this story
+    (crowdstrike-oauth2.prx deferred per D-2440 sensor-scope decision)."
   - "Windows bundle is .zip not .tar.gz (U22): Windows users have Expand-Archive (native PS 5.1
     cmdlet) but NOT tar (Windows < 1903). Build demo bundle for Windows target as .zip.
     Also include .ps1 scripts in Windows bundle, not .sh scripts."
@@ -95,7 +96,7 @@ inputs:
   - "scripts/demo-run.sh"
   - "scripts/demo-teardown.sh"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "4f64f71"
+input-hash: "984d7b6"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -105,7 +106,7 @@ phase: "F3"
 
 **Story ID:** S-REL-004
 **Status:** draft
-**Version:** v0.3
+**Version:** v0.4
 **Wave:** F-A
 **Priority:** P0
 **Points:** 8
@@ -121,6 +122,13 @@ RC acceptance gate — the demo bundle must be downloadable from the RC release.
 
 Human decision (OQ-1, 2026-07-19): the bundle MUST include pre-built `.prx` plugin
 artifacts so consumers can run the demo without a Rust toolchain.
+
+**Sensor scope (D-2440, 2026-09-03):** v1.0.0-rc.1 ships **Claroty xDome only**. The bundle
+specs/ directory contains only `claroty.sensor.toml`. Cyberint, Armis, and CrowdStrike
+sensor code remains in the workspace (built + tested) but is NOT shipped in the release bundle
+and NOT claimed as supported. CrowdStrike returns via S-ADR054-WAVE-A-001 (native auth, draft);
+Cyberint/Armis deferred per D-2440. Only `threatintel-lookup.prx` is built and bundled
+(crowdstrike-oauth2.prx deferred).
 
 ---
 
@@ -169,8 +177,9 @@ then the current release.yml (post S-REL-001), then the demo scripts.
 2. **Read `.github/workflows/release.yml`** (post S-REL-001 repair) in full.
 3. **Read `scripts/demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`** for content.
 4. **Read `crates/prism-bin/src/main.rs`** and Justfile to find:
-   - Where `just build-plugin-crowdstrike-oauth2` and `just build-plugin-threatintel-infusion`
-     output .prx files (confirm the glob `crates/prism-spec-engine/plugins/*/*.prx`)
+   - Where `just build-plugin-threatintel-infusion` outputs .prx files
+     (confirm the glob `crates/prism-spec-engine/plugins/*/*.prx`)
+     Note: crowdstrike-oauth2 plugin is deferred per D-2440 sensor-scope decision
    - Where infusion TOMLs live (confirmed as `specs/infusions/` per U16)
    - Where `threatintel-lookup.manifest.toml` lives (confirmed as
      `crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml` per U17)
@@ -195,7 +204,8 @@ then the current release.yml (post S-REL-001), then the demo scripts.
    cp "prism-dtu-demo-server" "${BUNDLE_DIR}/"
 
    # Plugin artifacts (built by build-plugins job, downloaded to plugins/ dir)
-   cp "plugins/crowdstrike-oauth2.prx"                               "${BUNDLE_DIR}/plugins/"
+   # v1.0.0-rc.1 ships Claroty xDome only (D-2440 sensor-scope decision).
+   # crowdstrike-oauth2.prx deferred to S-ADR054-WAVE-A-001; Cyberint/Armis deferred per D-2440.
    cp "plugins/threatintel-lookup.prx"                               "${BUNDLE_DIR}/plugins/"
    # Threatintel manifest (U17: correct path is plugins/threatintel-lookup/)
    cp "crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml" \
@@ -205,11 +215,9 @@ then the current release.yml (post S-REL-001), then the demo scripts.
    cp scripts/demo-setup.sh scripts/demo-run.sh scripts/demo-teardown.sh "${BUNDLE_DIR}/scripts/"
    cp scripts/demo.toml                                                    "${BUNDLE_DIR}/scripts/"
 
-   # Sensor TOMLs
-   cp crates/prism-sensors/specs/crowdstrike.sensor.toml  "${BUNDLE_DIR}/specs/"
-   cp crates/prism-sensors/specs/armis.sensor.toml        "${BUNDLE_DIR}/specs/"
+   # Sensor TOMLs — v1.0.0-rc.1: Claroty xDome only (D-2440)
+   # CrowdStrike deferred to S-ADR054-WAVE-A-001; Cyberint/Armis deferred per D-2440
    cp crates/prism-sensors/specs/claroty.sensor.toml      "${BUNDLE_DIR}/specs/"
-   cp crates/prism-sensors/specs/cyberint.sensor.toml     "${BUNDLE_DIR}/specs/"
 
    # Infusions (U16: specs/infusions/ NOT crates/prism-spec-engine/infusions/)
    cp specs/infusions/threatintel.infusion.toml  "${BUNDLE_DIR}/infusions/"
@@ -239,8 +247,7 @@ then the current release.yml (post S-REL-001), then the demo scripts.
          uses: taiki-e/install-action@v2
          with:
            tool: wasm-tools@1.248.0
-       - name: Build crowdstrike-oauth2 plugin
-         run: just build-plugin-crowdstrike-oauth2
+       # v1.0.0-rc.1 ships Claroty xDome only (D-2440); crowdstrike-oauth2 deferred to S-ADR054-WAVE-A-001
        - name: Build threatintel-infusion plugin
          run: just build-plugin-threatintel-infusion
        - name: Upload plugin artifacts
@@ -315,10 +322,12 @@ then the current release.yml (post S-REL-001), then the demo scripts.
            # Windows bundle assembly: includes .ps1 scripts (from S-REL-007), .zip format
            New-Item -ItemType Directory -Path $bdir/plugins, $bdir/scripts, $bdir/specs, $bdir/infusions, $bdir/preflight -Force
            Copy-Item prism-dtu-demo-server.exe $bdir/
-           Copy-Item plugins/*.prx $bdir/plugins/
+           # v1.0.0-rc.1: Claroty xDome only — crowdstrike-oauth2.prx deferred to S-ADR054-WAVE-A-001 (D-2440)
+           Copy-Item plugins/threatintel-lookup.prx $bdir/plugins/
            Copy-Item crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml $bdir/plugins/
            Copy-Item scripts/demo-setup.ps1, scripts/demo-run.ps1, scripts/demo-teardown.ps1, scripts/demo.toml $bdir/scripts/
-           Copy-Item crates/prism-sensors/specs/*.sensor.toml $bdir/specs/
+           # v1.0.0-rc.1: Claroty xDome only (D-2440); crowdstrike/armis/cyberint deferred
+           Copy-Item crates/prism-sensors/specs/claroty.sensor.toml $bdir/specs/
            Copy-Item specs/infusions/*.infusion.toml $bdir/infusions/
            Copy-Item scripts/t13-preflight-audit.py $bdir/preflight/
            Copy-Item docs/DEMO-RUNBOOK.md $bdir/
@@ -357,45 +366,50 @@ Given: `.github/workflows/release.yml` post this story.
 When: The `build-plugins` job definition is read.
 Then: The job runs on `ubuntu-latest`; installs `wasm32-wasip1` target; installs wasm-tools
 at exactly version 1.248.0 via `taiki-e/install-action@v2` with `tool: wasm-tools@1.248.0`
-(NOT via `cargo install`); runs both plugin Justfile recipes; uploads .prx files with
+(NOT via `cargo install`); runs the `build-plugin-threatintel-infusion` Justfile recipe
+(crowdstrike-oauth2 step absent — deferred per D-2440); uploads .prx files with
 `if-no-files-found: error` and path glob `crates/prism-spec-engine/plugins/*/*.prx`.
 (traces to delta-analysis.md §7: "build-plugins job: wasm-tools 1.248.0, single Linux runner";
-research U18 if-no-files-found: error; research U21: taiki-e/install-action)
+research U18 if-no-files-found: error; research U21: taiki-e/install-action;
+D-2440: crowdstrike-oauth2 step absent — Claroty-only scope)
 
-### AC-002: .prx artifacts are architecture-independent (WASM bytecode)
+### AC-002: .prx artifact is architecture-independent (WASM bytecode)
 Given: The build-plugins job runs once on Linux.
 When: The uploaded artifact is inspected.
-Then: Both `crowdstrike-oauth2.prx` and `threatintel-lookup.prx` are present. The same
-.prx files are included in all 5 per-platform demo bundles — they are NOT built separately
-per platform (WASM bytecode is platform-agnostic).
-(traces to delta-analysis.md §7: "build once on single runner, share across platforms")
+Then: `threatintel-lookup.prx` is present. The same .prx file is included in all 5
+per-platform demo bundles — it is NOT built separately per platform (WASM bytecode is
+platform-agnostic). Note: crowdstrike-oauth2.prx is deferred to S-ADR054-WAVE-A-001
+per D-2440 sensor-scope decision; it is NOT built in this story.
+(traces to delta-analysis.md §7: "build once on single runner, share across platforms";
+D-2440: v1.0.0-rc.1 ships Claroty xDome only)
 
 ### AC-003: `scripts/demo-bundle.sh` produces the correct directory structure
 Given: `scripts/demo-bundle.sh v1.0.0-rc.1 x86_64-unknown-linux-gnu /tmp/bundle` is run
 with prism-dtu-demo-server binary and plugins/ directory present in the working dir.
 When: The assembled directory is listed.
-Then: The structure matches delta-analysis §7 manifest exactly:
+Then: The structure is as follows (v1.0.0-rc.1 — Claroty xDome only; D-2440):
   - `prism-dtu-demo-server` (binary, downloaded from build-release artifact)
-  - `plugins/crowdstrike-oauth2.prx`
-  - `plugins/threatintel-lookup.prx`
+  - `plugins/threatintel-lookup.prx` (crowdstrike-oauth2.prx absent — deferred to S-ADR054-WAVE-A-001)
   - `plugins/threatintel-lookup.manifest.toml` (from crates/prism-spec-engine/plugins/threatintel-lookup/)
   - `scripts/demo-setup.sh`, `scripts/demo-run.sh`, `scripts/demo-teardown.sh`
   - `scripts/demo.toml`
-  - `specs/crowdstrike.sensor.toml`, `specs/armis.sensor.toml`,
-    `specs/claroty.sensor.toml`, `specs/cyberint.sensor.toml`
+  - `specs/claroty.sensor.toml` (crowdstrike/armis/cyberint absent — deferred per D-2440)
   - `infusions/threatintel.infusion.toml`, `infusions/nvd.infusion.toml`
     (from `specs/infusions/`, NOT `crates/prism-spec-engine/infusions/`)
   - `preflight/t13-preflight-audit.py`
   - `DEMO-RUNBOOK.md`
-(traces to delta-analysis.md §7: complete bundle manifest; research U16/U17: correct paths)
+(traces to delta-analysis.md §7: bundle manifest; research U16/U17: correct paths;
+D-2440: sensor-scope — v1.0.0-rc.1 ships Claroty xDome only)
 
-### AC-004: crowdstrike-oauth2.manifest.toml is NOT included in the bundle
+### AC-004: No crowdstrike artifacts are included in the bundle
 Given: The assembled bundle directory.
-When: `find <bundle_dir> -name '*manifest.toml' | grep crowdstrike` is run.
-Then: Zero matches. The crowdstrike-oauth2.manifest.toml is NOT pre-baked in the bundle
-(it is dynamically generated by demo-setup.sh/ps1 with the DTU-safe allowed_urls override).
-(traces to delta-analysis.md §7: "does not include crowdstrike-oauth2.manifest.toml
-(dynamically generated by demo-setup.sh/ps1)")
+When: `find <bundle_dir> -name '*crowdstrike*'` is run.
+Then: Zero matches. The crowdstrike-oauth2.manifest.toml, crowdstrike-oauth2.prx, and
+crowdstrike.sensor.toml are all absent from the bundle. CrowdStrike is deferred to
+S-ADR054-WAVE-A-001 (native auth, draft). crowdstrike-oauth2.manifest.toml was also
+previously excluded because it is dynamically generated by demo-setup.sh/ps1.
+(traces to D-2440: v1.0.0-rc.1 ships Claroty xDome only;
+CrowdStrike returns via S-ADR054-WAVE-A-001)
 
 ### AC-005: ocsf-complex-transforms is NOT in the bundle
 Given: The assembled bundle directory.
@@ -466,6 +480,11 @@ Key lessons from fix-burst research:
 - U21: use taiki-e/install-action@v2 for wasm-tools, not cargo install (too slow for CI).
 - U22: Windows bundle is .zip, not .tar.gz; includes .ps1 scripts.
 
+D-2440 sensor-scope (2026-09-03): v1.0.0-rc.1 ships Claroty xDome only. Demo bundle
+includes only claroty.sensor.toml and threatintel-lookup.prx. CrowdStrike returns via
+S-ADR054-WAVE-A-001; Cyberint/Armis deferred per D-2440. Code remains in workspace
+(built+tested) but not shipped in the release bundle.
+
 ---
 
 ## Architecture Compliance Rules
@@ -476,7 +495,7 @@ Key lessons from fix-burst research:
 | build-plugins and build-release run IN PARALLEL | Research U19 | Neither job has needs: the other |
 | build-demo-bundle waits for all three predecessors | Research U15 | needs: [build-release, build-plugins, publish-release] |
 | Main archive contains ONLY prism binary | delta-analysis §6 separation rule | AC-009 verification |
-| crowdstrike-oauth2.manifest.toml excluded | delta-analysis §7: "dynamically generated" | AC-004 verification |
+| All crowdstrike artifacts excluded | D-2440 sensor-scope: v1.0.0-rc.1 Claroty-only | AC-004 verification |
 | .prx files are architecture-independent | WASM bytecode is platform-agnostic | AC-002 |
 | upload-artifact if-no-files-found: error | Research U18 | Explicit field in both upload steps |
 | infusion TOMLs at specs/infusions/ | Research U16 | Path verified; NOT crates/prism-spec-engine/infusions/ |
@@ -491,7 +510,7 @@ Key lessons from fix-burst research:
 |------|---------|-------|
 | wasm-tools | 1.248.0 | Via taiki-e/install-action@v2 (not cargo install) |
 | wasm32-wasip1 target | Rust stable | rustup target add wasm32-wasip1 |
-| `just` (Justfile runner) | As installed by repo toolchain | Recipes: build-plugin-crowdstrike-oauth2, build-plugin-threatintel-infusion |
+| `just` (Justfile runner) | As installed by repo toolchain | Recipe: build-plugin-threatintel-infusion (crowdstrike-oauth2 deferred per D-2440) |
 | taiki-e/install-action | v2 (SHA-pinned at impl time) | Fast binary install for CI tools |
 | actions/upload-artifact | v4 | Must set if-no-files-found: error |
 | actions/download-artifact | v4 | Must match upload version |
@@ -544,7 +563,9 @@ Key lessons from fix-burst research:
 ## Forbidden Dependencies
 
 - No `ocsf-complex-transforms` plugin in bundle (no Justfile recipe exists; not in demo-setup.sh)
-- No `crowdstrike-oauth2.manifest.toml` in bundle (dynamically generated at demo setup time)
+- No `crowdstrike-oauth2.prx`, `crowdstrike-oauth2.manifest.toml`, or `crowdstrike.sensor.toml`
+  in bundle (CrowdStrike deferred to S-ADR054-WAVE-A-001 per D-2440 sensor-scope decision)
+- No `armis.sensor.toml` or `cyberint.sensor.toml` in bundle (deferred per D-2440)
 - No source code in bundle (bundle is consumer-facing; no Rust source)
 - No mixing of demo bundle contents into main `prism-${TAG}-${target}.tar.gz`
 - No `cargo install` for wasm-tools in CI (too slow; use taiki-e/install-action per U21)
@@ -556,6 +577,7 @@ Key lessons from fix-burst research:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.4 | 2026-09-03 | D-2440 sensor-scope: v1.0.0-rc.1 Claroty-only — crowdstrike-oauth2.prx build step removed from build-plugins job; crowdstrike/armis/cyberint sensor TOMLs removed from bundle; Windows bundle sensor glob narrowed to claroty.sensor.toml; AC-001/002/003/004 updated; deferral note added in Origin and Previous Story Intelligence; Forbidden Dependencies updated |
 | 0.3 | 2026-07-20 | Forward-note (F-REL001-PR2-OBS-2): attestation + checksum coverage for demo bundle public release assets must be explicitly decided at implementation time — risk_mitigations entry added; Task 9 attestation decision gate inserted; shellcheck task renumbered to Task 10 |
 | 0.2 | 2026-07-19 | Fix-burst: U13 demo-server downloaded from artifact (no rebuild); U15 build-demo-bundle needs publish-release; U16 infusion paths corrected to specs/infusions/; U17 manifest path corrected to plugins/threatintel-lookup/; U18 if-no-files-found error + prx glob; U19 build-plugins parallel to build-release; U21 taiki-e/install-action for wasm-tools; U22 Windows bundle is .zip with .ps1 scripts; research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |
