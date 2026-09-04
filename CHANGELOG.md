@@ -277,6 +277,11 @@ in rc.1**. They will return in a future release with full native authentication:
   (DEFECT-LIVE-ENVELOPE-OBS-001, #251)
 - Deterministic `sort_by` for 7 Claroty xDome paginated tables: fixes
   offset-pagination instability (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, #252)
+- `claroty_vulnerabilities` live-query timeout: replaced unindexed `adjusted_vulnerability_score`
+  primary sort (computed composite score requiring full-corpus evaluation → >30s timeout) with
+  `published_date desc` (native-indexed datetime, xDome OpenAPI default for /vulnerabilities/)
+  while retaining `name asc` as tiebreaker — queries now return within timeout
+  (DEFECT-CLAROTY-VULN-PAGESIZE-001)
 - Claroty `audit_logs` time-filter push-down with INDEX eligibility
   (fix #239)
 - Claroty HTTPS transport hardening + sensor error/health-status fidelity (fix #237)

@@ -729,7 +729,7 @@ ocsf_class = "vulnerability_finding"
   name = "fetch_vulnerabilities"
   method = "POST"
   path_template = "/api/v1/vulnerabilities/"
-  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"], "sort_by": [{"field":"adjusted_vulnerability_score","order":"desc"},{"field":"name","order":"asc"}]}'
+  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"], "sort_by": [{"field":"published_date","order":"desc"},{"field":"name","order":"asc"}]}'
   response_path = "$.vulnerabilities"
   variables_produced = []
   [tables.steps.pagination]
