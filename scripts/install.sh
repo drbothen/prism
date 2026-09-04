@@ -46,11 +46,11 @@ SKIP_VERIFY_PROVENANCE=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
-      VERSION="${2:-}"
-      if [[ -z "${VERSION}" ]]; then
+      if [[ $# -lt 2 ]]; then
         printf 'ERROR: --version requires a value (e.g. --version v1.0.0-rc.1)\n' >&2
         exit 1
       fi
+      VERSION="${2}"
       shift 2
       ;;
     --dry-run)
@@ -110,6 +110,12 @@ if [[ -z "${VERSION}" ]]; then
   fi
 fi
 
+# SEC-005: validate VERSION format before URL construction (reject malformed tags)
+if [[ ! "${VERSION}" =~ ^v[0-9] ]]; then
+  printf 'ERROR: VERSION must start with "v" followed by a digit (e.g. v1.0.0-rc.1); got: %s\n' "${VERSION}" >&2
+  exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
@@ -129,12 +135,13 @@ case "${OS}-${ARCH}" in
     TARGET="x86_64-apple-darwin"
     ;;
   Linux-x86_64)
-    # Composite musl detection (U10): three probes ordered by reliability.
+    # Musl detection (U10): three OR probes — each independently sufficient to identify musl.
+    # Logic is OR (not ordered composite): target musl if ANY probe triggers.
     # 1. getconf GNU_LIBC_VERSION — succeeds on glibc, absent on musl (glibc-positive probe).
     # 2. /lib/ld-musl-x86_64.so.1 — filesystem indicator on musl/Alpine x86_64 (musl-positive probe).
     # 3. ldd /bin/sh | grep musl — fallback; unreliable in busybox but serves as advisory.
     # Target musl if ANY musl-positive condition is met (i.e. getconf fails, OR musl path exists,
-    # OR ldd grep matches).
+    # OR ldd grep matches). Logic: OR, not ordered composite.
     if ! getconf GNU_LIBC_VERSION >/dev/null 2>&1 \
         || test -e /lib/ld-musl-x86_64.so.1 \
         || _ldd_musl_check; then
@@ -200,7 +207,7 @@ curl -fsSL --output "${TMPDIR_PRISM}/checksums.txt" "${CHECKSUM_URL}"
 # ---------------------------------------------------------------------------
 # SHA-256 verification (AC-003: abort on mismatch)
 # ---------------------------------------------------------------------------
-EXPECTED="$(grep -- "${ARCHIVE}" "${TMPDIR_PRISM}/checksums.txt" | awk '{print $1}')"
+EXPECTED="$(grep -F -- "${ARCHIVE}" "${TMPDIR_PRISM}/checksums.txt" | awk '{print $1}')"
 if [[ -z "${EXPECTED}" ]]; then
   printf 'ERROR: %s not found in checksums.txt\n' "${ARCHIVE}" >&2
   exit 1
@@ -224,9 +231,10 @@ if [[ "${SKIP_VERIFY_PROVENANCE}" != "true" ]] && command -v gh >/dev/null 2>&1;
   if ! gh attestation verify "${TMPDIR_PRISM}/${ARCHIVE}" \
       --repo "${REPO}" \
       --signer-workflow "${REPO}/.github/workflows/release.yml" 2>/dev/null; then
-    printf 'WARNING: provenance verification failed or skipped (gh CLI available but verify failed).\n' >&2
-    printf '  To skip, pass --skip-verify-provenance\n' >&2
-    printf '  Manual verify: gh attestation verify %s --repo %s\n' "${ARCHIVE}" "${REPO}" >&2
+    printf 'ERROR: provenance verification failed for %s\n' "${ARCHIVE}" >&2
+    printf '  The archive could not be verified against the GitHub Actions build workflow.\n' >&2
+    printf '  To skip provenance check, pass --skip-verify-provenance\n' >&2
+    exit 1
   else
     printf 'Build provenance verified.\n'
   fi
@@ -262,3 +270,12 @@ if INSTALLED_VERSION="$("${INSTALL_DIR}/prism" --version 2>/dev/null)"; then
 else
   printf 'prism installed to %s/prism (version: %s)\n' "${INSTALL_DIR}" "${VERSION}"
 fi
+
+# ---------------------------------------------------------------------------
+# Post-install notice (binary-only install; specs ship via demo bundle)
+# ---------------------------------------------------------------------------
+printf '\nNOTE: This installer deploys the prism binary only (binary-only install is intentional).\n'
+printf '  Configuration: obtain prism.toml.example from the repository or demo bundle:\n'
+printf '    https://github.com/%s/blob/main/prism.toml.example\n' "${REPO}"
+printf '  Sensor specs:  see RELEASING.md or the forthcoming demo bundle for sensor spec files.\n'
+printf '  See RELEASING.md for the full post-install setup guide.\n'
