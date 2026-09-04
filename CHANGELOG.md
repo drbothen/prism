@@ -28,9 +28,10 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
   the binary and a `prism.toml.example` configuration template. A fresh install is
   bootable without cloning the source repository: extract the archive, point
   `spec_dir` at the bundled `specs/` directory, and run `prism start` (#253).
-  Enrichment (ENRICH clause, infusions, ThreatIntel, NVD) is not available in
-  v1.0.0-rc.1; the enrichment engine binary is present but infusion specs and
-  required WASM plugins are not bundled. Enrichment ships in a later release.
+  The binary includes the `ENRICH` clause and file-backed LocalLookup
+  (MMDB/CSV/JSON) infusion code path; no infusion specs or WASM plugins are
+  bundled in rc.1. Enrichment is not part of the validated rc.1 surface;
+  plugin-based enrichment (ThreatIntel, NVD) ships in a later release.
 - Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
   (S-0.02, #2)
@@ -66,8 +67,10 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
   (ADR-058; S-ADR058-OCSF-COERCION-001, S-ADR058-OCSF-ROUTING-001, #240)
 - Enrichment chain: PrismQL `ENRICH` clause, ThreatIntel/NVD dual-path enrichment
   engine (HttpLookup + WASM plugin infusion), typed UDF output with consistent
-  `ColumnType` coercion — engine ships; sensor-specific enrichment demos (IOC stamping
-  for Cyberint/CrowdStrike) are deferred with those sensors to a future release
+  `ColumnType` coercion — code path present in binary; no infusion specs or WASM
+  plugins bundled in rc.1 (enrichment not part of the validated rc.1 surface);
+  sensor-specific enrichment demos (IOC stamping for Cyberint/CrowdStrike) deferred
+  with those sensors to a future release
   (S-DEMO-ENRICHMENT-PIVOT-001/002/003, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
 - Full infusion engine: MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin
   runtime wiring, SEC-001 source-size guard (S-1.14-REDO)
@@ -121,20 +124,6 @@ section below). Use rc.1 to evaluate Prism against your Claroty xDome deployment
   default `>=` time-guard injection (S-CLAROTY-AUDITLOG-TIMEBOX-001, #239)
 - HTTPS transport hardening, deterministic `sort_by` for offset-pagination stability
   across all 7 paginated tables (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, #252)
-
-#### Deferred to a Future Release
-
-The following sensor adapters are present in the workspace but are **not supported
-in rc.1**. They will return in a future release with full native authentication:
-
-- **CrowdStrike Falcon**: multi-region base URL, `devices` POST fan-out, `E-QUERY-043`
-  gate; OAuth2 refresh-on-401 via PRX WASM plugin. Blocked pending S-ADR054-WAVE-A-001
-  (native CrowdStrike auth without the crowdstrike-oauth2.prx plugin dependency).
-- **Cyberint**: `access_token` auth, `StaticCookieAuthProvider`, sensor-spec fidelity.
-- **Armis**: AQL search endpoint fidelity, DTU `/api/v1/search` push-down, AQL
-  validator (multi-occurrence SELECT + single-quote rejection).
-- **Sensor-specific enrichment demos**: IOC stamping for Cyberint/CrowdStrike, NVD
-  CVSS enrichment on Armis CVE data — enrichment engine ships; sensor pipelines deferred.
 
 #### Multi-tenant Architecture
 
@@ -264,6 +253,20 @@ in rc.1**. They will return in a future release with full native authentication:
   (S-PERF-GATE-001–008, #204–#213)
 - `WASMtime` compilation cache with degradable boot (S-PERF-GATE-008, #213)
 - Graceful DTU shutdown for prompt `stop()` completion (S-PERF-GATE-005, #210)
+
+### Deferred to a Future Release
+
+The following sensor adapters are present in the workspace but are **not supported
+in rc.1**. They will return in a future release with full native authentication:
+
+- **CrowdStrike Falcon**: multi-region base URL, `devices` POST fan-out, `E-QUERY-043`
+  gate; OAuth2 refresh-on-401 via PRX WASM plugin. Blocked pending S-ADR054-WAVE-A-001
+  (native CrowdStrike auth without the crowdstrike-oauth2.prx plugin dependency).
+- **Cyberint**: `access_token` auth, `StaticCookieAuthProvider`, sensor-spec fidelity.
+- **Armis**: AQL search endpoint fidelity, DTU `/api/v1/search` push-down, AQL
+  validator (multi-occurrence SELECT + single-quote rejection).
+- **Sensor-specific enrichment demos**: IOC stamping for Cyberint/CrowdStrike, NVD
+  CVSS enrichment on Armis CVE data — enrichment engine ships; sensor pipelines deferred.
 
 ### Fixed
 

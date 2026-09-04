@@ -15,8 +15,10 @@
 #   7. Configure credentials with `prism credential set` (see `prism credential --help`).
 #   8. Run: prism start
 #
-# Note: enrichment (ENRICH clause / ThreatIntel / NVD) is not available in
-# v1.0.0-rc.1. See the Enrichment section near the bottom of this file.
+# Note: the ENRICH clause and LocalLookup (MMDB/CSV/JSON) code path are present
+# in the binary; no infusion specs or WASM plugins are bundled in v1.0.0-rc.1.
+# Enrichment is not part of the validated rc.1 surface. See the Enrichment
+# section near the bottom of this file.
 
 # ---------------------------------------------------------------------------
 # spec_dir (required)
@@ -90,10 +92,11 @@ org_slug = "my-org"               # kebab-case; used in audit logs and MCP conte
 # available in v1.0.0-rc.1; it is planned for a future release.
 
 # ---------------------------------------------------------------------------
-# Enrichment / infusion (not available in v1.0.0-rc.1)
+# Enrichment / infusion (engine present; not validated in v1.0.0-rc.1)
 # ---------------------------------------------------------------------------
-# Enrichment (ENRICH clause, infusion specs, ThreatIntel, NVD) is not available
-# in v1.0.0-rc.1. The enrichment engine binary is present but infusion specs
-# (threatintel.infusion.toml, nvd.infusion.toml) and the required WASM plugins
-# are not bundled with this release. Enrichment ships in a later release with
-# full tooling. Prism boots cleanly without an infusions/ directory.
+# The binary includes the ENRICH clause and file-backed LocalLookup (MMDB/CSV/JSON)
+# infusion code path. No infusion specs (e.g. threatintel.infusion.toml,
+# nvd.infusion.toml) or WASM enrichment plugins are bundled with this release.
+# Enrichment is not part of the validated rc.1 surface; plugin-based enrichment
+# (ThreatIntel via .prx) and NVD-dependent paths ship in a later release.
+# Prism boots cleanly without an infusions/ directory.
