@@ -72,12 +72,18 @@ assert_file_exists() {
 # Assert that a literal string does NOT appear in functional (non-comment) lines.
 # Comment lines are those where the first non-whitespace character is '#'.
 # Useful for "comment-only references acceptable" assertions in AC-002..AC-004.
+# N5-hardened: fails explicitly when the target file is absent (fail-closed).
 # Usage: assert_not_in_functional_lines FILE NEEDLE AC_ID
 assert_not_in_functional_lines() {
   local file="$1"
   local needle="$2"
   local ac_id="$3"
-  # Extract non-comment lines; suppress errors if file missing (caught by assert_file_exists).
+  # N5: fail-closed — a missing file is an error, not a vacuous pass.
+  if [ ! -f "$file" ]; then
+    tap_fail "${ac_id}: cannot check functional lines — file absent: ${file##*/}" \
+      "${ac_id} FAIL: ${file} must exist for assert_not_in_functional_lines to be non-vacuous"
+    return
+  fi
   local functional_content
   functional_content=$(grep -v '^[[:space:]]*#' "$file" 2>/dev/null) || true
   if echo "$functional_content" | grep -qF -- "$needle" 2>/dev/null; then
@@ -89,11 +95,18 @@ assert_not_in_functional_lines() {
 }
 
 # Assert that a regex pattern does NOT appear in functional (non-comment) lines.
+# N5-hardened: fails explicitly when the target file is absent (fail-closed).
 # Usage: assert_not_in_functional_lines_re FILE PATTERN AC_ID
 assert_not_in_functional_lines_re() {
   local file="$1"
   local pattern="$2"
   local ac_id="$3"
+  # N5: fail-closed — a missing file is an error, not a vacuous pass.
+  if [ ! -f "$file" ]; then
+    tap_fail "${ac_id}: cannot check functional lines — file absent: ${file##*/}" \
+      "${ac_id} FAIL: ${file} must exist for assert_not_in_functional_lines_re to be non-vacuous"
+    return
+  fi
   local functional_content
   functional_content=$(grep -v '^[[:space:]]*#' "$file" 2>/dev/null) || true
   if echo "$functional_content" | grep -qE "$pattern" 2>/dev/null; then
