@@ -499,10 +499,10 @@ prism credential set \
 prism validate-config --config-dir /etc/prism
 ```
 
-This runs Prism's boot steps 1–7 (configuration loading, spec parsing, org resolution,
-sensor spec validation) and exits 0 if everything is correct, or exits 2 with a
-diagnostic message describing the first failure. Run this before `prism start` to
-catch configuration errors without binding the MCP server.
+This runs Prism's boot steps 1–6 (configuration loading, spec parsing, org resolution,
+credential store init, audit subsystem init) and exits 0 if everything is correct,
+or exits 2 with a diagnostic message describing the first failure. Run this before
+`prism start` to catch configuration errors without binding the MCP server.
 
 Common exit-2 causes and fixes:
 
@@ -530,17 +530,22 @@ prism start
 a TCP port. Normal operation: the process stays running until stdin closes or SIGTERM
 arrives. Structured log output goes to stderr.
 
-Expected startup log lines (structured JSON or text depending on `RUST_LOG` format):
+Expected startup log lines (structured JSON or text depending on `PRISM_LOG_FORMAT`):
 
 ```
-boot.step1.tracing_init   ... done
-boot.step2.config_loaded  spec_dir=/etc/prism/specs ...
-boot.step3.org_resolved   org_slug=my-client ...
-boot.step4.sensor_specs   tables=14 sensor=claroty ...
-boot.step9.mcp_ready      ...
+Prism v1.0.0-rc.1
+Config loaded successfully  config_dir=/etc/prism
+OrgRegistry initialized  org_count=1
+Sensor TOML specs loaded  spec_dir=/etc/prism/specs
+Credential store initialized: 1 refs validated (BC-2.03.013)
+Audit subsystem initialized; boot.audit.initialized persisted (durable via WAL fsync)
+boot step 9A complete: adapter registry populated with spec-driven adapters  sensor_count=14 org_count=1
+boot: step 9 — PrismServer spawned on stdio transport (BC-2.10.006)
 ```
 
-If `boot.step9.mcp_ready` appears, the server is accepting MCP messages on stdio.
+If the final line (`boot: step 9 — PrismServer spawned on stdio transport`) appears,
+the server is accepting MCP messages on stdio. This line is logged with
+`event_type = "boot.step9.mcp_server_started"`.
 
 ---
 
@@ -641,6 +646,8 @@ Expected: `overall_status: "healthy"` with `reachable: true` and `auth_valid: tr
 for the claroty sensor.
 
 If `overall_status: "unhealthy"` with `E-SENSOR-030`:
+
+`E-SENSOR-030` means all fan-out targets for the sensor failed. Common causes:
 
 - The bearer token is wrong or expired — re-run `prism credential set`
 - The `base_url` in the customer overlay is unreachable — check network connectivity
