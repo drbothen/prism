@@ -22,56 +22,76 @@ See `CHANGELOG.md` for the full list of what shipped in v1.0.0-rc.1.
 
 ## Install
 
-**macOS (Apple Silicon):**
+**macOS / Linux (recommended):**
+
 ```bash
-curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz
-tar xzf prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz
-chmod +x prism
-./prism --version
+curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
 ```
 
-**macOS (Intel):**
+Auto-detects platform (macOS Apple Silicon/Intel, Linux glibc, Linux musl), verifies
+the SHA-256 checksum, and installs to `/usr/local/bin` or `~/.local/bin`. To pin a
+specific version:
+
 ```bash
-curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz
-tar xzf prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz
-chmod +x prism
-./prism --version
+bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+  --version v1.0.0-rc.1
 ```
 
-**Linux (glibc — most distros):**
-```bash
-curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
-tar xzf prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
-chmod +x prism
-./prism --version
+**Windows (PowerShell 5.1+):**
+
+```powershell
+irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
 ```
 
-**Linux (musl — Alpine, static binary):**
-```bash
-curl -LO https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz
-tar xzf prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz
-chmod +x prism
-./prism --version
+Installs to `%LOCALAPPDATA%\prism\bin`. To pin a version:
+
+```powershell
+$env:PRISM_INSTALL_VERSION = 'v1.0.0-rc.1'
+irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
 ```
 
-**Windows (x86_64):**
-Download `prism-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` from the [v1.0.0-rc.1 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1).
+### Manual download (fallback)
+
+Download the archive for your platform from the
+[v1.0.0-rc.1 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1):
+
+| Platform | Archive |
+|----------|---------|
+| macOS (Apple Silicon) | `prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz` |
+| Linux (glibc) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux (musl) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz` |
+| Windows | `prism-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` |
+
+```bash
+# macOS / Linux example
+tar xzf prism-v1.0.0-rc.1-<target>.tar.gz
+chmod +x prism && mv prism /usr/local/bin/prism
+prism --version
+```
 
 ### Verify
 
 Verify checksums (from the [release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1)):
 
 ```bash
+# macOS
+shasum -a 256 -c checksums.txt
+# Linux
 sha256sum -c checksums.txt
 ```
 
-Verify build provenance:
+Verify build provenance (requires `gh` CLI):
 
 ```bash
 gh attestation verify prism-v1.0.0-rc.1-<target>.tar.gz \
   --repo drbothen/prism \
   --signer-workflow drbothen/prism/.github/workflows/release.yml
 ```
+
+The install scripts run these checks automatically. See [`docs/SETUP.md`](docs/SETUP.md)
+for the full operator setup guide — config, credentials, sensor spec placement, and
+Claude Code MCP wiring.
 
 ## Developer Quick Start
 
