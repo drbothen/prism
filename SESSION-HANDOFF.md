@@ -1,18 +1,65 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.062"
+version: "8.063"
 status: current
 timestamp: 2026-09-04T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2441 (2026-09-04): SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — PR #253 (chore(release): v1.0.0 release prep) SQUASH-MERGED to develop @18646aa44 (human-executed 2026-09-04). WHAT LANDED: prism-bin 0.1.0→1.0.0-rc.1; CHANGELOG.md [1.0.0-rc.1] (Claroty-only); RELEASING.md (repo root); prism.toml.example (keyring-only backend); boot.rs resolve_config_paths CWD fix (SEC-001 CWE-22 closed). POL-14: S-REL-002 + S-REL-005 behavioral_contracts: [] — NO BC auto-promotion (NO-OP). STORY-INDEX v2.992→v2.993: S-REL-002 + S-REL-005 draft→merged. develop_head 11493aeb5→18646aa44. records-lint PASS. STATE v8.968→v8.969. SESSION-HANDOFF v8.061→v8.062.**
+> **D-2442 (2026-09-04): SESSION WRAP (TD-VSDD-053) — S-REL-003 install scripts BUILT LOCAL on feature/S-REL-003@59fcc17a2 (NOT pushed). §RESUME SNAPSHOT D-2442 inserted. D-2441 SUPERSEDED. develop_head UNCHANGED 18646aa44. NEXT: push feature/S-REL-003 → pr-manager review + CI → PR→develop→merge; then S-REL-004→S-REL-007→S-REL-006→live RC gate→tag v1.0.0-rc.1. records-lint PASS. STATE v8.969→v8.970. SESSION-HANDOFF v8.062→v8.063.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2441 (2026-09-04 — PR #253 MERGED; Move-3 NEXT; SAFE TO CLEAR) [supersedes D-2440]
+## §RESUME SNAPSHOT — D-2442 (2026-09-04 — SESSION WRAP; Move-3 S-REL-003 built local; SAFE TO CLEAR) [supersedes D-2441]
+
+### RESUME IN ONE BREATH
+Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. PR #253 (Claroty-only rc.1 release-prep) MERGED to develop@18646aa44 (D-2441). Move 3 in flight: S-REL-003 install scripts BUILT LOCAL on feature/S-REL-003@59fcc17a2 (NOT pushed). NEXT: push feature/S-REL-003 → pr-manager scoped review + CI → PR→develop→merge; then S-REL-004 (Claroty demo bundle) → S-REL-007 (Windows) → S-REL-006 (consumer-contract) → live secops-factory RC gate → tag v1.0.0-rc.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-rc.1 as a Claroty-xDome-only evaluation release via the ratified E-REL epic, gated on a live secops-factory RC demo, then GA (v1.0.0) after soak. Cyberint/Armis/CrowdStrike DEFERRED (code stays; not shipped/claimed). CrowdStrike native-auth retirement of crowdstrike-oauth2.prx = S-ADR054-WAVE-A-001 (draft, future).
+
+### HEADS (backup boundary)
+- `develop`: origin = `18646aa44` (PR #253 squash-merge). LOCAL main-worktree develop now current at 18646aa44.
+- `factory-artifacts`: this wrap advances it; run `git -C .factory log -1 --format='%h'` after.
+- `feature/S-REL-003` @59fcc17a2 — LOCAL-ONLY, NOT pushed (in-flight S-REL-003 work). clean tree.
+- No open PRs.
+- Worktrees: ACTIVE: feature/S-REL-003 (.worktrees/S-REL-003 @59fcc17a2). PARKED: S-3.09 @43c41389d (KEEP), W3-FIX-S307-001 @fcab8717c (DIRTY do-NOT-touch). REMOVABLE-deferred: S-CLAROTY-VULNS-001 @423fc7659, S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a, S-ENGINE-LIMIT-EARLY-STOP-001 @704aac24a.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. Housekeeping: optionally remove the 3 removable-deferred worktrees.
+3. S-REL-003 delivery finish: push feature/S-REL-003 (pre-push just check runs) → pr-manager scoped review + CI (NOTE: 2 NEW required-candidate CI jobs added by S-REL-003 — shellcheck-install-scripts, psscriptanalyzer-install-ps1 — not yet in branch protection; release-gate floor now 12 files/107 assertions; verify-workflow-structure 25→27) → PR→develop → merge (fresh human merge-approval required per harness boundary).
+4. S-REL-004 (Claroty-only demo bundle): build-plugins job builds ONLY threatintel-lookup.prx (NO crowdstrike-oauth2.prx); bundle claroty.sensor.toml + threatintel/nvd infusions + threatintel-lookup.prx + demo scripts + DTU demo-server + t13 preflight. Amended spec v0.4. depends_on S-REL-001/S-REL-002 (both merged).
+5. S-REL-007 (Windows PowerShell demo parity) depends_on S-REL-004.
+6. S-REL-006 (graduate docs/consumer-contract.md) depends_on S-REL-002/S-REL-007.
+7. Live secops-factory RC acceptance gate (Claroty demo on monroe; human-involved; AD-017 opaque, D-2410 no live data into repo).
+8. Tag v1.0.0-rc.1 on main after develop→main merge — BOTH require SEPARATE fresh in-transcript human approval (harness auto-mode classifier; NOT a coordinator relay).
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 MERGED (pre-session). S-REL-002 + S-REL-005 MERGED via PR #253 (D-2441). S-REL-003 BUILT LOCAL (feature/S-REL-003@59fcc17a2; install.sh 270L shellcheck-clean, install.ps1 145L, release-gate test_AC-012 26 assertions, release.yml publish-release uploads scripts, ci.yml +2 jobs). S-REL-004/006/007 draft (amended for Claroty-only at D-2440). ADR-062 (product version policy) ACCEPTED + ARCH-INDEX. Stubs renumbered S-REL-010 (embedded specs) / S-REL-011 (install docs), post-v1. S-REL-008 = registry-publish anchor (Homebrew/Chocolatey/crates.io re-enable), post-v1, referenced by merged CI test — do NOT reuse.
+
+### PENDING USER-APPROVED WORK
+- User directive (2026-09-04): proceed through Move 3 (S-REL-003 first — now built).
+- Item 5 enrichment framing (engine-present / not-bundled / not-validated in rc.1) human-approved 2026-09-04.
+- Each future PR merge (incl. S-REL-003) needs FRESH in-transcript human approval.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2442 (this wrap). Recent recorded: D-2441 (PR #253 merged; develop_head→18646aa44; S-REL-002/005→merged), D-2440 (adopt E-REL plan; Claroty-only rc.1 scope; deconfliction; ADR-062; renumber stubs; PR #253 repurpose).
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md. (e) HARNESS BOUNDARY: PR→develop AND develop→main merges + tag pushes require FRESH direct in-transcript human approval (coordinator relay does NOT satisfy the classifier). (f) Claroty-only v1.0.0-rc.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237).
+
+### WORKTREE INVENTORY
+ACTIVE: feature/S-REL-003 (.worktrees/S-REL-003 @59fcc17a2). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2441 (2026-09-04 — PR #253 MERGED; Move-3 NEXT; SAFE TO CLEAR) [supersedes D-2440] [SUPERSEDED by D-2442]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E, Claroty xDome v1.0.0-rc.1 release prep MERGED. PR #253 (chore(release): v1.0.0 release prep) squash-merged to develop @18646aa44 (human-executed 2026-09-04; pr-reviewer APPROVE; CI 24/24 GREEN). Landed: prism-bin 0.1.0→1.0.0-rc.1; inaugural CHANGELOG.md [1.0.0-rc.1] (Claroty-only; other sensors Deferred section); RELEASING.md at repo root; prism.toml.example (keyring-only credential_backend, UUID-v7 guidance, Claroty-only sensor examples, honest enrichment framing); boot.rs resolve_config_paths CWD fix at both boot + credential_cli sites (closes SEC-001 CWE-22 CWD-divergence); release.yml archive narrowed to claroty.sensor.toml. S-REL-002 + S-REL-005 promoted draft→merged. NEXT: Move 3 — remaining E-REL stories S-REL-003 install scripts, S-REL-004 Claroty demo bundle, S-REL-007 Windows parity, S-REL-006 consumer-contract — each its own PR → live secops-factory RC gate → tag v1.0.0-rc.1. Develop→main merge + tag still require SEPARATE fresh human approval.
@@ -913,7 +960,7 @@ D-2401 (G2 MERGED PR #246 @3d724a069; POL-14 BC-2.16.016 active; SESSION-HANDOFF
 
 ---
 
-## §RESUME SNAPSHOT — D-2400 (2026-08-31 — BLANKET MERGE AUTHORITY GRANT; G2 holdout ACCEPTED; demo in progress; SAFE TO CLEAR) [SUPERSEDED by D-2401]
+## §RESUME SNAPSHOT — D-2400 (2026-08-31 — BLANKET MERGE AUTHORITY GRANT; G2 holdout ACCEPTED; demo COMPLETE; SAFE TO CLEAR) [SUPERSEDED by D-2401]
 
 ### RESUME IN ONE BREATH
 Phase 3 Wave-5-E. S-CLAROTY-VULNS-001 (G1) MERGED (D-2387; PR #245 @6972ac2e; BC-2.16.015 active). SAP-4/POL-42 committed on branch docs/sap4-codification @a86c32bdb (pushed; docs PR to develop PENDING). D-2395 convergence-round COMPLETE: all G2–G6 code+spec findings fixed (G2 @acf662de7; G3 @69db93dc6; G4 @c84dd785a; G5 @e5b453cb3; G6 @1a6873a13). D-2396 CONVERGENCE-BAR DECISION (human-approved): LOCAL bar = CLEAN(PR-merge) + exhaustive consistency-validator sweep ALL findings fixed. D-2399: G2 live holdout gate EXECUTED (HS-002 PASS 1.00 consumed, HS-003 PASS 1.00 consumed, HS-001 SETUP-FAILURE unconsumed; Human ACCEPTED). D-2400: BLANKET MERGE AUTHORITY GRANTED (human-directed 2026-08-31) — ORCHESTRATOR may merge v1-release PRs on objective-gate pass without per-PR human ask; pr-manager still may NOT self-authorize. NEXT per story in order G2→G3→G4→G5→G6: (1) final consistency-validator sweep (feature diff vs develop@6972ac2e + story + BC + policies.yaml v1.44 incl SAP-1/2/3/4/POL-39/42) → fix any residual → CLEAN(PR-merge) confirm; (2) story-level holdout gate; (3) demo per-AC; (4) force-push --force-with-lease; (5) pr-manager PR; (6) ORCHESTRATOR-authorized merge (D-2400 blanket grant — no separate per-PR human ask; pr-manager still must NOT self-authorize); (7) squash-merge; (8) post-merge burst; (9) rebase remaining branches. After all 5 merged: LIVE xDome tenant validation (monroe) — v1 release gate.
@@ -933,7 +980,7 @@ LOCAL bar: CLEAN(PR-merge) (zero CRIT/HIGH/MED) + one exhaustive consistency-val
 - **G6 (S-CLAROTY-ACLPOLICY-001):** feature @1a6873a13 LOCAL-ONLY. Story v1.4 / BC-2.16.022 v1.2. Convergence-round fixes COMPLETE (D-2395 MED applied_models + 2 LOWs). RESUME NEXT-ACTION: same after G5 merge.
 
 ### CONVERGENCE STATE
-G1 MERGED (BC-2.16.015 active; develop@6972ac2e). G2 @627ae66df LOCAL-ONLY: story v1.9/BC-2.16.016 v1.5; consistency-gate CLEAN(PR-merge)=yes (D-2398); holdout gate HUMAN-ACCEPTED (D-2399); demo in progress; NEXT = demo → push → PR → ORCHESTRATOR-authorized merge (D-2400). G3 @69db93dc6 / G4 @c84dd785a / G5 @e5b453cb3 / G6 @1a6873a13 — all LOCAL-ONLY, convergence-round complete, final consistency sweep + CLEAN(PR-merge) confirm PENDING per D-2396 bar.
+G1 MERGED (BC-2.16.015 active; develop@6972ac2e). G2 @627ae66df LOCAL-ONLY: story v1.9/BC-2.16.016 v1.5; consistency-gate CLEAN(PR-merge)=yes (D-2398); holdout gate HUMAN-ACCEPTED (D-2399); demo COMPLETE (SUPERSEDED by D-2401 — G2 MERGED PR #246). G3 @69db93dc6 / G4 @c84dd785a / G5 @e5b453cb3 / G6 @1a6873a13 — all LOCAL-ONLY, convergence-round complete, final consistency sweep + CLEAN(PR-merge) confirm SUPERSEDED per D-2401 bar.
 
 ### HEADS (backup boundary)
 - `develop`: origin/develop = local develop = `6972ac2e` (D-2387 G1 PR #245 squash-merge 2026-08-31).
@@ -1216,7 +1263,7 @@ D-2378 (PR #244 squash-merged @51bb3bc1; develop divergence RESOLVED; VULNS-001 
 
 ---
 
-## §RESUME SNAPSHOT — D-2377 (2026-08-30 — POST-FIX BURST; F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 PR-LEVEL re-gate in progress on fee0c64d7; DEADLINE 2026-08-31) [SUPERSEDED by D-2378]
+## §RESUME SNAPSHOT — D-2377 (2026-08-30 — POST-FIX BURST; F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 PR-LEVEL re-gate COMPLETE fee0c64d7; DEADLINE 2026-08-31) [SUPERSEDED by D-2378]
 
 ### RESUME IN ONE BREATH
 Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 PR-LEVEL pass-1 LOW fixed (F-VULNS-REBASE-LOW-001: story v2.0, input-hash refreshed to f695bf5); feature HEAD fee0c64d7 FROZEN. NEXT: PR-LEVEL adversary re-run on frozen fee0c64d7 → 3-CLEAN CONVERGED → merge → G2.
@@ -1250,7 +1297,7 @@ S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 PR-LEVEL pa
 Durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json auto-resumes on new session; CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is the authoritative standing rule (RESUME STEP 0 = CronList → re-arm if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md v1.1).
 
 ### DECISION DELTA
-D-2377 (post-fix burst — F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 story v2.0; input-hash refreshed; PR-LEVEL re-gate in progress on fee0c64d7; PR #244 OPEN) recorded. D-2376 historical.
+D-2377 (post-fix burst — F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 story v2.0; input-hash refreshed; PR-LEVEL re-gate COMPLETE fee0c64d7; PR #244 OPEN) recorded. D-2376 historical.
 
 ### STANDING DECISIONS (carry forward)
 (a) Human directive: keep grinding strict 3-CLEAN, no pragmatic convergence. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 in v1 scope. (d) recurring transient agent deaths → recover via inspect-on-disk (git -C .factory status; read modified files; complete in-progress edits idempotently). (e) SESSION NOTE: ~5 transient agent stream-stall/API-timeout failures in prior session — all recovered; heartbeat is backstop.
