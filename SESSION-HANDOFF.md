@@ -1,18 +1,61 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.072"
+version: "8.073"
 status: current
-timestamp: 2026-09-05T04:00:00Z
+timestamp: 2026-09-05T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2455 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — records/spec-correction burst. LOCAL adversary pass-1 on feature/S-REL-VERSION-IDENTITY: F-VID-P1-CRIT-001 (build.rs honored GITHUB_REF_NAME unconditionally — bakes branch into non-tag CI builds) + F-VID-P1-MED-001 (empty env) + F-VID-P1-LOW-001 (trim_start_matches all v's). ADR-064 D2 build.rs contract v1.4→v1.5 (GITHUB_REF_TYPE=="tag" guard + empty-filter + single-v strip_prefix + rerun-if-env-changed). Architect uncommitted edits committed (ADR-064 v1.5 + ARCH-INDEX v2.363). develop_head UNCHANGED 29b9d4fad. §RESUME SNAPSHOT D-2455 inserted; D-2454 SUPERSEDED. records-lint PASS. STATE v8.982→v8.983. SESSION-HANDOFF v8.071→v8.072.**
+> **D-2456 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-DOCS-CI-WIRE-001 follow-up stub REGISTERED + LOCAL adversary pass-2 on feature/S-REL-VERSION-IDENTITY (frozen HEAD d3367ae42) RECORDED. pass-2 findings: HIGH-1 (build.rs #[cfg(test)] tests dead — build scripts have no test harness; version_identity.rs tested divergent LOCAL COPY of resolver so removing tag-guard failed zero executed tests; AC-005 real-env assertion missing) + MED-1 (cli_subcommands tautological — expected==injected) + MED-2 (docs-check regex false-negative). OBS-1 [process-gap] DEFERRED to S-REL-DOCS-CI-WIRE-001 (draft stub v0.1; E-REL-IDENTITY; POST-beta.1; P2). Fix-burst in progress. develop_head UNCHANGED 29b9d4fad. story_index v2.999→v3.000 (total_stories 333→334). STATE v8.983→v8.984. SESSION-HANDOFF v8.072→v8.073. §RESUME SNAPSHOT D-2456 inserted; D-2455 SUPERSEDED. records-lint PASS.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2455 (2026-09-05 — ADR-064 D2 spec-corrected v1.5; LOCAL pass-2 NEXT on feature/S-REL-VERSION-IDENTITY; TDD 6 beta.1 stories CURRENT OBJECTIVE) [supersedes D-2454]
+## §RESUME SNAPSHOT — D-2456 (2026-09-05 — pass-2 findings RECORDED; S-REL-DOCS-CI-WIRE-001 registered; LOCAL pass-3 NEXT on feature/S-REL-VERSION-IDENTITY; TDD 6 beta.1 stories CURRENT OBJECTIVE) [supersedes D-2455]
+
+### RESUME IN ONE BREATH
+LOCAL adversary pass-2 on feature/S-REL-VERSION-IDENTITY (frozen HEAD d3367ae42) COMPLETE: HIGH-1 (build.rs #[cfg(test)] tests dead — build scripts have no test harness; version_identity.rs tested divergent LOCAL COPY of resolver so removing tag-guard failed zero executed tests; AC-005 real-env assertion missing) + MED-1 (cli_subcommands tautological — expected==injected) + MED-2 (docs-check regex `[^v]` start-of-line false-negative). Confirmed-correct: build.rs resolver contract, 6-site migration, lockfiles, POL-35, POL-42, docs version-agnostic. OBS-1 [process-gap] DEFERRED to S-REL-DOCS-CI-WIRE-001 (draft stub v0.1; E-REL-IDENTITY; POST-beta.1; P2; D-2456). Code fix-burst in progress (implementer): shared version_resolver.rs include!'d by build.rs + executed test proving tag-guard, real env!(PRISM_VERSION) assertions, non-tautological cli_subcommands, regex anchor `(^|[^v])`. LOCAL 3-CLEAN streak 0/3; pass-3 re-gates on fixed HEAD. story_index v3.000 (total_stories 334). Governing objective UNCHANGED: TDD the 6 beta.1-blocking stories → tag v1.0.0-beta.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-beta.1 as a Claroty-xDome-only evaluation release using BETA channel. Architecture: ADR-063 (git-cliff 2.14.1 + two-layer CHANGELOG model) + ADR-064 v1.5 (GITHUB_REF_NAME → PRISM_VERSION at 6 prism-bin sites GATED on GITHUB_REF_TYPE=="tag"; cargo-release 1.1.5 stable entrypoint; amends ADR-062 D2). Release build path functional on develop (PR #261 merged @29b9d4fad). First actual GitHub Release = v1.0.0-beta.1 after 6 beta.1-blocking stories land.
+
+### HEADS (backup boundary)
+- `develop`: origin = `29b9d4fad` (PR #261 admin squash-merged 2026-09-05). No open PRs targeting develop.
+- `main`: origin = `bdf24cec8` (STUB, UNCHANGED — first develop→main join DEFERRED to STABLE v1.0.0).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. LOCAL pass-3: re-gate adversary on fixed HEAD (feature/S-REL-VERSION-IDENTITY) after implementer fix-burst completes. Must reach 3-CLEAN before PR.
+3. TDD (per-story delivery cycle): S-REL-DEV-RESET-001 (P0; 2pt; prism-bin 1.0.0-dev reset; ADR-064 D1) → S-REL-CLIFF-001 (P0; 5pt; git-cliff 2.14.1 setup; ADR-063 D1-D5) → S-REL-BVERSION-INJECT-001 (P0; 5pt; build.rs GITHUB_REF_NAME injection 6 sites; ADR-064 D2 v1.5) → S-REL-DOCS-AGNOSTIC-001 (P0; 3pt; version-agnostic docs; ADR-064 D3) → S-REL-WRITER-001 (P0; 3pt; technical-writer Layer-1 dispatch; ADR-063 D4) → S-REL-BETA1-NOTES-001 (P0; 3pt; first-release CHANGELOG generation; ADR-063 D6).
+4. git-cliff --initial-generation: generate CHANGELOG.md §[1.0.0-beta.1] on develop; technical-writer authors Layer-1 top-block.
+5. Tag v1.0.0-beta.1 (AUTONOMOUS per D-2445 on green gates; release.yml publishes GitHub Release with --notes-file body).
+6. POST-beta.1 (deferred): S-REL-VBUMP-001 (cargo-release 1.1.5 stable entrypoint; Wave F-B) → S-REL-DOCS-CI-WIRE-001 (P2; ci.yml job for docs version-agnostic check) → S-CLAROTY-DTU-PARITY-001 → S-REL-004 → S-REL-007 → S-REL-006.
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 + S-REL-002 + S-REL-003 + S-REL-005 + S-REL-011 MERGED. v1.0.0-rc.1 TAGGED (ghost; never published). E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001 + S-REL-VBUMP-001 + S-REL-DOCS-CI-WIRE-001 REGISTERED (draft v1.0; last: S-REL-DOCS-CI-WIRE-001 POST-beta.1 P2 D-2456). E-REL-NOTES: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-BETA1-NOTES-001 REGISTERED (draft v1.0/v1.1). ADR-062 + ADR-063 v1.2 + ADR-064 v1.5 ACCEPTED. feature/S-REL-VERSION-IDENTITY: LOCAL pass-2 COMPLETE (HIGH-1/MED-1/MED-2; fix-burst in progress; pass-3 re-gates on fixed HEAD; LOCAL 3-CLEAN streak 0/3).
+
+### PENDING USER-APPROVED WORK
+- Force-push to any branch still requires explicit human approval (D-2445 EXCLUSION unchanged).
+- release-promote real run (STABLE v1.0.0) requires release-main GitHub Environment approval (drbothen).
+- Live secops-factory BETA gate on monroe (human-involved per AD-017 + D-2410).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); confirmed armed this session. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2456 (S-REL-DOCS-CI-WIRE-001 stub registered + LOCAL pass-2 recorded; story_index v2.999→v3.000 total_stories 333→334; develop_head UNCHANGED 29b9d4fad; STATE v8.983→v8.984; SESSION-HANDOFF v8.072→v8.073). D-2455 SUPERSEDED.
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) Claroty-only v1.0.0-beta.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237). (j) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (k) RELEASE-CHANNEL STRATEGY (D-2449): nightly/dev/alpha/beta/rc/stable ladder; pre-releases develop-only ungated; stable→main approval-gated. (l) BETA channel first published pre-release; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063); cargo-release 1.1.5 stable entrypoint (ADR-064 v1.5); GITHUB_REF_NAME build.rs injection at 6 prism-bin sites GATED on GITHUB_REF_TYPE=="tag" (ADR-064 v1.5 D2; corrected D-2455); docs VERSION-AGNOSTIC. (n) S-REL-DOCS-CI-WIRE-001 registered (draft stub v0.1; E-REL-IDENTITY; POST-beta.1; P2; D-2456) — ci.yml job for docs version-agnostic check deferred post-beta.1; check runs in beta.1 delivery flow manually.
+
+### WORKTREE INVENTORY
+ACTIVE: none (main worktree on develop). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2455 (2026-09-05 — ADR-064 D2 spec-corrected v1.5; LOCAL pass-2 NEXT on feature/S-REL-VERSION-IDENTITY; TDD 6 beta.1 stories CURRENT OBJECTIVE) [supersedes D-2454] [SUPERSEDED by D-2456]
 
 ### RESUME IN ONE BREATH
 ADR-064 D2 build.rs contract corrected v1.4→v1.5 (F-VID-P1-CRIT-001 tag-guard + MED-001 empty-filter + LOW-001 single-v strip_prefix); ARCH-INDEX v2.362→v2.363; architect uncommitted edits committed. LOCAL 3-CLEAN streak RESET 0/3 on feature/S-REL-VERSION-IDENTITY; code fix-burst in progress (implementer); pass-2 re-gates on fixed HEAD. Develop and governing objective UNCHANGED: TDD the 6 beta.1-blocking stories → tag v1.0.0-beta.1.
