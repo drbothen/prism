@@ -38,18 +38,12 @@ fn main() {
     // starts with "refs/tags/") to avoid baking "develop" / "feature/..." into non-release
     // binaries. F-VID-P1-CRIT-001: unconditional use baked PRISM_VERSION="develop" into ci.yml
     // builds, failing test_cli_version_output_contains_semver on all 5 legs.
-    let is_tag_build = std::env::var("GITHUB_REF_TYPE")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .map(|t| t.trim() == "tag")
-        .unwrap_or_else(|| {
-            // Fallback for environments that provide GITHUB_REF but not GITHUB_REF_TYPE.
-            std::env::var("GITHUB_REF")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-                .map(|r| r.starts_with("refs/tags/"))
-                .unwrap_or(false)
-        });
+    //
+    // MED-001 (pass-3): derivation extracted to resolve_is_tag_build() in version_resolver.rs
+    // so that tests/version_identity.rs exercises the EXACT same logic.
+    let ref_type = std::env::var("GITHUB_REF_TYPE").ok();
+    let ref_val = std::env::var("GITHUB_REF").ok();
+    let is_tag_build = resolve_is_tag_build(ref_type.as_deref(), ref_val.as_deref());
 
     let build_version = std::env::var("PRISM_BUILD_VERSION").ok();
     let ref_name = std::env::var("GITHUB_REF_NAME").ok();
@@ -64,8 +58,9 @@ fn main() {
     println!("cargo:rustc-env=PRISM_VERSION={version}");
 }
 
-// Shared pure resolver — include! brings the same source into the build-script
+// Shared pure resolvers — include! brings the same source into the build-script
 // context that `pub mod version_resolver` brings into the lib target.
-// Tests in `tests/version_identity.rs` import it from `prism_bin::version_resolver`
-// and exercise the EXACT same function body called here. (HIGH-1, pass-2.)
+// Tests in `tests/version_identity.rs` import resolve_prism_version and
+// resolve_is_tag_build from `prism_bin::version_resolver` and exercise the EXACT
+// same function bodies called here. (HIGH-1 pass-2, MED-001 pass-3.)
 include!("src/version_resolver.rs");

@@ -15,9 +15,10 @@
 // and therefore also block verification of RG-001/RG-002 above).  The documented red-failure
 // mode for each test is stated in its doc-comment.
 
-// Import the shared resolver from the prism_bin lib target.
-// This is the SAME function include!'d by build.rs — any mutation to version_resolver.rs
-// affects both the emitted PRISM_VERSION AND these tests.
+// Import the shared resolvers from the prism_bin lib target.
+// These are the SAME functions include!'d by build.rs — any mutation to
+// version_resolver.rs affects both the emitted PRISM_VERSION AND these tests.
+use prism_bin::version_resolver::resolve_is_tag_build;
 use prism_bin::version_resolver::resolve_prism_version;
 
 // ============================================================================
@@ -419,6 +420,7 @@ fn test_shared_resolver_tag_ref_strips_single_v() {
 /// PRISM_BUILD_VERSION precedence and empty/whitespace fall-through via shared resolver.
 ///
 /// Authority: ADR-064 D2 step-1, F-VID-P1-MED-001, S-REL-BVERSION-INJECT-001.
+// NOTE: `resolve_is_tag_build` tests appear below this section (F-VID-MED-001, pass-3).
 #[test]
 fn test_shared_resolver_build_version_precedence_and_empty_fallthrough() {
     // (a) PRISM_BUILD_VERSION wins over GITHUB_REF_NAME on tag build.
@@ -455,5 +457,92 @@ fn test_shared_resolver_build_version_precedence_and_empty_fallthrough() {
         resolve_prism_version(None, true, Some(""), "1.0.0-dev"),
         "1.0.0-dev",
         "SHARED RESOLVER: empty GITHUB_REF_NAME must fall through to CARGO_PKG_VERSION"
+    );
+}
+
+// ============================================================================
+// S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001 — resolve_is_tag_build tests
+//
+// These tests exercise `resolve_is_tag_build` from `prism_bin::version_resolver`
+// — the SAME function that `build.rs` calls after the MED-001 extraction.
+// Mutating the "tag" comparison (e.g. to "branch") causes
+// `test_is_tag_build_ref_type_tag` to fail; removing the refs/tags/ fallback
+// causes `test_is_tag_build_ref_val_fallback` to fail.
+// ============================================================================
+
+/// F-VID-MED-001 (pass-3): GITHUB_REF_TYPE="tag" → true.
+/// Mutating `== "tag"` to `== "branch"` causes this test to fail.
+///
+/// Authority: ADR-064 D2 v1.5, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
+#[test]
+fn test_is_tag_build_ref_type_tag() {
+    assert!(
+        resolve_is_tag_build(Some("tag"), None),
+        "GITHUB_REF_TYPE='tag' must yield is_tag_build=true (F-VID-MED-001)"
+    );
+}
+
+/// F-VID-MED-001 (pass-3): GITHUB_REF_TYPE="branch" → false (short-circuit, no fallback).
+/// Load-bearing: without short-circuit, passing ref_val="refs/tags/v1.0.0" here would
+/// yield true instead of the correct false.
+///
+/// Authority: ADR-064 D2 v1.5, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
+#[test]
+fn test_is_tag_build_ref_type_branch_is_false() {
+    // ref_type present and non-empty → short-circuit; ref_val not consulted.
+    assert!(
+        !resolve_is_tag_build(Some("branch"), None),
+        "GITHUB_REF_TYPE='branch' must yield is_tag_build=false (F-VID-MED-001)"
+    );
+    // Even with a tag-looking ref_val, ref_type="branch" still returns false.
+    assert!(
+        !resolve_is_tag_build(Some("branch"), Some("refs/tags/v1.0.0")),
+        "GITHUB_REF_TYPE='branch' must short-circuit to false even with tag-looking GITHUB_REF"
+    );
+}
+
+/// F-VID-MED-001 (pass-3): empty and whitespace GITHUB_REF_TYPE treated as absent,
+/// falling through to the GITHUB_REF arm.
+///
+/// Authority: ADR-064 D2 v1.5, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
+#[test]
+fn test_is_tag_build_empty_ref_type_falls_through() {
+    // Empty string → treated as absent → check ref_val (None here) → false.
+    assert!(
+        !resolve_is_tag_build(Some(""), None),
+        "empty GITHUB_REF_TYPE must be treated as absent (F-VID-MED-001)"
+    );
+    // Whitespace-only → treated as absent → check ref_val (None here) → false.
+    assert!(
+        !resolve_is_tag_build(Some("  "), None),
+        "whitespace-only GITHUB_REF_TYPE must be treated as absent (F-VID-MED-001)"
+    );
+}
+
+/// F-VID-MED-001 (pass-3): GITHUB_REF fallback when GITHUB_REF_TYPE is absent.
+/// Mutating `starts_with("refs/tags/")` causes `_true` case to fail.
+///
+/// Authority: ADR-064 D2 v1.5, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
+#[test]
+fn test_is_tag_build_ref_val_fallback() {
+    // ref_type absent, ref_val is a tag ref → true.
+    assert!(
+        resolve_is_tag_build(None, Some("refs/tags/v1.0.0-beta.1")),
+        "GITHUB_REF='refs/tags/v1.0.0-beta.1' with absent ref_type must yield true (F-VID-MED-001)"
+    );
+    // ref_type absent, ref_val is a branch ref → false.
+    assert!(
+        !resolve_is_tag_build(None, Some("refs/heads/develop")),
+        "GITHUB_REF='refs/heads/develop' with absent ref_type must yield false (F-VID-MED-001)"
+    );
+    // ref_type absent, ref_val also absent → false.
+    assert!(
+        !resolve_is_tag_build(None, None),
+        "both absent must yield false (F-VID-MED-001)"
+    );
+    // ref_type absent, ref_val is empty → treated as absent → false.
+    assert!(
+        !resolve_is_tag_build(None, Some("")),
+        "empty GITHUB_REF with absent ref_type must yield false (F-VID-MED-001)"
     );
 }
