@@ -50,10 +50,10 @@ _release authority_ (strictly controlled — only stable writes `main`).
 | Channel | Promise | Trigger | Source branch | Human gate | Tag form | GitHub marking | Status |
 |---------|---------|---------|---------------|------------|----------|----------------|--------|
 | **nightly** | Current `develop` state — scheduled; only runs if `develop` changed since last nightly | Scheduled cron (nightly) | `develop` | None | `X.Y.Z-nightly.YYYYMMDD` | Pre-release | PLANNED |
-| **dev** | Current `develop` state — ad-hoc snapshot for spot testing | `workflow_dispatch` | `develop` | None | `X.Y.Z-dev.<shortsha>` | Pre-release | PLANNED |
-| **alpha** | First intentional pre-release of a new `X.Y.Z` line; may be feature-incomplete; API may move | `workflow_dispatch` | `develop` | None | `X.Y.Z-alpha.N` | Pre-release | PLANNED |
-| **beta** | Feature-complete; feature freeze in effect; stabilization only | `workflow_dispatch` | `develop` | None | `X.Y.Z-beta.N` | Pre-release | PLANNED |
-| **rc** | Code freeze; zero known release-blocking defects; LIVE-TENANT validated; CHANGELOG and docs final | `workflow_dispatch` | `develop` | None (light human review before dispatch) | `X.Y.Z-rc.N` | Pre-release | PLANNED |
+| **dev** | Current `develop` state — ad-hoc snapshot for spot testing | `workflow_dispatch` | `develop` | None | `X.Y.Z-dev.<shortsha>` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
+| **alpha** | First intentional pre-release of a new `X.Y.Z` line; may be feature-incomplete; API may move | `workflow_dispatch` | `develop` | None | `X.Y.Z-alpha.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
+| **beta** | Feature-complete; feature freeze in effect; stabilization only | `workflow_dispatch` | `develop` | None | `X.Y.Z-beta.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
+| **rc** | Code freeze; zero known release-blocking defects; LIVE-TENANT validated; CHANGELOG and docs final | `workflow_dispatch` | `develop` | None (light human review before dispatch) | `X.Y.Z-rc.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
 | **stable** | Production-grade; fully soaked | `release-prep.yml` → `release-promote.yml` | `develop` → `main` | REQUIRED (`release-main` environment approval) | `X.Y.Z` | Latest | IMPLEMENTED |
 
 ### Implementation status notes
@@ -64,10 +64,20 @@ _release authority_ (strictly controlled — only stable writes `main`).
 gate). `release.yml` (tag-triggered) handles the 5-platform build and GitHub Release
 creation. See `RELEASING.md` §4 for the complete operational runbook.
 
-**All pre-release channels (PLANNED):** The nightly, dev, alpha, beta, and rc channels
-are not yet implemented. They are designed to share the same `release.yml` build path
-(tag-triggered) and require only lightweight dispatch workflows to be built. These will
-be delivered as a dedicated release-channels epic after `v1.0.0-rc.1` ships.
+**Ad-hoc pre-release tagging (IMPLEMENTED — dev / alpha / beta / rc):** The
+`release-tag.yml` workflow (`workflow_dispatch`) implements ad-hoc pre-release tagging
+for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
+(e.g. `v1.0.0-rc.1`) to create an annotated tag on `develop` HEAD and trigger
+`release.yml` for the full 5-platform build + pre-release GitHub Release.
+The workflow enforces a pre-release-only guard (stable tags are rejected) and a
+BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
+
+**Nightly (PLANNED):** The nightly channel (scheduled cron, `X.Y.Z-nightly.YYYYMMDD`
+tag form) is not yet implemented — it requires scheduling infrastructure and a
+change-since-last-nightly guard.
+
+**Retention cleanup and edge convenience pointers (PLANNED):** These remain to be
+built as part of the release-channels epic. See §6 and §7 for the full design.
 
 ---
 

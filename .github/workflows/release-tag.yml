@@ -1,0 +1,200 @@
+# release-tag.yml — ad-hoc pre-release tagging lane (develop only; no main promotion)
+#
+# PURPOSE
+# -------
+# Creates and pushes an annotated pre-release tag (e.g. v1.0.0-rc.1) pointing at
+# develop's HEAD, then triggers release.yml (on: push tags v*) which handles the
+# full 5-platform build + GitHub Release creation with --prerelease.
+#
+# PRE-RELEASE ONLY
+# ----------------
+# This workflow accepts ONLY pre-release tags — semver tags that contain a hyphen
+# (e.g. -rc.N, -beta.N, -alpha.N, -nightly.YYYYMMDD, -dev.<sha>).
+# Stable tags (X.Y.Z without a hyphen) MUST go through release-promote.yml
+# (the develop→main promotion lane), which writes main and runs behind the
+# `release-main` environment gate.  This workflow NEVER touches main.
+#
+# REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
+# ---------------------------------------
+# A PAT is REQUIRED — the default GITHUB_TOKEN cannot trigger downstream
+# on:push:tags workflows (release.yml) per GitHub's security model.  The PAT
+# push causes release.yml to fire; a GITHUB_TOKEN push would not.
+# Minimum scopes / permissions:
+#   Fine-Grained PAT (recommended):  Repository contents: Read and write
+#   Classic PAT:                       repo (full repository access)
+#
+# DOES NOT TOUCH MAIN
+# -------------------
+# This workflow only pushes the tag.  It never pushes a branch reference and
+# never writes main.  The release channel strategy (docs/RELEASE-CHANNELS.md)
+# requires that pre-release channels tag develop only.
+#
+# DISPATCH COMMAND EXAMPLE
+# ------------------------
+# gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-rc.1
+
+name: Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Pre-release tag to create (e.g. v1.0.0-rc.1, v1.0.0-beta.1, v1.0.0-alpha.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag-prerelease:
+    name: Tag pre-release — ${{ github.event.inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TAG: ${{ github.event.inputs.tag }}
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout develop — full history required for tag operations       #
+      #    RELEASE_PROMOTE_TOKEN is required so the subsequent tag push      #
+      #    triggers release.yml; the default GITHUB_TOKEN push does NOT      #
+      #    fire downstream on:push:tags workflows.                           #
+      # ------------------------------------------------------------------ #
+      - name: Checkout develop
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PROMOTE_TOKEN }}
+
+      # ------------------------------------------------------------------ #
+      # 2. Configure bot git identity for the annotated tag                  #
+      # ------------------------------------------------------------------ #
+      - name: Configure git bot identity
+        run: |
+          set -euo pipefail
+          git config user.name "prism-release-bot"
+          git config user.email "prism-release-bot@users.noreply.github.com"
+
+      # ------------------------------------------------------------------ #
+      # 3. Pre-release-only guard — tag MUST contain a hyphen                #
+      #    Stable tags (X.Y.Z without a hyphen) must use release-promote.yml  #
+      #    which promotes develop→main under the release-main env gate.      #
+      # ------------------------------------------------------------------ #
+      - name: Guard — pre-release-only (tag must contain a hyphen)
+        run: |
+          set -euo pipefail
+          if [[ "${TAG}" != *-* ]]; then
+            echo "::error::stable tags must go through release-promote (develop->main); release-tag is pre-release-only"
+            echo ""
+            echo "Tag '${TAG}' has no hyphen — it is a stable semver tag."
+            echo "Stable releases MUST use release-promote.yml to promote develop -> main."
+            echo "Pre-release tags must contain a hyphen: v1.0.0-rc.1, v1.0.0-beta.1, v1.0.0-alpha.1, etc."
+            exit 1
+          fi
+          echo "Pre-release guard PASS — tag '${TAG}' contains a hyphen"
+
+      # ------------------------------------------------------------------ #
+      # 4. Version guard — BASE-MATCH: X.Y.Z core of the tag must match     #
+      #    the X.Y.Z core of [package].version in crates/prism-bin/Cargo.toml
+      #                                                                      #
+      #    Pre-release BASE-MATCH (docs/RELEASE-CHANNELS.md §3): compare    #
+      #    only the X.Y.Z core; the channel suffix floats.                   #
+      #    prism-bin = "1.0.0-rc.1" satisfies tag v1.0.0-rc.1               #
+      #    (core 1.0.0 == 1.0.0 ✓).  No version-bump churn is needed        #
+      #    between builds on the same X.Y.Z cycle.                           #
+      # ------------------------------------------------------------------ #
+      - name: Version guard — BASE-MATCH core must match prism-bin
+        run: |
+          set -euo pipefail
+          PRISM_BIN_VERSION="$(grep -m1 '^version = ' crates/prism-bin/Cargo.toml \
+            | sed 's/version = "//;s/"//')"
+          # Extract X.Y.Z core: strip leading 'v' and everything from the first
+          # hyphen onwards.  %%-* removes the LONGEST suffix starting with '-',
+          # which is the channel suffix (e.g. -rc.1, -nightly.20260905, -dev).
+          TAG_CORE="${TAG#v}"
+          TAG_CORE="${TAG_CORE%%-*}"
+          PRISM_BIN_CORE="${PRISM_BIN_VERSION%%-*}"
+          # Export for the summary step (set before the comparison so the summary
+          # can report the actual values even when the guard fails).
+          echo "PRISM_BIN_VERSION=${PRISM_BIN_VERSION}" >> "${GITHUB_ENV}"
+          echo "PRISM_BIN_CORE=${PRISM_BIN_CORE}" >> "${GITHUB_ENV}"
+          echo "TAG_CORE=${TAG_CORE}" >> "${GITHUB_ENV}"
+          if [[ "${TAG_CORE}" != "${PRISM_BIN_CORE}" ]]; then
+            echo "::error::BASE-MATCH failed — tag core '${TAG_CORE}' does not match prism-bin core '${PRISM_BIN_CORE}' (prism-bin version: ${PRISM_BIN_VERSION})"
+            echo ""
+            echo "The X.Y.Z base of the tag must match the X.Y.Z base of the"
+            echo "prism-bin workspace version in crates/prism-bin/Cargo.toml."
+            echo ""
+            echo "  Tag:        ${TAG}  ->  core: ${TAG_CORE}"
+            echo "  prism-bin:  ${PRISM_BIN_VERSION}  ->  core: ${PRISM_BIN_CORE}"
+            exit 1
+          fi
+          echo "Version guard PASS — tag core '${TAG_CORE}' matches prism-bin core '${PRISM_BIN_CORE}'"
+
+      # ------------------------------------------------------------------ #
+      # 5. Tag-exists guard — never clobber an existing tag                  #
+      # ------------------------------------------------------------------ #
+      - name: Guard — tag must not already exist on origin
+        run: |
+          set -euo pipefail
+          if git ls-remote --tags origin "${TAG}" | grep -qF "refs/tags/${TAG}"; then
+            echo "::error::FATAL: tag '${TAG}' already exists on origin."
+            echo "Never clobber an existing tag.  Choose a different tag name."
+            exit 1
+          fi
+          echo "Tag '${TAG}' does not exist on origin — safe to create"
+
+      # ------------------------------------------------------------------ #
+      # 6. Create annotated tag on develop HEAD                              #
+      # ------------------------------------------------------------------ #
+      - name: Create annotated tag on develop HEAD
+        run: |
+          set -euo pipefail
+          DEVELOP_SHA="$(git rev-parse HEAD)"
+          git tag -a "${TAG}" \
+            -m "Pre-release ${TAG} — tagged on develop (SHA: ${DEVELOP_SHA})"
+          echo "Created annotated tag '${TAG}' at develop HEAD ${DEVELOP_SHA}"
+          echo "DEVELOP_SHA=${DEVELOP_SHA}" >> "${GITHUB_ENV}"
+
+      # ------------------------------------------------------------------ #
+      # 7. Push the tag to origin — tag only; NEVER pushes a branch,        #
+      #    NEVER touches main.                                               #
+      # ------------------------------------------------------------------ #
+      - name: Push tag to origin (triggers release.yml)
+        run: |
+          set -euo pipefail
+          git push origin "${TAG}"
+          echo ""
+          echo "Tag '${TAG}' pushed to origin."
+          echo "release.yml will now build the 5-platform binaries and publish the pre-release GitHub Release."
+
+      # ------------------------------------------------------------------ #
+      # 8. Job summary — written even on failure for observability           #
+      # ------------------------------------------------------------------ #
+      - name: Job summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Release Tag — \`${TAG}\`"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Tag | \`${TAG}\` |"
+            echo "| develop SHA tagged | \`${DEVELOP_SHA:-not reached}\` |"
+            echo "| prism-bin version | \`${PRISM_BIN_VERSION:-not reached}\` |"
+            echo "| prism-bin core matched | \`${TAG_CORE:-not reached}\` == \`${PRISM_BIN_CORE:-not reached}\` |"
+            echo ""
+            if [[ -n "${DEVELOP_SHA:-}" ]]; then
+              echo "> **Tag pushed.** \`release.yml\` has been triggered by the tag push"
+              echo "> and will build the full 5-platform matrix and publish the GitHub"
+              echo "> Pre-release for \`${TAG}\`."
+              echo ">"
+              echo "> This workflow tagged \`develop\` only. \`main\` was NOT touched."
+            else
+              echo "> **Workflow did not complete successfully** — see step logs above."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
