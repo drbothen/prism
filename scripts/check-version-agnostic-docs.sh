@@ -4,21 +4,25 @@
 # CI-wiring deferred to follow-up S-REL-DOCS-CI-WIRE-001 (post-beta.1);
 # run in the delivery flow for beta.1.
 #
-# Red Gate check for S-REL-DOCS-AGNOSTIC-001 (AC-001..AC-006) + F-VID-P1-MED-002.
+# Red Gate check for S-REL-DOCS-AGNOSTIC-001 (AC-001..AC-008) + F-VID-P1-MED-002.
 #
 # Verifies that:
 #   AC-001: docs/SETUP.md contains no hardcoded v1.0.0-rc. strings
-#   AC-002: docs/SETUP.md does not contain /releases/latest/download/ URL
-#   AC-003: docs/SETUP.md references the GitHub Releases page path (/releases)
+#   AC-002: docs/SETUP.md AND README.md do not contain /releases/latest/download/ URL
+#            (story v1.1: grep '/releases/latest/download/' docs/SETUP.md README.md = 0 matches)
+#   AC-003: docs/SETUP.md AND README.md each contain a reference to /releases path
+#            (story v1.1: grep '/releases' docs/SETUP.md ≥1 AND grep '/releases' README.md ≥1)
 #   AC-004: scripts/install.sh and scripts/install.ps1 contain no hardcoded v1.0.0-rc. strings
 #   AC-005: RELEASING.md §1 documents the pre-release exception (ADR-064 D2)
 #   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/ scripts/ RELEASING.md README.md
 #   AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-channel.N) in
 #            docs/ scripts/ RELEASING.md README.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
 #   AC-007: README.md contains no hardcoded v1.0.0-rc. strings
+#   AC-008: This script exists and exits 0 — satisfied when this banner is printed GREEN.
 #
-# Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001,
-#            S-REL-VERSION-IDENTITY pass-6 OBS-1 (README.md extension).
+# Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001 v1.1,
+#            S-REL-VERSION-IDENTITY pass-6 OBS-1 (README.md extension),
+#            S-REL-VERSION-IDENTITY pass-7 MED-1 (AC-002/AC-003 README.md gap).
 #
 # Usage:
 #   bash scripts/check-version-agnostic-docs.sh        # from workspace root
@@ -82,31 +86,51 @@ Remove them and replace with version-agnostic instructions per S-REL-VERSION-IDE
 fi
 
 # ---------------------------------------------------------------------------
-# AC-002: docs/SETUP.md does not contain /releases/latest/download/ URL
+# AC-002: docs/SETUP.md AND README.md do not contain /releases/latest/download/ URL
 # (GitHub /latest/ excludes pre-releases — operators need the Releases page)
+# Story v1.1: grep '/releases/latest/download/' docs/SETUP.md README.md = 0 matches.
+# MED-1 (S-REL-VERSION-IDENTITY pass-7): extended from SETUP.md-only to both files.
 # ---------------------------------------------------------------------------
-LATEST_DL=$(grep -c '/releases/latest/download/' docs/SETUP.md 2>/dev/null || true)
+LATEST_DL_SETUP=$(grep -c '/releases/latest/download/' docs/SETUP.md 2>/dev/null || true)
+LATEST_DL_README=$(grep -c '/releases/latest/download/' README.md 2>/dev/null || true)
+LATEST_DL=$((LATEST_DL_SETUP + LATEST_DL_README))
 if [ "$LATEST_DL" -eq 0 ]; then
-    pass "AC-002: docs/SETUP.md does not contain /releases/latest/download/"
+    pass "AC-002: docs/SETUP.md and README.md do not contain /releases/latest/download/"
 else
-    fail "AC-002: docs/SETUP.md contains ${LATEST_DL} /releases/latest/download/ URL(s). \
+    fail "AC-002: /releases/latest/download/ found in swept files (${LATEST_DL} occurrence(s)). \
 /latest/ excludes pre-releases. Replace with GitHub Releases page instructions per \
 S-REL-DOCS-AGNOSTIC-001 AC-002."
-    echo "       Occurrences:"
-    grep -n '/releases/latest/download/' docs/SETUP.md | sed 's/^/         /' || true
+    if [ "$LATEST_DL_SETUP" -gt 0 ]; then
+        echo "       docs/SETUP.md occurrences:"
+        grep -n '/releases/latest/download/' docs/SETUP.md | sed 's/^/         /' || true
+    fi
+    if [ "$LATEST_DL_README" -gt 0 ]; then
+        echo "       README.md occurrences:"
+        grep -n '/releases/latest/download/' README.md | sed 's/^/         /' || true
+    fi
 fi
 
 # ---------------------------------------------------------------------------
-# AC-003: docs/SETUP.md references the GitHub Releases page path (/releases)
-# Anchored to "/releases" (not bare word "releases") to prevent false-green if
-# the download-directions section were removed. (OBS-2, S-REL-VERSION-IDENTITY pass-6)
+# AC-003: docs/SETUP.md AND README.md each reference the GitHub Releases page (/releases)
+# Story v1.1: grep '/releases' docs/SETUP.md ≥1 AND grep '/releases' README.md ≥1.
+# Anchored to "/releases" path (not bare word) to prevent false-green on prose-only mentions.
+# (OBS-2, S-REL-VERSION-IDENTITY pass-6; extended to README.md in pass-7 MED-1)
+# Both files are checked independently — a missing reference in EITHER file is a failure.
 # ---------------------------------------------------------------------------
-RELEASES_PAGE=$(grep -ci '/releases' docs/SETUP.md 2>/dev/null || true)
-if [ "$RELEASES_PAGE" -gt 0 ]; then
-    pass "AC-003: docs/SETUP.md references GitHub Releases page (${RELEASES_PAGE} /releases match(es))"
+RELEASES_SETUP=$(grep -ci '/releases' docs/SETUP.md 2>/dev/null || true)
+RELEASES_README=$(grep -ci '/releases' README.md 2>/dev/null || true)
+if [ "$RELEASES_SETUP" -gt 0 ] && [ "$RELEASES_README" -gt 0 ]; then
+    pass "AC-003: docs/SETUP.md (${RELEASES_SETUP} match(es)) and README.md (${RELEASES_README} match(es)) \
+both reference the GitHub Releases page (/releases)"
 else
-    fail "AC-003: docs/SETUP.md does not reference the GitHub Releases page path (/releases). Add a \
+    if [ "$RELEASES_SETUP" -eq 0 ]; then
+        fail "AC-003: docs/SETUP.md does not reference the GitHub Releases page path (/releases). Add a \
 download section directing operators to the Releases page per S-REL-DOCS-AGNOSTIC-001 AC-003."
+    fi
+    if [ "$RELEASES_README" -eq 0 ]; then
+        fail "AC-003: README.md does not reference the GitHub Releases page path (/releases). Add a \
+download section directing operators to the Releases page per S-REL-DOCS-AGNOSTIC-001 AC-003."
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -218,12 +242,11 @@ echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
 
 if [ "$FAIL" -gt 0 ]; then
     echo ""
-    echo "RED: ${FAIL} check(s) failed. This is the expected state before"
-    echo "S-REL-DOCS-AGNOSTIC-001 implementation. Run again after editing"
-    echo "docs/SETUP.md, scripts/install.sh, scripts/install.ps1, and RELEASING.md."
+    echo "RED: ${FAIL} check(s) failed. Run again after editing"
+    echo "README.md, docs/SETUP.md, scripts/install.sh, scripts/install.ps1, and RELEASING.md."
     exit 1
 fi
 
 echo ""
-echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-007 satisfied."
+echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-008 satisfied."
 exit 0
