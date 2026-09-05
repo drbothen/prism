@@ -65,7 +65,11 @@ time via `PRISM_VERSION`, resolved by `crates/prism-bin/build.rs` through the
 following fallback chain:
 
 1. `PRISM_BUILD_VERSION` env var (explicit override)
-2. `GITHUB_REF_NAME` env var with a leading `v` stripped (GitHub Actions tag ref)
+2. `GITHUB_REF_NAME` env var with a leading `v` stripped — **only on tag builds**
+   (`GITHUB_REF_TYPE == "tag"`, or fallback: `GITHUB_REF` starts with `refs/tags/`).
+   On non-tag runs (branch pushes, pull requests) this arm is skipped entirely and the
+   resolver falls through to `CARGO_PKG_VERSION`, preventing branch names such as
+   `develop` or `feature/S-3.01` from being baked into the binary.
 3. `CARGO_PKG_VERSION` (local dev default; always `1.0.0-dev` on `develop`)
 
 This means `prism --version` on `develop` reports `prism 1.0.0-dev` locally, and
