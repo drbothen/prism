@@ -1,18 +1,65 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.067"
+version: "8.068"
 status: current
-timestamp: 2026-09-04T23:00:00Z
+timestamp: 2026-09-05T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2450 (2026-09-04): SINGLE-COMMIT BURST SESSION CATCH-UP (TD-VSDD-053) — 5 decisions D-2446..D-2450 recorded. D-2446: DEFECT-CLAROTY-VULN-PAGESIZE-001 CLOSED (PR #256 @7d09567f6). D-2447: S-REL-011 MERGED (PR #257 @68a64ad0b). D-2448: rc.1 CI/CD established (PR #258 OPEN; release-main env). D-2449: RELEASE-CHANNEL STRATEGY GOVERNING. D-2450: S-REL-CHANNELS-001 stub registered. develop_head 725cf413d→68a64ad0b. §RESUME SNAPSHOT D-2450 inserted; D-2445 SUPERSEDED. records-lint PASS. STATE v8.973→v8.978. SESSION-HANDOFF v8.066→v8.067.**
+> **D-2451 (2026-09-05): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — PR #258 MERGED @863bfff03 (release-promote.yml + release-prep.yml + RELEASING.md). PR #259 MERGED @2de6fc374 (docs/RELEASE-CHANNELS.md). PR #260 MERGED @cf92ab535 (release-tag.yml PRE-RELEASE lane). STRATEGY CORRECTION: rc = PRE-RELEASE, develop-only (prior promote-run CANCELLED; main untouched). v1.0.0-rc.1 TAGGED on develop@cf92ab535; release.yml run 33945993946 BUILDING. develop_head 68a64ad0b→cf92ab535. §RESUME SNAPSHOT D-2451 inserted; D-2450 SUPERSEDED. records-lint PASS. STATE v8.978→v8.979. SESSION-HANDOFF v8.067→v8.068.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2450 (2026-09-04 — SESSION CATCH-UP BURST; PR #258 OPEN; rc.1 CI/CD READY; SAFE TO CLEAR) [supersedes D-2445]
+## §RESUME SNAPSHOT — D-2451 (2026-09-05 — SESSION WRAP; v1.0.0-rc.1 TAGGED; release.yml BUILDING; SAFE TO CLEAR) [supersedes D-2450]
+
+### RESUME IN ONE BREATH
+rc.1 (v1.0.0-rc.1) tagged on develop@cf92ab535 as an ungated pre-release; release.yml run 33945993946 building → pre-release publishing; main untouched (stable-only, deferred). Next: verify the GitHub Release published with assets, then post-tag bookkeeping.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-rc.1 as a Claroty-xDome-only evaluation release. All release-engineering CI/CD infrastructure now in place (release-promote.yml + release-prep.yml + release-tag.yml). v1.0.0-rc.1 tagged via release-tag.yml on develop@cf92ab535; release.yml building 5 platforms. STABLE v1.0.0 deferred (develop→main join, release-promote real run, release-main approval).
+
+### HEADS (backup boundary)
+- `develop`: origin = `cf92ab535` (PR #260 admin squash-merge 2026-09-05); tag v1.0.0-rc.1 pushed.
+- `main`: origin = `bdf24cec8` (STUB, UNCHANGED — first develop→main join DEFERRED to STABLE v1.0.0).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- NOTE: harmless stale LOCAL `main` branch pointer at `f0f0b4f08` (abandoned first-attempt merge, unpushed; safe to ignore or delete).
+- No open PRs targeting develop (PR #255 is OBSOLETE — see next-actions).
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. (a) Verify release.yml run 33945993946 completed + GitHub Release v1.0.0-rc.1 published (5 platform archives + checksums.txt + attestation + install scripts).
+3. (b) Post-tag bookkeeping recording rc.1 shipped.
+4. (c) CLOSE obsolete PR #255 (release/v1.0.0-rc.1 known-limitations CHANGELOG — superseded by the vuln fix; DO NOT merge).
+5. (d) Small doc follow-ups: add RELEASING.md→RELEASE-CHANNELS.md pointer + fix 2 cosmetic RELEASING.md nits ("2-commit" vs "4-commit/2-file" stub; §4 Step-4 promote re-run abbreviation).
+6. (e) Operator runs+records the Claroty demo playbook (docs/ops/claroty-demo-playbook.md + test-soc/live-soc copy) against monroe.
+7. (f) Channel epic S-REL-CHANNELS-001 (nightly-cron + dev/alpha/beta lanes + retention cleanup + edge pointers + base-match guard refinement) — post-rc.1, needs PO/story authoring before status:ready.
+8. (g) STABLE v1.0.0 later: release-prep workflow (1.0.0-rc.1→1.0.0 bump + CHANGELOG) → release-promote dry-run → release-promote real run + release-main approval (drbothen) → first develop→main join.
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 + S-REL-002 + S-REL-003 + S-REL-005 + S-REL-011 MERGED. v1.0.0-rc.1 TAGGED. S-REL-004 v0.5 DEFERRED (D-2443; depends on S-CLAROTY-DTU-PARITY-001). S-REL-007 v0.3 DEFERRED. S-REL-006 v0.2 DEFERRED. S-CLAROTY-DTU-PARITY-001 REGISTERED v1.0 (governing story; blocks S-REL-004). S-REL-CHANNELS-001 REGISTERED draft stub v0.1 (post-rc.1; D-2450). ADR-062 ACCEPTED.
+
+### PENDING USER-APPROVED WORK
+- Force-push to any branch still requires explicit human approval (D-2445 EXCLUSION unchanged).
+- release-promote real run (STABLE v1.0.0) requires release-main GitHub Environment approval (drbothen — GitHub-enforced gate, not harness boundary).
+- S-REL-CHANNELS-001 PO authorship needed (fuller story + ACs before status:ready).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2451 (SESSION WRAP — PR #258 @863bfff03, PR #259 @2de6fc374, PR #260 @cf92ab535 all merged; strategy correction rc = pre-release develop-only; rc.1 tagged on develop@cf92ab535 via release-tag.yml; release.yml run 33945993946 building; develop_head 68a64ad0b→cf92ab535; STATE v8.978→v8.979; SESSION-HANDOFF v8.067→v8.068). D-2450 SUPERSEDED.
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) Claroty-only v1.0.0-rc.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-010 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237). (j) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-rc.1 per D-2443. (k) RELEASE-CHANNEL STRATEGY (D-2449, 2026-09-04): nightly/dev/alpha/beta/rc/stable ladder; pre-releases develop-only ungated; stable→main approval-gated; harness AI cannot push protected main (factory hook) — stable uses release-promote workflow.
+
+### WORKTREE INVENTORY
+ACTIVE: none (main worktree on develop). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2450 (2026-09-04 — SESSION CATCH-UP BURST; PR #258 OPEN; rc.1 CI/CD READY; SAFE TO CLEAR) [supersedes D-2445] [SUPERSEDED by D-2451]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1 release engineering (E-REL epic), Claroty-xDome-ONLY v1.0.0-rc.1. Session catch-up burst D-2446..D-2450 recorded. DEFECT-CLAROTY-VULN-PAGESIZE-001 CLOSED (PR #256 @7d09567f6; sort_by regression from PR #252 fixed; all 14 Claroty tables live on monroe in ~2.2s). S-REL-011 setup docs MERGED (PR #257 @68a64ad0b). rc.1 CI/CD established: PR #258 OPEN (release-promote.yml + release-prep.yml; release-main GitHub Environment + RELEASE_PROMOTE_TOKEN PAT; D-2448). RELEASE-CHANNEL STRATEGY approved (GOVERNING, D-2449; nightly/dev/alpha/beta/rc/stable ladder; pre-release lanes deferred to S-REL-CHANNELS-001 post-rc.1). S-REL-CHANNELS-001 stub registered (post-rc.1 follow-up, D-2450). develop_head 725cf413d→68a64ad0b. AUTONOMOUS MERGE + TAG per D-2445 in force.
