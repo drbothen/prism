@@ -460,6 +460,38 @@ fn test_shared_resolver_build_version_precedence_and_empty_fallthrough() {
     );
 }
 
+/// OBS-1 (S-REL-VERSION-IDENTITY pass-5): degenerate tag `ref_name == "v"` must fall
+/// through to CARGO_PKG_VERSION, NOT return an empty PRISM_VERSION.
+///
+/// Without the post-strip empty guard introduced in pass-5, `strip_prefix('v')` on `"v"`
+/// yields `Some("")` → `unwrap_or(name)` returns `""` → PRISM_VERSION="" (violates ADR-064
+/// D2 never-empty promise). The guard checks `version.trim().is_empty()` after strip and
+/// falls through to `cargo_version` when empty.
+///
+/// Authority: ADR-064 D2 v1.6 never-empty invariant, S-REL-VERSION-IDENTITY pass-5 OBS-1.
+#[test]
+fn test_shared_resolver_degenerate_v_only_tag_falls_through() {
+    // The primary case from OBS-1: ref_name="v" post-strip yields "" → CARGO_PKG_VERSION.
+    assert_eq!(
+        resolve_prism_version(None, true, Some("v"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: degenerate tag 'v' must fall through to CARGO_PKG_VERSION, \
+         not emit empty PRISM_VERSION (OBS-1, ADR-064 D2 v1.6)"
+    );
+    // Confirm normal tags still work: "v1.0.0-beta.1" → "1.0.0-beta.1" (regression guard).
+    assert_eq!(
+        resolve_prism_version(None, true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "SHARED RESOLVER: normal tag 'v1.0.0-beta.1' must still resolve correctly after OBS-1 fix"
+    );
+    // Confirm "1.0.0" (no leading v) still works (regression guard).
+    assert_eq!(
+        resolve_prism_version(None, true, Some("1.0.0"), "1.0.0-dev"),
+        "1.0.0",
+        "SHARED RESOLVER: tag without leading 'v' must still pass through unchanged after OBS-1 fix"
+    );
+}
+
 // ============================================================================
 // S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001 — resolve_is_tag_build tests
 //
