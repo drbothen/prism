@@ -9,14 +9,16 @@
 # Verifies that:
 #   AC-001: docs/SETUP.md contains no hardcoded v1.0.0-rc. strings
 #   AC-002: docs/SETUP.md does not contain /releases/latest/download/ URL
-#   AC-003: docs/SETUP.md references the GitHub Releases page for downloads
+#   AC-003: docs/SETUP.md references the GitHub Releases page path (/releases)
 #   AC-004: scripts/install.sh and scripts/install.ps1 contain no hardcoded v1.0.0-rc. strings
 #   AC-005: RELEASING.md §1 documents the pre-release exception (ADR-064 D2)
-#   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/ scripts/ RELEASING.md
+#   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/ scripts/ RELEASING.md README.md
 #   AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-channel.N) in
-#            docs/ scripts/ RELEASING.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
+#            docs/ scripts/ RELEASING.md README.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
+#   AC-007: README.md contains no hardcoded v1.0.0-rc. strings
 #
-# Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001.
+# Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001,
+#            S-REL-VERSION-IDENTITY pass-6 OBS-1 (README.md extension).
 #
 # Usage:
 #   bash scripts/check-version-agnostic-docs.sh        # from workspace root
@@ -63,6 +65,20 @@ else
 Remove them and replace with version-agnostic instructions per S-REL-DOCS-AGNOSTIC-001."
     echo "       Occurrences:"
     grep -n 'v1\.0\.0-rc\.' docs/SETUP.md | sed 's/^/         /' || true
+fi
+
+# ---------------------------------------------------------------------------
+# AC-007: README.md contains no hardcoded v1.0.0-rc. strings
+# (OBS-1, S-REL-VERSION-IDENTITY pass-6 — same treatment as docs/SETUP.md)
+# ---------------------------------------------------------------------------
+RC1_README=$(grep -c 'v1\.0\.0-rc\.' README.md 2>/dev/null || true)
+if [ "$RC1_README" -eq 0 ]; then
+    pass "AC-007: README.md contains no v1.0.0-rc. strings"
+else
+    fail "AC-007: README.md contains ${RC1_README} hardcoded v1.0.0-rc. string(s). \
+Remove them and replace with version-agnostic instructions per S-REL-VERSION-IDENTITY pass-6 OBS-1."
+    echo "       Occurrences:"
+    grep -n 'v1\.0\.0-rc\.' README.md | sed 's/^/         /' || true
 fi
 
 # ---------------------------------------------------------------------------
@@ -140,24 +156,25 @@ needed between pre-releases. See S-REL-DOCS-AGNOSTIC-001 AC-005 for the required
 fi
 
 # ---------------------------------------------------------------------------
-# AC-006: Full sweep — no hardcoded v1.0.0-rc. in docs/, scripts/, or RELEASING.md
-# This is the definitive gate; it catches any occurrence not covered by AC-001/004.
+# AC-006: Full sweep — no hardcoded v1.0.0-rc. in docs/, scripts/, RELEASING.md, README.md
+# This is the definitive gate; it catches any occurrence not covered by AC-001/004/007.
 # This script is excluded from the sweep because it legitimately names the pattern
 # it checks for (test infrastructure, not install documentation).
+# README.md added to sweep: OBS-1, S-REL-VERSION-IDENTITY pass-6.
 # ---------------------------------------------------------------------------
 SELF="$(basename "${BASH_SOURCE[0]}")"
 # Use || true to prevent set -o pipefail from aborting when grep finds zero matches
 # (grep exits 1 with no output; wc -l would output "0" correctly, but pipefail
 # propagates the grep non-zero exit through the pipeline assignment).
-FULL_SWEEP=$(grep -r 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md \
+FULL_SWEEP=$(grep -r 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md README.md \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || FULL_SWEEP=0
 if [ "$FULL_SWEEP" -eq 0 ]; then
-    pass "AC-006: Full sweep — no hardcoded v1.0.0-rc. strings found in docs/ scripts/ RELEASING.md"
+    pass "AC-006: Full sweep — no hardcoded v1.0.0-rc. strings found in docs/ scripts/ RELEASING.md README.md"
 else
     fail "AC-006: Full sweep found ${FULL_SWEEP} hardcoded v1.0.0-rc. string(s). \
 Fix all occurrences before declaring S-REL-DOCS-AGNOSTIC-001 complete."
     echo "       Occurrences:"
-    grep -rn 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md \
+    grep -rn 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md README.md \
         --exclude="$SELF" | sed 's/^/         /' || true
 fi
 
@@ -174,9 +191,10 @@ fi
 # "1.0.0-rc.2" at column 0 was missed. (^|[^v]) matches either start-of-line
 # or a non-v character.  "v1.0.0-rc.2" still does NOT match because [^v]
 # does not match 'v' and ^ does not apply mid-line.
+# README.md added to sweep: OBS-1, S-REL-VERSION-IDENTITY pass-6.
 # ---------------------------------------------------------------------------
 NONV_PRERELEASE=$(grep -rE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-    docs/ scripts/ RELEASING.md \
+    docs/ scripts/ RELEASING.md README.md \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || NONV_PRERELEASE=0
 if [ "$NONV_PRERELEASE" -eq 0 ]; then
     pass "AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-(rc|beta|alpha|nightly).N) found"
@@ -186,7 +204,7 @@ else
 (F-VID-P1-MED-002: use 'prism 1.0.0' or 'prism <version>' format examples)."
     echo "       Occurrences:"
     grep -rnE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-        docs/ scripts/ RELEASING.md \
+        docs/ scripts/ RELEASING.md README.md \
         --exclude="$SELF" | sed 's/^/         /' || true
 fi
 
@@ -205,5 +223,5 @@ if [ "$FAIL" -gt 0 ]; then
 fi
 
 echo ""
-echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-006b satisfied."
+echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-007 satisfied."
 exit 0
