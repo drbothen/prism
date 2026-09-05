@@ -5,16 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0-rc.2] - 2026-09-05
+## [1.0.0-beta.1] - 2026-09-05
 
-Prism v1.0.0-rc.2 is the first **published** release candidate of an ephemeral
-federated query engine for MSSP security operations. This release candidate ships
-with **Claroty xDome as the sole supported sensor** — 14 tables, full PrismQL query
-engine, MCP server, multi-tenant isolation, OCSF normalization, query push-down, and
-structured audit logging in a single operator-deployable binary. Code for CrowdStrike
+Prism v1.0.0-beta.1 is the first **published** pre-release of an ephemeral federated
+query engine for MSSP security operations. This beta release is feature-complete for
+the **Claroty xDome scope** — 14 tables, full PrismQL query engine, MCP server,
+multi-tenant isolation, OCSF normalization, query push-down, and structured audit
+logging in a single operator-deployable binary. The API surface is stable;
+stabilization work is ongoing before the release-candidate bar. Code for CrowdStrike
 Falcon, Cyberint, and Armis sensors exists in the workspace but is not supported in
-rc.2; those sensors return with full native-auth support in a future release (see
-Deferred section below). Use rc.2 to evaluate Prism against your Claroty xDome
+beta.1; those sensors return with full native-auth support in a future release (see
+Deferred section below). Use beta.1 to evaluate Prism against your Claroty xDome
 deployment.
 
 This release is functionally identical to the never-published v1.0.0-rc.1 tag
@@ -22,9 +23,10 @@ This release is functionally identical to the never-published v1.0.0-rc.1 tag
 `x86_64-unknown-linux-musl` static-Linux matrix leg
 (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001 — `dtolnay/rust-toolchain` hoisted
 before `cargo install cargo-zigbuild` to eliminate a rustup component conflict on
-ubuntu-24.04 runner images >= 20260831.293), and (2) wiring of this CHANGELOG section
-into the GitHub Release body via `--notes-file`. No product or runtime behavior
-changed between the rc.1 tag and rc.2.
+ubuntu-24.04 runner images >= 20260831.293), (2) wiring of this CHANGELOG section
+into the GitHub Release body via `--notes-file`, and (3) the maturity label
+correction from rc to beta to reflect the evaluation scope of this release. No
+product or runtime behavior changed between the rc.1 tag and beta.1.
 
 ### Added
 
@@ -40,7 +42,7 @@ changed between the rc.1 tag and rc.2.
   `spec_dir` at the bundled `specs/` directory, and run `prism start` (#253).
   The binary includes the `ENRICH` clause and file-backed LocalLookup
   (MMDB/CSV/JSON) infusion code path; no infusion specs or WASM plugins are
-  bundled in rc.2. Enrichment is not part of the validated rc.2 surface;
+  bundled in beta.1. Enrichment is not part of the validated beta.1 surface;
   plugin-based enrichment (ThreatIntel, NVD) ships in a later release.
 - Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
   hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
@@ -78,13 +80,13 @@ changed between the rc.1 tag and rc.2.
 - Enrichment chain: PrismQL `ENRICH` clause, ThreatIntel/NVD dual-path enrichment
   engine (HttpLookup + WASM plugin infusion), typed UDF output with consistent
   `ColumnType` coercion — code path present in binary; no infusion specs or WASM
-  plugins bundled in rc.2 (enrichment not part of the validated rc.2 surface);
+  plugins bundled in beta.1 (enrichment not part of the validated beta.1 surface);
   sensor-specific enrichment demos (IOC stamping for Cyberint/CrowdStrike) deferred
   with those sensors to a future release
   (S-DEMO-ENRICHMENT-PIVOT-001/002/003, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
 - Full infusion engine: MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin
   runtime wiring, SEC-001 source-size guard — code path present in binary; only
-  file-backed LocalLookup (MMDB/CSV/JSON) is exercised in rc.2, and no infusion
+  file-backed LocalLookup (MMDB/CSV/JSON) is exercised in beta.1, and no infusion
   specs or WASM plugins are bundled (S-1.14-REDO)
 - `E-QUERY-042` gate for `Literal::Timestamp` in GROUP BY/ORDER BY
   (ADR-052 §D4 arms 6+7; DEFECT-EQUERY042-GROUPBY-DEADARM-001, #220)
@@ -98,7 +100,7 @@ changed between the rc.1 tag and rc.2.
   (S-DEMO-001, #166)
 - Config-driven sensor TOML specs: CrowdStrike, Cyberint, Claroty, and Armis were
   implemented as TOML specs processed by the spec engine; only claroty.sensor.toml
-  ships in rc.2 (see Deferred) (PLUGIN-MIGRATION-001-D, #153)
+  ships in beta.1 (see Deferred) (PLUGIN-MIGRATION-001-D, #153)
 - `SpecParser` hot reload: runtime spec reloading with `ArcSwap` config snapshots
   (S-1.12, #24)
 - Plugin framework: WASM plugin runtime with host-function security boundary,
@@ -269,7 +271,7 @@ changed between the rc.1 tag and rc.2.
 ### Deferred to a Future Release
 
 The following sensor adapters are present in the workspace but are **not supported
-in rc.2**. They will return in a future release with full native authentication:
+in beta.1**. They will return in a future release with full native authentication:
 
 - **CrowdStrike Falcon**: multi-region base URL, `devices` POST fan-out, `E-QUERY-043`
   gate; OAuth2 refresh-on-401 via PRX WASM plugin. Blocked pending S-ADR054-WAVE-A-001
@@ -353,9 +355,10 @@ v1.0.0-rc.1 was tagged at commit cf92ab535 but was **never published**. The
 `x86_64-unknown-linux-musl` release workflow leg failed deterministically on
 ubuntu-24.04 runner image `ubuntu24/20260831.293` due to a rustup component
 installation conflict (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001), preventing
-`publish-release` from running. No release assets were produced under this tag. See
-v1.0.0-rc.2 for the first published pre-release.
+`publish-release` from running. No release assets were produced under this tag.
+Additionally, the maturity label was corrected from rc to beta to reflect the
+evaluation scope of this release. Superseded by v1.0.0-beta.1.
 
-[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-rc.2...HEAD
-[1.0.0-rc.2]: https://github.com/drbothen/prism/compare/v1.0.0-rc.1...v1.0.0-rc.2
+[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...HEAD
+[1.0.0-beta.1]: https://github.com/drbothen/prism/compare/v1.0.0-rc.1...v1.0.0-beta.1
 [1.0.0-rc.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1
