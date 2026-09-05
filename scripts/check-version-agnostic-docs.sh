@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # check-version-agnostic-docs.sh
 #
+# CI-wiring deferred to follow-up S-REL-DOCS-CI-WIRE-001 (post-beta.1);
+# run in the delivery flow for beta.1.
+#
 # Red Gate check for S-REL-DOCS-AGNOSTIC-001 (AC-001..AC-006) + F-VID-P1-MED-002.
 #
 # Verifies that:
@@ -164,8 +167,15 @@ fi
 # AC-006 v1.0.0-rc. pattern misses. Pattern: X.Y.Z-channel.N where channel is
 # rc, beta, or alpha. The develop default (1.0.0-dev) does not match (no .N suffix).
 # This script is excluded because it legitimately names the pattern.
+#
+# MED-2 (S-REL-VERSION-IDENTITY pass-2): changed [^v] to (^|[^v]) so that a
+# bare pre-release semver at column 0 (start of line) is also detected.
+# The previous pattern [^v] required a non-v character BEFORE the digits, so
+# "1.0.0-rc.2" at column 0 was missed. (^|[^v]) matches either start-of-line
+# or a non-v character.  "v1.0.0-rc.2" still does NOT match because [^v]
+# does not match 'v' and ^ does not apply mid-line.
 # ---------------------------------------------------------------------------
-NONV_PRERELEASE=$(grep -rE '[^v][0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+NONV_PRERELEASE=$(grep -rE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
     docs/ scripts/ RELEASING.md \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || NONV_PRERELEASE=0
 if [ "$NONV_PRERELEASE" -eq 0 ]; then
@@ -175,7 +185,7 @@ else
 (e.g. '1.0.0-rc.2'). Replace with version-agnostic text per S-REL-DOCS-AGNOSTIC-001 \
 (F-VID-P1-MED-002: use 'prism 1.0.0' or 'prism <version>' format examples)."
     echo "       Occurrences:"
-    grep -rnE '[^v][0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+    grep -rnE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
         docs/ scripts/ RELEASING.md \
         --exclude="$SELF" | sed 's/^/         /' || true
 fi
