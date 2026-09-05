@@ -406,6 +406,15 @@ path = "tests/bc_2_16_021_claroty_org_fw_policy_wire_shape.rs"
 name = "bc_2_16_022_claroty_acl_policies_wire_shape"
 path = "tests/bc_2_16_022_claroty_acl_policies_wire_shape.rs"
 
+# S-REL-DEV-RESET-001 / S-REL-BVERSION-INJECT-001: Version identity Red Gate tests.
+# RG-001 (DEV-RESET): env!("CARGO_PKG_VERSION") == "1.0.0-dev" (ADR-064 D1)
+# RG-002 (DEV-RESET): non-exhaustive-violation Cargo.lock pins prism-bin to 1.0.0-dev
+# RG-001..RG-004 (BVERSION): build.rs existence + fallback chain + six-site source migration
+# No required-features — these are pure compile-time / source-read assertions.
+[[test]]
+name = "version_identity"
+path = "tests/version_identity.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
