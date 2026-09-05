@@ -1,12 +1,24 @@
 // Version identity Red Gate tests
 // S-REL-DEV-RESET-001: RG-001, RG-002  (ADR-064 D1 — develop carries 1.0.0-dev)
 // S-REL-BVERSION-INJECT-001: RG-001..RG-004  (ADR-064 D2 — build.rs PRISM_VERSION injection)
+// S-REL-VERSION-IDENTITY pass-2 HIGH-1: shared resolver exercises + env-var assertions
+//
+// HIGH-1 fix: `resolve_prism_version` now lives in `src/version_resolver.rs` (single
+// source of truth).  It is `include!`'d by `build.rs` AND exposed via `pub mod
+// version_resolver` in `lib.rs`.  The tests below import it directly from the lib
+// target — deleting the `is_tag_build` gate in `version_resolver.rs` causes
+// `test_shared_resolver_non_tag_ref_must_not_leak_branch_name` to fail.
 //
 // All tests are written to FAIL before implementation.
 // S-REL-BVERSION-INJECT-001 RG-001..RG-004 use the source-level / pure-helper approach
 // (per orchestrator guidance: avoid compile-fail tests that block the whole crate from building
 // and therefore also block verification of RG-001/RG-002 above).  The documented red-failure
 // mode for each test is stated in its doc-comment.
+
+// Import the shared resolver from the prism_bin lib target.
+// This is the SAME function include!'d by build.rs — any mutation to version_resolver.rs
+// affects both the emitted PRISM_VERSION AND these tests.
+use prism_bin::version_resolver::resolve_prism_version;
 
 // ============================================================================
 // S-REL-DEV-RESET-001
@@ -146,26 +158,9 @@ fn test_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
          (F-VID-P1-LOW-001, ADR-064 D2 v1.5)"
     );
 
-    // ---- (2) Pure helper mirrors ADR-064 D2 v1.5 normative fallback logic ----
-    /// Mirror of the ADR-064 D2 v1.5 normative fallback chain (local to this test).
-    /// Signature matches build.rs: (build_version, is_tag_build, ref_name, cargo_version).
-    fn resolve_prism_version(
-        build_version: Option<&str>,
-        is_tag_build: bool,
-        ref_name: Option<&str>,
-        cargo_version: &str,
-    ) -> String {
-        if let Some(v) = build_version.filter(|s| !s.trim().is_empty()) {
-            return v.to_string();
-        }
-        if is_tag_build {
-            if let Some(r) = ref_name.filter(|s| !s.trim().is_empty()) {
-                let name = r.trim();
-                return name.strip_prefix('v').unwrap_or(name).to_string();
-            }
-        }
-        cargo_version.to_string()
-    }
+    // ---- (2) Shared resolver (prism_bin::version_resolver::resolve_prism_version) ----
+    // This is the EXACT function include!'d by build.rs.  No local copy — single
+    // source of truth (HIGH-1, S-REL-VERSION-IDENTITY pass-2).
 
     // Local-dev path: no env vars → CARGO_PKG_VERSION.
     assert_eq!(
@@ -323,5 +318,142 @@ fn test_prism_version_site_user_agent() {
         !spec_driven.contains(r#"concat!("prism/", env!("CARGO_PKG_VERSION"))"#),
         "spec_driven_adapter.rs user-agent still uses CARGO_PKG_VERSION; migrate to \
          PRISM_VERSION per ADR-064 D2 (S-REL-BVERSION-INJECT-001 AC-003)."
+    );
+}
+
+// ============================================================================
+// S-REL-VERSION-IDENTITY pass-2 HIGH-1 — shared resolver exercised tests
+// These tests use the IMPORTED `resolve_prism_version` from
+// `prism_bin::version_resolver` — the exact same source that `build.rs` uses
+// via `include!("src/version_resolver.rs")`.  Mutating the `is_tag_build` gate
+// in `version_resolver.rs` causes `test_shared_resolver_non_tag_ref_must_not_leak_branch_name`
+// to fail.
+// ============================================================================
+
+/// AC-005 literal (S-REL-BVERSION-INJECT-001): on a non-tag build, `PRISM_VERSION`
+/// equals `CARGO_PKG_VERSION`.  Test always builds in non-tag context (local dev / CI
+/// non-release), so both are "1.0.0-dev".
+///
+/// Also asserts RG-001: `PRISM_VERSION` is non-empty.
+///
+/// Authority: ADR-064 D2 v1.5, S-REL-BVERSION-INJECT-001 AC-005.
+#[test]
+fn test_prism_version_equals_cargo_pkg_version_on_non_tag_build() {
+    // RG-001: PRISM_VERSION must not be empty.
+    assert!(
+        !env!("PRISM_VERSION").is_empty(),
+        "PRISM_VERSION must not be empty (RG-001, S-REL-BVERSION-INJECT-001); \
+         build.rs resolver returned an empty string"
+    );
+    // AC-005 literal: on a non-tag build, PRISM_VERSION == CARGO_PKG_VERSION.
+    assert_eq!(
+        env!("PRISM_VERSION"),
+        env!("CARGO_PKG_VERSION"),
+        "PRISM_VERSION must equal CARGO_PKG_VERSION on non-tag builds \
+         (AC-005, ADR-064 D2 step-3 fallback; tests always build non-tag)"
+    );
+}
+
+/// Load-bearing gate (HIGH-1): non-tag refs must NOT leak branch name into the binary.
+///
+/// This test is the KEY load-bearing test.  If the `is_tag_build &&` guard is removed
+/// from `version_resolver.rs`, `resolve_prism_version(None, false, Some("develop"), …)`
+/// returns `"develop"` instead of `"1.0.0-dev"` and this test FAILS.
+///
+/// Exercises the SHARED resolver directly, so the failure propagates to build.rs
+/// (which includes the same source via `include!`).
+///
+/// Authority: F-VID-P1-CRIT-001, ADR-064 D2 v1.5, HIGH-1.
+#[test]
+fn test_shared_resolver_non_tag_ref_must_not_leak_branch_name() {
+    // (a) "develop" branch on non-tag build → CARGO_PKG_VERSION, not branch name.
+    assert_eq!(
+        resolve_prism_version(None, false, Some("develop"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: non-tag ref 'develop' must NOT bake branch name into binary \
+         (F-VID-P1-CRIT-001, HIGH-1). Without is_tag_build guard, returns 'develop'."
+    );
+    // (b) Feature branch with slash.
+    assert_eq!(
+        resolve_prism_version(None, false, Some("feature/S-3.01"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: feature branch 'feature/S-3.01' must NOT bake into binary \
+         (F-VID-P1-CRIT-001)"
+    );
+    // (c) PR merge ref with slash.
+    assert_eq!(
+        resolve_prism_version(None, false, Some("260/merge"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: PR merge ref '260/merge' must NOT bake into binary \
+         (F-VID-P1-CRIT-001)"
+    );
+}
+
+/// Tag ref must resolve to stripped version via shared resolver.
+///
+/// Authority: ADR-064 D2 step-2, S-REL-BVERSION-INJECT-001.
+#[test]
+fn test_shared_resolver_tag_ref_strips_single_v() {
+    // (a) "v1.0.0-beta.1" on tag build → "1.0.0-beta.1".
+    assert_eq!(
+        resolve_prism_version(None, true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "SHARED RESOLVER: tag ref 'v1.0.0-beta.1' must resolve to '1.0.0-beta.1' \
+         (ADR-064 D2 step-2, single-v strip)"
+    );
+    // (b) Without leading v — passes through unchanged.
+    assert_eq!(
+        resolve_prism_version(None, true, Some("1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "SHARED RESOLVER: tag ref without leading 'v' passes through unchanged"
+    );
+    // (c) Double-v: "vv1.0.0" → "v1.0.0" (strip_prefix, NOT trim_start_matches).
+    assert_eq!(
+        resolve_prism_version(None, true, Some("vv1.0.0"), "1.0.0-dev"),
+        "v1.0.0",
+        "SHARED RESOLVER: 'vv1.0.0' must strip exactly one v → 'v1.0.0' \
+         (F-VID-P1-LOW-001: strip_prefix not trim_start_matches)"
+    );
+}
+
+/// PRISM_BUILD_VERSION precedence and empty/whitespace fall-through via shared resolver.
+///
+/// Authority: ADR-064 D2 step-1, F-VID-P1-MED-001, S-REL-BVERSION-INJECT-001.
+#[test]
+fn test_shared_resolver_build_version_precedence_and_empty_fallthrough() {
+    // (a) PRISM_BUILD_VERSION wins over GITHUB_REF_NAME on tag build.
+    assert_eq!(
+        resolve_prism_version(
+            Some("custom-override"),
+            true,
+            Some("v1.0.0-beta.1"),
+            "1.0.0-dev"
+        ),
+        "custom-override",
+        "SHARED RESOLVER: PRISM_BUILD_VERSION must win over everything (chain step 1)"
+    );
+    // (b) PRISM_BUILD_VERSION wins even on non-tag build.
+    assert_eq!(
+        resolve_prism_version(Some("1.0.0-custom"), false, Some("develop"), "1.0.0-dev"),
+        "1.0.0-custom",
+        "SHARED RESOLVER: PRISM_BUILD_VERSION wins over branch name on non-tag build"
+    );
+    // (c) Set-but-empty PRISM_BUILD_VERSION falls through (F-VID-P1-MED-001).
+    assert_eq!(
+        resolve_prism_version(Some(""), true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "SHARED RESOLVER: empty PRISM_BUILD_VERSION treated as absent (F-VID-P1-MED-001)"
+    );
+    // (d) Whitespace-only PRISM_BUILD_VERSION falls through.
+    assert_eq!(
+        resolve_prism_version(Some("   "), false, None, "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: whitespace-only PRISM_BUILD_VERSION treated as absent (F-VID-P1-MED-001)"
+    );
+    // (e) Set-but-empty GITHUB_REF_NAME on tag build falls through to CARGO_PKG_VERSION.
+    assert_eq!(
+        resolve_prism_version(None, true, Some(""), "1.0.0-dev"),
+        "1.0.0-dev",
+        "SHARED RESOLVER: empty GITHUB_REF_NAME must fall through to CARGO_PKG_VERSION"
     );
 }
