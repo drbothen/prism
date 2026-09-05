@@ -80,10 +80,19 @@ fn test_cli_version_subcommand_exits_zero() {
 ///
 /// AC-2 exact requirement: `prism X.Y.Z` (semantic version from Cargo.toml).
 ///
+/// Asserts against `env!("PRISM_VERSION")` (the build.rs-injected version, ADR-064 D2)
+/// rather than `CARGO_PKG_VERSION`, so the test remains correct whether the binary was
+/// built on a non-tag CI run (PRISM_VERSION == CARGO_PKG_VERSION == "1.0.0-dev") or on
+/// a tag run (PRISM_VERSION == the injected tag version, e.g. "1.0.0-beta.1").
+/// F-VID-P1-CRIT-001 fix: CARGO_PKG_VERSION would fail on a tag run where the binary
+/// prints the injected version, not the Cargo.toml value.
+///
 /// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
 fn test_cli_version_output_contains_semver() {
-    let expected_version = env!("CARGO_PKG_VERSION");
+    // Use PRISM_VERSION (set by build.rs, ADR-064 D2) rather than CARGO_PKG_VERSION.
+    // On non-tag builds both are equal; on tag builds only PRISM_VERSION is correct.
+    let expected_version = env!("PRISM_VERSION");
     let output = Command::new(prism_bin())
         .args(["version"])
         .output()
@@ -92,7 +101,7 @@ fn test_cli_version_output_contains_semver() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains(expected_version),
-        "prism version output must contain semver '{}' (AC-2); \
+        "prism version output must contain PRISM_VERSION '{}' (AC-2, ADR-064 D2); \
          got stdout: {}",
         expected_version,
         stdout
