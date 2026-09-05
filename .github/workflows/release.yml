@@ -256,7 +256,7 @@ jobs:
           # predictable path is exploitable via a symlink race on shared runners;
           # mktemp creates a uniquely-named, mode-0600 file that eliminates the
           # race window. The path is exported to $GITHUB_ENV so subsequent steps
-          # consume it without any ${{ }} textual substitution into shell bodies.
+          # consume it without any GitHub Actions expression substitution into shell bodies.
           NOTES_FILE="$(mktemp)"
           echo "NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
           # Extract the curated CHANGELOG.md section for this version.
