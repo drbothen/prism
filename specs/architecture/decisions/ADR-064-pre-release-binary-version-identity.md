@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.4"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -37,10 +37,12 @@ input-hash: "f985d45"
 
 ## Status
 
-ACCEPTED v1.4 (2026-09-05) — v1.4 reverts D3 pre-release-hook from invalid array-of-arrays to
-flat Args array with bash -c wrapper (cargo-release pre-release-hook is a single Command, not
-a list of commands); cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2.
-Amends ADR-062 D2 for the pre-release path. Informed by
+ACCEPTED v1.5 (2026-09-05) — v1.5 corrects D2 build.rs contract: GITHUB_REF_NAME is set on ALL
+GitHub Actions runs (branch name on non-tag runs); must be gated on GITHUB_REF_TYPE == "tag" to
+avoid baking branch names into non-release binaries (F-VID-P1-CRIT-001); strip_prefix replaces
+trim_start_matches (F-VID-P1-LOW-001); empty-string filtering on all env-var arms
+(F-VID-P1-MED-001). v1.4 reverted D3 pre-release-hook to flat bash -c wrapper. Amends ADR-062
+D2 for the pre-release path. Informed by
 `.factory/research/version-management-2026.md` (research-agent, 2026-09-05, Tavily deep-pro + 8
 registry verifications). `anchor_stories` is SAC-2 VERIFIED-EMPTY; stories to be authored in
 proposed epic E-REL-IDENTITY.
@@ -151,17 +153,28 @@ BASE-MATCH guard in `release-tag.yml` passes.
 
 ### D2 — Build-Time Version Injection via `build.rs` (Full Fix — Pre-Req for beta.1)
 
-A new file `crates/prism-bin/build.rs` is introduced. It reads `GITHUB_REF_NAME` (set by GitHub
-Actions on every tag-triggered run to the tag name, e.g., `v1.0.0-beta.1`) and emits a
-`PRISM_VERSION` compile-time env var that overrides `CARGO_PKG_VERSION` at all six version-report
-sites in `prism-bin`.
+A new file `crates/prism-bin/build.rs` is introduced. It reads `GITHUB_REF_NAME` (the tag name,
+e.g., `v1.0.0-beta.1`) **only when `GITHUB_REF_TYPE == "tag"`** — gating out the branch-name
+value that `GITHUB_REF_NAME` also carries on non-tag CI runs — and emits a `PRISM_VERSION`
+compile-time env var that overrides `CARGO_PKG_VERSION` at all six version-report sites in
+`prism-bin`. On non-tag runs (ci.yml test matrix), `build.rs` falls through to
+`CARGO_PKG_VERSION` (`1.0.0-dev`), keeping `cli_subcommands::test_cli_version_output_contains_semver`
+green across all platforms.
 
 **Fallback chain (normative):**
 
-1. `PRISM_BUILD_VERSION` env var — explicit override for tooling/testing
-2. `GITHUB_REF_NAME` env var, stripped of leading `v` — CI tag build path
-3. `CARGO_PKG_VERSION` — local development fallback (resolves to `1.0.0-dev` on develop, which
-   is correct for local dev)
+1. `PRISM_BUILD_VERSION` env var — used only when set AND non-empty (explicit override for
+   tooling/testing; e.g., building a local release candidate without a tag)
+2. `GITHUB_REF_NAME` env var, stripped of a SINGLE leading `v` via `strip_prefix` — used only
+   when (a) non-empty AND (b) `GITHUB_REF_TYPE == "tag"` (GitHub sets this to `"branch"` or
+   `"tag"`; fallback: `GITHUB_REF` starts with `refs/tags/`). On a non-tag run, this arm is
+   skipped entirely — fall through to step 3.
+3. `CARGO_PKG_VERSION` — final fallback; resolves to `1.0.0-dev` on develop. This is what all
+   non-release CI builds (ci.yml test matrix, pull_request runs) report. Correct and intentional.
+
+**Empty-string rule:** every env-var arm filters set-but-empty values (`Some("")`) as absent via
+`.filter(|s| !s.trim().is_empty())`. Whitespace-only values are also rejected. `PRISM_VERSION` is
+never set to an empty string.
 
 **`build.rs` (normative contract):**
 
@@ -169,16 +182,48 @@ sites in `prism-bin`.
 fn main() {
     println!("cargo:rerun-if-env-changed=PRISM_BUILD_VERSION");
     println!("cargo:rerun-if-env-changed=GITHUB_REF_NAME");
+    println!("cargo:rerun-if-env-changed=GITHUB_REF_TYPE");
+    println!("cargo:rerun-if-env-changed=GITHUB_REF");
 
     let cargo_version = std::env!("CARGO_PKG_VERSION");
 
-    let version = if let Ok(v) = std::env::var("PRISM_BUILD_VERSION") {
-        v
-    } else if let Ok(r) = std::env::var("GITHUB_REF_NAME") {
-        r.trim_start_matches('v').to_string()
-    } else {
-        cargo_version.to_string()
-    };
+    // GITHUB_REF_NAME is set on ALL GitHub Actions runs — branch name on push/pull_request
+    // events, tag name only on tag-push events. Gate on GITHUB_REF_TYPE == "tag" (or GITHUB_REF
+    // prefix) to avoid baking "develop" / "feature/..." into the binary on non-release CI runs.
+    // F-VID-P1-CRIT-001: unconditional use breaks ci.yml test matrix (all 5 legs would report
+    // PRISM_VERSION="develop", failing test_cli_version_output_contains_semver).
+    let is_tag_build = std::env::var("GITHUB_REF_TYPE")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|t| t.trim() == "tag")
+        .unwrap_or_else(|| {
+            // Fallback for environments that provide GITHUB_REF but not GITHUB_REF_TYPE.
+            std::env::var("GITHUB_REF")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .map(|r| r.starts_with("refs/tags/"))
+                .unwrap_or(false)
+        });
+
+    let version = std::env::var("PRISM_BUILD_VERSION")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            if is_tag_build {
+                // Strip a SINGLE leading 'v' (strip_prefix, not trim_start_matches which strips
+                // all leading v's). e.g. "v1.0.0-beta.1" -> "1.0.0-beta.1". Trim whitespace first.
+                std::env::var("GITHUB_REF_NAME")
+                    .ok()
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|r| {
+                        let name = r.trim();
+                        name.strip_prefix('v').unwrap_or(name).to_string()
+                    })
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| cargo_version.to_string());
 
     println!("cargo:rustc-env=PRISM_VERSION={}", version);
 }
@@ -199,12 +244,13 @@ fn main() {
 **Cross-platform compatibility:**
 
 `build.rs` reads environment variables and emits a `cargo:rustc-env` directive. It runs on the
-HOST machine during compilation, not on the cross-compilation target. `GITHUB_REF_NAME` is set on
-all GitHub Actions runner types (ubuntu-latest, macos-14, windows-latest) during tag-triggered
-runs. The five build targets (aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu,
-x86_64-unknown-linux-musl via cargo-zigbuild, x86_64-pc-windows-msvc) are all built from their
-respective runner OS, and all runners have access to `GITHUB_REF_NAME`. No target-conditional code
-is needed.
+HOST machine during compilation, not on the cross-compilation target. `GITHUB_REF_NAME`,
+`GITHUB_REF_TYPE`, and `GITHUB_REF` are all set on every GitHub Actions runner type
+(ubuntu-latest, macos-14, windows-latest). On tag-triggered `release.yml` runs, `GITHUB_REF_TYPE`
+is `"tag"` and `is_tag_build` resolves to `true` on all five runners, producing the correct
+version string. On non-tag runs (ci.yml push/pull_request), `GITHUB_REF_TYPE` is `"branch"` and
+`is_tag_build` is `false`, so `build.rs` falls through to `CARGO_PKG_VERSION`. No
+target-conditional code is needed.
 
 **ADR-062 D2 extension (normative):**
 
@@ -340,9 +386,30 @@ tag and promote the release respectively. The binary compilation happens exclusi
 `GITHUB_REF_NAME` set by GitHub Actions, so `build.rs` falls through to `CARGO_PKG_VERSION`
 (`1.0.0-dev`), which is the correct local dev identity.
 
+**GITHUB_REF_TYPE gating is mandatory (F-VID-P1-CRIT-001):** `GITHUB_REF_NAME` is NOT limited to
+tag-triggered runs — GitHub Actions sets it on ALL workflow triggers. On `push` and
+`pull_request` events (the ci.yml `test` job matrix, all 5 required legs), `GITHUB_REF_NAME`
+is the branch name (`develop`, `feature/S-3.01`, `260/merge`, etc.). The original D2 build.rs
+sketch honored `GITHUB_REF_NAME` unconditionally as fallback step 2. This would bake
+`PRISM_VERSION="develop"` (or `PRISM_VERSION="feature/..."`) into every non-release CI binary,
+causing `crates/prism-bin/tests/cli_subcommands.rs::test_cli_version_output_contains_semver`
+(which asserts the version output contains the semver string `1.0.0-dev`) to FAIL on all 5 ci.yml
+legs — a merge-blocking failure on every non-release PR. The fix is to gate `GITHUB_REF_NAME` on
+`GITHUB_REF_TYPE == "tag"` (GitHub sets this to `"branch"` or `"tag"`), with `GITHUB_REF`
+starts-with `refs/tags/` as a fallback. Non-tag CI builds intentionally fall through to
+`CARGO_PKG_VERSION` (`1.0.0-dev`), which is correct for non-release builds and keeps
+`cli_subcommands` green. Only `release.yml` (tag-triggered) reaches the `GITHUB_REF_NAME` arm.
+
+**Why `strip_prefix` not `trim_start_matches`:** `strip_prefix('v')` removes exactly ONE leading
+`v`. `trim_start_matches('v')` would strip ALL leading v's — e.g., `vvv1.0.0` would become
+`1.0.0`, and a hypothetical tag `vv1.0.0` would be incorrectly stripped to `1.0.0`. While Prism
+tags are always single-v, `strip_prefix` is the semantically correct idiom for
+"remove exactly this prefix if present."
+
 Adding a separate `PRISM_BUILD_VERSION` secret or CI variable would require workflow edits and
-introduces another thing to keep in sync with the tag. `GITHUB_REF_NAME` in `release.yml` is
-the authoritative tag name for the build — using it directly is the minimal no-drift approach.
+introduces another thing to keep in sync with the tag. `GITHUB_REF_NAME` (gated on
+`GITHUB_REF_TYPE == "tag"`) in `release.yml` is the authoritative tag name for the build — using
+it directly is the minimal no-drift approach.
 
 The `PRISM_BUILD_VERSION` escape hatch remains available for tooling/testing (e.g., building
 a local release candidate without a tag) but is not the primary path.
@@ -378,8 +445,13 @@ misleading for a development build.
 ### Positive
 
 - `prism --version`, boot log, and HTTP user-agent all report the exact tag version on every
-  tagged CI build (beta, rc, stable)
+  tagged CI build (beta, rc, stable) — only `release.yml` (tag-triggered) reaches the
+  `GITHUB_REF_NAME` arm; all other builds fall through to `CARGO_PKG_VERSION`
 - Local builds consistently report `1.0.0-dev` — accurate, distinguishable from any release
+- Non-tag CI builds (ci.yml test matrix, pull_request runs) intentionally report `1.0.0-dev`
+  (the `CARGO_PKG_VERSION` fallback), keeping
+  `cli_subcommands::test_cli_version_output_contains_semver` green on all 5 legs (F-VID-P1-CRIT-001
+  fix — branch names are never baked into the binary)
 - BASE-MATCH continues to work: `1.0.0-dev` core = `1.0.0`; all future `1.0.0-X.Y` pre-release
   tags pass the guard
 - No per-pre-release `Cargo.toml` bump required; develop stays at `1.0.0-dev` throughout the
@@ -402,13 +474,17 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.4
+### Status as of v1.5
 
 ACCEPTED. All three decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
 - D2 (S-REL-BVERSION-INJECT-001): BLOCKING before beta.1 — build.rs injection of `PRISM_VERSION`
   at all 6 prism-bin version-report sites (including cli.rs `#[command(version)]`, boot.rs audit
-  record, and spec_driven_adapter.rs user-agent); vergen noted as alternative and rejected
+  record, and spec_driven_adapter.rs user-agent); vergen noted as alternative and rejected;
+  build.rs gates `GITHUB_REF_NAME` on `GITHUB_REF_TYPE == "tag"` to prevent non-release CI builds
+  from baking branch names into the binary (F-VID-P1-CRIT-001); `strip_prefix('v')` over
+  `trim_start_matches` for single-v semantics (F-VID-P1-LOW-001); empty-string filtering on all
+  env-var arms (F-VID-P1-MED-001)
 - D3 (S-REL-VBUMP-001 + S-REL-DOCS-AGNOSTIC-001): High priority before stable v1.0.0 — cargo-release
   1.1.5 single-command bump; RELEASING.md §1 pre-release exception to be documented in
   S-REL-DOCS-AGNOSTIC-001
@@ -491,6 +567,7 @@ ACCEPTED. All three decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-09-05 | architect | F-VID-P1-CRIT-001: D2 build.rs contract corrected — GITHUB_REF_NAME is set on ALL GitHub Actions runs (branch name on push/pull_request; tag name only on tag-push). Unconditional use baked PRISM_VERSION="develop" into ci.yml builds, failing test_cli_version_output_contains_semver on all 5 legs. Fix: gate GITHUB_REF_NAME on GITHUB_REF_TYPE == "tag" (fallback: GITHUB_REF starts with refs/tags/). Non-tag CI builds intentionally fall through to CARGO_PKG_VERSION ("1.0.0-dev"). F-VID-P1-LOW-001: strip_prefix replaces trim_start_matches (single-v semantics). F-VID-P1-MED-001: empty-string filter on all env-var arms. GITHUB_REF_TYPE and GITHUB_REF added to rerun-if-env-changed. Fallback chain, build.rs sketch, cross-platform note, rationale, and Consequences updated. Status as of v1.5 updated with all three finding IDs. |
 | 1.4 | 2026-09-05 | architect | C1: D3 pre-release-hook reverted from invalid array-of-arrays to correct flat Args array with bash -c wrapper. cargo-release `pre-release-hook` type is Command (Line or Args — a single command); array-of-arrays has no multi-command List variant and is not valid. git-cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2 correction. Invalid-format rationale added as inline comment. |
 | 1.3 | 2026-09-05 | architect | NEW-1 count-consistency fix: D2 intro sentence "all four version-report sites" corrected to "all six version-report sites in prism-bin" — sole remaining stale count reference after v1.2 table/header/story/status rewrites. |
 | 1.2 | 2026-09-05 | architect | BLOCKING-1: D2 version-report sites table rewritten — 4 → 6 prism-bin sites; clap site attribution corrected from main.rs to cli.rs `#[command(version)]`; boot.rs `let version` audit-record (BC-2.05.012) and spec_driven_adapter.rs adapter user-agent added; out-of-scope prism-spec-engine pipeline.rs site acknowledged. BLOCKING-3: D3 pre-release-hook corrected from flat string array to array-of-arrays; cliff invocation changed from `-o CHANGELOG.md` to `--latest --prepend CHANGELOG.md`. SHOULD-FIX-1: vergen deviation justified in §Rationale (shallow-clone incompatibility). SHOULD-FIX-2: Status section updated to reflect v1.1 finalized state. SHOULD-FIX-3: S-REL-DOCS-AGNOSTIC-001 story scope explicitly names RELEASING.md §1. NIT-2: GITHUB_REF_NAME tag-vs-branch disambiguation added to §Rationale. |
