@@ -4,17 +4,17 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.5"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
 superseded_by: null
 amends: [ADR-062]
 anchor_stories:
-  # anchor_stories: [] — SAC-2 VERIFIED-EMPTY. Implementation stories for this ADR have not yet
-  # been authored. Stories will be anchored when product-owner authors S-REL-DEV-RESET-001 (D1),
-  # S-REL-BVERSION-INJECT-001 (D2), S-REL-VBUMP-001 (D3), and S-REL-DOCS-AGNOSTIC-001 (D3 docs).
-  # None exist on disk at ADR creation time.
+  - S-REL-DEV-RESET-001         # D1 — cites ADR-064 D1 in §Authority
+  - S-REL-BVERSION-INJECT-001   # D2 — cites ADR-064 D2 in §Authority
+  - S-REL-DOCS-AGNOSTIC-001     # D1/D2 — cites ADR-064 D1/D2 in §Authority
+  - S-REL-VBUMP-001             # D3 — cites ADR-064 D3 in §Authority
 related_adrs: [ADR-062, ADR-063]
 related_bcs: []
 locked_decisions: []
@@ -37,15 +37,17 @@ input-hash: "f985d45"
 
 ## Status
 
-ACCEPTED v1.5 (2026-09-05) — v1.5 corrects D2 build.rs contract: GITHUB_REF_NAME is set on ALL
-GitHub Actions runs (branch name on non-tag runs); must be gated on GITHUB_REF_TYPE == "tag" to
-avoid baking branch names into non-release binaries (F-VID-P1-CRIT-001); strip_prefix replaces
-trim_start_matches (F-VID-P1-LOW-001); empty-string filtering on all env-var arms
-(F-VID-P1-MED-001). v1.4 reverted D3 pre-release-hook to flat bash -c wrapper. Amends ADR-062
-D2 for the pre-release path. Informed by
-`.factory/research/version-management-2026.md` (research-agent, 2026-09-05, Tavily deep-pro + 8
-registry verifications). `anchor_stories` is SAC-2 VERIFIED-EMPTY; stories to be authored in
-proposed epic E-REL-IDENTITY.
+ACCEPTED v1.6 (2026-09-05) — v1.6 backfills `anchor_stories` from §Authority ground truth per
+SAC-2: four E-REL-IDENTITY stories now exist on disk and cite ADR-064 in §Authority
+(S-REL-DEV-RESET-001/S-REL-BVERSION-INJECT-001/S-REL-DOCS-AGNOSTIC-001/S-REL-VBUMP-001);
+SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content
+changed. v1.5 corrects D2 build.rs contract: GITHUB_REF_NAME is set on ALL GitHub Actions runs
+(branch name on non-tag runs); must be gated on GITHUB_REF_TYPE == "tag" to avoid baking branch
+names into non-release binaries (F-VID-P1-CRIT-001); strip_prefix replaces trim_start_matches
+(F-VID-P1-LOW-001); empty-string filtering on all env-var arms (F-VID-P1-MED-001). v1.4
+reverted D3 pre-release-hook to flat bash -c wrapper. Amends ADR-062 D2 for the pre-release
+path. Informed by `.factory/research/version-management-2026.md` (research-agent, 2026-09-05,
+Tavily deep-pro + 8 registry verifications).
 
 ---
 
@@ -567,6 +569,7 @@ ACCEPTED. All three decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-IDENTITY stories verified on disk and citing ADR-064 in §Authority — S-REL-DEV-RESET-001 (D1), S-REL-BVERSION-INJECT-001 (D2), S-REL-DOCS-AGNOSTIC-001 (D1/D2), S-REL-VBUMP-001 (D3). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.5 | 2026-09-05 | architect | F-VID-P1-CRIT-001: D2 build.rs contract corrected — GITHUB_REF_NAME is set on ALL GitHub Actions runs (branch name on push/pull_request; tag name only on tag-push). Unconditional use baked PRISM_VERSION="develop" into ci.yml builds, failing test_cli_version_output_contains_semver on all 5 legs. Fix: gate GITHUB_REF_NAME on GITHUB_REF_TYPE == "tag" (fallback: GITHUB_REF starts with refs/tags/). Non-tag CI builds intentionally fall through to CARGO_PKG_VERSION ("1.0.0-dev"). F-VID-P1-LOW-001: strip_prefix replaces trim_start_matches (single-v semantics). F-VID-P1-MED-001: empty-string filter on all env-var arms. GITHUB_REF_TYPE and GITHUB_REF added to rerun-if-env-changed. Fallback chain, build.rs sketch, cross-platform note, rationale, and Consequences updated. Status as of v1.5 updated with all three finding IDs. |
 | 1.4 | 2026-09-05 | architect | C1: D3 pre-release-hook reverted from invalid array-of-arrays to correct flat Args array with bash -c wrapper. cargo-release `pre-release-hook` type is Command (Line or Args — a single command); array-of-arrays has no multi-command List variant and is not valid. git-cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2 correction. Invalid-format rationale added as inline comment. |
 | 1.3 | 2026-09-05 | architect | NEW-1 count-consistency fix: D2 intro sentence "all four version-report sites" corrected to "all six version-report sites in prism-bin" — sole remaining stale count reference after v1.2 table/header/story/status rewrites. |

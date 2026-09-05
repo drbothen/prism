@@ -4,17 +4,17 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
 superseded_by: null
 amends: null
 anchor_stories:
-  # anchor_stories: [] — SAC-2 VERIFIED-EMPTY. No implementation stories have been authored yet
-  # for git-cliff integration. Stories will be anchored here when product-owner authors them
-  # (proposed epic E-REL-NOTES). The verified-empty annotation is required because three of the
-  # four candidate stories reference this ADR in their §Authority; none yet exist on disk.
+  - S-REL-CLIFF-001        # D1/D3/D5 — cites ADR-063 D1/D3/D5 in §Authority
+  - S-REL-WRITER-001       # D4/D5 — cites ADR-063 D4/D5 in §Authority
+  - S-REL-BETA1-NOTES-001  # D6 — cites ADR-063 D6 in §Authority
+  - S-REL-VBUMP-001        # D1 — cites ADR-063 git-cliff ownership in §Authority
 related_adrs: [ADR-062]
 related_bcs: []
 locked_decisions: []
@@ -32,13 +32,15 @@ input-hash: "65adac4"
 
 ## Status
 
-ACCEPTED v1.2 (2026-09-05) — v1.2 corrects D5 Step 7 flag (`--latest` → `--unreleased --tag`,
-the documented pre-tag pattern) and D3 repo owner/field (owner `drbothen`, `[remote.github]`
-`owner`/`repo` fields). v1.1 moved D4 Layer-1 inside `## [VERSION]` block and fixed D5 dual-flag.
-Informed by
+ACCEPTED v1.3 (2026-09-05) — v1.3 backfills `anchor_stories` from §Authority ground truth per
+SAC-2: four E-REL-NOTES/E-REL-IDENTITY stories now exist on disk and cite ADR-063 in §Authority
+(S-REL-CLIFF-001/S-REL-WRITER-001/S-REL-BETA1-NOTES-001/S-REL-VBUMP-001); SAC-2 VERIFIED-EMPTY
+annotation removed. Frontmatter/traceability only — no decision content changed. v1.2 corrects
+D5 Step 7 flag (`--latest` → `--unreleased --tag`, the documented pre-tag pattern) and D3 repo
+owner/field (owner `drbothen`, `[remote.github]` `owner`/`repo` fields). v1.1 moved D4 Layer-1
+inside `## [VERSION]` block and fixed D5 dual-flag. Informed by
 `.factory/research/release-notes-automation-2026.md` (research-agent, 2026-09-05, Tavily two-pass
-deep synthesis + 13 registry verifications). Anchored to stories in proposed epic E-REL-NOTES (not
-yet authored; `anchor_stories` is SAC-2 VERIFIED-EMPTY).
+deep synthesis + 13 registry verifications).
 
 ---
 
@@ -427,6 +429,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-NOTES/E-REL-IDENTITY stories verified on disk and citing ADR-063 in §Authority — S-REL-CLIFF-001 (D1/D3/D5), S-REL-WRITER-001 (D4/D5), S-REL-BETA1-NOTES-001 (D6), S-REL-VBUMP-001 (D1 git-cliff ownership). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.2 | 2026-09-05 | architect | C2: D5 Step 7 `--latest` → `--unreleased --tag` (documented pre-tag pattern; robust for first and recurring releases; `--latest` unreliable when no prior tag exists). D4 Layer-2 description + step-order note updated to match. D6 item 1 updated (--unreleased handles first-release automatically). Rationale #4 updated. C3: D3 prose corrected — `[remote.github]` `owner`/`repo` fields replace `repository` combined key; owner corrected `jmagady` → `drbothen`; cliff.toml sketch updated. |
 | 1.1 | 2026-09-05 | architect | BLOCKING-2: D5 git-cliff invocation fixed — removed `--output CHANGELOG.md`, keeps `--latest --prepend CHANGELOG.md` only (dual-flag caused duplicate sections). BLOCKING-4/5: D4 Layer-1 placement moved INSIDE the `## [VERSION]` block as `###` sections, not above it — ensures release.yml awk extraction captures Layer-1 without changes to release.yml; D5 technical-writer step reordered to run AFTER git-cliff; CHANGELOG structure example updated; Consequences updated. |
 | 1.0 | 2026-09-05 | architect | Initial. D1 git-cliff 2.14.1; D2 Conventional Commits as sole entry source; D3 cliff.toml categorization convention; D4 two-layer model with technical-writer agent for Layer 1; D5 release-prep.yml integration (replaces git log scaffold, keeps release.yml --notes-file unchanged); D6 first-release handling for beta.1. |
