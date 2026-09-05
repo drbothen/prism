@@ -49,6 +49,27 @@ jobs:
             archive_ext: zip
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001: pin the Rust toolchain BEFORE any
+      # cargo install step. On ubuntu-24.04 images >= 20260831.293 the runner's pre-installed
+      # stable toolchain already has rust-std-x86_64-unknown-linux-gnu partially present;
+      # when `cargo install --locked cargo-zigbuild` runs against the ambient toolchain it
+      # triggers a rustup component auto-repair that collides with those existing files,
+      # producing:
+      #   "Directory not empty (os error 39)"
+      #   "detected conflict: lib/rustlib/x86_64-unknown-linux-gnu/lib/librustc-stable_rt.asan.a"
+      # Root cause: the cargo install step (inside "Install Linux build deps") ran BEFORE
+      # dtolnay/rust-toolchain, so the ambient toolchain — not the pinned one — owned the
+      # installation directory when rustup attempted the repair.
+      # Fix: run dtolnay/rust-toolchain here, before any cargo install step, so the pinned
+      # toolchain has already taken ownership of the ~/.rustup/toolchains/stable-* directory
+      # and rustup does not attempt a conflicting in-flight component install during cargo install.
+      # Cross-leg safety: macOS and Windows never execute the cargo install branch; the
+      # linux-gnu leg's apt-get steps are toolchain-independent. Moving this step is safe for
+      # all 5 matrix legs — the only behavioral change is that the musl leg's cargo install
+      # now runs under the pinned stable toolchain rather than the runner's ambient toolchain.
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: ${{ matrix.target }}
       # Delta 15-3 (§15, delta-analysis.md): cache the compiled cargo-zigbuild binary to
       # avoid paying the 2-4 min cold-install cost on every tag push. Swatinem/rust-cache
       # does not cache ~/.cargo/bin/; this step fills that gap for the musl leg only.
@@ -105,9 +126,6 @@ jobs:
             # Future hardening: full content-hash keying of the cache key noted.
             cargo-zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }
           fi
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        with:
-          targets: ${{ matrix.target }}
       # DEFECT-REL001-PROTOC-MISSING-001: prism-ocsf build.rs invokes prost-build which
       # requires protoc at compile time. All 5 matrix legs failed without this step.
       # Dry-run evidence: https://github.com/drbothen/prism/actions/runs/29709483646
@@ -225,6 +243,47 @@ jobs:
         shell: bash
         run: |
           cat artifacts/release-*/checksums.txt > checksums.txt
+      - name: Extract CHANGELOG notes for release
+        shell: bash
+        env:
+          # F-REL001-P1-001: TAG bound via env: map to prevent textual-substitution
+          # injection — same pattern as the Create GitHub Release step below.
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          # SEC-001 / CWE-377: use mktemp instead of a hardcoded /tmp path. A
+          # predictable path is exploitable via a symlink race on shared runners;
+          # mktemp creates a uniquely-named, mode-0600 file that eliminates the
+          # race window. The path is exported to $GITHUB_ENV so subsequent steps
+          # consume it without any GitHub Actions expression substitution into shell bodies.
+          NOTES_FILE="$(mktemp)"
+          echo "NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
+          # Extract the curated CHANGELOG.md section for this version.
+          # awk: skip the "## [VERSION] - DATE" header line itself; print all subsequent
+          # lines until the next "## [" header (exclusive). index() performs a literal
+          # substring match — avoids treating dots/dashes in semver strings as regex
+          # metacharacters (e.g. "1.0.0-rc.2" would match "1X0X0-rc2" if unanchored regex).
+          # sed '/./,$!d' strips leading blank lines; the trailing awk strips trailing
+          # blank lines by buffering all lines and printing only up to the last non-blank.
+          awk -v ver="$VERSION" '
+            /^## \[/ { if (found) exit; if (index($0, "[" ver "]") > 0) found=1; next }
+            found { print }
+          ' CHANGELOG.md \
+            | sed '/./,$!d' \
+            | awk '{buf[NR]=$0} /[^[:blank:]]/{last=NR} END{for(i=1;i<=last;i++) print buf[i]}' \
+            > "$NOTES_FILE"
+          # Fail loudly if no curated section exists for this tag's version. A missing
+          # section is a release authoring defect — there is no fallback to
+          # --generate-notes. Add "## [${VERSION}] - YYYY-MM-DD" to CHANGELOG.md,
+          # commit it to develop, then re-tag. Never publish a release with an
+          # uncurated body.
+          if [[ ! -s "$NOTES_FILE" ]]; then
+            echo "RELEASE-NOTES-MISSING: CHANGELOG.md has no section for version '${VERSION}' (tag '${TAG}')." >&2
+            echo "A curated section is required before tagging. Add '## [${VERSION}] - YYYY-MM-DD' to CHANGELOG.md." >&2
+            exit 1
+          fi
+          echo "Extracted $(wc -l < "$NOTES_FILE") lines of release notes for ${VERSION}"
       - name: Create GitHub Release
         shell: bash
         env:
@@ -269,9 +328,19 @@ jobs:
             # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
             # ADJ-002 (S-REL-003): install.sh + install.ps1 uploaded as release assets so consumers
             # can use them directly from the release page without a repo clone.
+            # --notes-file sets the release body from the curated CHANGELOG section
+            # extracted by the preceding step. --generate-notes is intentionally
+            # omitted: gh 2.x allows combining --notes-file with --generate-notes
+            # to prepend custom notes before the auto-generated PR dump, but the
+            # combination behavior is not guaranteed stable across gh CLI versions
+            # present on GitHub-hosted runners. The curated CHANGELOG section is the
+            # authoritative and complete release body — the auto-generated "What's
+            # Changed" PR list adds noise, not value, for operator-facing releases.
+            # If the auto-generated section is desired in the future, re-add
+            # --generate-notes; the curated notes will be prepended per gh docs.
             gh release create "$TAG" \
               --title "Prism $TAG" \
-              --generate-notes \
+              --notes-file "$NOTES_FILE" \
               ${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"} \
               artifacts/release-*/*.tar.gz \
               artifacts/release-*/*.zip \
