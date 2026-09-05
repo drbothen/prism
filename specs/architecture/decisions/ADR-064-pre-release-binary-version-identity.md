@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.6"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -37,7 +37,11 @@ input-hash: "f985d45"
 
 ## Status
 
-ACCEPTED v1.6 (2026-09-05) — v1.6 backfills `anchor_stories` from §Authority ground truth per
+ACCEPTED v1.7 (2026-09-05) — v1.7 adds post-strip empty guard to D2 build.rs sketch:
+degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION (pass-5
+OBS-1); sketch now satisfies "PRISM_VERSION is never empty" invariant for all tag inputs;
+`map` replaced with `and_then` in the `GITHUB_REF_NAME` arm. Frontmatter/sketch only — no
+decision-content change. v1.6 backfills `anchor_stories` from §Authority ground truth per
 SAC-2: four E-REL-IDENTITY stories now exist on disk and cite ADR-064 in §Authority
 (S-REL-DEV-RESET-001/S-REL-BVERSION-INJECT-001/S-REL-DOCS-AGNOSTIC-001/S-REL-VBUMP-001);
 SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content
@@ -175,8 +179,10 @@ green across all platforms.
    non-release CI builds (ci.yml test matrix, pull_request runs) report. Correct and intentional.
 
 **Empty-string rule:** every env-var arm filters set-but-empty values (`Some("")`) as absent via
-`.filter(|s| !s.trim().is_empty())`. Whitespace-only values are also rejected. `PRISM_VERSION` is
-never set to an empty string.
+`.filter(|s| !s.trim().is_empty())`. Whitespace-only values are also rejected. The
+`GITHUB_REF_NAME` arm additionally applies a post-strip empty guard (`and_then` returning `None`
+for a stripped empty result) to handle the degenerate tag `"v"` → stripped `""` case (pass-5
+OBS-1). `PRISM_VERSION` is never set to an empty string.
 
 **`build.rs` (normative contract):**
 
@@ -214,12 +220,15 @@ fn main() {
             if is_tag_build {
                 // Strip a SINGLE leading 'v' (strip_prefix, not trim_start_matches which strips
                 // all leading v's). e.g. "v1.0.0-beta.1" -> "1.0.0-beta.1". Trim whitespace first.
+                // Post-strip empty guard: degenerate tag "v" → stripped "" → None → falls through
+                // to CARGO_PKG_VERSION (pass-5 OBS-1; "PRISM_VERSION is never empty" invariant).
                 std::env::var("GITHUB_REF_NAME")
                     .ok()
                     .filter(|s| !s.trim().is_empty())
-                    .map(|r| {
+                    .and_then(|r| {
                         let name = r.trim();
-                        name.strip_prefix('v').unwrap_or(name).to_string()
+                        let stripped = name.strip_prefix('v').unwrap_or(name);
+                        if stripped.is_empty() { None } else { Some(stripped.to_string()) }
                     })
             } else {
                 None
@@ -476,17 +485,17 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.5
+### Status as of v1.7
 
 ACCEPTED. All three decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
 - D2 (S-REL-BVERSION-INJECT-001): BLOCKING before beta.1 — build.rs injection of `PRISM_VERSION`
   at all 6 prism-bin version-report sites (including cli.rs `#[command(version)]`, boot.rs audit
   record, and spec_driven_adapter.rs user-agent); vergen noted as alternative and rejected;
-  build.rs gates `GITHUB_REF_NAME` on `GITHUB_REF_TYPE == "tag"` to prevent non-release CI builds
-  from baking branch names into the binary (F-VID-P1-CRIT-001); `strip_prefix('v')` over
-  `trim_start_matches` for single-v semantics (F-VID-P1-LOW-001); empty-string filtering on all
-  env-var arms (F-VID-P1-MED-001)
+  build.rs gates `GITHUB_REF_NAME` on `GITHUB_REF_TYPE == "tag"` (F-VID-P1-CRIT-001);
+  `strip_prefix('v')` for single-v semantics (F-VID-P1-LOW-001); empty-string filtering on all
+  env-var arms including post-strip guard for degenerate `"v"` tag (F-VID-P1-MED-001 + pass-5
+  OBS-1)
 - D3 (S-REL-VBUMP-001 + S-REL-DOCS-AGNOSTIC-001): High priority before stable v1.0.0 — cargo-release
   1.1.5 single-command bump; RELEASING.md §1 pre-release exception to be documented in
   S-REL-DOCS-AGNOSTIC-001
@@ -569,6 +578,7 @@ ACCEPTED. All three decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-09-05 | architect | pass-5 OBS-1 sync: D2 build.rs sketch updated — `map` → `and_then` with post-strip empty guard; degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION. Sketch now satisfies "PRISM_VERSION is never empty" invariant for all tag inputs. Empty-string rule paragraph updated to document the post-strip guard. Status as of v1.7 updated with OBS-1 note. Frontmatter/sketch only — no decision-content change. |
 | 1.6 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-IDENTITY stories verified on disk and citing ADR-064 in §Authority — S-REL-DEV-RESET-001 (D1), S-REL-BVERSION-INJECT-001 (D2), S-REL-DOCS-AGNOSTIC-001 (D1/D2), S-REL-VBUMP-001 (D3). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.5 | 2026-09-05 | architect | F-VID-P1-CRIT-001: D2 build.rs contract corrected — GITHUB_REF_NAME is set on ALL GitHub Actions runs (branch name on push/pull_request; tag name only on tag-push). Unconditional use baked PRISM_VERSION="develop" into ci.yml builds, failing test_cli_version_output_contains_semver on all 5 legs. Fix: gate GITHUB_REF_NAME on GITHUB_REF_TYPE == "tag" (fallback: GITHUB_REF starts with refs/tags/). Non-tag CI builds intentionally fall through to CARGO_PKG_VERSION ("1.0.0-dev"). F-VID-P1-LOW-001: strip_prefix replaces trim_start_matches (single-v semantics). F-VID-P1-MED-001: empty-string filter on all env-var arms. GITHUB_REF_TYPE and GITHUB_REF added to rerun-if-env-changed. Fallback chain, build.rs sketch, cross-platform note, rationale, and Consequences updated. Status as of v1.5 updated with all three finding IDs. |
 | 1.4 | 2026-09-05 | architect | C1: D3 pre-release-hook reverted from invalid array-of-arrays to correct flat Args array with bash -c wrapper. cargo-release `pre-release-hook` type is Command (Line or Args — a single command); array-of-arrays has no multi-command List variant and is not valid. git-cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2 correction. Invalid-format rationale added as inline comment. |
