@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -32,8 +32,10 @@ input-hash: "65adac4"
 
 ## Status
 
-ACCEPTED v1.1 (2026-09-05) — v1.1 revises D4 (Layer-1 placement moved inside `## [VERSION]` block)
-and D5 (git-cliff invocation fixed; technical-writer step ordered after git-cliff). Informed by
+ACCEPTED v1.2 (2026-09-05) — v1.2 corrects D5 Step 7 flag (`--latest` → `--unreleased --tag`,
+the documented pre-tag pattern) and D3 repo owner/field (owner `drbothen`, `[remote.github]`
+`owner`/`repo` fields). v1.1 moved D4 Layer-1 inside `## [VERSION]` block and fixed D5 dual-flag.
+Informed by
 `.factory/research/release-notes-automation-2026.md` (research-agent, 2026-09-05, Tavily two-pass
 deep synthesis + 13 registry verifications). Anchored to stories in proposed epic E-REL-NOTES (not
 yet authored; `anchor_stories` is SAC-2 VERIFIED-EMPTY).
@@ -120,9 +122,10 @@ assertion in CI rather than a per-PR fragment presence check.
 
 The Breaking Changes section is ordered first, before Added, to surface upgrade risk immediately.
 
-**GitHub PR/author injection:** The `[remote]` section of `cliff.toml` must set `repository` to
-`jmagady/prism` (or the canonical org/repo once transferred). The `commit_preprocessors` section
-uses the standard git-cliff GitHub link template to inject `(#NNN)` PR links and `@author`
+**GitHub PR/author injection:** The `[remote.github]` section of `cliff.toml` sets
+`owner = "drbothen"` and `repo = "prism"` as separate fields (the `[remote.github]` block has no
+combined `repository` key; owner and repo are distinct). The `commit_preprocessors` section uses
+the standard git-cliff GitHub link template to inject `(#NNN)` PR links and `@author`
 attribution. This requires the `GITHUB_TOKEN` secret, available by default in GitHub Actions.
 
 **Commit body inclusion policy:** Commit bodies and footers are included in the output for
@@ -176,7 +179,7 @@ topo_order = false
 sort_commits = "oldest"
 
 [remote.github]
-owner = "jmagady"
+owner = "drbothen"
 repo = "prism"
 ```
 
@@ -207,8 +210,12 @@ RELEASING.md §5 formalizes two layers; this ADR specifies the mechanisms for ea
 **Layer 2 — git-cliff categorized body:**
 
 - Content: Categorized commit entries per D3 (Added/Fixed/Performance/Changed/Security sections)
-- Authorship: `git cliff --tag vX.Y.Z --latest` (or `--unreleased` for a working preview)
-  invoked in `release-prep.yml` Step 7 (replaces the current `git log --merges --oneline` scaffold)
+- Authorship: `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` invoked in
+  `release-prep.yml` Step 7 (D5; replaces the `git log --merges --oneline` scaffold). Uses
+  `--unreleased` (the documented pre-tag pattern) rather than `--latest`: `--unreleased` is robust
+  for both first release (selects all commits when no prior tag exists) and recurring releases
+  (selects commits since the last tag). `--latest` selects the range from the most recently created
+  tag and is unreliable when the tag has not yet been created (release-prep runs pre-tag).
 - Output: Written directly into `CHANGELOG.md` under the new version header
 - No human modification of the body is required; it is treated as authoritative from git history
 
@@ -244,11 +251,11 @@ RELEASING.md §5 formalizes two layers; this ADR specifies the mechanisms for ea
 ```
 
 Step order in `release-prep.yml`: (1) git-cliff prepends the `## [VERSION]` block to CHANGELOG.md
-via `--latest --prepend`; (2) technical-writer inserts `### Highlights` / `### Breaking Changes
-(narrative)` / `### Upgrade Notes` inside the `## [VERSION]` block, before git-cliff's first `###`
-section; (3) human curates the Layer-1 sections in the release-prep PR before merge. The awk
-extraction in `release.yml` captures the entire `## [VERSION]` block — both Layer-1 `###` sections
-and Layer-2 commit sections — without modification.
+via `--unreleased --tag "${VERSION_TAG}" --prepend`; (2) technical-writer inserts `### Highlights`
+/ `### Breaking Changes (narrative)` / `### Upgrade Notes` inside the `## [VERSION]` block, before
+git-cliff's first `###` section; (3) human curates the Layer-1 sections in the release-prep PR
+before merge. The awk extraction in `release.yml` captures the entire `## [VERSION]` block — both
+Layer-1 `###` sections and Layer-2 commit sections — without modification.
 
 ### D5 — `release-prep.yml` Integration Point
 
@@ -260,8 +267,12 @@ The CHANGELOG scaffold step in `release-prep.yml` (currently step 7: `git log --
   run: |
     set -euo pipefail
     cargo install git-cliff --version 2.14.1 --locked --quiet
-    # Generate the release section and prepend to CHANGELOG.md
-    git cliff --tag "${VERSION_TAG}" --latest --prepend CHANGELOG.md
+    # --unreleased --tag is the documented pre-tag pattern (git-cliff docs):
+    # selects all commits not yet under a tag and renders them under VERSION_TAG.
+    # Robust for both first release (no prior tag → all commits from root) and
+    # recurring releases (commits since last tag). --latest is unreliable here
+    # because release-prep runs BEFORE the tag is created.
+    git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md
 ```
 
 The `release.yml` `--notes-file` extraction step is UNCHANGED — it already extracts the
@@ -271,10 +282,10 @@ to `release.yml` is required. Because Layer-1 content is placed INSIDE the `## [
 
 The technical-writer dispatch for Layer 1 drafting is a NEW step in `release-prep.yml`, ordered
 AFTER the git-cliff invocation. git-cliff creates the `## [VERSION]` block first via
-`--latest --prepend`; the technical-writer then edits CHANGELOG.md to insert `### Highlights`,
-`### Breaking Changes (narrative)`, and `### Upgrade Notes` sections inside that block, before
-git-cliff's first commit-derived `###` section. This ordering ensures the awk extraction
-captures all content without any modification to `release.yml`.
+`--unreleased --tag "${VERSION_TAG}" --prepend`; the technical-writer then edits CHANGELOG.md
+to insert `### Highlights`, `### Breaking Changes (narrative)`, and `### Upgrade Notes` sections
+inside that block, before git-cliff's first commit-derived `###` section. This ordering ensures
+the awk extraction captures all content without any modification to `release.yml`.
 
 ### D6 — First-Release Handling for v1.0.0-beta.1
 
@@ -282,9 +293,11 @@ The first meaningful release (v1.0.0-beta.1) will cover the full development his
 initial commit — a long range with many chore/ci/refactor commits that are skipped by cliff.toml
 (D3). The following constraints apply:
 
-1. **Tag range:** `git cliff --tag v1.0.0-beta.1` (no `--latest`; full history from the first
-   tagged commit or repo root). If there is a prior tag (e.g., `v1.0.0-rc.1`), the range is
-   `v1.0.0-rc.1..v1.0.0-beta.1`.
+1. **Tag range:** The Step 7 invocation `git cliff --tag v1.0.0-beta.1 --unreleased --prepend
+   CHANGELOG.md` (D5) handles the first release automatically. When no prior tag exists,
+   `--unreleased` selects all commits from the repository root. When a prior tag exists (e.g.,
+   `v1.0.0-rc.1`), `--unreleased` selects only commits since that tag. No special first-release
+   invocation or explicit commit range is required.
 
 2. **Noise control:** The `cliff.toml` skip rules (D3) suppress docs/ci/test/chore/style/build
    commits. The implementer of E-REL-NOTES must run a dry-run pass (`git cliff --unreleased
@@ -320,9 +333,11 @@ git-cliff is the correct choice for Prism for five reasons, all verified in
    by lefthook. No fragment files, no extra PR step, no CI gate to tune.
 
 4. **Channel ladder compatibility.** Each channel tag (beta, rc, stable) defines a git-cliff range.
-   `--latest` renders between the previous tag and the current. Pre-releases using BASE-MATCH
-   (docs/RELEASE-CHANNELS.md §3) generate their own range since develop carries `1.0.0-dev` and
-   each pre-release tag is a distinct version marker.
+   `--unreleased --tag vX.Y.Z` selects all commits not yet captured in a tag and renders them
+   under the new version header. Pre-releases using BASE-MATCH (docs/RELEASE-CHANNELS.md §3)
+   generate their own range since develop carries `1.0.0-dev` and each pre-release tag is a
+   distinct version marker. The `--unreleased` flag works correctly for all positions in the
+   channel ladder, including the first release where no prior tag exists.
 
 5. **Release-plz is not fit for purpose here.** release-plz is the highest-quality Rust release
    automation tool but is built around per-crate version coordination and crates.io publishing.
@@ -356,13 +371,13 @@ git-cliff is the correct choice for Prism for five reasons, all verified in
   audit CI changes, they must use `git log`, not the CHANGELOG.
 - First-release noise control (D6) requires a manual dry-run pass before beta.1.
 
-### Status as of v1.1
+### Status as of v1.2
 
 ACCEPTED. Implementation pending E-REL-NOTES story authoring by product-owner. The immediate
-next action is: product-owner authors S-REL-CLIFF-001 (cliff.toml creation + release-prep.yml
-step replacement — D5 corrected git-cliff invocation uses `--latest --prepend` only) and
-S-REL-WRITER-001 (technical-writer dispatch in release-prep.yml — Layer-1 inserted INSIDE the
-`## [VERSION]` block per D4). See story breakdown in §Source / Origin below.
+next action is: product-owner authors S-REL-CLIFF-001 (cliff.toml creation — D3 owner is
+`drbothen`; release-prep.yml Step 7 uses `--unreleased --tag "${VERSION_TAG}" --prepend` per D5)
+and S-REL-WRITER-001 (technical-writer dispatch — Layer-1 inserted INSIDE the `## [VERSION]`
+block per D4). See story breakdown in §Source / Origin below.
 
 ---
 
@@ -412,5 +427,6 @@ S-REL-WRITER-001 (technical-writer dispatch in release-prep.yml — Layer-1 inse
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-05 | architect | C2: D5 Step 7 `--latest` → `--unreleased --tag` (documented pre-tag pattern; robust for first and recurring releases; `--latest` unreliable when no prior tag exists). D4 Layer-2 description + step-order note updated to match. D6 item 1 updated (--unreleased handles first-release automatically). Rationale #4 updated. C3: D3 prose corrected — `[remote.github]` `owner`/`repo` fields replace `repository` combined key; owner corrected `jmagady` → `drbothen`; cliff.toml sketch updated. |
 | 1.1 | 2026-09-05 | architect | BLOCKING-2: D5 git-cliff invocation fixed — removed `--output CHANGELOG.md`, keeps `--latest --prepend CHANGELOG.md` only (dual-flag caused duplicate sections). BLOCKING-4/5: D4 Layer-1 placement moved INSIDE the `## [VERSION]` block as `###` sections, not above it — ensures release.yml awk extraction captures Layer-1 without changes to release.yml; D5 technical-writer step reordered to run AFTER git-cliff; CHANGELOG structure example updated; Consequences updated. |
 | 1.0 | 2026-09-05 | architect | Initial. D1 git-cliff 2.14.1; D2 Conventional Commits as sole entry source; D3 cliff.toml categorization convention; D4 two-layer model with technical-writer agent for Layer 1; D5 release-prep.yml integration (replaces git log scaffold, keeps release.yml --notes-file unchanged); D6 first-release handling for beta.1. |

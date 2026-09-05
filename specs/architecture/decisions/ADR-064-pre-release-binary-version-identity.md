@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.3"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -37,10 +37,10 @@ input-hash: "f985d45"
 
 ## Status
 
-ACCEPTED v1.3 (2026-09-05) — v1.3 fixes sole remaining stale count in D2 intro sentence ("four"
-→ "six"). v1.2 corrected D2 version-report sites table (4 → 6 prism-bin sites, cli.rs clap
-attribution, vergen rationale, GITHUB_REF_NAME disambiguation) and D3 pre-release-hook
-(array-of-arrays, `--latest --prepend`). Amends ADR-062 D2 for the pre-release path. Informed by
+ACCEPTED v1.4 (2026-09-05) — v1.4 reverts D3 pre-release-hook from invalid array-of-arrays to
+flat Args array with bash -c wrapper (cargo-release pre-release-hook is a single Command, not
+a list of commands); cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2.
+Amends ADR-062 D2 for the pre-release path. Informed by
 `.factory/research/version-management-2026.md` (research-agent, 2026-09-05, Tavily deep-pro + 8
 registry verifications). `anchor_stories` is SAC-2 VERIFIED-EMPTY; stories to be authored in
 proposed epic E-REL-IDENTITY.
@@ -252,16 +252,13 @@ publish = false                  # prism crates never hit crates.io
 shared-version = false           # do NOT cascade to the 24 sibling crates
 tag = false                      # release-promote.yml owns the tag push (environment gate)
 push = false                     # prep produces bumped branch + PR only; promote owns push
+# cargo-release pre-release-hook type is Command: either a Line (single string) or Args (flat
+# array of strings for one command). There is NO multi-command List variant — array-of-arrays
+# is not a valid form and cargo-release would treat inner arrays as literal string arguments.
+# To run two commands, use bash -c with && chaining (Args form):
 pre-release-hook = [
-  # 1. git-cliff prepends the new version section to CHANGELOG.md (ADR-063 D5).
-  #    --latest --prepend writes ONLY the latest tag range to the top of CHANGELOG.md.
-  #    Do NOT use -o/--output on the whole file — that regenerates from full history
-  #    and erases any human-curated Layer-1 content already in CHANGELOG.md.
-  ["git", "cliff", "--tag", "v{{version}}", "--latest", "--prepend", "CHANGELOG.md"],
-  # 2. Update the second workspace lockfile (non-exhaustive-violation — separate workspace,
-  #    not auto-updated by the root workspace bump).
-  ["cargo", "update", "-p", "prism-bin", "--precise", "{{version}}",
-    "--manifest-path", "tests/external/non-exhaustive-violation/Cargo.toml"],
+  "bash", "-c",
+  "git cliff --tag v{{version}} --unreleased --prepend CHANGELOG.md && cargo update -p prism-bin --precise {{version}} --manifest-path tests/external/non-exhaustive-violation/Cargo.toml"
 ]
 
 [[package.metadata.release.pre-release-replacements]]
@@ -405,7 +402,7 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.3
+### Status as of v1.4
 
 ACCEPTED. All three decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
@@ -494,6 +491,7 @@ ACCEPTED. All three decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-09-05 | architect | C1: D3 pre-release-hook reverted from invalid array-of-arrays to correct flat Args array with bash -c wrapper. cargo-release `pre-release-hook` type is Command (Line or Args — a single command); array-of-arrays has no multi-command List variant and is not valid. git-cliff invocation updated to `--unreleased --tag` to match ADR-063 D5 v1.2 correction. Invalid-format rationale added as inline comment. |
 | 1.3 | 2026-09-05 | architect | NEW-1 count-consistency fix: D2 intro sentence "all four version-report sites" corrected to "all six version-report sites in prism-bin" — sole remaining stale count reference after v1.2 table/header/story/status rewrites. |
 | 1.2 | 2026-09-05 | architect | BLOCKING-1: D2 version-report sites table rewritten — 4 → 6 prism-bin sites; clap site attribution corrected from main.rs to cli.rs `#[command(version)]`; boot.rs `let version` audit-record (BC-2.05.012) and spec_driven_adapter.rs adapter user-agent added; out-of-scope prism-spec-engine pipeline.rs site acknowledged. BLOCKING-3: D3 pre-release-hook corrected from flat string array to array-of-arrays; cliff invocation changed from `-o CHANGELOG.md` to `--latest --prepend CHANGELOG.md`. SHOULD-FIX-1: vergen deviation justified in §Rationale (shallow-clone incompatibility). SHOULD-FIX-2: Status section updated to reflect v1.1 finalized state. SHOULD-FIX-3: S-REL-DOCS-AGNOSTIC-001 story scope explicitly names RELEASING.md §1. NIT-2: GITHUB_REF_NAME tag-vs-branch disambiguation added to §Rationale. |
 | 1.1 | 2026-09-05 | architect | D3 finalized: cargo-release 1.1.5 as single stable-path bump entrypoint; ownership map defined; docs anti-drift strategy (version-agnostic-first + count-guarded pre-release-replacements); story S-REL-VBUMP-001 scoped. Title updated. Research source: version-management-2026.md. |

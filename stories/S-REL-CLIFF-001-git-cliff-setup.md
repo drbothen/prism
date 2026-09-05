@@ -1,12 +1,12 @@
 ---
 document_type: story
 story_id: S-REL-CLIFF-001
-title: "devops: git-cliff setup — cliff.toml at repo root + release-prep.yml Step 7 replacement (git log scaffold → git cliff --latest --prepend)"
+title: "devops: git-cliff setup — cliff.toml at repo root + release-prep.yml Step 7 replacement (git log scaffold → git cliff --unreleased --prepend)"
 wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -35,7 +35,7 @@ blocks: [S-REL-WRITER-001, S-REL-BETA1-NOTES-001, S-REL-VBUMP-001]
 #   blocks S-REL-BETA1-NOTES-001: first-release CHANGELOG requires cliff.toml to be
 #     in place for the `git cliff --tag v1.0.0-beta.1` dry-run.
 #   blocks S-REL-VBUMP-001: cargo-release pre-release-hook invokes git-cliff with
-#     `--latest --prepend`; cliff.toml must exist for the hook to work.
+#     `--unreleased --tag ... --prepend`; cliff.toml must exist for the hook to work.
 points: 5
 estimated_days: 1
 risk: LOW
@@ -52,9 +52,12 @@ risk_mitigations:
     pin in release-prep.yml and noting the version in the next ADR version per ADR-063 D1."
   - "The GITHUB_TOKEN secret is available by default in GitHub Actions. The [remote.github]
     section in cliff.toml uses it for PR link injection. No PAT required."
-  - "The --latest flag in the git cliff invocation renders ONLY the range from the
-    previous tag to the current tag. Do NOT add -o/--output on top of --prepend — that
-    caused dual-section output per ADR-063 D5 v1.1 fix."
+  - "The git cliff invocation in release-prep.yml uses `--unreleased --tag` (NOT
+    `--latest`). `--unreleased` renders all commits not yet in any tag; combined with
+    `--tag` it writes the new section header. Do NOT add -o/--output alongside
+    `--prepend` — that caused duplicate sections per ADR-063 D5 v1.1 fix. Per
+    ADR-063 v1.2 D5 the canonical invocation is:
+    `git cliff --tag \"${VERSION_TAG}\" --unreleased --prepend CHANGELOG.md`."
   - "cliff.toml skip rules suppress docs/ci/test/chore/style/build/revert commits.
     If the develop dry-run output is still noisy, additional skip rules may be added
     before the beta.1 tag (ADR-063 D6 noise-control gate)."
@@ -87,12 +90,13 @@ S-REL-WRITER-001 can execute.
 
 `release-prep.yml` Step 7 currently generates an uncategorized commit-seed list via
 `git log --merges --oneline | head -100`. The human must manually categorize entries
-into Added / Fixed / Changed / Security / Removed. ADR-063 D5 replaces this step with
-`git cliff --tag vX.Y.Z --latest --prepend CHANGELOG.md`.
+into Added / Fixed / Changed / Security / Removed. ADR-063 v1.2 D5 replaces this step
+with `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md`.
 
 ADR-063 D1 mandates `git-cliff 2.14.1` (pinned). ADR-063 D3 defines the `cliff.toml`
-categorization convention. This story creates the `cliff.toml` at the repo root and
-patches `release-prep.yml`.
+categorization convention. ADR-063 v1.2 D5 establishes the canonical release-prep
+invocation: `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md`.
+This story creates the `cliff.toml` at the repo root and patches `release-prep.yml`.
 
 ---
 
@@ -109,7 +113,7 @@ Added/Fixed/Performance/Changed/Security sections with PR numbers and author att
 
 - ADR-063 D1 — git-cliff 2.14.1 as canonical changelog assembler
 - ADR-063 D3 — cliff.toml categorization convention
-- ADR-063 D5 — release-prep.yml integration point
+- ADR-063 v1.2 D5 — release-prep.yml integration point; canonical invocation flag set
 
 (No BC: changelog tooling; no subsystem behavioral contract.)
 
@@ -125,8 +129,8 @@ This story has no subsystem behavioral contracts. Authority is ADR-063 D1/D3/D5.
 | ADR-063 D3 | Commit type → CHANGELOG section mapping (feat→Added; fix→Fixed; perf→Performance; refactor→Changed; security→Security; docs/ci/test/chore/style/build/revert→skip) |
 | ADR-063 D3 | Breaking Changes section ordered BEFORE Added |
 | ADR-063 D3 | GitHub PR link injection via [remote.github] section (owner/repo) |
-| ADR-063 D5 | Step 7 invocation: `git cliff --tag "${VERSION_TAG}" --latest --prepend CHANGELOG.md` |
-| ADR-063 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
+| ADR-063 v1.2 D5 | Step 7 invocation: `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` |
+| ADR-063 v1.2 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
 | ADR-063 D4 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001 is the separate follow-on story) |
 
 ---
@@ -191,8 +195,12 @@ description before the PR can be reviewed.
      run: |
        set -euo pipefail
        cargo install git-cliff --version 2.14.1 --locked --quiet
-       git cliff --tag "${VERSION_TAG}" --latest --prepend CHANGELOG.md
+       git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md
    ```
+   Per ADR-063 v1.2 D5: `--unreleased` selects all commits not yet in any tag;
+   `--tag` sets the new section header; `--prepend` writes ONLY to the top of
+   CHANGELOG.md. Do NOT use `--latest` — that flag is for existing-tag ranges
+   and is unreliable for first-release or tag-boundary disambiguation.
    The `VERSION_TAG` environment variable is already set in the workflow context
    (verify the exact var name from the surrounding steps).
 
@@ -206,11 +214,11 @@ description before the PR can be reviewed.
      git-cliff instead of "categorize the seed list."
 
 6. **Run dry-run with a tag argument (simulation):**
-   If a prior tag exists (e.g., `v1.0.0-rc.1`), run:
    ```bash
-   git cliff --tag v1.0.0-beta.1 --latest --output /dev/stdout
+   git cliff --tag v1.0.0-beta.1 --unreleased --output /dev/stdout
    ```
    Confirm output shows a `## [1.0.0-beta.1]` section header and categorized commits.
+   Do NOT use `--latest` here — `--unreleased` is the correct flag per ADR-063 v1.2 D5.
 
 7. **Verify AC-001..AC-006.** Document dry-run output snippet for PR description.
 
@@ -261,7 +269,7 @@ tooling epic.
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | git-cliff 2.14.1 pinned | ADR-063 D1 | grep in release-prep.yml |
-| `--latest --prepend` only (not `--output`) | ADR-063 D5 v1.1 | grep confirms no --output flag |
+| `--unreleased --tag ... --prepend` only (not `--output`, not `--latest`) | ADR-063 v1.2 D5 | grep confirms no --output and no --latest flags |
 | cliff.toml at repo root | ADR-063 D3 | `ls cliff.toml` |
 | Full checkout depth in release-prep.yml | ADR-063 D5 (git cliff needs tag range history) | Verify fetch-depth: 0 in checkout step |
 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001) | ADR-063 D5 step order | S-REL-WRITER-001 is a separate story; not in scope here |
@@ -312,8 +320,8 @@ tooling epic.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | Shallow clone (`fetch-depth: 1`) in release-prep.yml checkout | `git cliff` cannot walk tag range; checkout must use `fetch-depth: 0`. Verify before AC-006 |
-| EC-002 | No prior tag exists (first release) | `--latest` with no prior tag generates from entire history; correct per ADR-063 D6 |
-| EC-003 | Prior tag is `v1.0.0-rc.1`; beta.1 tag range would be `v1.0.0-rc.1..v1.0.0-beta.1` | `--latest` automatically uses the most recent tag as the range start; correct |
+| EC-002 | No prior tag exists (first release) | Do NOT use `--latest` here: `--latest` processes commits belonging to the latest *existing* tag and is unreliable with zero prior tags. Per ADR-063 D6, the first release uses `git cliff --tag v1.0.0-beta.1` (no `--latest`); the git-cliff 2.14.1 documented full-history/first-release pattern is `git cliff --unreleased --tag <version>` (source: git-cliff.org/docs/usage/examples, verified 2026-09-05). The beta.1 CHANGELOG is produced by S-REL-BETA1-NOTES-001, which correctly omits `--latest`. |
+| EC-003 | Prior tag is `v1.0.0-rc.1`; unreleased commits span `v1.0.0-rc.1..HEAD` | `--unreleased` automatically selects commits not yet in any tag; combined with `--tag v1.0.0-beta.1` the output section is headed `## [1.0.0-beta.1]`. No `--latest` needed |
 | EC-004 | `GITHUB_TOKEN` not set locally for dry-run | PR links will not be injected in local dry-run; that is acceptable (CI has the token) |
 | EC-005 | Commit messages don't follow Conventional Commits (human hotfix commits) | `filter_unconventional = true` omits them; CHANGELOG quality is bounded by commit discipline per ADR-063 §Consequences |
 
@@ -323,4 +331,5 @@ tooling epic.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-05 | story-writer | Sync to ADR-063 v1.2 D5 — replace `--latest` with `--unreleased --tag ... --prepend` throughout; Task 4 YAML, Task 6 dry-run, Behavioral Contracts table, Architecture Compliance Rules, risk_mitigations, title, and blocks comment all updated to use `--unreleased` |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D1/D3/D5 materialization |

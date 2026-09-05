@@ -1,21 +1,21 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.069"
+version: "8.070"
 status: current
-timestamp: 2026-09-05T00:00:00Z
+timestamp: 2026-09-05T01:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2452 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — RELEASE-IDENTITY ARCHITECTURE MILESTONE + rc→beta RELABEL. ADR-063 v1.1 (git-cliff 2.14.1 + two-layer model) + ADR-064 v1.3 (GITHUB_REF_NAME injection 6 prism-bin sites + cargo-release 1.1.5) ACCEPTED. 7 E-REL-NOTES/E-REL-IDENTITY stories registered (total_stories 326→333). Channel: first published pre-release = BETA not RC. v1.0.0-rc.1 = immutable never-published ghost (musl race; D-2452). PR #261 OPEN (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001 fix + --notes-file wiring + beta relabel; HEAD 956ad7db). §RESUME SNAPSHOT D-2452 inserted; D-2451 SUPERSEDED. records-lint PASS. STATE v8.979→v8.980. SESSION-HANDOFF v8.068→v8.069.**
+> **D-2453 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — REMOVE-UNCERTAINTY + ADR spec-correction records-burst. remove-uncertainty pass (git-cliff 2.14.1 + cargo-release 1.1.5 official docs) caught: (1) git-cliff --latest unreliable pre-tag → corrected to --unreleased --tag in ADR-063 v1.2 §D5 + S-REL-CLIFF-001 v1.1; (2) cargo-release pre-release-hook array-of-arrays invalid → bash -c wrapper in ADR-064 v1.4 §D3 + S-REL-VBUMP-001 v1.1; (3) [remote.github] owner jmagady→drbothen; (4) stale keys removed. NONE beta.1-blocking. PR #261 still OPEN. §RESUME SNAPSHOT D-2453 inserted; D-2452 SUPERSEDED. records-lint PASS. STATE v8.980→v8.981. SESSION-HANDOFF v8.069→v8.070.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2452 (2026-09-05 — RELEASE-IDENTITY ARCHITECTURE + rc→beta RELABEL; PR #261 OPEN; beta.1 STORIES NEXT) [supersedes D-2451]
+## §RESUME SNAPSHOT — D-2453 (2026-09-05 — REMOVE-UNCERTAINTY + ADR spec corrections; PR #261 OPEN; beta.1 STORIES READY FOR TDD) [supersedes D-2452]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1 BETA release engineering; rc→beta relabel (D-2452); ADR-063/064 accepted; 7 E-REL-NOTES/E-REL-IDENTITY stories registered (total_stories 333); PR #261 (musl fix + --notes-file wiring + beta relabel; branch fix/DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001; HEAD 956ad7db) OPEN awaiting CI-green merge; next = merge PR #261 → remove-uncertainty on 6 beta.1-blocking stories → TDD the 6 beta.1-blocking stories → git-cliff --initial-generation beta.1 CHANGELOG → tag v1.0.0-beta.1.
+Phase 3, v1 BETA release engineering; remove-uncertainty pass complete (D-2453); ADR-063 v1.2 + ADR-064 v1.4 corrected (git-cliff --unreleased --tag canonical; cargo-release bash -c wrapper); S-REL-CLIFF-001 v1.1 + S-REL-VBUMP-001 v1.1; PR #261 (musl fix + --notes-file wiring + beta relabel; branch fix/DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001; HEAD 956ad7db) OPEN awaiting CI-green merge; next = merge PR #261 → TDD the 6 beta.1-blocking stories → git-cliff --initial-generation beta.1 CHANGELOG → tag v1.0.0-beta.1.
 
 ### GOVERNING OBJECTIVE
 Ship v1.0.0-beta.1 as a Claroty-xDome-only evaluation release using BETA channel (not RC). Architecture: ADR-063 (git-cliff 2.14.1 + two-layer CHANGELOG model, Layer-1 = technical-writer top-block inside ## [VERSION]) + ADR-064 (GITHUB_REF_NAME → PRISM_VERSION at 6 prism-bin sites; cargo-release 1.1.5 stable entrypoint; amends ADR-062 D2). v1.0.0-rc.1 is an immutable never-published ghost tag (musl rustup race; release.yml failed; publish-release skipped). First actual GitHub Release = v1.0.0-beta.1 after 6 beta.1-blocking stories land.

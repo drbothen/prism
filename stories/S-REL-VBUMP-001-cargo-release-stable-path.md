@@ -6,7 +6,7 @@ wave: F-B
 epic_id: E-REL-IDENTITY
 priority: P1
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -170,20 +170,30 @@ Verification is a `cargo release --dry-run` output check:
 
    ```toml
    [package.metadata.release]
-   # cargo-release 1.1.5 (ADR-064 D3) — stable path only.
+   # cargo-release 1.1.5 (ADR-064 v1.4 D3) — stable path only.
    # Pre-release versioning is handled by build.rs + GITHUB_REF_NAME (ADR-064 D2).
    sign-tag = true
    sign-commit = false
    push = false                  # CI pushes; not cargo-release
    publish = false               # Workspace is not published to crates.io
-   pre-release-commit-message = false  # No interim commit; CI handles tagging
+   # pre-release-commit-message is intentionally OMITTED.
+   # That key expects a STRING template (e.g. "chore: release {{version}}"), not a bool.
+   # Passing `false` is a type error in cargo-release 1.1.5. To suppress the interim
+   # release commit simply omit the key; cargo-release 1.1.5 default is no commit step
+   # when the key is absent.
    tag-name = "v{{version}}"
    # CHANGELOG update disabled — git-cliff owns CHANGELOG (ADR-063 D1).
-   disable-publish = true
+   # pre-release-hook: single bash -c wrapper per ADR-064 v1.4 D3.
+   # Runs git-cliff to prepend the new section, then bumps the lockfile pin in the
+   # non-exhaustive compile-fail crate so its Cargo.lock tracks the new version.
+   pre-release-hook = ["bash", "-c", "git cliff --tag v{{version}} --unreleased --prepend CHANGELOG.md && cargo update -p prism-bin --precise {{version}} --manifest-path tests/external/non-exhaustive-violation/Cargo.toml"]
    ```
 
    Adjust fields to match actual `cargo-release` 1.1.5 TOML key names — verify
-   against `cargo release --list-release-steps` before finalizing.
+   against `cargo release --list-release-steps` before finalizing. In particular:
+   - `disable-publish` is a stale pre-1.0 key not present in cargo-release 1.1.5;
+     use `publish = false` (already present above) for the correct key.
+   - `pre-release-commit-message` must be a string or omitted; never a bool.
 
 2. **Add `cargo-release` install step to `.github/workflows/release-prep.yml`:**
 
@@ -231,7 +241,7 @@ Before cutting `v1.0.0`, a SEPARATE full-detail story must be authored that cove
 - Pre-release tag pattern exclusion from cargo-release's default tag scheme
 - Signed tag verification
 - Full release rehearsal (dry-run against `main`)
-- Alignment with the git-cliff `--latest` invocation for stable changelog
+- Alignment with the git-cliff `--unreleased --tag` invocation for stable changelog (per ADR-063 v1.2 D5)
 - Post-release branch strategy (develop bump back to 1.x.y-dev after stable)
 
 This stub is NOT sufficient for that gate. It is sufficient for:
@@ -285,7 +295,7 @@ and the surrounding step has an `if:` condition excluding pre-release tags.
 | cargo-release version must be 1.1.5 exactly | ADR-064 D3 | `cargo install cargo-release --version 1.1.5 --locked` |
 | git-cliff owns CHANGELOG | ADR-063 D1 | AC-002: cargo-release CHANGELOG update disabled |
 | cargo-release is stable-path only | ADR-064 D3 | AC-004: dry-run step gated on `!contains(ref, '-beta')` |
-| publish disabled (workspace is not a crates.io crate) | ADR-064 D3 prose | `disable-publish = true` in Cargo.toml metadata |
+| publish disabled (workspace is not a crates.io crate) | ADR-064 D3 prose | `publish = false` in Cargo.toml metadata (`disable-publish` is a stale pre-1.0 key; not valid in 1.1.5) |
 
 ---
 
@@ -329,7 +339,7 @@ and the surrounding step has an `if:` condition excluding pre-release tags.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | cargo-release dry-run attempts to update CHANGELOG.md | If this happens, the CHANGELOG config is wrong; disable per AC-002 |
-| EC-002 | dry-run shows publish steps for crates.io | `disable-publish = true` must be set; fix before closing |
+| EC-002 | dry-run shows publish steps for crates.io | `publish = false` must be set; fix before closing (`disable-publish` is not a valid key in 1.1.5) |
 | EC-003 | A pre-release tag triggers the cargo-release step | The `if:` gate must exclude `-beta` and `-rc`; fix the gate expression |
 | EC-004 | cargo-release 1.1.5 key names differ from the stub | Verify exact key names with `cargo release help` before finalizing the TOML block |
 | EC-005 | Workspace Cargo.toml has features that cargo-release interacts with unexpectedly | Use `-p prism-bin` exclusively; never `cargo release` without `-p` on this workspace |
@@ -340,4 +350,5 @@ and the surrounding step has an `if:` condition excluding pre-release tags.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-05 | story-writer | Sync to ADR-064 v1.4 D3 — remove stale `disable-publish` key; remove `pre-release-commit-message = false` (type error; key expects string or omission); add `pre-release-hook` as single bash -c wrapper; fix Before Stable Gate and EC-002 references |
 | 1.0 | 2026-09-05 | story-writer | Initial stub — ADR-064 D3 cargo-release configuration; full detail deferred to BEFORE-STABLE |
