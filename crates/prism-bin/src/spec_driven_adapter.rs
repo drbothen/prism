@@ -1713,7 +1713,7 @@ pub(crate) fn build_http_client_with_custom_timeout(
     reqwest::Client::builder()
         // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
         // concat! produces a &'static str with zero allocation at runtime.
-        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("prism/", env!("PRISM_VERSION")))
         .timeout(timeout)
         .build()
         .map_err(|e| {

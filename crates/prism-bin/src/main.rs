@@ -52,7 +52,7 @@ async fn dispatch(args: CliArgs) -> i32 {
     // This check runs BEFORE step1_init_tracing and BEFORE resolve_config_dir.
     if let PrismCommand::Version = &args.command {
         // AC-2: print "prism X.Y.Z" to stdout; exit 0.
-        println!("prism {}", env!("CARGO_PKG_VERSION"));
+        println!("prism {}", env!("PRISM_VERSION"));
         return EXIT_SUCCESS;
     }
 
@@ -86,7 +86,7 @@ async fn dispatch(args: CliArgs) -> i32 {
             // Unreachable: handled by the short-circuit at the top of dispatch().
             // Kept for exhaustive match completeness (compiler requires all arms).
             // AC-2: print "prism X.Y.Z" to stdout; exit 0.
-            println!("prism {}", env!("CARGO_PKG_VERSION"));
+            println!("prism {}", env!("PRISM_VERSION"));
             EXIT_SUCCESS
         }
 

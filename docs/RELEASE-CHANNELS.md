@@ -10,7 +10,7 @@ flow through the ladder, and what criteria gate advancement.
 > stable-release runbook — step-by-step procedures for cutting a stable release using
 > the implemented `release-prep.yml` and `release-promote.yml` workflows. This file is
 > the channel strategy and reference. The pre-release lanes described here will be built
-> as a dedicated epic after `v1.0.0-rc.1` ships.
+> as a dedicated epic after the v1.0.0 stable release ships.
 
 ---
 
@@ -67,7 +67,7 @@ creation. See `RELEASING.md` §4 for the complete operational runbook.
 **Ad-hoc pre-release tagging (IMPLEMENTED — dev / alpha / beta / rc):** The
 `release-tag.yml` workflow (`workflow_dispatch`) implements ad-hoc pre-release tagging
 for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
-(e.g. `v1.0.0-rc.1`) to create an annotated tag on `develop` HEAD and trigger
+(e.g. `v1.0.0-beta.1`) to create an annotated tag on `develop` HEAD and trigger
 `release.yml` for the full 5-platform build + pre-release GitHub Release.
 The workflow enforces a pre-release-only guard (stable tags are rejected) and a
 BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
@@ -102,7 +102,7 @@ validates the tag against the `prism-bin` version:
 
 - **BASE-MATCH (pre-releases):** Compare only the `X.Y.Z` core; the channel suffix
   floats. A `prism-bin` version of `1.0.0-dev` satisfies any pre-release tag whose
-  core is `1.0.0` — `v1.0.0-nightly.20260905`, `v1.0.0-alpha.1`, `v1.0.0-rc.2`, etc.
+  core is `1.0.0` — `v1.0.0-nightly.20260905`, `v1.0.0-alpha.1`, `v1.0.0-beta.2`, etc.
   This means pre-release tags require no version-bump churn between nightly builds.
 
 - **EXACT-MATCH (stable):** The `release-prep.yml` workflow drops the `-dev` suffix
@@ -124,8 +124,8 @@ develop carries: prism-bin = "1.0.0-dev"
       Tag: v1.0.0-alpha.1
       Guard: BASE-MATCH — same core, no bump
 
-  → Dispatch: release-prepare-prerelease --channel rc --n 1
-      Tag: v1.0.0-rc.1
+  → Dispatch: release-prepare-prerelease --channel beta --n 2
+      Tag: v1.0.0-beta.2
       Guard: BASE-MATCH — same core, no bump
 
   → Dispatch: release-prep.yml --field version=1.0.0
@@ -172,7 +172,7 @@ Every channel — including nightly — creates a tag. `release.yml` is triggere
 `v*` tag push and performs the full build and GitHub Release creation.
 
 **Auto-detection of pre-release status:** `release.yml` checks whether the tag
-contains a hyphen (`v1.0.0-rc.1` has a hyphen; `v1.0.0` does not). Hyphenated tags
+contains a hyphen (`v1.0.0-beta.1` has a hyphen; `v1.0.0` does not). Hyphenated tags
 automatically receive `--prerelease` when creating the GitHub Release. Tags without a
 hyphen are marked **Latest**.
 

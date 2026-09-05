@@ -30,8 +30,8 @@ field in `Cargo.toml`. When a release is cut, **bump `prism-bin` to match the ta
 This makes `prism --version` report the correct product version.
 
 The `release-promote` workflow mechanically enforces this invariant: if the
-dispatched `tag` input (e.g. `v1.0.0-rc.2`) does not exactly match the `prism-bin`
-Cargo.toml `version` field (e.g. `1.0.0-rc.2`) on the develop tree, the promotion
+dispatched `tag` input (e.g. `v1.0.0-beta.2`) does not exactly match the `prism-bin`
+Cargo.toml `version` field (e.g. `1.0.0-beta.2`) on the develop tree, the promotion
 fails with a clear error before anything is written to `main`.
 
 All other workspace crates (prism-core, prism-query, prism-spec-engine, prism-sensors,
@@ -52,9 +52,25 @@ workspace versions used during development do not correspond to distribution ver
 
 ### Pre-release tags
 
-A tag containing a hyphen (e.g., `v1.0.0-rc.1`, `v1.1.0-beta.2`) is automatically
+A tag containing a hyphen (e.g., `v1.0.0-alpha.1`, `v1.1.0-beta.2`) is automatically
 marked as a pre-release by the release workflow. Tags without a hyphen are treated as
 stable releases and are marked Latest on GitHub.
+
+### Pre-release exception (ADR-064 D2)
+
+The `develop` branch carries `prism-bin` at version `1.0.0-dev`. **No `Cargo.toml`
+version bump is needed between pre-releases on the same X.Y.Z cycle** (e.g., between
+`v1.0.0-alpha.1` and `v1.0.0-beta.1`). Instead, the binary version is injected at build
+time via `PRISM_VERSION`, resolved by `crates/prism-bin/build.rs` through the
+following fallback chain:
+
+1. `PRISM_BUILD_VERSION` env var (explicit override)
+2. `GITHUB_REF_NAME` env var with a leading `v` stripped (GitHub Actions tag ref)
+3. `CARGO_PKG_VERSION` (local dev default; always `1.0.0-dev` on `develop`)
+
+This means `prism --version` on `develop` reports `prism 1.0.0-dev` locally, and
+`prism <tag-version>` on a tagged CI build — without requiring `prism-bin`
+`Cargo.toml` to be updated for every pre-release tag.
 
 ---
 
@@ -238,7 +254,7 @@ The PR body contains a checklist. Before merging:
 2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
 3. Update the README version badge and install URLs if this is not a pre-release:
    - The `[![vX.Y.Z](...)]` shield badge URL in the README header
-   - All install URL paths (e.g. `prism-v1.0.0-rc.1-` → `prism-vX.Y.Z-`) in the `## Install` section
+   - All install URL paths (e.g. `prism-<old>-` → `prism-vX.Y.Z-`) in the `## Install` section
    Push these to the release branch before merging.
 4. Wait for all 24 required CI checks to pass.
 5. Merge the PR to `develop` (squash or merge commit per project convention).

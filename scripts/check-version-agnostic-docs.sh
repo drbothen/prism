@@ -141,8 +141,11 @@ fi
 # it checks for (test infrastructure, not install documentation).
 # ---------------------------------------------------------------------------
 SELF="$(basename "${BASH_SOURCE[0]}")"
+# Use || true to prevent set -o pipefail from aborting when grep finds zero matches
+# (grep exits 1 with no output; wc -l would output "0" correctly, but pipefail
+# propagates the grep non-zero exit through the pipeline assignment).
 FULL_SWEEP=$(grep -r 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md \
-    --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ')
+    --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || FULL_SWEEP=0
 if [ "$FULL_SWEEP" -eq 0 ]; then
     pass "AC-006: Full sweep — no hardcoded v1.0.0-rc. strings found in docs/ scripts/ RELEASING.md"
 else
