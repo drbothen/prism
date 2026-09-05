@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.997"
+version: "2.998"
 status: draft
 producer: state-manager
-timestamp: 2026-09-04T23:00:00Z
+timestamp: 2026-09-05T00:00:00Z
 phase: 3
-total_stories: 326
-# D-2450 — STORY-INDEX v2.996→v2.997: S-REL-CHANNELS-001 REGISTERED (draft stub v0.1; post-rc.1; release-channel implementation; docs/RELEASE-CHANNELS.md spec). total_stories 325→326.
+total_stories: 333
+# D-2452 — STORY-INDEX v2.997→v2.998: 7 E-REL-IDENTITY/E-REL-NOTES stories registered (S-REL-DEV-RESET-001, S-REL-BVERSION-INJECT-001, S-REL-DOCS-AGNOSTIC-001, S-REL-VBUMP-001, S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001). total_stories 326→333. D-2450 NOTE archived.
 # D-2447 — STORY-INDEX v2.995→v2.996: S-REL-011 [draft stub v0.1]→[merged v0.1; PR #257 @68a64ad0b]. POL-14 NO-OP (behavioral_contracts: []). total_stories 325 UNCHANGED. D-2444 NOTE archived.
 # D-2443: D-2443 human-directed deferral 2026-09-04 — S-CLAROTY-DTU-PARITY-001 REGISTERED (governing story; 5 sub-stubs; v1.0 draft; 3 pts; blocks S-REL-004). S-REL-004 v0.4→v0.5 + input-hash 984d7b6→71df370 (D-2443 deferral notes + depends_on S-CLAROTY-DTU-PARITY-001 added). S-REL-007 v0.2→v0.3 + input-hash 9457bcd→7890ffc (deferral notice). S-REL-006 v0.1→v0.2 (deferral notice; input-hash UNCHANGED a1b92a0). total_stories 324→325. STORY-INDEX v2.993→v2.994.
 # D-2440: E-REL deconfliction amendments 2026-09-03 — S-REL-002 ADR renumber 053→062 (file renamed to S-REL-002-version-alignment-adr-062.md, v0.2→v0.3); S-REL-004 Claroty-only scope (crowdstrike/armis/cyberint sensor TOMLs + crowdstrike-oauth2.prx removed from bundle, v0.3→v0.4); S-REL-005 RELEASING.md→repo root + vsdd-partial + boot.rs CWD fix AC + prism.toml.example ACs (v0.3→v0.4; acceptance_criteria_count 8→13); S-REL-008→S-REL-010 (rename stub); S-REL-009→S-REL-011 (rename stub; depends_on S-REL-004→S-REL-005). total_stories 324 UNCHANGED. STORY-INDEX v2.991→v2.992 (state-manager finalizes).
@@ -1168,6 +1168,27 @@ RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst)
 | S-REL-005 | RELEASING.md operator runbook (repo root) + .factory/release-config.yaml (schema 1, quality_gates vsdd-partial, require_human_approval: true) + boot.rs CWD fix + prism.toml.example (Claroty-only) [merged v0.4; PR #253 @18646aa44] | prism-bin, devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
 | S-REL-006 | Graduate prism-consumer-contract.md to docs/consumer-contract.md + DEMO-RUNBOOK.md Windows cross-reference; DEFERRED post-rc.1 — downstream of S-REL-007/S-REL-004 deferral chain (D-2443 2026-09-04) [draft v0.2] | devops | 0 (N/A infra) | -- | 2 | S-REL-002, S-REL-007 |
 
+## Feature-Mode Release Identity — E-REL-IDENTITY (Wave F-A / F-B)
+
+Registered D-2452 (2026-09-05). 4 stories cover the binary version identity milestone for v1.0.0-beta.1: resetting prism-bin to 1.0.0-dev on develop, wiring build.rs GITHUB_REF_NAME → PRISM_VERSION at all 6 prism-bin sites, making install docs version-agnostic, and the future stable-bump cargo-release entrypoint. Authority: ADR-064. All `behavioral_contracts: []` (ADR-authority infra stories; POL-14 NO-OP). BETA.1-BLOCKING: S-REL-DEV-RESET-001, S-REL-BVERSION-INJECT-001, S-REL-DOCS-AGNOSTIC-001 (Wave F-A). S-REL-VBUMP-001 is Wave F-B (pre-stable only, not beta.1-blocking).
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-REL-DEV-RESET-001 | prism-bin 1.0.0-rc.1→1.0.0-dev reset on develop — ADR-064 D1 interim version; clears stale rc.1 tag from binary display; beta.1-BLOCKING [draft v1.0] | prism-bin | 0 (behavioral_contracts: []) | -- | 2 | -- |
+| S-REL-BVERSION-INJECT-001 | build.rs GITHUB_REF_NAME → PRISM_VERSION injection at all 6 prism-bin sites (main.rs x2, cli.rs #[command(version)], boot.rs boot-log + BootAuditEmitter, spec_driven_adapter.rs user-agent); ADR-064 D2; beta.1-BLOCKING [draft v1.0] | prism-bin | 0 (behavioral_contracts: []) | -- | 5 | S-REL-DEV-RESET-001 |
+| S-REL-DOCS-AGNOSTIC-001 | Make install docs VERSION-AGNOSTIC: RELEASING.md §1 + docs/SETUP.md replace version-pinned URLs with /releases/latest/download equivalents; "download newest PRE-RELEASE from GitHub Releases page" instruction (not /releases/latest/ which excludes pre-releases); ADR-064 D3 scope; beta.1-BLOCKING [draft v1.0] | docs, devops | 0 (behavioral_contracts: []) | -- | 3 | S-REL-DEV-RESET-001 |
+| S-REL-VBUMP-001 | cargo-release 1.1.5 single bump entrypoint for stable release path: shared-version=false, publish/tag/push=false, array-of-arrays pre-release-hook (git-cliff --latest --prepend + 2nd lockfile); BEFORE-STABLE only — not beta.1-blocking [draft v1.0] | prism-bin, devops | 0 (behavioral_contracts: []) | -- | 5 | S-REL-CLIFF-001 |
+
+## Feature-Mode Release Notes — E-REL-NOTES (Wave F-A / F-B)
+
+Registered D-2452 (2026-09-05). 3 stories cover the CHANGELOG + release notes pipeline for v1.0.0-beta.1: git-cliff 2.14.1 setup, technical-writer Layer-1 top-block authoring, and generating the beta.1 first-release CHANGELOG. Authority: ADR-063. All `behavioral_contracts: []` (ADR-authority infra stories; POL-14 NO-OP). All 3 are BETA.1-BLOCKING.
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-REL-CLIFF-001 | git-cliff 2.14.1 setup: cliff.toml (feat→Added/fix→Fixed/perf→Performance/refactor→Changed; Breaking Changes first); release-prep.yml integration (--latest --prepend replaces git-log scaffold); first-release full-history handling; ADR-063 D1-D5; beta.1-BLOCKING [draft v1.0] | devops | 0 (behavioral_contracts: []) | -- | 5 | -- |
+| S-REL-WRITER-001 | technical-writer Layer-1 top-block dispatch: ### Highlights / ### Breaking Changes / ### Upgrade Guide authored INSIDE ## [VERSION] block (ADR-063 D4); dispatched after git-cliff Layer-2 generation; beta.1-BLOCKING [draft v1.0] | docs | 0 (behavioral_contracts: []) | -- | 3 | S-REL-CLIFF-001 |
+| S-REL-BETA1-NOTES-001 | Generate and curate v1.0.0-beta.1 CHANGELOG: full git-cliff generation (FULL history, first-release handling) + technical-writer Layer-1 top-block curation; produce finalized beta.1 release body; ADR-063 D6; beta.1-BLOCKING [draft v1.0] | devops, docs | 0 (behavioral_contracts: []) | -- | 3 | S-REL-CLIFF-001, S-REL-WRITER-001 |
+
 ## Post-v1.0.0 Deferred Stubs (E-REL)
 
 These 3 stories are post-v1.0.0 deferrals (S-REL-010 and S-REL-011 registered 2026-09-03 per D-2439 human-directed deferral; S-REL-CHANNELS-001 registered 2026-09-04 per D-2450 after operator approval of release-channel strategy). v1.0.0 ships the archive-bundled spec model (Option 1, PR #253). These stories capture the next evolution, install-doc gap, and release-channel maturity ladder. All `behavioral_contracts: []` pending PO authorship or waiver before status: ready (Spec-First Gate S-7.01).
@@ -1723,6 +1744,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.998 | 2026-09-05 | state-manager D-2452: SINGLE-COMMIT BURST (TD-VSDD-053) — 7 E-REL-IDENTITY/E-REL-NOTES stories registered. E-REL-IDENTITY: S-REL-DEV-RESET-001 (draft v1.0; P0; 2pt; prism-bin 1.0.0-dev reset; ADR-064 D1), S-REL-BVERSION-INJECT-001 (draft v1.0; P0; 5pt; build.rs GITHUB_REF_NAME injection 6 sites; ADR-064 D2; deps:DEV-RESET), S-REL-DOCS-AGNOSTIC-001 (draft v1.0; P0; 3pt; version-agnostic docs; ADR-064 D3; deps:DEV-RESET), S-REL-VBUMP-001 (draft v1.0; P1; 5pt; cargo-release 1.1.5 stable entrypoint; Wave F-B; deps:CLIFF-001). E-REL-NOTES: S-REL-CLIFF-001 (draft v1.0; P0; 5pt; git-cliff 2.14.1 setup; ADR-063 D1-D5), S-REL-WRITER-001 (draft v1.0; P0; 3pt; technical-writer Layer-1 dispatch; ADR-063 D4; deps:CLIFF-001), S-REL-BETA1-NOTES-001 (draft v1.0; P0; 3pt; first-release CHANGELOG generation; ADR-063 D6; deps:CLIFF-001+WRITER-001). All behavioral_contracts: [] (POL-14 NO-OP). 6 are BETA.1-BLOCKING (all except S-REL-VBUMP-001). total_stories 326→333. TD-VSDD-097: Dim-1 CLEAR (ADR-063/ADR-064 are sole ADRs in their epics; no sibling-pair conflict). Dim-2 CLEAR (no copy-source sections changed). Dim-3 CLEAR (all new story MUSTs pending PO authorship or anchored to story ACs per SAC-1/SAC-2). records-lint L1/L7/L9/L10 PASS. story_index_version 2.997→2.998. |
 | v2.997 | 2026-09-04 | state-manager D-2450: SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-CHANNELS-001 REGISTERED (draft stub v0.1; post-rc.1 release-channel implementation; spec: docs/RELEASE-CHANNELS.md; PO authorship required before status:ready). total_stories 325→326. TD-VSDD-097: Dim-1 CLEAR (no spec sibling pair). Dim-2 CLEAR (RELEASE-CHANNELS.md not yet a copy-source for any spec section). Dim-3 CLEAR (no new unanchored MUSTs; S-REL-CHANNELS-001 MUSTs pending PO authorship per Canonical Principle Rule 3 — concrete future dependency). records-lint exit 0. story_index_version 2.996→2.997. |
 | v2.996 | 2026-09-04 | state-manager D-2447: SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-011 operator setup+install docs MERGED. PR #257 (feat(S-REL-011)) admin squash-merged to develop @68a64ad0b 2026-09-04. S-REL-011 [draft stub v0.1]→[merged v0.1; PR #257 @68a64ad0b]. POL-14 NO-OP (behavioral_contracts: []). develop_head 7d09567f6→68a64ad0b. total_stories 325 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no spec sibling). Dim-2 CLEAR (docs/SETUP.md not a spec copy-source). Dim-3 CLEAR (no new MUSTs). records-lint exit 0. story_index_version 2.995→2.996. |
 | v2.995 | 2026-09-04 | state-manager D-2444: SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — PR #254 (feat(S-REL-003): install.sh + install.ps1 — checksum-verified 5-platform consumer install scripts) admin squash-merged to develop @725cf413d (human-directed --admin bypass 2026-09-04; precedent-consistent with prior admin-merges e.g. PR #240; security-reviewer PASS CLEAN(strict)=yes 0 findings @9724a350a; pr-reviewer READY covered_sha 9724a350a; CI 51/51; tests 42/42+123/123 release-gate; just check 6022/6022). S-REL-003 [draft v0.3]→[merged v0.3; PR #254 @725cf413d]. POL-14: behavioral_contracts: [] — NO BC auto-promotion (NO-OP). develop_head 18646aa44→725cf413d. feature/S-REL-003 remote deleted. TD-VSDD-097: Dim-1 CLEAR (no sibling-pair artifact). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs). total_stories 325 UNCHANGED. records-lint exit 0. story_index_version 2.994→2.995. |

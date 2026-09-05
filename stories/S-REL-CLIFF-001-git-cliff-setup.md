@@ -1,0 +1,326 @@
+---
+document_type: story
+story_id: S-REL-CLIFF-001
+title: "devops: git-cliff setup — cliff.toml at repo root + release-prep.yml Step 7 replacement (git log scaffold → git cliff --latest --prepend)"
+wave: F-A
+epic_id: E-REL-NOTES
+priority: P0
+status: draft
+version: "1.0"
+level: "L4"
+producer: story-writer
+timestamp: "2026-09-05T00:00:00Z"
+tdd_mode: facade
+# tdd_mode: facade — this story creates config/workflow files (cliff.toml TOML,
+# release-prep.yml YAML) with no Rust production code. The deliverable is a working
+# cliff.toml and a patched workflow step. Verification is via dry-run execution
+# (git cliff --unreleased --output /dev/stdout on develop history), not TDD.
+subsystems: [SS-22]
+# Subsystem anchor justification:
+#   SS-22 (Process Lifecycle) owns release toolchain infrastructure per ARCH-INDEX.
+#   cliff.toml and the release-prep.yml change are release-engineering artifacts
+#   within SS-22's scope.
+crates_touched: []
+target_module: devops
+capabilities: []
+behavioral_contracts: []
+# BC status: N/A — changelog tooling setup; no subsystem behavioral contract governs
+# CHANGELOG generation or CI workflow configuration.
+verification_properties: []
+depends_on: []
+blocks: [S-REL-WRITER-001, S-REL-BETA1-NOTES-001, S-REL-VBUMP-001]
+# Dependency anchor justifications:
+#   blocks S-REL-WRITER-001: technical-writer dispatch step runs AFTER git-cliff
+#     invocation in release-prep.yml; CLIFF-001 must establish the base cliff step.
+#   blocks S-REL-BETA1-NOTES-001: first-release CHANGELOG requires cliff.toml to be
+#     in place for the `git cliff --tag v1.0.0-beta.1` dry-run.
+#   blocks S-REL-VBUMP-001: cargo-release pre-release-hook invokes git-cliff with
+#     `--latest --prepend`; cliff.toml must exist for the hook to work.
+points: 5
+estimated_days: 1
+risk: LOW
+acceptance_criteria_count: 6
+red_gate_tests: 0
+# red_gate_tests: 0 — facade mode. No Rust production code; no Red Gate.
+# Quality gate: dry-run `git cliff --unreleased --output /dev/stdout` on develop
+# history produces non-empty, correct-categorization output.
+estimated_passes: "1-2 LOCAL adversary passes"
+holdout_scenarios: []
+assumption_validations: []
+risk_mitigations:
+  - "git-cliff 2.14.1 must be pinned exactly. Future upgrades require bumping the
+    pin in release-prep.yml and noting the version in the next ADR version per ADR-063 D1."
+  - "The GITHUB_TOKEN secret is available by default in GitHub Actions. The [remote.github]
+    section in cliff.toml uses it for PR link injection. No PAT required."
+  - "The --latest flag in the git cliff invocation renders ONLY the range from the
+    previous tag to the current tag. Do NOT add -o/--output on top of --prepend — that
+    caused dual-section output per ADR-063 D5 v1.1 fix."
+  - "cliff.toml skip rules suppress docs/ci/test/chore/style/build/revert commits.
+    If the develop dry-run output is still noisy, additional skip rules may be added
+    before the beta.1 tag (ADR-063 D6 noise-control gate)."
+  - "Breaking Changes section must appear BEFORE Added in the output. The cliff.toml
+    body template uses group_by; group_order or section numbering may be needed to
+    enforce ordering. Verify in dry-run output."
+inputs:
+  - ".github/workflows/release-prep.yml"
+  - ".factory/specs/architecture/decisions/ADR-063-changelog-release-notes-architecture.md"
+input-hash: "[pending-recompute]"
+traces_to: []
+cycle: "v1.0.0-beta.1-release-identity"
+phase: "3"
+---
+
+# S-REL-CLIFF-001 — git-cliff Setup: cliff.toml + release-prep.yml Step 7 Replacement
+
+**Story ID:** S-REL-CLIFF-001
+**Status:** draft
+**Version:** v1.0
+**Wave:** F-A
+**Priority:** P0
+**Points:** 5
+**Beta.1-blocking:** YES — cliff.toml must be in place before S-REL-BETA1-NOTES-001 and
+S-REL-WRITER-001 can execute.
+
+---
+
+## Origin
+
+`release-prep.yml` Step 7 currently generates an uncategorized commit-seed list via
+`git log --merges --oneline | head -100`. The human must manually categorize entries
+into Added / Fixed / Changed / Security / Removed. ADR-063 D5 replaces this step with
+`git cliff --tag vX.Y.Z --latest --prepend CHANGELOG.md`.
+
+ADR-063 D1 mandates `git-cliff 2.14.1` (pinned). ADR-063 D3 defines the `cliff.toml`
+categorization convention. This story creates the `cliff.toml` at the repo root and
+patches `release-prep.yml`.
+
+---
+
+## Narrative
+
+As a release engineer, I want git-cliff to automatically generate categorized
+CHANGELOG entries from Conventional Commits history, so that the manual categorization
+step in release-prep is eliminated and every release section has consistent
+Added/Fixed/Performance/Changed/Security sections with PR numbers and author attribution.
+
+---
+
+## Authority
+
+- ADR-063 D1 — git-cliff 2.14.1 as canonical changelog assembler
+- ADR-063 D3 — cliff.toml categorization convention
+- ADR-063 D5 — release-prep.yml integration point
+
+(No BC: changelog tooling; no subsystem behavioral contract.)
+
+---
+
+## Behavioral Contracts
+
+This story has no subsystem behavioral contracts. Authority is ADR-063 D1/D3/D5.
+
+| Architecture Source | Clause |
+|---------------------|--------|
+| ADR-063 D1 | `git-cliff 2.14.1` pinned; install via `cargo install git-cliff --version 2.14.1 --locked` |
+| ADR-063 D3 | Commit type → CHANGELOG section mapping (feat→Added; fix→Fixed; perf→Performance; refactor→Changed; security→Security; docs/ci/test/chore/style/build/revert→skip) |
+| ADR-063 D3 | Breaking Changes section ordered BEFORE Added |
+| ADR-063 D3 | GitHub PR link injection via [remote.github] section (owner/repo) |
+| ADR-063 D5 | Step 7 invocation: `git cliff --tag "${VERSION_TAG}" --latest --prepend CHANGELOG.md` |
+| ADR-063 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
+| ADR-063 D4 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001 is the separate follow-on story) |
+
+---
+
+## Token Budget Estimate
+
+| Artifact | Estimated Tokens |
+|----------|-----------------|
+| This story spec | ~3,000 |
+| `.github/workflows/release-prep.yml` (full) | ~5,000 |
+| ADR-063 D1/D3/D5 sections | ~3,000 |
+| cliff.toml sketch from ADR-063 D3 | ~1,000 |
+| Total | ~12,000 |
+
+Well within the 30% context window budget.
+
+---
+
+## Red Gate Test List (SAC-1)
+
+**tdd_mode: facade — no Rust Red Gate tests.** Quality gate is a dry-run execution:
+`git cliff --unreleased --output /dev/stdout` on develop history must produce
+non-empty output with correct CHANGELOG section headers.
+
+The implementer MUST run this dry-run and document the output snippet in the PR
+description before the PR can be reviewed.
+
+---
+
+## Tasks
+
+1. **Read `.github/workflows/release-prep.yml` in full** to understand Step 7 structure,
+   surrounding steps (version bump, CHANGELOG insert, commit), and environment variable
+   usage.
+
+2. **Create `cliff.toml` at the repo root** with the normative ADR-063 D3 configuration.
+   Use the informative sketch from ADR-063 D3 as the basis, ensuring:
+   - `[changelog]` section with empty `header`, the Tera body template, empty `footer`,
+     and `trim = true`
+   - `[git]` section: `conventional_commits = true`, `filter_unconventional = true`,
+     `tag_pattern = "v[0-9].*"`, `sort_commits = "oldest"`
+   - `commit_parsers` table: feat→Added, fix→Fixed, perf→Performance, refactor→Changed,
+     security→Security, docs/ci/test/chore/style/build/revert each with `skip = true`
+   - `protect_breaking_commits = true`
+   - `[remote.github]` section: `owner = "jmagady"`, `repo = "prism"`
+   - Breaking Changes section must appear BEFORE Added in the output (verify via
+     dry-run; add `group_order` if needed)
+
+3. **Run dry-run on develop history:**
+   ```bash
+   git cliff --unreleased --output /dev/stdout
+   ```
+   Inspect output. If output is excessively noisy (many non-skip entries from
+   chore/ci/docs), add additional skip rules per ADR-063 D6. Document the output
+   snippet for the PR description.
+
+4. **Patch `release-prep.yml` Step 7:**
+   Replace the existing `Scaffold CHANGELOG entry` step (uses `git log --merges
+   --oneline | head -100` + Python scaffold heredoc) with:
+   ```yaml
+   - name: Generate CHANGELOG body (git-cliff)
+     run: |
+       set -euo pipefail
+       cargo install git-cliff --version 2.14.1 --locked --quiet
+       git cliff --tag "${VERSION_TAG}" --latest --prepend CHANGELOG.md
+   ```
+   The `VERSION_TAG` environment variable is already set in the workflow context
+   (verify the exact var name from the surrounding steps).
+
+5. **Verify the replacement step in context:** Read the surrounding steps to confirm:
+   - The `checkout` step has sufficient depth (`fetch-depth: 0` or full history)
+     for `git cliff` to walk the tag range. If only `fetch-depth: 1` (shallow),
+     add or update the checkout step to `fetch-depth: 0`.
+   - The commit step downstream still works (it stages `CHANGELOG.md`; this is
+     unchanged because the file is still modified by the git-cliff step).
+   - The PR-description in `release-prep.yml` checklist is updated to reference
+     git-cliff instead of "categorize the seed list."
+
+6. **Run dry-run with a tag argument (simulation):**
+   If a prior tag exists (e.g., `v1.0.0-rc.1`), run:
+   ```bash
+   git cliff --tag v1.0.0-beta.1 --latest --output /dev/stdout
+   ```
+   Confirm output shows a `## [1.0.0-beta.1]` section header and categorized commits.
+
+7. **Verify AC-001..AC-006.** Document dry-run output snippet for PR description.
+
+---
+
+## Acceptance Criteria
+
+### AC-001: cliff.toml exists at repo root with required sections
+`ls cliff.toml` exits 0. File contains `[changelog]`, `[git]`, `[remote.github]`,
+and `commit_parsers` with at least six entries (feat, fix, perf, refactor, security,
+docs-skip). (traces to ADR-063 D3 — cliff.toml categorization convention)
+
+### AC-002: cliff.toml skips docs/ci/test/chore/style/build/revert
+Dry-run output (`git cliff --unreleased --output /dev/stdout`) contains no entries
+under these types. feat/fix/perf entries appear under their respective sections.
+(traces to ADR-063 D3 — skip rules)
+
+### AC-003: release-prep.yml Step 7 replaced with git-cliff invocation
+`grep -n 'git cliff' .github/workflows/release-prep.yml` returns at least one match.
+`grep -n 'git log --merges' .github/workflows/release-prep.yml` returns no match.
+(traces to ADR-063 D5 — release-prep.yml integration point)
+
+### AC-004: git-cliff version 2.14.1 pinned in release-prep.yml
+`grep 'git-cliff --version' .github/workflows/release-prep.yml` shows `--version 2.14.1`.
+(traces to ADR-063 D1 — version pin rationale)
+
+### AC-005: --prepend used without --output in git-cliff invocation
+`grep 'git cliff' .github/workflows/release-prep.yml` shows `--prepend CHANGELOG.md`
+and does NOT show `-o CHANGELOG.md` or `--output CHANGELOG.md`.
+(traces to ADR-063 D5 v1.1 fix — dual-flag caused duplicate sections)
+
+### AC-006: Breaking Changes section precedes Added in cliff.toml output
+Dry-run on a commit history that includes BREAKING CHANGE footers shows the
+`### Breaking Changes` section before the `### Added` section in the generated
+CHANGELOG body. (traces to ADR-063 D3 — "Breaking Changes section is ordered first")
+
+---
+
+## Previous Story Intelligence
+
+N/A — first story in E-REL-NOTES. No predecessor stories exist for the CHANGELOG
+tooling epic.
+
+---
+
+## Architecture Compliance Rules
+
+| Rule | Source | Enforcement |
+|------|--------|-------------|
+| git-cliff 2.14.1 pinned | ADR-063 D1 | grep in release-prep.yml |
+| `--latest --prepend` only (not `--output`) | ADR-063 D5 v1.1 | grep confirms no --output flag |
+| cliff.toml at repo root | ADR-063 D3 | `ls cliff.toml` |
+| Full checkout depth in release-prep.yml | ADR-063 D5 (git cliff needs tag range history) | Verify fetch-depth: 0 in checkout step |
+| Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001) | ADR-063 D5 step order | S-REL-WRITER-001 is a separate story; not in scope here |
+| release.yml `--notes-file` extraction UNCHANGED | ADR-063 D5 | release.yml is not modified by this story |
+
+---
+
+## Library & Framework Requirements
+
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| `git-cliff` | `2.14.1` | `cargo install git-cliff --version 2.14.1 --locked`; Rust-native static binary; no new runtime |
+| `GITHUB_TOKEN` | N/A | Built-in GitHub Actions secret; required for PR link injection via [remote.github] |
+
+---
+
+## File Structure Requirements
+
+| File | Action | Notes |
+|------|--------|-------|
+| `cliff.toml` | Create | At repo root; normative ADR-063 D3 configuration |
+| `.github/workflows/release-prep.yml` | Modify | Replace Step 7 scaffold with git-cliff invocation |
+| `.github/workflows/release.yml` | DO NOT modify | --notes-file mechanism is explicitly unchanged per ADR-063 D5 |
+| `CHANGELOG.md` | Verify only | Dry-run output must not corrupt the existing file |
+
+---
+
+## Architecture Mapping
+
+| Component | Module | Pure/Effectful |
+|-----------|--------|---------------|
+| `cliff.toml` | repo root | Pure (Tera template config; no runtime behavior) |
+| `release-prep.yml` Step 7 | `.github/workflows/` | Effectful (CI workflow; writes CHANGELOG.md) |
+
+---
+
+## Purity Classification
+
+| Module | Classification | Justification |
+|--------|---------------|---------------|
+| `cliff.toml` | pure-core | Static TOML configuration; no runtime I/O |
+| `.github/workflows/release-prep.yml` | effectful-shell | CI workflow that writes files and opens PRs |
+
+---
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-001 | Shallow clone (`fetch-depth: 1`) in release-prep.yml checkout | `git cliff` cannot walk tag range; checkout must use `fetch-depth: 0`. Verify before AC-006 |
+| EC-002 | No prior tag exists (first release) | `--latest` with no prior tag generates from entire history; correct per ADR-063 D6 |
+| EC-003 | Prior tag is `v1.0.0-rc.1`; beta.1 tag range would be `v1.0.0-rc.1..v1.0.0-beta.1` | `--latest` automatically uses the most recent tag as the range start; correct |
+| EC-004 | `GITHUB_TOKEN` not set locally for dry-run | PR links will not be injected in local dry-run; that is acceptable (CI has the token) |
+| EC-005 | Commit messages don't follow Conventional Commits (human hotfix commits) | `filter_unconventional = true` omits them; CHANGELOG quality is bounded by commit discipline per ADR-063 §Consequences |
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D1/D3/D5 materialization |

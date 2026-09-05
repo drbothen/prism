@@ -1,18 +1,62 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.068"
+version: "8.069"
 status: current
 timestamp: 2026-09-05T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2451 (2026-09-05): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — PR #258 MERGED @863bfff03 (release-promote.yml + release-prep.yml + RELEASING.md). PR #259 MERGED @2de6fc374 (docs/RELEASE-CHANNELS.md). PR #260 MERGED @cf92ab535 (release-tag.yml PRE-RELEASE lane). STRATEGY CORRECTION: rc = PRE-RELEASE, develop-only (prior promote-run CANCELLED; main untouched). v1.0.0-rc.1 TAGGED on develop@cf92ab535; release.yml run 33945993946 BUILDING. develop_head 68a64ad0b→cf92ab535. §RESUME SNAPSHOT D-2451 inserted; D-2450 SUPERSEDED. records-lint PASS. STATE v8.978→v8.979. SESSION-HANDOFF v8.067→v8.068.**
+> **D-2452 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — RELEASE-IDENTITY ARCHITECTURE MILESTONE + rc→beta RELABEL. ADR-063 v1.1 (git-cliff 2.14.1 + two-layer model) + ADR-064 v1.3 (GITHUB_REF_NAME injection 6 prism-bin sites + cargo-release 1.1.5) ACCEPTED. 7 E-REL-NOTES/E-REL-IDENTITY stories registered (total_stories 326→333). Channel: first published pre-release = BETA not RC. v1.0.0-rc.1 = immutable never-published ghost (musl race; D-2452). PR #261 OPEN (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001 fix + --notes-file wiring + beta relabel; HEAD 956ad7db). §RESUME SNAPSHOT D-2452 inserted; D-2451 SUPERSEDED. records-lint PASS. STATE v8.979→v8.980. SESSION-HANDOFF v8.068→v8.069.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2451 (2026-09-05 — SESSION WRAP; v1.0.0-rc.1 TAGGED; release.yml BUILDING; SAFE TO CLEAR) [supersedes D-2450]
+## §RESUME SNAPSHOT — D-2452 (2026-09-05 — RELEASE-IDENTITY ARCHITECTURE + rc→beta RELABEL; PR #261 OPEN; beta.1 STORIES NEXT) [supersedes D-2451]
+
+### RESUME IN ONE BREATH
+Phase 3, v1 BETA release engineering; rc→beta relabel (D-2452); ADR-063/064 accepted; 7 E-REL-NOTES/E-REL-IDENTITY stories registered (total_stories 333); PR #261 (musl fix + --notes-file wiring + beta relabel; branch fix/DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001; HEAD 956ad7db) OPEN awaiting CI-green merge; next = merge PR #261 → remove-uncertainty on 6 beta.1-blocking stories → TDD the 6 beta.1-blocking stories → git-cliff --initial-generation beta.1 CHANGELOG → tag v1.0.0-beta.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-beta.1 as a Claroty-xDome-only evaluation release using BETA channel (not RC). Architecture: ADR-063 (git-cliff 2.14.1 + two-layer CHANGELOG model, Layer-1 = technical-writer top-block inside ## [VERSION]) + ADR-064 (GITHUB_REF_NAME → PRISM_VERSION at 6 prism-bin sites; cargo-release 1.1.5 stable entrypoint; amends ADR-062 D2). v1.0.0-rc.1 is an immutable never-published ghost tag (musl rustup race; release.yml failed; publish-release skipped). First actual GitHub Release = v1.0.0-beta.1 after 6 beta.1-blocking stories land.
+
+### HEADS (backup boundary)
+- `develop`: origin = `cf92ab535` (PR #260 merged 2026-09-05). Open: PR #261 (HEAD 956ad7db; fix/DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001).
+- `main`: origin = `bdf24cec8` (STUB, UNCHANGED — first develop→main join DEFERRED to STABLE v1.0.0).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat (cron b98bd9dc, 8,23,38,53 * * * *) if absent/expired per .factory/ops/vsdd-heartbeat-autorecovery.md.
+2. Merge PR #261 (AUTONOMOUS per D-2445 when CI green + pr-reviewer READY + security CLEAN/PR-merge). Squash-merge.
+3. Remove-uncertainty on 6 beta.1-blocking stories: S-REL-CLIFF-001, S-REL-BVERSION-INJECT-001, S-REL-DEV-RESET-001, S-REL-DOCS-AGNOSTIC-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001.
+4. TDD (per-story delivery cycle): S-REL-DEV-RESET-001 (P0; 2pt; prism-bin 1.0.0-dev reset; ADR-064 D1) → S-REL-CLIFF-001 (P0; 5pt; git-cliff 2.14.1 setup; ADR-063 D1-D5) → S-REL-BVERSION-INJECT-001 (P0; 5pt; build.rs GITHUB_REF_NAME injection 6 sites; ADR-064 D2) → S-REL-DOCS-AGNOSTIC-001 (P0; 3pt; version-agnostic docs; ADR-064 D3) → S-REL-WRITER-001 (P0; 3pt; technical-writer Layer-1 dispatch; ADR-063 D4) → S-REL-BETA1-NOTES-001 (P0; 3pt; first-release CHANGELOG generation; ADR-063 D6).
+5. git-cliff --initial-generation: generate CHANGELOG.md §[1.0.0-beta.1] on develop; technical-writer authors Layer-1 top-block.
+6. Tag v1.0.0-beta.1 (AUTONOMOUS per D-2445 on green gates; release.yml publishes GitHub Release with --notes-file body).
+7. POST-beta.1 (deferred): S-REL-VBUMP-001 (cargo-release 1.1.5 stable entrypoint; Wave F-B) → S-CLAROTY-DTU-PARITY-001 → S-REL-004 → S-REL-007 → S-REL-006.
+
+### CONVERGENCE / DELIVERY STATE
+E-REL: S-REL-001 + S-REL-002 + S-REL-003 + S-REL-005 + S-REL-011 MERGED. v1.0.0-rc.1 TAGGED (ghost; never published). E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001 + S-REL-VBUMP-001 REGISTERED (draft v1.0). E-REL-NOTES: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-BETA1-NOTES-001 REGISTERED (draft v1.0). ADR-062 + ADR-063 v1.1 + ADR-064 v1.3 ACCEPTED.
+
+### PENDING USER-APPROVED WORK
+- Force-push to any branch still requires explicit human approval (D-2445 EXCLUSION unchanged).
+- release-promote real run (STABLE v1.0.0) requires release-main GitHub Environment approval (drbothen).
+- Live secops-factory BETA gate on monroe (human-involved per AD-017 + D-2410).
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); confirmed armed this session. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 0 = CronList → re-arm if absent/expired.
+
+### DECISION DELTA
+D-2452 (RELEASE-IDENTITY ARCHITECTURE MILESTONE — channel relabel beta; DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001 found+fixed PR #261 OPEN; ADR-063 v1.1 + ADR-064 v1.3 ACCEPTED; 7 stories registered total_stories 326→333; arch_index v2.358→v2.361; story_index v2.997→v2.998; STATE v8.979→v8.980; SESSION-HANDOFF v8.068→v8.069). D-2451 SUPERSEDED.
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 autonomy grant. (c) D-2410 NO live-test output into repo. (d) Live xDome validation runbook .factory/ops/live-tenant-validation-runbook.md (Path B). (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) Claroty-only v1.0.0-beta.1; Cyberint/Armis/CrowdStrike deferred. (g) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (h) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (i) DEFECT-1 (rustls direct transport) resolved (PR #237). (j) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (k) RELEASE-CHANNEL STRATEGY (D-2449): nightly/dev/alpha/beta/rc/stable ladder; pre-releases develop-only ungated; stable→main approval-gated. (l) BETA channel first published pre-release; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063); cargo-release 1.1.5 stable entrypoint (ADR-064); GITHUB_REF_NAME build.rs injection at 6 prism-bin sites (ADR-064); docs VERSION-AGNOSTIC.
+
+### WORKTREE INVENTORY
+ACTIVE: none (main worktree on develop). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2451 (2026-09-05 — SESSION WRAP; v1.0.0-rc.1 TAGGED; release.yml BUILDING; SAFE TO CLEAR) [supersedes D-2450] [SUPERSEDED by D-2452]
 
 ### RESUME IN ONE BREATH
 rc.1 (v1.0.0-rc.1) tagged on develop@cf92ab535 as an ungated pre-release; release.yml run 33945993946 building → pre-release publishing; main untouched (stable-only, deferred). Next: verify the GitHub Release published with assets, then post-tag bookkeeping.
