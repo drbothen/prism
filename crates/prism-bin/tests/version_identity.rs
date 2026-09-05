@@ -120,58 +120,128 @@ fn test_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
     });
     assert!(
         content.contains("PRISM_BUILD_VERSION"),
-        "build.rs must check PRISM_BUILD_VERSION (chain step 1 per ADR-064 D2)"
+        "build.rs must check PRISM_BUILD_VERSION (chain step 1 per ADR-064 D2 v1.5)"
+    );
+    assert!(
+        content.contains("GITHUB_REF_TYPE"),
+        "build.rs must gate GITHUB_REF_NAME on GITHUB_REF_TYPE == 'tag' \
+         (F-VID-P1-CRIT-001, ADR-064 D2 v1.5 — prevents baking branch names into binary)"
     );
     assert!(
         content.contains("GITHUB_REF_NAME"),
-        "build.rs must check GITHUB_REF_NAME (chain step 2 per ADR-064 D2)"
+        "build.rs must check GITHUB_REF_NAME (chain step 2 per ADR-064 D2 v1.5)"
+    );
+    assert!(
+        content.contains("GITHUB_REF"),
+        "build.rs must include GITHUB_REF as fallback for GITHUB_REF_TYPE \
+         (ADR-064 D2 v1.5 rerun-if-env-changed and is_tag_build fallback)"
     );
     assert!(
         content.contains("CARGO_PKG_VERSION"),
-        "build.rs must fall back to CARGO_PKG_VERSION (chain step 3 per ADR-064 D2)"
+        "build.rs must fall back to CARGO_PKG_VERSION (chain step 3 per ADR-064 D2 v1.5)"
+    );
+    assert!(
+        content.contains("strip_prefix"),
+        "build.rs must use strip_prefix (not trim_start_matches) for single-v semantics \
+         (F-VID-P1-LOW-001, ADR-064 D2 v1.5)"
     );
 
-    // ---- (2) Pure helper mirrors ADR-064 D2 normative fallback logic ----
-    /// Mirror of the ADR-064 D2 normative fallback chain.
-    /// Used to verify chain semantics independently of build infrastructure.
-    fn resolve_prism_version<'a>(
-        build_version: Option<&'a str>,
-        ref_name: Option<&'a str>,
-        cargo_version: &'a str,
-    ) -> &'a str {
-        if let Some(v) = build_version {
-            v
-        } else if let Some(r) = ref_name {
-            r.trim_start_matches('v')
-        } else {
-            cargo_version
+    // ---- (2) Pure helper mirrors ADR-064 D2 v1.5 normative fallback logic ----
+    /// Mirror of the ADR-064 D2 v1.5 normative fallback chain (local to this test).
+    /// Signature matches build.rs: (build_version, is_tag_build, ref_name, cargo_version).
+    fn resolve_prism_version(
+        build_version: Option<&str>,
+        is_tag_build: bool,
+        ref_name: Option<&str>,
+        cargo_version: &str,
+    ) -> String {
+        if let Some(v) = build_version.filter(|s| !s.trim().is_empty()) {
+            return v.to_string();
         }
+        if is_tag_build {
+            if let Some(r) = ref_name.filter(|s| !s.trim().is_empty()) {
+                let name = r.trim();
+                return name.strip_prefix('v').unwrap_or(name).to_string();
+            }
+        }
+        cargo_version.to_string()
     }
 
     // Local-dev path: no env vars → CARGO_PKG_VERSION.
     assert_eq!(
-        resolve_prism_version(None, None, "1.0.0-dev"),
+        resolve_prism_version(None, false, None, "1.0.0-dev"),
         "1.0.0-dev",
         "fallback chain must return CARGO_PKG_VERSION when no overrides set (ADR-064 D2 step 3)"
     );
 
-    // GITHUB_REF_NAME path: must strip leading 'v' (ADR-064 D2 step 2).
+    // GITHUB_REF_NAME path on tag build: must strip leading 'v' (ADR-064 D2 step 2).
     assert_eq!(
-        resolve_prism_version(None, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        resolve_prism_version(None, true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
         "1.0.0-beta.1",
-        "GITHUB_REF_NAME must have leading 'v' stripped (ADR-064 D2 step 2)"
+        "GITHUB_REF_NAME must have leading 'v' stripped on tag build (ADR-064 D2 step 2)"
     );
     assert_eq!(
-        resolve_prism_version(None, Some("1.0.0-beta.1"), "1.0.0-dev"),
+        resolve_prism_version(None, true, Some("1.0.0-beta.1"), "1.0.0-dev"),
         "1.0.0-beta.1",
         "GITHUB_REF_NAME without leading 'v' must pass through unchanged"
     );
 
     // PRISM_BUILD_VERSION wins over GITHUB_REF_NAME (ADR-064 D2 step 1).
     assert_eq!(
-        resolve_prism_version(Some("custom-override"), Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        resolve_prism_version(
+            Some("custom-override"),
+            true,
+            Some("v1.0.0-beta.1"),
+            "1.0.0-dev"
+        ),
         "custom-override",
         "PRISM_BUILD_VERSION must take priority over GITHUB_REF_NAME (ADR-064 D2 step 1)"
+    );
+
+    // ---- (3) CI-leak prevention cases (F-VID-P1-CRIT-001) ----
+    // (a) Non-tag ref (GITHUB_REF_TYPE="branch") must resolve to CARGO_PKG_VERSION.
+    assert_eq!(
+        resolve_prism_version(None, false, Some("develop"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "non-tag ref 'develop' must NOT bake branch name into binary (F-VID-P1-CRIT-001)"
+    );
+    assert_eq!(
+        resolve_prism_version(None, false, Some("feature/S-3.01"), "1.0.0-dev"),
+        "1.0.0-dev",
+        "non-tag ref 'feature/S-3.01' must NOT bake branch name into binary (F-VID-P1-CRIT-001)"
+    );
+
+    // (b) Tag ref (GITHUB_REF_TYPE="tag") resolves to stripped version.
+    assert_eq!(
+        resolve_prism_version(None, true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "tag ref 'v1.0.0-beta.1' must resolve to '1.0.0-beta.1' (ADR-064 D2 step 2)"
+    );
+
+    // (c) PRISM_BUILD_VERSION wins even on non-tag build.
+    assert_eq!(
+        resolve_prism_version(Some("1.0.0-custom"), false, Some("develop"), "1.0.0-dev"),
+        "1.0.0-custom",
+        "PRISM_BUILD_VERSION must win over everything (chain step 1)"
+    );
+
+    // (d) Set-but-empty PRISM_BUILD_VERSION falls through (F-VID-P1-MED-001).
+    assert_eq!(
+        resolve_prism_version(Some(""), true, Some("v1.0.0-beta.1"), "1.0.0-dev"),
+        "1.0.0-beta.1",
+        "empty PRISM_BUILD_VERSION must be treated as absent (F-VID-P1-MED-001)"
+    );
+    assert_eq!(
+        resolve_prism_version(Some("   "), false, None, "1.0.0-dev"),
+        "1.0.0-dev",
+        "whitespace-only PRISM_BUILD_VERSION must be treated as absent (F-VID-P1-MED-001)"
+    );
+
+    // (e) Single-v strip: "vv1.0.0" → "v1.0.0" (strip_prefix not trim_start_matches).
+    assert_eq!(
+        resolve_prism_version(None, true, Some("vv1.0.0"), "1.0.0-dev"),
+        "v1.0.0",
+        "strip_prefix removes exactly one v; 'vv1.0.0' → 'v1.0.0' not '1.0.0' (F-VID-P1-LOW-001)"
     );
 
     // ---- (3) CARGO_PKG_VERSION gate (S-REL-DEV-RESET-001 pre-condition) ----
