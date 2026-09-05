@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-IDENTITY
 priority: P0
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -395,10 +395,12 @@ No new dependencies. This story modifies documentation and shell scripts only.
 
 | Module | Classification | Justification |
 |--------|---------------|---------------|
+| `README.md` | pure-core | Static markdown documentation |
 | `docs/SETUP.md` | pure-core | Static markdown documentation |
 | `scripts/install.sh` | effectful-shell | Downloads and installs binary at runtime |
 | `scripts/install.ps1` | effectful-shell | Downloads and installs binary at runtime |
 | `RELEASING.md` | pure-core | Static process documentation |
+| `scripts/check-version-agnostic-docs.sh` | pure-core | Read-only grep lint; no network, no state mutation |
 
 ---
 
@@ -411,6 +413,9 @@ No new dependencies. This story modifies documentation and shell scripts only.
 | EC-003 | RELEASING.md §1 already contains a pre-release paragraph that conflicts | Read §1 first; merge the ADR-064 D2 clause into the existing paragraph rather than duplicating |
 | EC-004 | AC-006 grep still shows v1.0.0-rc.1 after all edits | Investigate grep output, find missed occurrence, fix and re-verify |
 | EC-005 | install.sh has both a USAGE comment version string AND an inline default | Both must be updated; grep must return 0 before task complete |
+| EC-006 | README.md has a shields.io badge URL that includes the version string as a query param or path segment | Replace with a dynamic badge (e.g., `https://img.shields.io/github/v/release/<owner>/prism?include_prereleases`) or remove the version-specific badge entirely; never hardcode the version string |
+| EC-007 | README.md asset-filename table uses version-suffixed triple names (e.g., `prism-1.0.0-rc.1-aarch64-apple-darwin.tar.gz`) | Replace the entire download section with a prose link to the GitHub Releases page; do not embed triple filenames with hardcoded versions |
+| EC-008 | check-version-agnostic-docs.sh false-positives on CHANGELOG.md or NEWS.md that legitimately contain old version strings | Scope the sweep to exactly the five declared files (README.md, docs/SETUP.md, scripts/install.sh, scripts/install.ps1, RELEASING.md); do NOT glob the whole repo |
 
 ---
 
@@ -418,4 +423,5 @@ No new dependencies. This story modifies documentation and shell scripts only.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-05 | story-writer | pass-6 OBS-1: README.md added to declared scope (badge URL, install commands, asset-filename table → Releases page / newest pre-release); README added to Tasks, inputs, File Structure Requirements, Architecture Mapping, Purity Classification, AC-002/AC-003/AC-006/AC-007; pass-6 OBS-2: AC-003 positive gate hardened to anchor on /releases URL path; permanent sweep script scripts/check-version-agnostic-docs.sh added (AC-008, Tasks 11-13, File Structure, EC-008); EC-006/EC-007 added for README badge patterns; OBS-3 accepted as spec-conformant per ADR-064 v1.7 noted in Narrative |
 | 1.0 | 2026-09-05 | story-writer | Initial — version-agnostic install docs + RELEASING.md pre-release exception |
