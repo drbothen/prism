@@ -97,13 +97,15 @@ S-REL-DOCS-AGNOSTIC-001 AC-002."
 fi
 
 # ---------------------------------------------------------------------------
-# AC-003: docs/SETUP.md references the GitHub Releases page for downloads
+# AC-003: docs/SETUP.md references the GitHub Releases page path (/releases)
+# Anchored to "/releases" (not bare word "releases") to prevent false-green if
+# the download-directions section were removed. (OBS-2, S-REL-VERSION-IDENTITY pass-6)
 # ---------------------------------------------------------------------------
-RELEASES_PAGE=$(grep -ci 'releases' docs/SETUP.md 2>/dev/null || true)
+RELEASES_PAGE=$(grep -ci '/releases' docs/SETUP.md 2>/dev/null || true)
 if [ "$RELEASES_PAGE" -gt 0 ]; then
-    pass "AC-003: docs/SETUP.md references GitHub Releases page (${RELEASES_PAGE} match(es))"
+    pass "AC-003: docs/SETUP.md references GitHub Releases page (${RELEASES_PAGE} /releases match(es))"
 else
-    fail "AC-003: docs/SETUP.md does not reference the GitHub Releases page. Add a \
+    fail "AC-003: docs/SETUP.md does not reference the GitHub Releases page path (/releases). Add a \
 download section directing operators to the Releases page per S-REL-DOCS-AGNOSTIC-001 AC-003."
 fi
 
