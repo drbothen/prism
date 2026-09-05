@@ -132,7 +132,7 @@ the Sigstore build provenance, which the manual path requires separately (see §
 
 ```bash
 prism --version
-# Expected output format: prism <version>  (e.g. prism 1.0.0-rc.2)
+# Expected output: prism 1.0.0  (your installed version may differ)
 ```
 
 ### Verify checksum (manual download only)

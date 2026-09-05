@@ -31,7 +31,7 @@ This makes `prism --version` report the correct product version.
 
 The `release-promote` workflow mechanically enforces this invariant: if the
 dispatched `tag` input (e.g. `v1.0.0-beta.2`) does not exactly match the `prism-bin`
-Cargo.toml `version` field (e.g. `1.0.0-beta.2`) on the develop tree, the promotion
+Cargo.toml `version` field (the tag name minus the leading `v`) on the develop tree, the promotion
 fails with a clear error before anything is written to `main`.
 
 All other workspace crates (prism-core, prism-query, prism-spec-engine, prism-sensors,
@@ -208,7 +208,7 @@ Follow this procedure exactly. Do not improvise. The two release workflows
 safe to automate; human decisions (CHANGELOG curation, final approval) remain
 explicit gates.
 
-Replace `X.Y.Z` throughout with the actual version (e.g. `1.0.0-rc.2`).
+Replace `X.Y.Z` throughout with the actual version number (for stable) or `X.Y.Z-CHANNEL.N` (for pre-releases such as rc, beta, alpha).
 
 ### Prerequisites
 

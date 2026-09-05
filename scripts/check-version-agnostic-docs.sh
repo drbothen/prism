@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-version-agnostic-docs.sh
 #
-# Red Gate check for S-REL-DOCS-AGNOSTIC-001 (AC-001..AC-006).
+# Red Gate check for S-REL-DOCS-AGNOSTIC-001 (AC-001..AC-006) + F-VID-P1-MED-002.
 #
 # Verifies that:
 #   AC-001: docs/SETUP.md contains no hardcoded v1.0.0-rc. strings
@@ -10,6 +10,8 @@
 #   AC-004: scripts/install.sh and scripts/install.ps1 contain no hardcoded v1.0.0-rc. strings
 #   AC-005: RELEASING.md §1 documents the pre-release exception (ADR-064 D2)
 #   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/ scripts/ RELEASING.md
+#   AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-channel.N) in
+#            docs/ scripts/ RELEASING.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
 #
 # Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001.
 #
@@ -157,6 +159,28 @@ Fix all occurrences before declaring S-REL-DOCS-AGNOSTIC-001 complete."
 fi
 
 # ---------------------------------------------------------------------------
+# AC-006b: Full sweep — no non-v-prefixed pre-release semver (F-VID-P1-MED-002)
+# Catches strings like "1.0.0-rc.2" or "1.0.0-beta.1" (no leading v) that the
+# AC-006 v1.0.0-rc. pattern misses. Pattern: X.Y.Z-channel.N where channel is
+# rc, beta, or alpha. The develop default (1.0.0-dev) does not match (no .N suffix).
+# This script is excluded because it legitimately names the pattern.
+# ---------------------------------------------------------------------------
+NONV_PRERELEASE=$(grep -rE '[^v][0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+    docs/ scripts/ RELEASING.md \
+    --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || NONV_PRERELEASE=0
+if [ "$NONV_PRERELEASE" -eq 0 ]; then
+    pass "AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-(rc|beta|alpha|nightly).N) found"
+else
+    fail "AC-006b: Full sweep found ${NONV_PRERELEASE} non-v-prefixed pre-release semver string(s) \
+(e.g. '1.0.0-rc.2'). Replace with version-agnostic text per S-REL-DOCS-AGNOSTIC-001 \
+(F-VID-P1-MED-002: use 'prism 1.0.0' or 'prism <version>' format examples)."
+    echo "       Occurrences:"
+    grep -rnE '[^v][0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+        docs/ scripts/ RELEASING.md \
+        --exclude="$SELF" | sed 's/^/         /' || true
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
@@ -171,5 +195,5 @@ if [ "$FAIL" -gt 0 ]; then
 fi
 
 echo ""
-echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-006 satisfied."
+echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-006b satisfied."
 exit 0
