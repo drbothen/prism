@@ -14,9 +14,9 @@
 #            (story v1.1: grep '/releases' docs/SETUP.md ≥1 AND grep '/releases' README.md ≥1)
 #   AC-004: scripts/install.sh and scripts/install.ps1 contain no hardcoded v1.0.0-rc. strings
 #   AC-005: RELEASING.md §1 documents the pre-release exception (ADR-064 D2)
-#   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/SETUP.md scripts/ RELEASING.md README.md
+#   AC-006: Full sweep — no hardcoded v1.0.0-rc. anywhere in docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example
 #   AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-channel.N) in
-#            docs/SETUP.md scripts/ RELEASING.md README.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
+#            docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
 #   AC-007: README.md contains no hardcoded v1.0.0-rc. strings
 #   AC-008: CI-wiring confirmed by S-REL-DOCS-CI-WIRE-001 (post-beta.1); passing run confirms docs are version-agnostic.
 #
@@ -281,7 +281,7 @@ echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
 if [ "$FAIL" -gt 0 ]; then
     echo ""
     echo "RED: ${FAIL} check(s) failed. Run again after editing"
-    echo "README.md, docs/SETUP.md, scripts/install.sh, scripts/install.ps1, and RELEASING.md."
+    echo "README.md, docs/SETUP.md, scripts/install.sh, scripts/install.ps1, RELEASING.md, and prism.toml.example."
     exit 1
 fi
 

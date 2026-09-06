@@ -1,8 +1,9 @@
 //! Build script for `prism-bin`.
 //!
 //! Resolves `PRISM_VERSION` via the ADR-064 §D2 normative fallback chain:
-//!   1. `PRISM_BUILD_VERSION` env var — used only when set AND non-empty (explicit
-//!      override for tooling/testing)
+//!   1. `PRISM_BUILD_VERSION` env var — used only when set, the first line is
+//!      non-empty, AND the first line is semver-shaped (SEC-001 takes only the first
+//!      line; SEC-002/CWE-20 gate rejects branch names and other non-version strings)
 //!   2. `GITHUB_REF_NAME` env var — used only when (a) non-empty AND (b) `is_tag_build`
 //!      (`GITHUB_REF_TYPE == "tag"`, or fallback: `GITHUB_REF` starts with
 //!      `"refs/tags/"`). A single leading `v` is stripped via `strip_prefix`.
@@ -15,8 +16,9 @@
 //! failing `test_cli_version_output_contains_semver` on all 5 ci.yml legs.
 //! (F-VID-P1-CRIT-001, ADR-064 §D2)
 //!
-//! The resolved value is emitted as `PRISM_VERSION` and available at compile
-//! time via `env!("PRISM_VERSION")` in all `prism-bin` source files.
+//! Both `PRISM_VERSION` and `PRISM_VERSION_IS_TAG_BUILD` are emitted and
+//! available at compile time via `env!("PRISM_VERSION")` /
+//! `env!("PRISM_VERSION_IS_TAG_BUILD")` in all `prism-bin` source files.
 //!
 //! The resolver logic lives in `src/version_resolver.rs` (shared with the
 //! `prism_bin` lib target so that `tests/version_identity.rs` exercises the

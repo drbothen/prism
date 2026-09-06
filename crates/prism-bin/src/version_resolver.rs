@@ -107,7 +107,8 @@ fn is_semver_shaped(s: &str) -> bool {
 ///
 /// Fallback chain:
 /// 1. `build_version` wins if present, its first line is non-empty after trim, AND the
-///    trimmed first line is semver-shaped (X.Y.Z or X.Y.Z-<pre>).  If the value is
+///    trimmed first line is semver-shaped (X.Y.Z, X.Y.Z-<pre>, X.Y.Z+<build>, or
+///    X.Y.Z-<pre>+<build>).  If the value is
 ///    multi-line (CWE-93 injection attempt) only the first line is considered.  If the
 ///    first line is empty or not semver-shaped, fall through to step 2
 ///    (SEC-001/SEC-002, S-REL-VERSION-IDENTITY review-cycle-5).
