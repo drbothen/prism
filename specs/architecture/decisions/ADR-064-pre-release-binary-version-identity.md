@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.8"
+version: "1.9"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -34,12 +34,24 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md
   - .factory/specs/architecture/decisions/ADR-062-product-version-alignment.md
   - .factory/research/version-management-2026.md
-input-hash: "b58fa55"
+input-hash: "e5e35fd"
 ---
 
 # ADR-064: Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release
 
 ## Status
+
+ACCEPTED v1.9 (2026-09-05) — MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION
+arm hardened against CWE-93 (embedded-newline injection of a second cargo directive) and CWE-20
+(unvalidated version string). `resolve_prism_version` step 1 now takes FIRST LINE ONLY before
+accepting the override; new `is_semver_shaped` structural validator gates the value (ACCEPT
+`MAJOR.MINOR.PATCH[-pre][+build]`; REJECT empty prerelease/build/identifier, 4th dotted core
+component, non-numeric core; lightweight structural check, NOT the `semver` crate — dep-free).
+D4 §Surface B swept in-burst: `crates/prism-spec-engine/build.rs` injection sites table and
+narrative updated to explicitly state CWE-93/CWE-20 hardening is included per D2 normative
+contract. TD-VSDD-097 Dim-1 CLEAR (sole ADR carrying build.rs contract). Dim-2 CLEAR (§D4
+§Surface B swept in-burst). Dim-3: hardening MUSTs anchor to S-REL-AGENT-VERSION-001 (Surface B)
+and S-REL-BVERSION-INJECT-001 (prism-bin, already merged).
 
 ACCEPTED v1.8 (2026-09-05) — D4 adds agent-facing version surface expansion: prism-mcp
 serverInfo.version (MCP handshake; most agent-visible) migrated via runtime wiring through
@@ -177,8 +189,14 @@ green across all platforms.
 
 **Fallback chain (normative):**
 
-1. `PRISM_BUILD_VERSION` env var — used only when set AND non-empty (explicit override for
-   tooling/testing; e.g., building a local release candidate without a tag)
+1. `PRISM_BUILD_VERSION` env var — used only when set, non-empty (whitespace-trim filter applied),
+   AND passes two security checks in `resolve_prism_version` step 1: (a) **first-line extraction**
+   — take FIRST LINE ONLY via `s.lines().next().unwrap_or("").trim()` (blocks CWE-93
+   embedded-newline injection of a second `cargo:rustc-env=`/`cargo:rustc-cfg=` directive);
+   (b) **semver-shape validation** via `is_semver_shaped` (blocks CWE-20 unvalidated version;
+   see `is_semver_shaped` contract below). If the shape check fails, FALL THROUGH to step 2
+   (tag-gated `GITHUB_REF_NAME`) — `PRISM_BUILD_VERSION` is not used. For tooling/testing use
+   cases such as building a local release candidate without a tag, supply a valid semver value.
 2. `GITHUB_REF_NAME` env var, stripped of a SINGLE leading `v` via `strip_prefix` — used only
    when (a) non-empty AND (b) `GITHUB_REF_TYPE == "tag"` (GitHub sets this to `"branch"` or
    `"tag"`; fallback: `GITHUB_REF` starts with `refs/tags/`). On a non-tag run, this arm is
@@ -192,9 +210,58 @@ green across all platforms.
 for a stripped empty result) to handle the degenerate tag `"v"` → stripped `""` case (pass-5
 OBS-1). `PRISM_VERSION` is never set to an empty string.
 
+**`is_semver_shaped` contract (normative — lightweight structural check, NOT `semver` crate):**
+
+`build.rs` is dependency-free; `is_semver_shaped` is a ~20-line pure structural validator.
+Full `semver::Version::parse` validation lives in the test layer.
+
+- **ACCEPT:** `MAJOR.MINOR.PATCH` where each component is a non-empty run of ASCII digits; with
+  an OPTIONAL `-<prerelease>` suffix (one or more dot-separated identifiers, each non-empty,
+  characters `[0-9A-Za-z-]`); and an OPTIONAL `+<build>` suffix (one or more dot-separated
+  identifiers, each non-empty, characters `[0-9A-Za-z-]`).
+- **REJECT:** empty prerelease (`1.0.0-`), empty build (`1.0.0+`), empty identifier within
+  prerelease/build (`1.0.0-a..b`), a 4th dotted numeric core component (`1.0.0.0`),
+  non-numeric core components.
+- **Must-pass:** `1.0.0`, `1.0.0-dev`, `1.0.0-beta.1`, `1.0.0-rc.2`, `1.0.0+build.5`,
+  `1.0.0-beta.1+exp.sha.5114f85`.
+- **Must-reject:** `1.0.0-`, `1.0.0+`, `develop`, `1.0`, `1.0.0.0`, `a.b.c`.
+
 **`build.rs` (normative contract):**
 
 ```rust
+/// Lightweight STRUCTURAL semver-shape validator — NOT `semver::Version::parse`.
+/// build.rs is dependency-free; full parse validation lives in the test layer.
+///
+/// Accepts:  MAJOR.MINOR.PATCH[-prerelease][+build]
+///   - MAJOR/MINOR/PATCH: non-empty ASCII digit runs
+///   - prerelease/build identifiers: non-empty, chars [0-9A-Za-z-], dot-separated
+/// Rejects:  empty pre/build (`1.0.0-`, `1.0.0+`), empty identifier (`1.0.0-a..b`),
+///           4th core component (`1.0.0.0`), non-numeric core, empty string.
+fn is_semver_shaped(s: &str) -> bool {
+    // Strip optional build metadata suffix first.
+    let (rest, build_opt) = match s.split_once('+') {
+        Some((a, b)) => (a, Some(b)),
+        None => (s, None),
+    };
+    if let Some(build) = build_opt {
+        if build.is_empty() || build.split('.').any(|id| id.is_empty()) { return false; }
+        if !build.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') { return false; }
+    }
+    // Strip optional prerelease suffix.
+    let (core, pre_opt) = match rest.split_once('-') {
+        Some((a, b)) => (a, Some(b)),
+        None => (rest, None),
+    };
+    if let Some(pre) = pre_opt {
+        if pre.is_empty() || pre.split('.').any(|id| id.is_empty()) { return false; }
+        if !pre.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') { return false; }
+    }
+    // Validate MAJOR.MINOR.PATCH — exactly 3 non-empty digit-only components.
+    let parts: Vec<&str> = core.split('.').collect();
+    if parts.len() != 3 { return false; }
+    parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+}
+
 fn main() {
     println!("cargo:rerun-if-env-changed=PRISM_BUILD_VERSION");
     println!("cargo:rerun-if-env-changed=GITHUB_REF_NAME");
@@ -224,6 +291,12 @@ fn main() {
     let version = std::env::var("PRISM_BUILD_VERSION")
         .ok()
         .filter(|s| !s.trim().is_empty())
+        // CWE-93: take FIRST LINE ONLY — blocks embedded-newline injection of a second
+        // `cargo:rustc-env=` / `cargo:rustc-cfg=` directive (`resolve_prism_version` step 1).
+        .map(|s| s.lines().next().unwrap_or("").trim().to_string())
+        .filter(|s| !s.is_empty())
+        // CWE-20: `is_semver_shaped` structural validation — invalid value falls through to step 2.
+        .filter(|s| is_semver_shaped(s))
         .or_else(|| {
             if is_tag_build {
                 // Strip a SINGLE leading 'v' (strip_prefix, not trim_start_matches which strips
@@ -439,16 +512,20 @@ infusion call chain: 3 callers in `infusion/mod.rs` → `build_http_client_with_
 and rejected because it would require 3+ `pub(crate)` function signature changes across
 `infusion/mod.rs` with no architectural gain over compile-time injection for a closed crate.
 
-The build.rs algorithm is identical to D2 (the D2 normative contract in this ADR is the
-single authoritative spec). `crates/prism-bin/src/version_resolver.rs` remains in place for
-prism-bin; `crates/prism-spec-engine/build.rs` implements the same algorithm inline (20 lines,
-stable algorithm; parallel implementations are acceptable when the spec is authoritative).
+The build.rs algorithm implements the D2 normative contract (the single authoritative spec),
+including the PRISM_BUILD_VERSION security hardening added in v1.9: first-line extraction in
+`resolve_prism_version` step 1 (CWE-93 block) and `is_semver_shaped` validation with fall-through
+on shape failure (CWE-20 block). `crates/prism-bin/src/version_resolver.rs` remains in place for
+prism-bin; `crates/prism-spec-engine/build.rs` implements the same algorithm inline and MUST
+include the CWE-93/CWE-20 hardening per the D2 normative contract — anchored to
+S-REL-AGENT-VERSION-001 (Surface B). Parallel implementations are acceptable when the spec is
+authoritative; any divergence from the D2 normative contract is a spec-drift defect.
 
 **Injection sites (Surface B):**
 
 | File | Symbol (function/construct) | Before | After |
 |------|------------------------|--------|-------|
-| `crates/prism-spec-engine/build.rs` | (new file) | — | D2-conformant build script: `PRISM_BUILD_VERSION` → `GITHUB_REF_NAME` (GITHUB_REF_TYPE=="tag", strip_prefix 'v', `and_then` empty guard) → `CARGO_PKG_VERSION`; emits `cargo:rustc-env=PRISM_VERSION={version}`; four `cargo:rerun-if-env-changed` directives |
+| `crates/prism-spec-engine/build.rs` | (new file) | — | D2-conformant build script (D2 normative contract is the single authoritative spec, including CWE-93 first-line extraction and CWE-20 `is_semver_shaped` validation in `PRISM_BUILD_VERSION` arm): `PRISM_BUILD_VERSION` (first-line-only, `is_semver_shaped` gated; shape fail → fall-through) → `GITHUB_REF_NAME` (GITHUB_REF_TYPE=="tag", strip_prefix 'v', `and_then` empty guard) → `CARGO_PKG_VERSION`; emits `cargo:rustc-env=PRISM_VERSION={version}`; four `cargo:rerun-if-env-changed` directives |
 | `crates/prism-spec-engine/src/pipeline.rs` | `build_http_client_with_timeout` | `env!("CARGO_PKG_VERSION")` | `env!("PRISM_VERSION")` |
 
 **Downstream story impact (TD-VSDD-097 Dim-2):** S-REL-BVERSION-INJECT-001 AC-004
@@ -576,24 +653,25 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.8
+### Status as of v1.9
 
 ACCEPTED. All four decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
 - D2 (S-REL-BVERSION-INJECT-001): BLOCKING before beta.1 — build.rs injection of `PRISM_VERSION`
-  at all 6 prism-bin version-report sites (including cli.rs `#[command(version)]`, boot.rs audit
-  record, and spec_driven_adapter.rs user-agent); vergen noted as alternative and rejected;
-  build.rs gates `GITHUB_REF_NAME` on `GITHUB_REF_TYPE == "tag"` (F-VID-P1-CRIT-001);
-  `strip_prefix('v')` for single-v semantics (F-VID-P1-LOW-001); empty-string filtering on all
-  env-var arms including post-strip guard for degenerate `"v"` tag (F-VID-P1-MED-001 + pass-5
-  OBS-1)
+  at all 6 prism-bin version-report sites; `PRISM_BUILD_VERSION` override arm hardened in v1.9:
+  first-line extraction in `resolve_prism_version` step 1 (CWE-93) + `is_semver_shaped` validation
+  with fall-through on shape failure (CWE-20); `GITHUB_REF_NAME` gated on `GITHUB_REF_TYPE == "tag"`
+  (F-VID-P1-CRIT-001); `strip_prefix('v')` for single-v semantics (F-VID-P1-LOW-001); empty-string
+  filtering on all env-var arms including post-strip guard for degenerate `"v"` tag (F-VID-P1-MED-001
+  + pass-5 OBS-1)
 - D3 (S-REL-VBUMP-001 + S-REL-DOCS-AGNOSTIC-001): High priority before stable v1.0.0 — cargo-release
   1.1.5 single-command bump; RELEASING.md §1 pre-release exception to be documented in
   S-REL-DOCS-AGNOSTIC-001
 - D4 (S-REL-AGENT-VERSION-001): HIGH before stable v1.0.0 — prism-mcp serverInfo.version via
   runtime wiring (`PrismServer.product_version` + `with_deps` + `env!("PRISM_VERSION")` at boot
-  step 9); prism-spec-engine user-agent via per-crate build.rs emitting `PRISM_VERSION`; ADR-050
-  §D6 updated in tandem to normative `PRISM_VERSION` call. Story to be authored by product-owner.
+  step 9); prism-spec-engine user-agent via per-crate build.rs emitting `PRISM_VERSION` per D2
+  normative contract (including CWE-93/CWE-20 hardening, v1.9); ADR-050 §D6 updated in tandem
+  to normative `PRISM_VERSION` call. Story to be authored by product-owner.
 
 ---
 
@@ -673,6 +751,7 @@ ACCEPTED. All four decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.9 | 2026-09-05 | architect | MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION arm hardened against CWE-93 (embedded-newline injection of second cargo directive) + CWE-20 (unvalidated version string). `resolve_prism_version` step 1 takes FIRST LINE ONLY via `s.lines().next().unwrap_or("").trim()` before accepting override. New `is_semver_shaped` structural validator: ACCEPT `MAJOR.MINOR.PATCH[-pre][+build]` (non-empty dot-separated identifiers, chars `[0-9A-Za-z-]`); REJECT empty prerelease/build/identifier, 4th dotted core component, non-numeric core; lightweight structural check, NOT `semver` crate (build.rs remains dep-free); must-pass: `1.0.0`, `1.0.0-dev`, `1.0.0-beta.1`, `1.0.0-rc.2`, `1.0.0+build.5`, `1.0.0-beta.1+exp.sha.5114f85`; must-reject: `1.0.0-`, `1.0.0+`, `develop`, `1.0`, `1.0.0.0`, `a.b.c`. D2 fallback chain step 1 updated: shape check fail → FALL THROUGH to `GITHUB_REF_NAME` arm. D4 §Surface B swept in-burst: injection sites table row for `crates/prism-spec-engine/build.rs` updated to explicitly include CWE-93/CWE-20 hardening; narrative updated to state both implementations inherit the hardening per D2 normative contract. TD-VSDD-097 Dim-1 CLEAR (sole ADR carrying build.rs contract). Dim-2 CLEAR (§D4 §Surface B swept in-burst). Dim-3: hardening MUSTs anchor to S-REL-AGENT-VERSION-001 (Surface B) and S-REL-BVERSION-INJECT-001 (prism-bin, already merged). |
 | 1.8 | 2026-09-05 | architect | D4 added (S-1 human-directed): agent-facing version surface expansion. prism-mcp serverInfo.version: runtime wiring via `PrismServer.product_version` field + `with_deps` parameter + boot.rs step-9 `env!("PRISM_VERSION")`; `get_info` uses `self.product_version` in `Implementation::new`. prism-spec-engine user-agent: per-crate `build.rs` emitting `PRISM_VERSION` (D2-conformant fallback chain); `build_http_client_with_timeout` changes `CARGO_PKG_VERSION` to `PRISM_VERSION`. D2 §Context out-of-scope paragraph superseded by forward reference to D4. New story S-REL-AGENT-VERSION-001 proposed for D4 implementation. ADR-050 §D6 cross-ref: after D4 ships, all outbound HTTP clients emit coherent `prism/{PRODUCT_VERSION}`. `related_adrs` extended with ADR-050. `anchor_stories` extended with S-REL-AGENT-VERSION-001. `inputs` extended with prism-mcp/src/server.rs, prism-spec-engine/src/pipeline.rs, ADR-050. S-REL-BVERSION-INJECT-001 AC-004 downstream impact flagged. TD-VSDD-097 Dim-1 CLEAR (no sibling ADR restates 6-site D2 scope). Dim-2 flagged: S-REL-BVERSION-INJECT-001 AC-004 is a downstream copy of D2 out-of-scope scope boundary — story-writer must amend AC-004 when S-REL-AGENT-VERSION-001 is authored. Dim-3: new D4 MUSTs anchored to S-REL-AGENT-VERSION-001. |
 | 1.7 | 2026-09-05 | architect | pass-5 OBS-1 sync: D2 build.rs sketch updated — `map` → `and_then` with post-strip empty guard; degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION. Sketch now satisfies "PRISM_VERSION is never empty" invariant for all tag inputs. Empty-string rule paragraph updated to document the post-strip guard. Status as of v1.7 updated with OBS-1 note. Frontmatter/sketch only — no decision-content change. |
 | 1.6 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-IDENTITY stories verified on disk and citing ADR-064 in §Authority — S-REL-DEV-RESET-001 (D1), S-REL-BVERSION-INJECT-001 (D2), S-REL-DOCS-AGNOSTIC-001 (D1/D2), S-REL-VBUMP-001 (D3). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
