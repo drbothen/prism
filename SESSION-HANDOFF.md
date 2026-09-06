@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.085"
+version: "8.086"
 status: current
 timestamp: 2026-09-06T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2469 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-AGENT-VERSION-001 holdout-scenario redesign. LOCAL adversary 3-pass CONSENSUS F-SRAV-HIGH-001 (HS-032 v1.0 asserted both surfaces cohere to "1.0.0-dev" local-dev — non-discriminating: Surface B=0.9.0 locally per ratified per-crate build.rs; BLOCKING holdout gate would FALSE-FAIL correct implementation) + F-SRAV-MED-001 (story risk_mitigations bullet-5 did not scope equality to Surface A). FIX: HS-032 all three v1.0→v1.1 override-build model (PRISM_BUILD_VERSION=1.0.0-beta.1; FAIL case = "prism/0.9.0" Surface B un-migrated — discriminating). Story risk_mitigations bullet-5 scoped to Surface A. story v1.3→v1.4. HOLDOUT-INDEX v1.39→v1.40. STORY-INDEX v3.008→v3.009. Input-hashes: story 66bda37 (current); HS-032-001 4070bbb; HS-032-002 dad7dce; HS-032-003 dad7dce. CODE re-verified CONVERGED/clean by all 3 passes — defect was holdout-artifact-only. Code HEAD 3edc61bb (not pushed). LOCAL 3-CLEAN streak RESET 0/3; re-gate on 3edc61bb → HS-032 holdout gate → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/arch_index/total_stories UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.996→v8.997. SESSION-HANDOFF v8.085→v8.086. §RESUME SNAPSHOT D-2469 inserted; D-2468 SUPERSEDED.**
 
 > **D-2468 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-AGENT-VERSION-001 LOCAL-cascade artifact fixes. F-AV-HIGH-001 (POL-39) volatile-pin removal throughout story v1.2 + 3 holdout scenario files + HOLDOUT-INDEX HS-032 group desc. F-MED-001 (holdout-gate blocker): git mv holdout files -HS-00N-→-HS-032-00N-; IDs reconciled. F-SRAV-LOW-001: RG-004 ratified option_env! snippet. OBS architect: ADR-064 v1.9→v2.0 anchor_stories annotation; ARCH-INDEX v2.367→v2.368. F-LOW-001: code-branch local commit c74e7274b (build.rs 'byte-for-byte' → 'structurally mirrors'); NOT pushed. STORY-INDEX v3.007→v3.008; HOLDOUT-INDEX v1.38→v1.39. LOCAL 3-CLEAN streak RESET 0/3; re-gate on code HEAD c74e7274b. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/total_stories UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.995→v8.996. SESSION-HANDOFF v8.084→v8.085. §RESUME SNAPSHOT D-2468 inserted; D-2467 SUPERSEDED.**
 
@@ -18,20 +20,20 @@ timestamp: 2026-09-06T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2468 (2026-09-06 — S-REL-AGENT-VERSION-001 v1.3 LOCAL-cascade artifact fixes committed; LOCAL cascade re-gate on code HEAD c74e7274b) [supersedes D-2467]
+## §RESUME SNAPSHOT — D-2469 (2026-09-06 — S-REL-AGENT-VERSION-001 v1.4 holdout-scenario redesign committed; HS-032 override-build model; re-gate on code HEAD 3edc61bb) [supersedes D-2468]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 story-of-record at v1.3 (LOCAL-cascade artifact fixes committed D-2468: F-AV-HIGH-001 POL-39 volatile-pin removal, F-MED-001 holdout rename -HS-00N-→-HS-032-00N-, F-SRAV-LOW-001 RG-004 ratified option_env! snippet; input-hash 66bda37). ADR-064 v2.0 (SAC-2 anchor_stories annotation). Code branch feature/S-REL-AGENT-VERSION-001 at local commit c74e7274b (F-LOW-001: prism-spec-engine build.rs "byte-for-byte" → "structurally mirrors"; not yet pushed). LOCAL 3-CLEAN streak RESET 0/3; re-gate on frozen code HEAD c74e7274b → HS-032 holdout gate → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd.
+Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 story-of-record at v1.4 (holdout-scenario redesign committed D-2469: HS-032 all three v1.0→v1.1 override-build model PRISM_BUILD_VERSION=1.0.0-beta.1; story risk_mitigations bullet-5 scoped to Surface A; input-hash 66bda37 current). ADR-064 v2.0 (SAC-2 anchor_stories annotation). Code branch feature/S-REL-AGENT-VERSION-001 at local commit 3edc61bb (c74e7274b F-LOW-001 + 3edc61bb version-free ADR cites in test doc-comments; not yet pushed). LOCAL 3-CLEAN streak RESET 0/3; re-gate on frozen code HEAD 3edc61bb → HS-032 holdout gate (override-build, discriminating) → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd.
 
 ### GOVERNING OBJECTIVE
-v1.0.0-beta.1 release: deliver all 4 beta.1-blocking stories (S-REL-DEV-RESET-001 MERGED; S-REL-BVERSION-INJECT-001 MERGED; S-REL-DOCS-AGNOSTIC-001 MERGED; S-REL-AGENT-VERSION-001 IN-FLIGHT at v1.3). Then PR B (git-cliff notes) → tag v1.0.0-beta.1.
+v1.0.0-beta.1 release: deliver all 4 beta.1-blocking stories (S-REL-DEV-RESET-001 MERGED; S-REL-BVERSION-INJECT-001 MERGED; S-REL-DOCS-AGNOSTIC-001 MERGED; S-REL-AGENT-VERSION-001 IN-FLIGHT at v1.4). Then PR B (git-cliff notes) → tag v1.0.0-beta.1.
 
 ### NEXT ACTIONS (in order)
 0. RESUME STEP 0: CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired.
-1. LOCAL adversary re-gate on frozen code HEAD c74e7274b (streak 0/3; all prior MED-1/HIGH-1/OBS-C code fixes in + F-AV-HIGH-001/F-MED-001/F-SRAV-LOW-001 spec fixes committed). 3-CLEAN required before holdout gate.
-2. Complete LOCAL 3-CLEAN (streak 0/3; re-gate on frozen HEAD c74e7274b).
-3. Per-story holdout gate: HS-032 (3 P1 scenarios, HIDDEN, SINGLE-USE) BEFORE demo/push.
-4. Demo → push → PR (story v1.3; ADR-064 §D4; 5 RGTs/8 ACs; own PR separate from PR #262).
+1. LOCAL adversary re-gate on frozen code HEAD 3edc61bb (streak 0/3; all fixes in + holdout redesign committed). 3-CLEAN required before holdout gate.
+2. Complete LOCAL 3-CLEAN (streak 0/3; re-gate on frozen HEAD 3edc61bb).
+3. Per-story holdout gate: HS-032 (3 P1 scenarios, HIDDEN, SINGLE-USE, override-build PRISM_BUILD_VERSION=1.0.0-beta.1) BEFORE demo/push.
+4. Demo → push → PR (story v1.4; ADR-064 §D4; 5 RGTs/8 ACs; own PR separate from PR #262).
 5. PR B (E-REL-NOTES): S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001. New worktree off updated develop AFTER S-REL-AGENT-VERSION-001 PR merges.
 6. CLOSE obsolete PR #255 (do NOT merge; human clicks Close).
 7. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
@@ -41,10 +43,10 @@ v1.0.0-beta.1 release: deliver all 4 beta.1-blocking stories (S-REL-DEV-RESET-00
 - factory-artifacts: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
 - main: bdf24cec8 (stub, untouched).
 - Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
-- WORKTREES: ACTIVE — feature/S-REL-AGENT-VERSION-001 (local commit c74e7274b, not pushed). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- WORKTREES: ACTIVE — feature/S-REL-AGENT-VERSION-001 (local commit 3edc61bb, not pushed). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 ### Changelog (this snapshot)
-D-2468 (2026-09-06 LOCAL-cascade artifact fixes burst): S-REL-AGENT-VERSION-001 v1.2→v1.3. F-AV-HIGH-001 (POL-39): ADR version pins removed from story prose + holdout scenarios + HOLDOUT-INDEX HS-032 group desc — replaced with section/symbol anchors (ADR-064 §D4, ADR-050 §D6). F-MED-001: git mv 3 holdout files -HS-00N-→-HS-032-00N-; IDs reconciled. F-SRAV-LOW-001: RG-004 snippet updated to option_env!("PRISM_BUILD_VERSION").map(|v| !v.trim().is_empty()).unwrap_or(false). OBS architect: ADR-064 v1.9→v2.0 (SAC-2 anchor_stories annotation). F-LOW-001: code-branch local commit c74e7274b (build.rs "structurally mirrors"). input-hash 66bda37. STORY-INDEX v3.007→v3.008; HOLDOUT-INDEX v1.38→v1.39. LOCAL 3-CLEAN streak RESET 0/3; re-gate on code HEAD c74e7274b.
+D-2469 (2026-09-06 holdout-scenario redesign burst): S-REL-AGENT-VERSION-001 v1.3→v1.4. F-SRAV-HIGH-001: HS-032 all three v1.0→v1.1 — override-build model (PRISM_BUILD_VERSION=1.0.0-beta.1; correct wiring → "1.0.0-beta.1" on both surfaces; FAIL case = "prism/0.9.0" Surface B un-migrated). F-SRAV-MED-001: story risk_mitigations bullet-5 scoped to Surface A / prism-bin. Input-hashes: HS-032-001 4070bbb / HS-032-002 dad7dce / HS-032-003 dad7dce (recomputed from [pending-recompute]); story 66bda37 (current, unchanged). Code HEAD 3edc61bb (not pushed). HOLDOUT-INDEX v1.39→v1.40. STORY-INDEX v3.008→v3.009. LOCAL 3-CLEAN streak RESET 0/3; re-gate on code HEAD 3edc61bb.
 
 ---
 

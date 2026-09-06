@@ -8,7 +8,7 @@ must_pass: true
 priority: P1
 epic_id: "E-REL-IDENTITY"
 story_source: "S-REL-AGENT-VERSION-001"
-version: "1.0"
+version: "1.1"
 status: active
 used: false
 last_evaluated: null
@@ -16,12 +16,12 @@ last_eval_satisfaction: null
 single_use: true
 producer: product-owner
 timestamp: "2026-09-05T00:00:00Z"
-modified: "2026-09-05"
+modified: "2026-09-06"
 phase: 3
 inputs:
   - ".factory/specs/architecture/decisions/ADR-064-pre-release-binary-version-identity.md"
   - ".factory/stories/S-REL-AGENT-VERSION-001-agent-version-surfaces.md"
-input-hash: "[pending-recompute]"
+input-hash: "4070bbb"
 traces_to: "ADR-064-D4"
 behavioral_contracts: []
 verification_properties: []
@@ -32,7 +32,7 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-032 group). Tests Surface A wire-level correctness: the MCP initialize handshake serverInfo.version field must contain the product version (1.0.0-dev on a local/develop build), NOT the stale hardcoded '0.1.0'. This is the most agent-visible version surface — an LLM agent reads serverInfo.version in the handshake to identify the prism server it is connected to. The defect this catches: PrismServer::get_info still returning Implementation::new('prism', '0.1.0') if the with_deps wiring was not applied correctly at boot step 9. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-032 group). Tests Surface A wire-level correctness: the MCP initialize handshake serverInfo.version field must contain the product version (1.0.0-beta.1 on an override build using PRISM_BUILD_VERSION=1.0.0-beta.1), NOT the stale hardcoded '0.1.0'. Uses override build so the gate is discriminating: a non-migrated get_info still returns '0.1.0' regardless of the override. This is the most agent-visible version surface — an LLM agent reads serverInfo.version in the handshake to identify the prism server it is connected to. The defect this catches: PrismServer::get_info still returning Implementation::new('prism', '0.1.0') if the with_deps wiring was not applied correctly at boot step 9. Test-writer and implementer must NOT read this file."
 ---
 
 # HS-032-001: MCP initialize handshake serverInfo.version wire shape
@@ -78,17 +78,27 @@ product version. This is the exact regression this scenario discriminates.
 **And** prism MCP stdio is started with a valid prism.toml configuration
 **When** an MCP client sends an `initialize` request
 **Then** the wire-level JSON response contains `"serverInfo"` with `"version"` equal
-to `"1.0.0-dev"` (the PRISM_VERSION for a local/develop build)
+to `"1.0.0-beta.1"` (the injected PRISM_BUILD_VERSION override used in this scenario)
 **And** the wire-level JSON response does NOT contain `"0.1.0"` in the `serverInfo` block
 
 ---
 
 ## Setup Instructions
 
-1. Confirm prism binary is built from the S-REL-AGENT-VERSION-001 story branch HEAD
-   commit (not from develop or any prior branch).
+1. Build the prism binary from the S-REL-AGENT-VERSION-001 story branch HEAD commit
+   (not from develop or any prior branch) using a DISTINGUISHING version override so
+   that both prism-bin's build.rs resolves to the same injected value, making the
+   gate discriminating:
+   ```
+   PRISM_BUILD_VERSION=1.0.0-beta.1 cargo build -p prism-bin
+   ```
+   This simulates a release build: prism-bin's build.rs D2-conformant step 1 resolves
+   `PRISM_BUILD_VERSION=1.0.0-beta.1` and emits it as `PRISM_VERSION`. That value is
+   then threaded through `PrismServer::with_deps` at boot step 9 to Surface A. A
+   non-migrated `get_info` that still hardcodes `"0.1.0"` will NOT benefit from the
+   override — it remains `"0.1.0"`, making the gate discriminating.
 
-2. Start prism in MCP stdio mode:
+2. Start prism in MCP stdio mode using the binary built in step 1:
    ```
    PRISM_ORG_ID=<org-uuid> prism start --mcp-stdio
    ```
@@ -139,12 +149,17 @@ to `"1.0.0-dev"` (the PRISM_VERSION for a local/develop build)
    - If `serverInfo.version == "0.1.0"`: record FAIL on "stale-version-absent" dimension.
      This is the defect this scenario targets — get_info still returning hardcoded "0.1.0".
 
-5. **Secondary assertion:** Assert `serverInfo.version` equals `"1.0.0-dev"`.
-   - On a local/develop build without a CI tag, `PRISM_VERSION` resolves to
-     `CARGO_PKG_VERSION = "1.0.0-dev"` via the D2-conformant fallback chain.
-   - If `serverInfo.version == "1.0.0-dev"`: record PASS on "correct-product-version" dimension.
+5. **Secondary assertion:** Assert `serverInfo.version` equals `"1.0.0-beta.1"`.
+   - With `PRISM_BUILD_VERSION=1.0.0-beta.1` set during the cargo build (setup step 1),
+     prism-bin's build.rs D2-conformant chain resolves to `"1.0.0-beta.1"` (step 1:
+     PRISM_BUILD_VERSION override takes precedence). That value is threaded via
+     `PrismServer::with_deps` at boot step 9 to Surface A.
+   - If `serverInfo.version == "1.0.0-beta.1"`: record PASS on "correct-product-version" dimension.
+   - If `serverInfo.version == "1.0.0-dev"`: record PARTIAL (version wiring is active but
+     the PRISM_BUILD_VERSION=1.0.0-beta.1 override was not picked up by prism-bin's build;
+     verify that cargo was invoked with the env var set as specified in setup step 1).
    - If `serverInfo.version` is some other non-empty non-"0.1.0" string: record PARTIAL
-     (version wiring is active but unexpected value; investigate fallback chain).
+     (version wiring is active but unexpected value; investigate build env).
    - If `serverInfo.version` is empty or absent: record FAIL.
 
 6. **Wire-level completeness:** Confirm the raw JSON string contains the version value
@@ -168,10 +183,10 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   Zero credit (0.0): version is "0.1.0" — hardcoded value was not replaced.
 
 - **Correct product version present** (weight: 0.35): Is `serverInfo.version` equal
-  to `"1.0.0-dev"` (expected local-dev fallback)?
-  Full credit (1.0): `serverInfo.version == "1.0.0-dev"`.
-  Partial credit (0.5): non-empty, non-"0.1.0" value present but not "1.0.0-dev"
-  (wiring active but unexpected fallback; investigate build env).
+  to `"1.0.0-beta.1"` (the injected PRISM_BUILD_VERSION override)?
+  Full credit (1.0): `serverInfo.version == "1.0.0-beta.1"`.
+  Partial credit (0.5): non-empty, non-"0.1.0" value present but not "1.0.0-beta.1"
+  (wiring active but override not picked up; verify build invocation in setup step 1).
   Zero credit (0.0): empty string, null, or absent field.
 
 ---
@@ -209,18 +224,20 @@ specific boot step number.
 
 | Field | Description |
 |-------|-------------|
-| corpus_source | prism binary built from S-REL-AGENT-VERSION-001 branch; local dev build (no GITHUB_REF_NAME) |
+| corpus_source | prism binary built from S-REL-AGENT-VERSION-001 branch with PRISM_BUILD_VERSION=1.0.0-beta.1 override (see setup step 1) |
 | corpus_size | Single MCP initialize handshake; single JSON field assertion |
 | known_edge_cases | serverInfo.version = "0.1.0" (stale hardcoded; the defect being fixed); "0.0.0-test" (test constructor path; incorrect boot wiring) |
-| false_positive_threshold | Zero: "1.0.0-dev" is an unambiguous correct result for a local develop build |
+| false_positive_threshold | Zero: "1.0.0-beta.1" is an unambiguous correct result for the override build (PRISM_BUILD_VERSION=1.0.0-beta.1) |
 | false_negative_threshold | Zero: "0.1.0" present in wire output is an unambiguous wiring defect |
 
-**Known-good corpus:** prism binary from this story branch with correct wiring — expected:
-`serverInfo.version = "1.0.0-dev"` (local dev build; PRISM_VERSION = CARGO_PKG_VERSION = "1.0.0-dev").
+**Known-good corpus:** prism binary from this story branch built with `PRISM_BUILD_VERSION=1.0.0-beta.1`, with correct wiring — expected:
+`serverInfo.version = "1.0.0-beta.1"` (override build; prism-bin build.rs step 1 resolves PRISM_BUILD_VERSION).
 
 **Known-problematic corpus:** prism binary where `get_info` still returns
 `Implementation::new("prism", "0.1.0")` (pre-migration state) — expected:
-`serverInfo.version = "0.1.0"` which is the defect signal.
+`serverInfo.version = "0.1.0"` which is the defect signal. The PRISM_BUILD_VERSION
+override does NOT fix this defect because the hardcoded literal is never replaced
+by the override — making this the discriminating test.
 
 ---
 
@@ -228,4 +245,5 @@ specific boot step number.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | hs-032-override-build-model-fix | 2026-09-06 | product-owner | HIGH defect fix (F-SRAV-HIGH-001 root cause). Rewrote to override-build model: evaluator builds with PRISM_BUILD_VERSION=1.0.0-beta.1. Expected serverInfo.version changed from "1.0.0-dev" to "1.0.0-beta.1". Gate is now discriminating: non-migrated get_info still returns "0.1.0" ≠ "1.0.0-beta.1"; plain local-dev assertion was non-discriminating (un-migrated Surface B also emits "prism/0.9.0" on local dev — HS-032-002/003 were the failing scenarios; 001 was incidentally also wrong about expected value). Updated §Setup, §Verification, §Rubric, §real-world-corpus, notes. |
 | 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. MCP initialize handshake wire-shape test: serverInfo.version must not be stale "0.1.0" and must be "1.0.0-dev" on local dev build. Catches get_info hardcoded value + boot step 9 with_deps wiring gap. ADR-064 D4 §Surface A authority. SINGLE-USE. |

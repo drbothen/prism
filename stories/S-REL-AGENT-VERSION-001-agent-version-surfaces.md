@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-IDENTITY
 priority: P1
 status: draft
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: product-owner
 timestamp: "2026-09-05T00:00:00Z"
@@ -80,10 +80,18 @@ risk_mitigations:
     infusion/mod.rs → build_http_client_with_timeout would require 3+ pub(crate) function
     signature changes with no architectural gain over compile-time injection for a closed
     crate'). The per-crate build.rs is the ratified mechanism."
-  - "PRISM_VERSION resolution: on local dev builds (no GITHUB_REF_NAME), PRISM_VERSION ==
-    CARGO_PKG_VERSION == '1.0.0-dev' (after S-REL-DEV-RESET-001 merged). The MCP handshake
-    will report '1.0.0-dev' locally and '1.0.0-beta.1' (or the tagged version) in CI release
-    builds. This is correct and intentional per ADR-064 D4 design."
+  - "PRISM_VERSION resolution: env!(\"PRISM_VERSION\") resolves per-crate at build time.
+    Surface A (prism-bin/prism-mcp): on local dev builds (no GITHUB_REF_NAME or
+    PRISM_BUILD_VERSION), PRISM_VERSION == prism-bin's CARGO_PKG_VERSION == '1.0.0-dev'
+    (after S-REL-DEV-RESET-001 merged) — the MCP handshake reports '1.0.0-dev' locally.
+    Surface B (prism-spec-engine): on local dev builds, PRISM_VERSION == prism-spec-engine's
+    own CARGO_PKG_VERSION == '0.9.0' — the outbound User-Agent is 'prism/0.9.0' locally.
+    This per-crate divergence is correct and intentional: cross-surface coherence is a
+    property of tag builds or PRISM_BUILD_VERSION override builds only (EC-004 / ADR-064
+    §D4). On a tagged release or with PRISM_BUILD_VERSION set, both crates' build.rs resolves
+    to the same injected value (e.g., '1.0.0-beta.1'). The holdout gate (HS-032) uses
+    PRISM_BUILD_VERSION=1.0.0-beta.1 to make the gate discriminating: non-migrated Surface B
+    still emits 'prism/0.9.0' ≠ '1.0.0-beta.1' even under the override."
   - "ADR-022 §C wiring discipline: adding product_version field + with_deps parameter is
     wiring, not redesign. The Canonical Principle Standing Rule 3 §4 explicitly approves
     adding Arc<dyn Foo> or similar parameters to constructors that lacked them. Same applies
@@ -104,7 +112,7 @@ phase: "3"
 
 **Story ID:** S-REL-AGENT-VERSION-001
 **Status:** draft
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** F-A
 **Priority:** P1 (HIGH — human-directed beta.1 scope, S-1 decision 2026-09-05)
 **Points:** 5
@@ -796,6 +804,7 @@ superseded by D4. See the AC-004 amendment appended to
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-09-06 | product-owner | F-SRAV-MED-001 fix (root-cause seed). Corrected risk_mitigations bullet "PRISM_VERSION resolution": scoped the "1.0.0-dev" equality to Surface A (prism-bin/prism-mcp) ONLY; stated Surface B (prism-spec-engine) local-dev PRISM_VERSION = that crate's own CARGO_PKG_VERSION = "0.9.0"; documented that cross-surface coherence is a tag/override-build property per EC-004 / ADR-064 §D4; noted holdout gate uses PRISM_BUILD_VERSION=1.0.0-beta.1 override to make gate discriminating. |
 | 1.3 | 2026-09-06 | product-owner | F-AV-HIGH-001/F-MED-001/F-SRAV-LOW-001 LOCAL-cascade fixes. (1) Version-free ADR citations: removed version pins from all prose — `ADR-064 v1.8`→`ADR-064 §D4`, `ADR-050 v2.4`→`ADR-050 §D6`, `ADR-064 v1.7`→`ADR-064 §D2` across §Authority (2 sites), §Behavioral Contracts (7 cells), AC-001..AC-007 (10 sites), §Architecture Compliance Rules (2 sites), §Downstream Story Impact (1 site), Task 13 (1 site), §Edge Cases EC-002 (1 site); 14+ prose sites total per POL-39. (2) Holdout ID reconciliation: renamed 3 scenario files (`-HS-001-`→`-HS-032-001-` etc.) via `git mv`; updated §Story-Level Holdout Gate paths and HOLDOUT-INDEX filename links to canonical `HS-032-00N` form. (3) RG-004 override-detection: Task-4 snippet + RG-004 table row updated to ratified `.map(\|v\| !v.trim().is_empty()).unwrap_or(false)` form (empty/whitespace treated as no-override). |
 | 1.2 | 2026-09-06 | product-owner | TD-VSDD-097 Dim-2 drift-sweep: aligned implementation-detail sections to ratified MED-1/HIGH-1/OBS-C code fixes (LOCAL pass-1/pass-2 fix-burst). Corrected: (1) risk_mitigations bullet 3 + Task 12: removed false "no include! / self-contained" claim; described ratified two-file arrangement (crate-local `src/version_resolver.rs` included by `build.rs` + exposed via `pub mod version_resolver` in `lib.rs`). (2) BC table + AC-006: replaced `and_then` mechanism claim with ratified `if is_tag_build && let Some(r) = ...` let-chain in `resolve_prism_version`. (3) AC-006 + BC table: added `PRISM_VERSION_IS_TAG_BUILD` second emission (HIGH-1). (4) Task 4 snippet + RG-004 row: replaced unconditional equality assertion with guarded form gated on `env!("PRISM_VERSION_IS_TAG_BUILD")` + `option_env!("PRISM_BUILD_VERSION")` (prevents CI failure on tag pushes). (5) File Structure, Architecture Mapping, Purity Classification tables: added `src/version_resolver.rs` (Create) and `src/lib.rs` (Modify) rows. Also corrected `and_then` references in Architecture Compliance Rules row and EC-002 to reflect `resolve_prism_version` post-strip let-chain guard. |
 | 1.1 | 2026-09-06 | story-writer | OBS-2 fix (LOCAL adversary): corrected Task 1 / Task 2 prism-mcp test snippets and RG-001 / RG-002 table rows to assert `"0.0.0-test"` (the `PrismServer::new` runtime-wired default) instead of `env!("PRISM_VERSION")`. Consistent with ADR-064 D4 §Surface A architecture compliance rule: prism-mcp is a library crate with no build.rs; `env!("PRISM_VERSION")` MUST NOT appear in prism-mcp source or tests. Implementation was already correct; only the story task prose and RG table rows were stale. |
