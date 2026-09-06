@@ -5,7 +5,7 @@ title: "Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbi
 status: ACCEPTED
 date: "2026-07-02"
 modified: "2026-08-13"
-version: "2.3"
+version: "2.4"
 producer: architect
 subsystems_affected: [SS-01, SS-16, SS-17, SS-22]
 supersedes: []
@@ -23,6 +23,11 @@ wiring_deferred_to: null
 # ADR-050: Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden, http2 and User-Agent Required for Sensor/Plugin Clients
 
 ## Status
+
+ACCEPTED v2.4 (2026-09-05) — §D6 normative call updated from `env!("CARGO_PKG_VERSION")` to
+`env!("PRISM_VERSION")` (ADR-064 D4 cross-reference). After ADR-064 D4 ships, all three scoped
+client builders emit coherent `prism/{PRODUCT_VERSION}`. WAF-fingerprint-coherence invariant is
+satisfied across the full outbound surface. Rationale §D6 updated accordingly.
 
 ACCEPTED v1.1 (2026-07-03) — original decisions D1–D4: rustls-tls mandatory, native-tls forbidden.
 
@@ -175,10 +180,14 @@ Every `reqwest::Client::builder()` chain that produces a client used for any out
 third-party HTTP call MUST include:
 
 ```rust
-.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
+.user_agent(concat!("prism/", env!("PRISM_VERSION")))
 ```
 
-`concat!` produces a `&'static str` with zero runtime allocation. Scope:
+`concat!` produces a `&'static str` with zero runtime allocation. `PRISM_VERSION` is injected
+at compile time via the crate's dedicated `build.rs`: `crates/prism-bin/build.rs` per ADR-064
+D2 (prism-bin sites), and `crates/prism-spec-engine/build.rs` per ADR-064 D4 (spec-engine
+site). Both build scripts implement the D2 fallback chain — resolving to the git tag version
+on CI tag builds and to `CARGO_PKG_VERSION` on local dev builds. Scope:
 
 - `build_http_client_with_custom_timeout` in `crates/prism-bin/src/spec_driven_adapter.rs`
   — canonical factory; adding here propagates to `build_http_client_with_timeout` (prism-bin)
@@ -220,15 +229,22 @@ per-sensor opt-in adds complexity with no benefit.
 **D6:** A User-Agent header allows sensor vendor WAFs and rate limiters to identify
 and whitelist the prism client. Combined with h2 ALPN (D5), the client presents a
 coherent "known client" fingerprint rather than an anonymous UA-less probe. The
-specific value `concat!("prism/", env!("CARGO_PKG_VERSION"))` is a compile-time
-constant (zero overhead), human-readable, and encodes the client version for vendor
-debugging. The DEFECT-ADAPTER-TLS-XDOME-LIVE-001 bisection confirmed UA-absence was
-a contributing factor in the xDome WAF block. The WAF-fingerprint-coherence reasoning
-applies to ALL outbound third-party HTTP, not only sensor/plugin adapter clients —
-infusion `HttpLookupSource` clients call real third-party enrichment and threat-intel
-endpoints subject to the same cloud-edge WAF profiles; scoping D6 to sensor/plugin
-clients only would recreate the xDome defect class at the enrichment surface (v2.1
-scope extension, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-2 OBS-4).
+specific value `concat!("prism/", env!("PRISM_VERSION"))` is a compile-time constant
+(zero overhead), human-readable, and encodes the product version for vendor debugging.
+`PRISM_VERSION` resolves to the exact release tag on CI builds (ADR-064 D2 for prism-bin
+sites; ADR-064 D4 for the prism-spec-engine site) and falls back to `CARGO_PKG_VERSION`
+(`1.0.0-dev`) on local dev builds — ensuring both operators and sensor tenants see the
+same coherent version identity. After ADR-064 D4 ships, all three scoped client builders
+emit `prism/{PRODUCT_VERSION}` coherently (WAF-fingerprint-coherence invariant fully
+satisfied; closes the version divergence acknowledged in ADR-064 v1.2 D2 §Context where
+the spec-engine site emitted its own crate version). The DEFECT-ADAPTER-TLS-XDOME-LIVE-001
+bisection confirmed UA-absence was a contributing factor in the xDome WAF block. The
+WAF-fingerprint-coherence reasoning applies to ALL outbound third-party HTTP, not only
+sensor/plugin adapter clients — infusion `HttpLookupSource` clients call real third-party
+enrichment and threat-intel endpoints subject to the same cloud-edge WAF profiles; scoping
+D6 to sensor/plugin clients only would recreate the xDome defect class at the enrichment
+surface (v2.1 scope extension, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary
+pass-2 OBS-4).
 
 **BC-2.16.014 propagation note:** `DeclarativeHttpAuthProvider` constructs its
 `reqwest::Client` via `build_http_client_with_timeout()` (per BC-2.16.014
@@ -275,16 +291,18 @@ automatically satisfies D6 for the auth token acquisition client without touchin
   Expected size increase: ~150–200 Cargo.lock lines. Correct tradeoff for h2
   capability on production sensor connections.
 
-### Status as of v2.3 (2026-08-13)
+### Status as of v2.4 (2026-09-05)
 
-D1–D4 in effect since cf66151f (2026-07-02); verified by 4 formerly-quarantined
-DTU stage-0 tests passing at ~0.05s each after fix. D5/D6 PENDING implementation
-by DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (v2.0). §D6 scope extended in v2.1 to include
-`build_http_client_with_timeout` in `crates/prism-spec-engine/src/pipeline.rs`;
-verified by `test_infusion_http_client_sends_prism_user_agent`. §D5 prism-bin entry
-enumeration corrected in v2.2 (records-only; no behavioral change). Enforcement gate
-(CI check) is a fast-follow maintenance story — existing codebase will be correct
-after the story closes.
+D1–D4 in effect since cf66151f (2026-07-02); verified by 4 formerly-quarantined DTU
+stage-0 tests passing at ~0.05s each after fix. D5/D6 PENDING implementation by
+DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (v2.0). §D6 scope unchanged (same 3 builders);
+§D6 normative call updated from `env!("CARGO_PKG_VERSION")` to `env!("PRISM_VERSION")`
+per ADR-064 D4 cross-reference — after ADR-064 D4 (S-REL-AGENT-VERSION-001) ships, all
+three scoped client builders emit coherent `prism/{PRODUCT_VERSION}`. §D6 scope extended
+in v2.1 to include `build_http_client_with_timeout §pipeline §prism-spec-engine`; verified
+by `test_infusion_http_client_sends_prism_user_agent`. §D5 prism-bin entry enumeration
+corrected in v2.2 (records-only). Enforcement gate (CI check) is a fast-follow maintenance
+story — existing codebase will be correct after the story closes.
 
 ---
 
@@ -376,6 +394,7 @@ correct vehicle.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.4 | 2026-09-05 | architect | ADR-064 D4 cross-reference: §D6 normative call updated from `env!("CARGO_PKG_VERSION")` to `env!("PRISM_VERSION")` throughout — after ADR-064 D4 ships, all three scoped client builders (`build_http_client_with_custom_timeout §spec_driven_adapter`, both PluginRuntime builders `§boot`, `build_http_client_with_timeout §pipeline §prism-spec-engine`) emit coherent `prism/{PRODUCT_VERSION}`. Rationale §D6 updated: "client version" → "product version"; `PRISM_VERSION` availability via ADR-064 D2 (prism-bin) and D4 (prism-spec-engine) noted. Status as of v2.4 added. Records-only for the scope enumeration; normative call target changes from crate version to product version — this is the WAF-fingerprint-coherence completion event (closes the version divergence noted in ADR-064 v1.2 D2 §Context). |
 | 2.3 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 F-1 closure. §D5 note corrected: prism-bin `[dev-dependencies]` reqwest entry explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`) — not Cargo feature unification. Cargo feature unification means a feature resolves ON without being explicitly listed; this is an explicit literal declaration. Records-only — no decision or mechanism change. |
 | 2.2 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-4 F-3 closure. §D5 prism-bin production entry count corrected: one `[dependencies]` reqwest entry (S-PLUGIN-PREREQ-D AC-9 shared outbound client), not two; total three production entries (prism-spec-engine, prism-sensors, prism-bin). Prism-bin `[dev-dependencies]` reqwest entry also carries `http2` (Cargo feature unification; harmless; DTU dev-deps remain out of scope for D5). Records-only — no decision or mechanism change. |
 | 2.1 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-2 OBS-4 closure. §D6 scope extended to include `build_http_client_with_timeout` in `crates/prism-spec-engine/src/pipeline.rs` (infusion `HttpLookupSource` outbound factory; sibling-sweep gap in v2.0 enumeration); verified by `test_infusion_http_client_sends_prism_user_agent`. §D6 header clarified to "all outbound third-party HTTP client builders" — universal scope and enumerated list now consistent. §D6 Rationale extended: WAF-fingerprint-coherence applies to ALL outbound third-party HTTP including infusion clients. §Source/Origin extended with §D6 v2.1 extension origin. D5 http2 feature and D1–D4 TLS decisions unchanged. |

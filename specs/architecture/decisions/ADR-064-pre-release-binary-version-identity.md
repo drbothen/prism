@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -15,7 +15,8 @@ anchor_stories:
   - S-REL-BVERSION-INJECT-001   # D2 — cites ADR-064 D2 in §Authority
   - S-REL-DOCS-AGNOSTIC-001     # D1/D2 — cites ADR-064 D1/D2 in §Authority
   - S-REL-VBUMP-001             # D3 — cites ADR-064 D3 in §Authority
-related_adrs: [ADR-062, ADR-063]
+  - S-REL-AGENT-VERSION-001     # D4 — PROPOSED; story to be authored; cites ADR-064 D4 in §Authority
+related_adrs: [ADR-050, ADR-062, ADR-063]
 related_bcs: []
 locked_decisions: []
 wiring_deferred_to: null
@@ -25,17 +26,28 @@ inputs:
   - crates/prism-bin/src/boot.rs
   - crates/prism-bin/src/cli.rs
   - crates/prism-bin/src/spec_driven_adapter.rs
+  - crates/prism-mcp/src/server.rs
+  - crates/prism-spec-engine/src/pipeline.rs
   - docs/RELEASE-CHANNELS.md
   - .github/workflows/release-tag.yml
   - .github/workflows/release.yml
+  - .factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md
   - .factory/specs/architecture/decisions/ADR-062-product-version-alignment.md
   - .factory/research/version-management-2026.md
-input-hash: "f985d45"
+input-hash: "b58fa55"
 ---
 
 # ADR-064: Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release
 
 ## Status
+
+ACCEPTED v1.8 (2026-09-05) — D4 adds agent-facing version surface expansion: prism-mcp
+serverInfo.version (MCP handshake; most agent-visible) migrated via runtime wiring through
+`PrismServer.product_version` field + `with_deps` parameter + `env!("PRISM_VERSION")` at boot
+step 9; prism-spec-engine HTTP user-agent migrated via dedicated `crates/prism-spec-engine/build.rs`
+emitting `PRISM_VERSION` per the D2 fallback chain. D2 §Context "out-of-scope site" paragraph
+superseded by D4 forward reference. New proposed story S-REL-AGENT-VERSION-001 anchors D4 MUSTs.
+ADR-050 §D6 updated in tandem: normative call changes from `CARGO_PKG_VERSION` to `PRISM_VERSION`.
 
 ACCEPTED v1.7 (2026-09-05) — v1.7 adds post-strip empty guard to D2 build.rs sketch:
 degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION (pass-5
@@ -87,16 +99,12 @@ explicitly or via clap derivation):
 | `crates/prism-bin/src/boot.rs` | `.user_agent(concat!("prism/", ...))` in `build_http_client_with_timeout` (2 call sites) | HTTP client user-agent |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | `.user_agent(concat!("prism/", ...))` in spec-driven fetch builder | Spec-driven adapter fetch path user-agent |
 
-**Out-of-scope site (prism-spec-engine):** `crates/prism-spec-engine/src/pipeline.rs` also
-contains `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` in its pipeline HTTP client
-builder. This site is NOT in `prism-bin`; a `build.rs` in `prism-bin` can only set `PRISM_VERSION`
-for that crate — it cannot affect `prism-spec-engine`'s build. Consequence: the spec-engine
-adapter path emits its own crate version (from `prism-spec-engine/Cargo.toml`), not the product
-version. This is acceptable because (a) the primary user-agent for boot-initiated sensor calls is
-the `prism-bin/src/boot.rs` site, which IS updated; (b) aligning the spec-engine user-agent with
-the product version would require coupling `prism-spec-engine` to `prism-bin`'s version identity.
-A follow-up story outside E-REL-IDENTITY may address this if user-agent consistency becomes a
-requirement.
+**Previously-out-of-scope sites (superseded by D4):** Two additional agent-facing version
+surfaces were acknowledged as out-of-scope in D2 v1.2–v1.7: the
+`crates/prism-spec-engine/src/pipeline.rs` user-agent and the `crates/prism-mcp/src/server.rs`
+serverInfo.version. D4 (below) addresses both surfaces via a human-directed decision (S-1,
+2026-09-05) to achieve coherent product-version self-identification in `v1.0.0-beta.1`. See D4
+for the exact injection sites and mechanism.
 
 All six prism-bin sites must be consistent. Changing only `--version` while any other site
 remains on `CARGO_PKG_VERSION` would produce inconsistent version strings across the product
@@ -373,6 +381,89 @@ prerequisites. D3 improves release-operator ergonomics on the stable path but do
 pre-release correctness. The SETUP.md `v1.0.0-rc.1` occurrences are updated manually in the
 D1 story as a stop-gap until S-REL-VBUMP-001 ships.
 
+### D4 — Agent-Facing Version Surface Expansion: prism-mcp serverInfo.version and prism-spec-engine HTTP User-Agent
+
+D4 extends product-version coherence to the two remaining surfaces not covered by D2.
+Human-directed decision (S-1, 2026-09-05): `v1.0.0-beta.1` MUST self-identify coherently
+to LLM agents (serverInfo.version) and to sensor tenants (HTTP user-agent), not just to
+operators (`prism --version`). All four agent/tenant-visible surfaces MUST emit the same
+`PRISM_VERSION` after D4 ships. Anchored to S-REL-AGENT-VERSION-001 (story to be authored
+by product-owner; not blocking for beta.1 — D2 already achieves prism-bin coherence;
+D4 is high-priority for stable v1.0.0).
+
+#### Surface A — prism-mcp MCP Handshake serverInfo.version
+
+The MCP `initialize` response `serverInfo.version` field is the most agent-visible version
+surface: an LLM agent reads it in the handshake to identify which prism server it is talking
+to. It is currently hardcoded to `"0.1.0"` in `PrismServer::get_info`.
+
+**Mechanism: Runtime wiring from prism-bin boot (ADR-022 §C "wiring not redesign")**
+
+Adding a `product_version: &'static str` parameter to a constructor that lacked it is
+permitted plumbing per ADR-022 §C — it is wiring, not redesign. The version string is
+resolved ONCE in prism-bin (which owns `PRISM_VERSION` via D2 build.rs) and threaded into
+`PrismServer` at boot step 9. No CI env-var resolution logic in library crates.
+
+**Injection sites (Surface A):**
+
+| File | Symbol (function/construct) | Before | After |
+|------|------------------------|--------|-------|
+| `crates/prism-mcp/src/server.rs` | `PrismServer` struct | no version field | `product_version: &'static str` field added |
+| `crates/prism-mcp/src/server.rs` | `PrismServer::with_deps` | no version param | `product_version: &'static str` final parameter added |
+| `crates/prism-mcp/src/server.rs` | `PrismServer::new` (test constructor) | no version | `product_version: "0.0.0-test"` default — distinguishable from any release, indicates test context |
+| `crates/prism-mcp/src/server.rs` | `PrismServer::get_info` | `Implementation::new("prism", "0.1.0")` | `Implementation::new("prism", self.product_version)` |
+| `crates/prism-bin/src/boot.rs` | boot step 9 `PrismServer::with_deps` callsite | no version arg | `env!("PRISM_VERSION")` passed as final argument |
+
+**Note on `#[tool_handler(version = "0.1.0")]` proc macro attribute:** This proc macro
+attribute accepts only string literals — `env!()` macro expressions are not valid in this
+position. Since `PrismServer::get_info` is explicitly overridden in the same impl block,
+the explicit `get_info` return value is authoritative for the MCP handshake `serverInfo.version`;
+the proc macro attribute value is superseded by the override. The implementer SHOULD update
+this attribute to reflect the prism-mcp crate version (e.g., verify whether rmcp accepts
+`env!("CARGO_PKG_VERSION")` as an attribute value; if the macro only accepts a `Lit::Str`,
+leave the attribute at `"0.1.0"` with a comment that it is superseded by `get_info`).
+
+#### Surface B — prism-spec-engine HTTP User-Agent
+
+`crates/prism-spec-engine/src/pipeline.rs` `build_http_client_with_timeout` currently uses
+`env!("CARGO_PKG_VERSION")`, emitting `prism/0.9.0` (the library crate version, not the
+product version) on every outbound HTTP call to enrichment and threat-intel endpoints.
+
+**Mechanism: Per-crate `build.rs` in prism-spec-engine**
+
+`prism-spec-engine` is `publish = false` and deployed exclusively as part of the `prism`
+binary. This closed-ecosystem constraint makes a per-crate build.rs safe and appropriate:
+there is no scenario where prism-spec-engine is used by another product that would need a
+different `PRISM_VERSION`. Runtime wiring was evaluated (threading version through the
+infusion call chain: 3 callers in `infusion/mod.rs` → `build_http_client_with_timeout`)
+and rejected because it would require 3+ `pub(crate)` function signature changes across
+`infusion/mod.rs` with no architectural gain over compile-time injection for a closed crate.
+
+The build.rs algorithm is identical to D2 (the D2 normative contract in this ADR is the
+single authoritative spec). `crates/prism-bin/src/version_resolver.rs` remains in place for
+prism-bin; `crates/prism-spec-engine/build.rs` implements the same algorithm inline (20 lines,
+stable algorithm; parallel implementations are acceptable when the spec is authoritative).
+
+**Injection sites (Surface B):**
+
+| File | Symbol (function/construct) | Before | After |
+|------|------------------------|--------|-------|
+| `crates/prism-spec-engine/build.rs` | (new file) | — | D2-conformant build script: `PRISM_BUILD_VERSION` → `GITHUB_REF_NAME` (GITHUB_REF_TYPE=="tag", strip_prefix 'v', `and_then` empty guard) → `CARGO_PKG_VERSION`; emits `cargo:rustc-env=PRISM_VERSION={version}`; four `cargo:rerun-if-env-changed` directives |
+| `crates/prism-spec-engine/src/pipeline.rs` | `build_http_client_with_timeout` | `env!("CARGO_PKG_VERSION")` | `env!("PRISM_VERSION")` |
+
+**Downstream story impact (TD-VSDD-097 Dim-2):** S-REL-BVERSION-INJECT-001 AC-004
+("prism-spec-engine/pipeline.rs user-agent NOT changed") cites ADR-064 D2 "explicit
+out-of-scope acknowledgement" as its authority. This AC is a downstream copy of the D2
+scope boundary — now superseded by D4. The story-writer MUST amend S-REL-BVERSION-INJECT-001
+AC-004 when authoring S-REL-AGENT-VERSION-001: until S-REL-AGENT-VERSION-001 ships, AC-004
+remains correct as a guard against premature migration; after S-REL-AGENT-VERSION-001 merges,
+AC-004 is inverted to verify the migration DID occur (or the AC is removed and replaced with
+one in S-REL-AGENT-VERSION-001).
+
+**Implementation obligation:** S-REL-AGENT-VERSION-001 (PROPOSED story ID; to be authored by
+product-owner for E-REL-IDENTITY epic). Priority: high; not blocking for v1.0.0-beta.1 (D2
+already achieves prism-bin coherence); MUST land before stable v1.0.0 for full coherence.
+
 ---
 
 ## Rationale
@@ -485,9 +576,9 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.7
+### Status as of v1.8
 
-ACCEPTED. All three decisions are finalized:
+ACCEPTED. All four decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
 - D2 (S-REL-BVERSION-INJECT-001): BLOCKING before beta.1 — build.rs injection of `PRISM_VERSION`
   at all 6 prism-bin version-report sites (including cli.rs `#[command(version)]`, boot.rs audit
@@ -499,6 +590,10 @@ ACCEPTED. All three decisions are finalized:
 - D3 (S-REL-VBUMP-001 + S-REL-DOCS-AGNOSTIC-001): High priority before stable v1.0.0 — cargo-release
   1.1.5 single-command bump; RELEASING.md §1 pre-release exception to be documented in
   S-REL-DOCS-AGNOSTIC-001
+- D4 (S-REL-AGENT-VERSION-001): HIGH before stable v1.0.0 — prism-mcp serverInfo.version via
+  runtime wiring (`PrismServer.product_version` + `with_deps` + `env!("PRISM_VERSION")` at boot
+  step 9); prism-spec-engine user-agent via per-crate build.rs emitting `PRISM_VERSION`; ADR-050
+  §D6 updated in tandem to normative `PRISM_VERSION` call. Story to be authored by product-owner.
 
 ---
 
@@ -578,6 +673,7 @@ ACCEPTED. All three decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-09-05 | architect | D4 added (S-1 human-directed): agent-facing version surface expansion. prism-mcp serverInfo.version: runtime wiring via `PrismServer.product_version` field + `with_deps` parameter + boot.rs step-9 `env!("PRISM_VERSION")`; `get_info` uses `self.product_version` in `Implementation::new`. prism-spec-engine user-agent: per-crate `build.rs` emitting `PRISM_VERSION` (D2-conformant fallback chain); `build_http_client_with_timeout` changes `CARGO_PKG_VERSION` to `PRISM_VERSION`. D2 §Context out-of-scope paragraph superseded by forward reference to D4. New story S-REL-AGENT-VERSION-001 proposed for D4 implementation. ADR-050 §D6 cross-ref: after D4 ships, all outbound HTTP clients emit coherent `prism/{PRODUCT_VERSION}`. `related_adrs` extended with ADR-050. `anchor_stories` extended with S-REL-AGENT-VERSION-001. `inputs` extended with prism-mcp/src/server.rs, prism-spec-engine/src/pipeline.rs, ADR-050. S-REL-BVERSION-INJECT-001 AC-004 downstream impact flagged. TD-VSDD-097 Dim-1 CLEAR (no sibling ADR restates 6-site D2 scope). Dim-2 flagged: S-REL-BVERSION-INJECT-001 AC-004 is a downstream copy of D2 out-of-scope scope boundary — story-writer must amend AC-004 when S-REL-AGENT-VERSION-001 is authored. Dim-3: new D4 MUSTs anchored to S-REL-AGENT-VERSION-001. |
 | 1.7 | 2026-09-05 | architect | pass-5 OBS-1 sync: D2 build.rs sketch updated — `map` → `and_then` with post-strip empty guard; degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION. Sketch now satisfies "PRISM_VERSION is never empty" invariant for all tag inputs. Empty-string rule paragraph updated to document the post-strip guard. Status as of v1.7 updated with OBS-1 note. Frontmatter/sketch only — no decision-content change. |
 | 1.6 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-IDENTITY stories verified on disk and citing ADR-064 in §Authority — S-REL-DEV-RESET-001 (D1), S-REL-BVERSION-INJECT-001 (D2), S-REL-DOCS-AGNOSTIC-001 (D1/D2), S-REL-VBUMP-001 (D3). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.5 | 2026-09-05 | architect | F-VID-P1-CRIT-001: D2 build.rs contract corrected — GITHUB_REF_NAME is set on ALL GitHub Actions runs (branch name on push/pull_request; tag name only on tag-push). Unconditional use baked PRISM_VERSION="develop" into ci.yml builds, failing test_cli_version_output_contains_semver on all 5 legs. Fix: gate GITHUB_REF_NAME on GITHUB_REF_TYPE == "tag" (fallback: GITHUB_REF starts with refs/tags/). Non-tag CI builds intentionally fall through to CARGO_PKG_VERSION ("1.0.0-dev"). F-VID-P1-LOW-001: strip_prefix replaces trim_start_matches (single-v semantics). F-VID-P1-MED-001: empty-string filter on all env-var arms. GITHUB_REF_TYPE and GITHUB_REF added to rerun-if-env-changed. Fallback chain, build.rs sketch, cross-platform note, rationale, and Consequences updated. Status as of v1.5 updated with all three finding IDs. |

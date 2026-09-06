@@ -336,9 +336,21 @@ returns no output. (`src/version_resolver.rs` legitimately retains `CARGO_PKG_VE
 as the final fallback expression — that is correct per the fallback chain.)
 (traces to ADR-064 D2 — "All six prism-bin version-report sites are updated")
 
-### AC-004: prism-spec-engine/pipeline.rs user-agent NOT changed
+### AC-004: prism-spec-engine/pipeline.rs user-agent NOT changed (UNTIL S-REL-AGENT-VERSION-001 merges)
 `grep 'CARGO_PKG_VERSION' crates/prism-spec-engine/src/pipeline.rs` returns at least
 one match. (traces to ADR-064 D2 — explicit out-of-scope acknowledgement)
+
+**LIFECYCLE NOTE (ADR-064 v1.8 D4 — Downstream Story Impact / TD-VSDD-097 Dim-2):**
+This AC guards against premature migration of the prism-spec-engine user-agent site in
+THIS story's scope. The scope boundary it enforces (D2 "out-of-scope") is superseded by
+ADR-064 D4, which addresses the site via a separate story.
+
+- **UNTIL S-REL-AGENT-VERSION-001 merges:** This AC REMAINS ACTIVE. The
+  prism-spec-engine/pipeline.rs user-agent must NOT be changed in this story's PR.
+- **AFTER S-REL-AGENT-VERSION-001 merges:** This AC inverts — the site will then have
+  been migrated by S-REL-AGENT-VERSION-001. This story's AC-004 guard is satisfied in
+  its original form (migration was NOT done here, as intended) and the inversion is
+  tracked by S-REL-AGENT-VERSION-001's own AC-007.
 
 ### AC-005: Fallback chain test passes (local dev path)
 `test_build_rs_fallback_uses_cargo_pkg_version_when_no_env` passes: `env!("PRISM_VERSION")
