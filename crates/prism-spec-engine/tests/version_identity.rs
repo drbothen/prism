@@ -5,7 +5,7 @@
 //! `PRISM_VERSION` using the D2-conformant fallback chain so that `env!("PRISM_VERSION")`
 //! compiles and resolves correctly in prism-spec-engine context.
 //!
-//! Authority: ADR-064 v1.9 D4 §Surface B; ADR-050 v2.4 D6.
+//! Authority: ADR-064 §D4 §Surface B; ADR-050 §D6.
 //!
 //! ╔════════════════════════════════════════════════════════════════════════════════════╗
 //! ║  COMPILE-TIME DEPENDENCY — IMPLEMENTER READ THIS FIRST                           ║
@@ -55,7 +55,7 @@
 ///
 /// Requires `crates/prism-spec-engine/build.rs` to emit `cargo:rustc-env=PRISM_VERSION=...`.
 ///
-/// Traces to: ADR-064 v1.9 D4 §Surface B — `crates/prism-spec-engine/build.rs` row:
+/// Traces to: ADR-064 §D4 §Surface B — `crates/prism-spec-engine/build.rs` row:
 ///   Before: `(new file — does not exist)`
 ///   After:  D2-conformant build script emitting `cargo:rustc-env=PRISM_VERSION={version}`
 ///
@@ -99,7 +99,7 @@ fn test_prism_spec_engine_prism_version_env_var_is_available() {
 /// `crates/prism-bin/tests/version_identity.rs`; differs only in the diagnostic-message
 /// ADR/AC citation and the test name.
 ///
-/// Traces to: ADR-064 v1.9 D4 §Surface B D2 normative fallback chain step 3;
+/// Traces to: ADR-064 §D4 §Surface B D2 normative fallback chain step 3;
 /// S-REL-AGENT-VERSION-001 AC-006.
 ///
 /// RED state: COMPILATION ERROR — `env!("PRISM_VERSION")` not defined (same as RG-003).
@@ -133,7 +133,7 @@ fn test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
             env!("PRISM_VERSION"),
             env!("CARGO_PKG_VERSION"),
             "On non-tag builds without PRISM_BUILD_VERSION override, PRISM_VERSION must equal \
-             CARGO_PKG_VERSION (fallback chain step 3, ADR-064 v1.9 D4 §Surface B). \
+             CARGO_PKG_VERSION (fallback chain step 3, ADR-064 §D4 §Surface B). \
              Got PRISM_VERSION={:?}, CARGO_PKG_VERSION={:?}",
             env!("PRISM_VERSION"),
             env!("CARGO_PKG_VERSION"),
@@ -178,10 +178,10 @@ fn test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
 /// wiremock test `test_infusion_http_client_sends_prism_user_agent` is the removal-guard;
 /// RG-005 is the compile-time existence guard (OBS-1, S-REL-AGENT-VERSION-001).
 ///
-/// Traces to: ADR-064 v1.9 D4 §Surface B — `pipeline.rs` row:
+/// Traces to: ADR-064 §D4 §Surface B — `pipeline.rs` row:
 ///   Before: `env!("CARGO_PKG_VERSION")`
 ///   After:  `env!("PRISM_VERSION")`
-/// AND ADR-050 v2.4 D6: `build_http_client_with_timeout` MUST use `env!("PRISM_VERSION")`.
+/// AND ADR-050 §D6: `build_http_client_with_timeout` MUST use `env!("PRISM_VERSION")`.
 ///
 /// RED state: COMPILATION ERROR — `env!("PRISM_VERSION")` not defined (same as RG-003/RG-004).
 /// GREEN state: compiles and assertions on UA format pass.
@@ -201,7 +201,7 @@ fn test_infusion_http_client_sends_prism_product_version_user_agent() {
     assert!(
         expected_ua.starts_with("prism/"),
         "Infusion HTTP client user-agent must start with 'prism/'; \
-         got: {expected_ua:?} (ADR-050 v2.4 D6 normative form)"
+         got: {expected_ua:?} (ADR-050 §D6 normative form)"
     );
 
     // Assert the version suffix is non-empty (paranoia check; belt-and-suspenders with RG-003)
@@ -221,6 +221,6 @@ fn test_infusion_http_client_sends_prism_product_version_user_agent() {
         format!("prism/{prism_version}").as_str(),
         "User-agent must be exactly 'prism/{{PRISM_VERSION}}'; \
          got: {expected_ua:?}, PRISM_VERSION={prism_version:?} \
-         (ADR-050 v2.4 D6; ADR-064 D4 §Surface B)"
+         (ADR-050 §D6; ADR-064 §D4 §Surface B)"
     );
 }

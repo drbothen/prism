@@ -3,7 +3,7 @@
 //! These tests gate Surface A: `PrismServer::get_info()` must return the injected
 //! `product_version`, not the stale hardcoded `"0.1.0"` string.
 //!
-//! Authority: ADR-064 v1.9 D4 §Surface A; wire-shape discipline (CLAUDE.md §Conventions
+//! Authority: ADR-064 §D4 §Surface A; wire-shape discipline (CLAUDE.md §Conventions
 //! §Wire-shape assertion discipline).
 //!
 //! # Architecture compliance
@@ -42,7 +42,7 @@ use rmcp::ServerHandler;
 /// RG-001: `PrismServer::get_info()` Rust struct `server_info.version` equals the injected
 /// `product_version` (`"0.0.0-test"` via `PrismServer::new()`), NOT the stale hardcoded `"0.1.0"`.
 ///
-/// Traces to: ADR-064 v1.9 D4 §Surface A — `PrismServer::get_info` row:
+/// Traces to: ADR-064 §D4 §Surface A — `PrismServer::get_info` row:
 ///   Before: `Implementation::new("prism", "0.1.0")`
 ///   After:  `Implementation::new("prism", self.product_version)`
 ///
@@ -83,7 +83,7 @@ fn test_server_info_version_is_product_version() {
 /// ```
 /// (`#[serde(rename_all = "camelCase")]` on `InitializeResult` → `serverInfo` key)
 ///
-/// Traces to: ADR-064 v1.9 D4 §Surface A; S-REL-AGENT-VERSION-001 §Red Gate Test List RG-002.
+/// Traces to: ADR-064 §D4 §Surface A; S-REL-AGENT-VERSION-001 §Red Gate Test List RG-002.
 ///
 /// RED state: `serverInfo.version` on wire = `"0.1.0"` → first `assert_ne!` fails.
 /// GREEN state: `serverInfo.version` on wire = `"0.0.0-test"` → both assertions pass.
