@@ -75,8 +75,8 @@ fn test_prism_spec_engine_prism_version_env_var_is_available() {
     );
 }
 
-/// RG-004: On local dev (no `GITHUB_REF_NAME`, no `PRISM_BUILD_VERSION`),
-/// `env!("PRISM_VERSION")` equals `env!("CARGO_PKG_VERSION")` in prism-spec-engine context.
+/// RG-004: On non-tag builds (local dev + branch CI), `env!("PRISM_VERSION")`
+/// equals `env!("CARGO_PKG_VERSION")` in prism-spec-engine context.
 ///
 /// Verifies the D2-conformant fallback chain step 3 semantics (ADR-064 D4 §Surface B):
 /// when no `PRISM_BUILD_VERSION` override and no tag-gated `GITHUB_REF_NAME` are present,
@@ -88,34 +88,51 @@ fn test_prism_spec_engine_prism_version_env_var_is_available() {
 /// by the boot step 9 `product_version` parameter (Surface A), not the spec-engine build.
 /// RG-004 verifies the D2 algorithm is correctly implemented (step 3 activates on local dev).
 ///
+/// HIGH-1 fix (S-REL-AGENT-VERSION-001 LOCAL pass-2): `PRISM_VERSION_IS_TAG_BUILD` is now
+/// emitted by `build.rs` alongside `PRISM_VERSION`, allowing this assertion to be conditional
+/// on the actual build context. `ci.yml` has an unfiltered `on: push:` that fires on tag refs
+/// too, so the unconditional equality assertion failed on tag-push CI runs across all legs
+/// (B-1 analogue — same failure class as prism-bin before its guard was added).
+///
+/// Sibling-sweep D1: mirrors `test_prism_version_equals_cargo_pkg_version_on_non_tag_build`
+/// in `crates/prism-bin/tests/version_identity.rs` byte-for-byte.
+///
 /// Traces to: ADR-064 v1.9 D4 §Surface B D2 normative fallback chain step 3;
 /// S-REL-AGENT-VERSION-001 AC-006.
 ///
 /// RED state: COMPILATION ERROR — `env!("PRISM_VERSION")` not defined (same as RG-003).
-/// GREEN state: compiles and `assert_eq!` passes (both env vars resolve to the same value
-///              on local dev with no GITHUB_REF_NAME/PRISM_BUILD_VERSION set).
+/// GREEN state: compiles and conditional assertion passes on non-tag builds; tag builds
+///              assert valid semver + no leaked branch ref.
 #[test]
 fn test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
     // COMPILE-TIME DEPENDENCY: fails with compilation error until build.rs exists.
     // The implementer must create crates/prism-spec-engine/build.rs first (Task 12).
     //
-    // On local dev:
-    //   - PRISM_BUILD_VERSION is unset → step 1 falls through
-    //   - GITHUB_REF_TYPE != "tag" (local, not CI tag build) → step 2 skipped
-    //   - Step 3: PRISM_VERSION = CARGO_PKG_VERSION (the spec-engine library version)
-    //
-    // This test verifies that the fallback chain correctly resolves to CARGO_PKG_VERSION
-    // when no override or tag env vars are present.
-    assert_eq!(
-        env!("PRISM_VERSION"),
-        env!("CARGO_PKG_VERSION"),
-        "On local dev (no GITHUB_REF_NAME/PRISM_BUILD_VERSION), PRISM_VERSION must fall \
-         through to CARGO_PKG_VERSION per D2-conformant fallback chain step 3 \
-         (ADR-064 v1.9 D4 §Surface B). \
-         Got PRISM_VERSION={:?}, CARGO_PKG_VERSION={:?}",
-        env!("PRISM_VERSION"),
-        env!("CARGO_PKG_VERSION"),
-    );
+    // On local dev and non-tag CI builds, PRISM_VERSION must equal CARGO_PKG_VERSION.
+    // PRISM_VERSION_IS_TAG_BUILD is emitted by build.rs alongside PRISM_VERSION,
+    // allowing this assertion to be conditional on the actual build context.
+    // ci.yml has an unfiltered `on: push:` that fires on tag refs, so an unconditional
+    // equality assertion fails on the beta.1 tag push (all CI legs) — HIGH-1.
+    if env!("PRISM_VERSION_IS_TAG_BUILD") == "false" {
+        assert_eq!(
+            env!("PRISM_VERSION"),
+            env!("CARGO_PKG_VERSION"),
+            "On non-tag builds, PRISM_VERSION must equal CARGO_PKG_VERSION \
+             (fallback chain step 3, ADR-064 v1.9 D4 §Surface B). \
+             Got PRISM_VERSION={:?}, CARGO_PKG_VERSION={:?}",
+            env!("PRISM_VERSION"),
+            env!("CARGO_PKG_VERSION"),
+        );
+    } else {
+        // Tag build: PRISM_VERSION is the stripped tag, not CARGO_PKG_VERSION.
+        // Assert it is valid semver and not a leaked branch ref.
+        let v = env!("PRISM_VERSION");
+        assert!(
+            semver::Version::parse(v).is_ok(),
+            "On tag builds, PRISM_VERSION must be valid semver; got: {v}"
+        );
+        assert!(!v.contains('/'), "leaked branch ref in PRISM_VERSION: {v}");
+    }
 }
 
 /// RG-005: The infusion HTTP client user-agent uses `env!("PRISM_VERSION")`, not

@@ -21,6 +21,10 @@
 //! gate, non-release CI builds bake `PRISM_VERSION="develop"` into compiled code,
 //! causing incorrect user-agent strings. (F-VID-P1-CRIT-001, ADR-064 §D2)
 //!
+//! Both `PRISM_VERSION` and `PRISM_VERSION_IS_TAG_BUILD` are emitted and
+//! available at compile time via `env!("PRISM_VERSION")` /
+//! `env!("PRISM_VERSION_IS_TAG_BUILD")` in all `prism-spec-engine` source files.
+//!
 //! The resolver logic lives in `src/version_resolver.rs` (shared with the
 //! `prism_spec_engine` lib target via `pub mod version_resolver` so that
 //! unit tests in `version_resolver.rs` exercise the EXACT same function bodies
@@ -31,6 +35,11 @@
 //! None of the security-critical branches (SEC-001 CWE-93, SEC-002 CWE-20, the
 //! is_tag_build gate, prism_build_version_rejected) were exercised by any test.
 //! This `include!` arrangement mirrors the ratified prism-bin HIGH-1/MED-001 fix.
+//!
+//! HIGH-1 (S-REL-AGENT-VERSION-001 LOCAL pass-2): emit PRISM_VERSION_IS_TAG_BUILD
+//! alongside PRISM_VERSION so that tests/version_identity.rs::RG-004 can gate its
+//! equality assertion on actual build context, preventing CI failure on tag pushes.
+//! Mirrors the prism-bin build.rs pattern byte-for-byte (sibling-sweep D1).
 //!
 //! Authority: ADR-064 D4 §Surface B, S-REL-AGENT-VERSION-001 AC-006.
 
@@ -82,6 +91,7 @@ fn main() {
     }
 
     println!("cargo:rustc-env=PRISM_VERSION={version}");
+    println!("cargo:rustc-env=PRISM_VERSION_IS_TAG_BUILD={is_tag_build}");
 }
 
 // Shared pure resolvers — include! brings the same source into the build-script

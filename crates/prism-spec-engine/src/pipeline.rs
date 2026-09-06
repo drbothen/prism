@@ -5037,7 +5037,7 @@ mod infusion_http_client_user_agent_tests {
             ua.starts_with("prism/"),
             "OBS-4 (AC-UA-001): build_http_client_with_timeout (prism-spec-engine) MUST send \
              'User-Agent: prism/{{version}}' for WAF-fingerprint coherence (ADR-050 §D6). \
-             Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\"))) \
+             Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"PRISM_VERSION\"))) \
              to the builder in build_http_client_with_timeout (BC-2.16.002 AC-UA-001).",
             ua
         );
