@@ -193,6 +193,36 @@ pub fn resolve_is_tag_build(ref_type: Option<&str>, ref_val: Option<&str>) -> bo
     false
 }
 
+/// Returns the offending trimmed first-line value when a non-empty `PRISM_BUILD_VERSION`
+/// override fails the semver-shape gate, or `None` if the value is absent,
+/// empty/whitespace, or accepted by `is_semver_shaped`.
+///
+/// Used by `build.rs` to emit a `cargo:warning=` diagnostic when an operator's explicit
+/// `PRISM_BUILD_VERSION` is silently ignored and the fallback chain engages — turning a
+/// silent fallback into an observable one without changing resolution behavior (the
+/// silent-rejection-then-fallback is the deliberate SEC-002 design).
+///
+/// The returned value, when `Some`, is the **trimmed first line only** (newline-safe
+/// per SEC-001 first-line discipline), so it can be embedded directly in a
+/// `cargo:warning=` message without re-introducing the CWE-93 injection risk that the
+/// raw multi-line value would carry.
+///
+/// Shares `is_semver_shaped` with `resolve_prism_version` — single source of truth for
+/// the shape logic; no inline re-implementation in `build.rs` that could drift.
+///
+/// Authority: OBS-1 (S-REL-VERSION-IDENTITY adversary pass), SEC-001/SEC-002.
+pub fn prism_build_version_rejected(raw: Option<&str>) -> Option<String> {
+    let v = raw?;
+    let first_line = v.lines().next().unwrap_or(v).trim();
+    if first_line.is_empty() {
+        return None; // empty / whitespace-only → treated as absent (F-VID-P1-MED-001)
+    }
+    if is_semver_shaped(first_line) {
+        return None; // accepted by resolve_prism_version chain step 1
+    }
+    Some(first_line.to_string()) // non-empty, non-semver-shaped → rejected
+}
+
 // SEC-001/SEC-002 unit tests (S-REL-VERSION-IDENTITY review-cycle-5).
 //
 // These tests are in this file so that when `build.rs` does `include!("src/version_resolver.rs")`
@@ -201,7 +231,7 @@ pub fn resolve_is_tag_build(ref_type: Option<&str>, ref_val: Option<&str>) -> bo
 // so the module is only compiled when running `cargo test` / `cargo nextest` against prism-bin.
 #[cfg(test)]
 mod tests {
-    use super::{is_semver_shaped, resolve_prism_version};
+    use super::{is_semver_shaped, prism_build_version_rejected, resolve_prism_version};
 
     // -------------------------------------------------------------------------
     // SEC-001 (CWE-93): embedded newline must be stripped — only first line used
@@ -345,5 +375,126 @@ mod tests {
         assert!(!is_semver_shaped("1.0.0-")); // empty prerelease identifier
         assert!(!is_semver_shaped("1.0.0+")); // empty build identifier
         assert!(!is_semver_shaped("1.0.0-a..b")); // empty identifier in prerelease dot-chain
+    }
+
+    // -------------------------------------------------------------------------
+    // OBS-1 (S-REL-VERSION-IDENTITY adversary pass): prism_build_version_rejected
+    // RED gate: these tests are written BEFORE the function exists.  They fail to
+    // compile until `prism_build_version_rejected` is implemented below.
+    // -------------------------------------------------------------------------
+
+    /// Non-empty, non-semver PRISM_BUILD_VERSION → Some(offending first-line value).
+    ///
+    /// Drives the `cargo:warning=` diagnostic in build.rs so operators know their
+    /// explicit override was ignored.
+    ///
+    /// Authority: OBS-1, S-REL-VERSION-IDENTITY adversary pass.
+    #[test]
+    fn test_obs1_rejected_non_empty_non_semver_returns_some() {
+        assert_eq!(
+            prism_build_version_rejected(Some("not-a-version")),
+            Some("not-a-version".to_string()),
+            "non-semver non-empty value must return Some(value)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("my-branch")),
+            Some("my-branch".to_string()),
+            "branch name must return Some(branch)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("feature/S-3.01")),
+            Some("feature/S-3.01".to_string()),
+            "feature branch name must return Some(value)"
+        );
+    }
+
+    /// Valid semver-shaped value → None (accepted, no warning needed).
+    ///
+    /// Authority: OBS-1, S-REL-VERSION-IDENTITY adversary pass.
+    #[test]
+    fn test_obs1_rejected_valid_semver_returns_none() {
+        assert_eq!(
+            prism_build_version_rejected(Some("1.0.0")),
+            None,
+            "stable semver must return None (accepted)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("1.0.0-beta.1")),
+            None,
+            "pre-release semver must return None (accepted)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("2.0.0+build.5")),
+            None,
+            "build-metadata semver must return None (accepted)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("1.0.0-beta.1+exp.sha.5114f85")),
+            None,
+            "full semver with pre+build must return None (accepted)"
+        );
+    }
+
+    /// Empty and whitespace-only → None (treated as absent; F-VID-P1-MED-001).
+    ///
+    /// Authority: OBS-1, F-VID-P1-MED-001, S-REL-VERSION-IDENTITY adversary pass.
+    #[test]
+    fn test_obs1_rejected_empty_and_whitespace_return_none() {
+        assert_eq!(
+            prism_build_version_rejected(Some("")),
+            None,
+            "empty string must return None (treated as absent)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("   ")),
+            None,
+            "whitespace-only must return None (treated as absent)"
+        );
+        assert_eq!(
+            prism_build_version_rejected(Some("\t")),
+            None,
+            "tab-only must return None (treated as absent)"
+        );
+    }
+
+    /// None (env var not set) → None (nothing to warn about).
+    ///
+    /// Authority: OBS-1, S-REL-VERSION-IDENTITY adversary pass.
+    #[test]
+    fn test_obs1_rejected_none_input_returns_none() {
+        assert_eq!(
+            prism_build_version_rejected(None),
+            None,
+            "None (absent env var) must return None"
+        );
+    }
+
+    /// Embedded newline, non-semver first line → Some(trimmed first line only).
+    ///
+    /// The returned value is newline-safe (first line only) so it can be embedded
+    /// in a `cargo:warning=` message without re-introducing the CWE-93 injection
+    /// risk that the raw multi-line value would carry.
+    ///
+    /// Authority: OBS-1, SEC-001, S-REL-VERSION-IDENTITY adversary pass.
+    #[test]
+    fn test_obs1_rejected_embedded_newline_non_semver_returns_first_line() {
+        // Multi-line: non-semver first line → Some(first line, not the full value).
+        assert_eq!(
+            prism_build_version_rejected(Some("my-branch\ncargo:rustc-env=EVIL=inject")),
+            Some("my-branch".to_string()),
+            "embedded \\n: non-semver first line must return Some(first line only)"
+        );
+        // Multi-line: valid semver first line → None (accepted, no warning).
+        assert_eq!(
+            prism_build_version_rejected(Some("1.0.0-beta.1\ncargo:rustc-env=EVIL=inject")),
+            None,
+            "embedded \\n: valid semver first line must return None (accepted)"
+        );
+        // CRLF: non-semver first line.
+        assert_eq!(
+            prism_build_version_rejected(Some("my-branch\r\ncargo:rustc-env=EVIL=inject")),
+            Some("my-branch".to_string()),
+            "embedded \\r\\n: non-semver first line must return Some(first line only)"
+        );
     }
 }

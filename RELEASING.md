@@ -65,7 +65,8 @@ version bump is needed between pre-releases on the same X.Y.Z cycle** (e.g., bet
 time via `PRISM_VERSION`, resolved by `crates/prism-bin/build.rs` through the
 following fallback chain:
 
-1. `PRISM_BUILD_VERSION` env var (explicit override)
+1. `PRISM_BUILD_VERSION` env var (explicit override; must be semver-shaped —
+   `X.Y.Z[-pre][+build]` — otherwise it is ignored and the chain falls through)
 2. `GITHUB_REF_NAME` env var with a leading `v` stripped — **only on tag builds**
    (`GITHUB_REF_TYPE == "tag"`, or fallback: `GITHUB_REF` starts with `refs/tags/`).
    On non-tag runs (branch pushes, pull requests) this arm is skipped entirely and the

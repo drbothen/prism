@@ -63,6 +63,19 @@ fn main() {
         cargo_version,
     );
 
+    // OBS-1 (S-REL-VERSION-IDENTITY adversary pass): emit a build-time diagnostic when
+    // PRISM_BUILD_VERSION is non-empty but rejected by the semver-shape gate, so the
+    // operator knows their explicit override was ignored and the fallback chain engaged.
+    // Does NOT change resolution behavior — silent-rejection-then-fallback is the
+    // deliberate SEC-002 design (CWE-20: branch names / hostile strings must not reach
+    // cargo:rustc-env); this only adds observability for the manual-override path.
+    if let Some(rejected) = prism_build_version_rejected(build_version.as_deref()) {
+        println!(
+            "cargo:warning=PRISM_BUILD_VERSION override ignored: '{rejected}' is not \
+             semver-shaped (X.Y.Z[-pre][+build]). Falling back to GITHUB_REF_NAME / CARGO_PKG_VERSION."
+        );
+    }
+
     println!("cargo:rustc-env=PRISM_VERSION={version}");
     println!("cargo:rustc-env=PRISM_VERSION_IS_TAG_BUILD={is_tag_build}");
 }
