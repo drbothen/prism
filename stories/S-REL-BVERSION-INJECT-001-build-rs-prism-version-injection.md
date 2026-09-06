@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-IDENTITY
 priority: P0
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -72,7 +72,7 @@ phase: "3"
 
 **Story ID:** S-REL-BVERSION-INJECT-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -118,7 +118,7 @@ This story has no subsystem behavioral contracts. Authority is ADR-064 D2.
 
 | Architecture Source | Clause |
 |---------------------|--------|
-| ADR-064 v1.6 D2 | Fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME (single-v stripped via strip_prefix, only when GITHUB_REF_TYPE=="tag") → CARGO_PKG_VERSION; empty/whitespace values rejected on every arm |
+| ADR-064 v1.7 D2 | Fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME (single-v stripped via strip_prefix, post-strip empty guard via `and_then`, only when GITHUB_REF_TYPE=="tag") → CARGO_PKG_VERSION; empty/whitespace values rejected on every arm; degenerate tag "v" falls through to CARGO_PKG_VERSION (pass-5 OBS-1) |
 | ADR-064 D2 | All six prism-bin version-report sites migrated from CARGO_PKG_VERSION to PRISM_VERSION |
 | ADR-064 D2 | Out-of-scope: prism-spec-engine/pipeline.rs user-agent is NOT in scope for this story |
 | ADR-064 §Rationale NIT-2 | GITHUB_REF_NAME on release.yml (tag-triggered) = tag name; on release-tag.yml/release-promote.yml (workflow_dispatch) = branch name |
@@ -194,7 +194,8 @@ fallback chain semantics, version subcommand surface, and user-agent string.
    `build_http_client_with_timeout`, add an assertion that the user-agent header matches
    `format!("prism/{}", env!("PRISM_VERSION"))`. Verify it fails before migration.
 
-5. **Create `crates/prism-bin/build.rs`** with the normative contract from ADR-064 v1.6 D2:
+5. **Create `crates/prism-bin/build.rs` and `crates/prism-bin/src/version_resolver.rs`** with
+   the normative contract from ADR-064 v1.7 D2:
    ```rust
    fn main() {
        println!("cargo:rerun-if-env-changed=PRISM_BUILD_VERSION");
@@ -231,12 +232,16 @@ fallback chain semantics, version subcommand surface, and user-agent string.
                    // Strip a SINGLE leading 'v' via strip_prefix (not trim_start_matches
                    // which would strip all leading v's — F-VID-P1-LOW-001).
                    // e.g. "v1.0.0-beta.1" -> "1.0.0-beta.1". Trim whitespace first.
+                   // Post-strip empty guard: degenerate tag "v" → stripped "" → None →
+                   // falls through to CARGO_PKG_VERSION (pass-5 OBS-1;
+                   // "PRISM_VERSION is never empty" invariant). ADR-064 v1.7.
                    std::env::var("GITHUB_REF_NAME")
                        .ok()
                        .filter(|s| !s.trim().is_empty())
-                       .map(|r| {
+                       .and_then(|r| {
                            let name = r.trim();
-                           name.strip_prefix('v').unwrap_or(name).to_string()
+                           let stripped = name.strip_prefix('v').unwrap_or(name);
+                           if stripped.is_empty() { None } else { Some(stripped.to_string()) }
                        })
                } else {
                    None
@@ -247,11 +252,20 @@ fallback chain semantics, version subcommand surface, and user-agent string.
        println!("cargo:rustc-env=PRISM_VERSION={}", version);
    }
    ```
-   Key changes from the pre-v1.5 form (ADR-064 v1.5/v1.6, findings F-VID-P1-CRIT-001/LOW-001/MED-001):
+   Key changes from the pre-v1.5 form (ADR-064 v1.5/v1.6/v1.7, findings F-VID-P1-CRIT-001/LOW-001/MED-001 + pass-5 OBS-1):
    - Four `rerun-if-env-changed` lines (adds GITHUB_REF_TYPE, GITHUB_REF).
    - `is_tag_build` guard: GITHUB_REF_NAME is only used when GITHUB_REF_TYPE=="tag".
    - `strip_prefix('v')` (single-strip) replaces `trim_start_matches('v')` (all-strip).
    - Empty/whitespace filter on every env-var arm via `.filter(|s| !s.trim().is_empty())`.
+   - Post-strip empty guard via `and_then` (replaces `map`): degenerate tag `"v"` → stripped
+     `""` → `None` → falls through to `CARGO_PKG_VERSION` (pass-5 OBS-1; ADR-064 v1.7).
+
+   **Shared-resolver structure:** For testability, the version-resolution logic is extracted
+   to `crates/prism-bin/src/version_resolver.rs` as two helper functions —
+   `resolve_prism_version` (returns the resolved version string) and `resolve_is_tag_build`
+   (returns whether the current build is a tag build). `build.rs` uses Rust's `include!` macro
+   to bring them in, keeping `build.rs` thin and allowing unit tests to exercise the resolver
+   logic directly without running the full build script.
 
 6. **Migrate site 1 — `src/main.rs` (2 call sites):**
    Replace both `env!("CARGO_PKG_VERSION")` occurrences in `Commands::Version` arm
@@ -298,19 +312,28 @@ fallback chain semantics, version subcommand surface, and user-agent string.
 ### AC-001: build.rs exists with normative fallback chain
 `ls crates/prism-bin/build.rs` exits 0. File contains `PRISM_BUILD_VERSION`,
 `GITHUB_REF_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF`, `CARGO_PKG_VERSION`,
-`is_tag_build`, and `cargo:rustc-env=PRISM_VERSION` per ADR-064 v1.6 D2 normative
-contract (tag-guard + strip_prefix + empty-filter). (traces to ADR-064 v1.6 D2 —
-build.rs normative contract)
+`is_tag_build`, and `cargo:rustc-env=PRISM_VERSION` per ADR-064 v1.7 D2 normative
+contract (tag-guard + strip_prefix + empty-filter + post-strip empty guard via
+`and_then`). (traces to ADR-064 v1.7 D2 — build.rs normative contract)
 
 ### AC-002: build.rs emits rerun-if-env-changed for all four trigger vars
 `grep 'cargo:rerun-if-env-changed' crates/prism-bin/build.rs` returns exactly four
 lines: `PRISM_BUILD_VERSION`, `GITHUB_REF_NAME`, `GITHUB_REF_TYPE`, and `GITHUB_REF`.
-(traces to ADR-064 v1.6 D2 — cargo rebuild semantics: build.rs re-runs only when
+(traces to ADR-064 v1.7 D2 — cargo rebuild semantics: build.rs re-runs only when
 these env vars change; GITHUB_REF_TYPE and GITHUB_REF are required for the tag-guard
 that prevents branch-name leak — F-VID-P1-CRIT-001)
 
 ### AC-003: All six prism-bin version-report sites use PRISM_VERSION
-`grep -rn 'CARGO_PKG_VERSION' crates/prism-bin/src/` returns no output.
+Each of the four migration files contains zero occurrences of `CARGO_PKG_VERSION`:
+```
+grep -rn 'CARGO_PKG_VERSION' \
+  crates/prism-bin/src/main.rs \
+  crates/prism-bin/src/cli.rs \
+  crates/prism-bin/src/boot.rs \
+  crates/prism-bin/src/spec_driven_adapter.rs
+```
+returns no output. (`src/version_resolver.rs` legitimately retains `CARGO_PKG_VERSION`
+as the final fallback expression — that is correct per the fallback chain.)
 (traces to ADR-064 D2 — "All six prism-bin version-report sites are updated")
 
 ### AC-004: prism-spec-engine/pipeline.rs user-agent NOT changed
@@ -355,11 +378,12 @@ than creating a new test file.
 |------|--------|-------------|
 | All six prism-bin sites migrated | ADR-064 D2 six-site table | grep returns empty for `CARGO_PKG_VERSION` in `src/` |
 | prism-spec-engine out-of-scope | ADR-064 D2 explicit scope boundary | grep confirms pipeline.rs unchanged |
-| build.rs fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME (tag-gated via GITHUB_REF_TYPE) → CARGO_PKG_VERSION | ADR-064 v1.6 D2 normative | RG-002 tests the tag-guard fallback |
-| GITHUB_REF_NAME gated on GITHUB_REF_TYPE == "tag"; branch-name arm skipped on non-tag CI runs | ADR-064 v1.6 D2 (F-VID-P1-CRIT-001) | EC-002 describes the failure mode; tag-guard prevents it |
+| build.rs fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME (tag-gated via GITHUB_REF_TYPE, post-strip empty guard) → CARGO_PKG_VERSION | ADR-064 v1.7 D2 normative | RG-002 tests the tag-guard fallback |
+| GITHUB_REF_NAME gated on GITHUB_REF_TYPE == "tag"; branch-name arm skipped on non-tag CI runs | ADR-064 v1.7 D2 (F-VID-P1-CRIT-001) | EC-002 describes the failure mode; tag-guard prevents it |
+| Degenerate tag `"v"` stripped to `""` must fall through to CARGO_PKG_VERSION, not emit empty PRISM_VERSION | ADR-064 v1.7 D2 (pass-5 OBS-1 fix; `and_then` post-strip empty guard) | EC-003 covers this case; `and_then` ensures `None` propagates |
 | GITHUB_REF_NAME on release.yml is the tag; on workflow_dispatch runs is the branch | ADR-064 §Rationale NIT-2 | CI topology invariant; tag-guard makes this safe |
 | No `vergen` crate added | ADR-064 §Rationale (rejected vergen: shallow-clone incompatibility) | Cargo.lock diff shows no vergen entry |
-| build.rs must emit rerun-if-env-changed for all four trigger vars | ADR-064 v1.6 D2 | AC-002 grep check (4 lines: PRISM_BUILD_VERSION, GITHUB_REF_NAME, GITHUB_REF_TYPE, GITHUB_REF) |
+| build.rs must emit rerun-if-env-changed for all four trigger vars | ADR-064 v1.7 D2 | AC-002 grep check (4 lines: PRISM_BUILD_VERSION, GITHUB_REF_NAME, GITHUB_REF_TYPE, GITHUB_REF) |
 
 ---
 
@@ -377,7 +401,8 @@ than creating a new test file.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-bin/build.rs` | Create | Normative fallback chain per ADR-064 D2 |
+| `crates/prism-bin/build.rs` | Create | Normative fallback chain per ADR-064 v1.7 D2; uses `include!` to bring in version_resolver.rs |
+| `crates/prism-bin/src/version_resolver.rs` | Create | `resolve_prism_version` + `resolve_is_tag_build` helpers; `include!`'d by `build.rs` |
 | `crates/prism-bin/src/main.rs` | Modify | 2 sites: `CARGO_PKG_VERSION` → `PRISM_VERSION` |
 | `crates/prism-bin/src/cli.rs` | Modify | 1 site: `#[command(version)]` → `#[command(version = env!("PRISM_VERSION"))]` |
 | `crates/prism-bin/src/boot.rs` | Modify | 4 sites: boot log + BootAuditEmitter + 2× user-agent |
@@ -404,7 +429,8 @@ than creating a new test file.
 
 | Module | Classification | Justification |
 |--------|---------------|---------------|
-| `crates/prism-bin/build.rs` | pure-core | Reads env vars and emits build directives only; no I/O at runtime |
+| `crates/prism-bin/build.rs` | pure-core | Reads env vars and emits build directives only; no I/O at runtime; uses `include!` to bring in version_resolver.rs helpers |
+| `crates/prism-bin/src/version_resolver.rs` | pure-core | `resolve_prism_version` and `resolve_is_tag_build` are pure functions of env var input; `include!`'d by build.rs at build time |
 | `crates/prism-bin/src/main.rs` (Version arm) | pure-core | `env!()` is a compile-time constant; the `println!` side-effect is deliberate CLI output |
 | `crates/prism-bin/src/cli.rs` (version attr) | pure-core | Clap derive attribute; compile-time |
 | `crates/prism-bin/src/boot.rs` (boot log + audit + user-agent) | effectful-shell | tracing::info!, BootAuditEmitter, reqwest user-agent header are all I/O side effects |
@@ -418,7 +444,7 @@ than creating a new test file.
 |----|-------------|-------------------|
 | EC-001 | Both `PRISM_BUILD_VERSION` and `GITHUB_REF_NAME` are set | `PRISM_BUILD_VERSION` wins (first in fallback chain) per ADR-064 D2 |
 | EC-002 | `GITHUB_REF_NAME` is set to a branch name (e.g., `develop`) on a non-tag CI run | `build.rs` gates on `GITHUB_REF_TYPE == "tag"` (or `GITHUB_REF` starts-with `refs/tags/`). On push/pull_request events, `GITHUB_REF_TYPE` is `"branch"` so `is_tag_build` is `false` and the `GITHUB_REF_NAME` arm is skipped entirely — `PRISM_VERSION` falls through to `CARGO_PKG_VERSION` (`1.0.0-dev`). Branch names are NEVER baked into the binary (F-VID-P1-CRIT-001 fix, ADR-064 v1.5/v1.6) |
-| EC-003 | `GITHUB_REF_NAME` is `v1.0.0-beta.1` (leading `v`) | `strip_prefix('v')` → `1.0.0-beta.1`; correct per ADR-064 v1.6 D2. `strip_prefix` (single-strip) is used instead of `trim_start_matches` (F-VID-P1-LOW-001 — the latter would strip ALL leading v's) |
+| EC-003 | `GITHUB_REF_NAME` is `v1.0.0-beta.1` (leading `v`) | `strip_prefix('v')` → `1.0.0-beta.1`; correct per ADR-064 v1.7 D2. `strip_prefix` (single-strip) is used instead of `trim_start_matches` (F-VID-P1-LOW-001 — the latter would strip ALL leading v's). `and_then` (not `map`) returns `Some(stripped)` only when stripped is non-empty — the degenerate tag `"v"` → stripped `""` → `None` → falls through to `CARGO_PKG_VERSION` (pass-5 OBS-1; ADR-064 v1.7 post-strip empty guard) |
 | EC-004 | All three env vars absent (local dev) | Falls through to `CARGO_PKG_VERSION` = `1.0.0-dev`; correct local identity |
 | EC-005 | `prism-spec-engine/pipeline.rs` user-agent after this story | Still reads `CARGO_PKG_VERSION` from prism-spec-engine's own Cargo.toml; the crate version, not the product version. Documented out-of-scope per ADR-064 D2 |
 
@@ -428,5 +454,6 @@ than creating a new test file.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-05 | story-writer | Task-5/EC-003 re-synced to ADR-064 v1.7: `and_then` + post-strip empty guard for degenerate tag `"v"` (pass-5 OBS-1); shared-resolver structure added (`src/version_resolver.rs` with `resolve_prism_version`/`resolve_is_tag_build`, `build.rs` uses `include!`); AC-003 grep scoped to four migration files (main.rs, cli.rs, boot.rs, spec_driven_adapter.rs); AC-001/AC-002/Behavioral Contracts/Architecture Compliance Rules updated from v1.6 to v1.7; File Structure Requirements and Purity Classification updated with version_resolver.rs; body **Version** corrected to v1.2; closes passes 9/10 LOW drifts |
 | 1.1 | 2026-09-05 | story-writer | Sync Task 5 / AC-002 / RG-002 to ADR-064 v1.6: tag-guard (GITHUB_REF_TYPE=="tag"), strip_prefix single-v strip, 4 rerun-if-env-changed lines (PRISM_BUILD_VERSION, GITHUB_REF_NAME, GITHUB_REF_TYPE, GITHUB_REF), empty-string filter on all arms; AC-001 updated to name is_tag_build; EC-002/EC-003 corrected; Architecture Compliance Rules and risk_mitigations updated; closes pass-5 HIGH-1 stale-body defect |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-064 D2 materialization |
