@@ -1,18 +1,67 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.078"
+version: "8.079"
 status: current
-timestamp: 2026-09-05T12:00:00Z
+timestamp: 2026-09-05T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2461 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — PR A LOCAL cascade CONVERGED (HUMAN-ADJUDICATED CLEAN(PR-merge); D-2461). S-REL-BVERSION-INJECT-001 v1.1→v1.2 (story-writer: Task-5/EC-003 build.rs sketch re-synced to ADR-064 v1.7; AC-003 grep scoped to 4 migration files). STORY-INDEX v3.002→v3.003. Feature HEAD c4a451fa3 → PR A (target develop); pr-reviewer + security re-confirm; merge on explicit human authorization. develop_head UNCHANGED 29b9d4fad. bc_index/vp_index/arch_index/total_stories UNCHANGED. STATE v8.988→v8.989. SESSION-HANDOFF v8.077→v8.078. §RESUME SNAPSHOT D-2461 inserted; D-2460 SUPERSEDED. records-lint exit 0.**
+> **D-2462 (2026-09-05): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — RESUME SNAPSHOT D-2462 authored. PR A (PR #262, HEAD c4a451fa3) LOCAL-converged (D-2461; 10 passes) BUT PR-LEVEL pr-reviewer REQUEST_CHANGES: B-1 CRITICAL (tag-build CI breakage) + B-2 (RELEASING lane contradiction) BLOCKING; S-1 HUMAN DECISION (MCP/spec-engine version surfaces). PR A NOT mergeable until B-1/B-2 fixed + S-1 decided + re-gate. D-2461 "CLEAN(PR-merge)" AMENDED. sidecar-learning.md included. develop_head UNCHANGED 29b9d4fad. bc_index/vp_index/arch_index/story_index UNCHANGED. STATE v8.989→v8.990. SESSION-HANDOFF v8.078→v8.079. §RESUME SNAPSHOT D-2462 inserted; D-2461 SUPERSEDED. records-lint exit 0. SAFE TO CLEAR context after this commit.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2461 (2026-09-05 — PR A CONVERGED at CLEAN(PR-merge); S-REL-BVERSION-INJECT-001 v1.2; STORY-INDEX v3.003; PR A pr-reviewer+security review NEXT; TDD 3 beta.1 stories CURRENT OBJECTIVE) [supersedes D-2460]
+## §RESUME SNAPSHOT — D-2462 (2026-09-05 — SESSION WRAP; PR A (PR #262) NOT mergeable: B-1 tag-build CI + B-2 RELEASING lane BLOCKING; S-1 HUMAN DECISION; fix B-1/B-2 + re-gate NEXT) [supersedes D-2461]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. PR #262 (PR A = E-REL-IDENTITY version identity) is OPEN but NOT mergeable — PR-LEVEL pr-reviewer returned REQUEST_CHANGES on HEAD c4a451fa3 with 2 blockers (B-1 tag-build CI breakage, B-2 RELEASING pre-release/stable lane contradiction) + an S-1 human decision (MCP/spec-engine version surfaces). Next: fix B-1/B-2, get S-1 decision, re-gate (LOCAL + PR-LEVEL), then merge PR #262 on explicit human auth → PR B (git-cliff changelog pipeline) → tag v1.0.0-beta.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-beta.1 as a Claroty-xDome-only evaluation release using BETA channel. Architecture: ADR-063 v1.3 (git-cliff 2.14.1 + two-layer CHANGELOG model) + ADR-064 v1.7 (GITHUB_REF_NAME → PRISM_VERSION at 6 prism-bin sites GATED on GITHUB_REF_TYPE=="tag" + and_then empty-filter; cargo-release 1.1.5 stable entrypoint). Release build path functional on develop (PR #261 merged @29b9d4fad). First actual GitHub Release = v1.0.0-beta.1 after PR A + PR B land.
+
+### HEADS (backup boundary — all pushed unless noted)
+- `develop`: origin = `29b9d4fad` (PR #261 musl fix + release-notes --notes-file wiring + beta.1 relabel merged this session).
+- `feature/S-REL-VERSION-IDENTITY`: HEAD `c4a451fa3` — PUSHED (PR #262, base develop). Worktree .worktrees/S-REL-VERSION-IDENTITY clean.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- `main`: `bdf24cec8` (stub, untouched).
+- Open PRs: #262 (PR A, REQUEST_CHANGES — fix before merge); #255 (OBSOLETE rc.1 known-limitations CHANGELOG — CLOSE, do NOT merge).
+- Tag v1.0.0-rc.1 = immutable GHOST (never published; superseded by forthcoming v1.0.0-beta.1).
+- Worktrees: ACTIVE .worktrees/S-REL-VERSION-IDENTITY (PR #262). PARKED: S-3.09 (@43c41389d, KEEP), W3-FIX-S307-001 (@fcab8717c, DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired.
+2. PR #262 (PR A) — pr-reviewer REQUEST_CHANGES on c4a451fa3; fix on feature/S-REL-VERSION-IDENTITY:
+   - B-1 (CRITICAL, reviewer-reproduced): ci.yml uses bare `on: push:` so it fires on TAG pushes; on a v1.0.0-beta.1 tag, build.rs sets PRISM_VERSION="1.0.0-beta.1" while CARGO_PKG_VERSION stays "1.0.0-dev"; tests `test_prism_version_equals_cargo_pkg_version_on_non_tag_build` + `test_cli_version_output_contains_semver` hard-assert equality → FAIL on tag builds → 6/24 required checks RED on the beta.1 tag. FIX (route implementer): replace CARGO_PKG_VERSION-literal equality assertions with a semver-parse/shape assertion valid for BOTH "1.0.0-dev" and "1.0.0-beta.1"; emit `PRISM_VERSION_IS_TAG_BUILD` env from build.rs so the non-tag precondition is observable/testable. TD-VSDD-097 dim-1 sibling-sweep.
+   - B-2 (route implementer/technical-writer, feature worktree RELEASING.md): §1 ¶2/¶3 + §3 invariant table + §4 procedure conflate pre-release (release-tag.yml, BASE-MATCH) with stable (release-promote.yml, EXACT-MATCH); §4 routes a pre-release cut through the stable lane → operator hits release-promote.yml version-guard failure cutting beta.1. Correct §1/§3/§4 to route pre-release via release-tag.yml BASE-MATCH. TD-VSDD-097 dim-1 sibling-sweep.
+   - S-1 (HUMAN DECISION before beta.1): prism-mcp/src/server.rs serverInfo.version="0.1.0" (MCP handshake — most agent-visible surface) + prism-spec-engine/src/pipeline.rs user-agent prism/0.9.0 are unmigrated (ADR-064 D2 scoped to prism-bin's 6 sites only). ORCHESTRATOR RECOMMENDATION: migrate at least prism-mcp serverInfo.version so beta.1's agent-facing version is coherent. Ask human on resume.
+   - S-2: add a test exercising build.rs::main env::var reads (typo → silent 1.0.0-dev fallback). S-3: docs-gate CI-wiring deferred to S-REL-DOCS-CI-WIRE-001. NITS N-1..N-4 (SETUP.md 1.0.0 verify-step, script header inaccuracies, RELEASING §1 fragment, 1.0.0-dev vs 1.0.0-beta.1 semver-sort note).
+   - After fixes: re-gate LOCAL (short) + re-run PR-LEVEL pr-reviewer + security on the NEW HEAD; MERGE PR #262 on EXPLICIT in-session human authorization (admin squash-merge; branch protection requires it).
+3. PR B (E-REL-NOTES changelog pipeline) — NOT started: S-REL-CLIFF-001 (cliff.toml + release-prep git-cliff `--unreleased --tag ... --prepend`) → S-REL-WRITER-001 (technical-writer Layer-1 highlights top-block) → S-REL-BETA1-NOTES-001 (full git-cliff generation + curation of beta.1 body). Create worktree off updated develop AFTER PR A merges; run TDD + LOCAL cascade + PR-LEVEL review.
+4. CLOSE obsolete PR #255 (do NOT merge).
+5. Full git-cliff generation + curation of the beta.1 CHANGELOG → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH: prism-bin 1.0.0-dev core 1.0.0 == beta.1 core) → release.yml publishes 5-platform pre-release with curated --notes-file body + correctly self-identifying binary.
+
+### PENDING USER-APPROVED WORK
+- Batched 2-epic-PR delivery approved (PR A pushed; PR B pending). beta channel + keep 1.0.0 core.
+- S-1 MCP/spec-engine version-surface migration — NEEDS HUMAN DECISION.
+- Merge authorization for PR #262 — NEEDS EXPLICIT in-session human approval (admin-merge; classifier + branch protection).
+- Force-push to any branch — needs explicit human approval.
+
+### DECISION DELTA
+D-2462 (SESSION WRAP): PR A LOCAL cascade converged (10 passes: pass-1 CRIT branch-leak, pass-2 HIGH illusory-tests, pass-3 MED, pass-4/8/10 clean, pass-5/6/7/9 spec-doc fixes — all fixed) BUT PR-LEVEL fresh-eyes pr-reviewer = REQUEST_CHANGES on c4a451fa3: B-1 (tag-build CI breakage, CRITICAL) + B-2 (RELEASING pre-release/stable lane contradiction) blocking; S-1 (MCP/spec-engine version surfaces) human decision. D-2461 "converged at CLEAN(PR-merge)" AMENDED — PR-LEVEL gate found blockers; PR A NOT mergeable until B-1/B-2 fixed + S-1 decided + re-gate. PR #262 pushed (c4a451fa3). Session ended for context clear; SAFE TO CLEAR after this commit.
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 + D-2445 autonomy (merge+tag on green gates; merge still needs in-session human auth per classifier; force-push any branch needs human). (c) beta channel + keep 1.0.0 core (v1.0.0-beta.1 is first published pre-release; rc.1 ghost). (d) git-cliff hybrid changelog (ADR-063 v1.3). (e) cargo-release single bump entrypoint (ADR-064 D3). (f) GITHUB_REF_NAME build.rs PRISM_VERSION injection, tag-gated (ADR-064 D2 v1.7). (g) docs version-agnostic + "download newest PRE-RELEASE from Releases page". (h) full git-cliff generation for beta.1 first-release. (i) heartbeat cron b98bd9dc durable.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *); confirmed armed this session. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 1 = CronList → re-arm if absent/expired.
+
+### WORKTREE INVENTORY
+ACTIVE: feature/S-REL-VERSION-IDENTITY (PR #262, REQUEST_CHANGES — fix before merge). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2461 (2026-09-05 — PR A CONVERGED at CLEAN(PR-merge); S-REL-BVERSION-INJECT-001 v1.2; STORY-INDEX v3.003; PR A pr-reviewer+security review NEXT; TDD 3 beta.1 stories CURRENT OBJECTIVE) [supersedes D-2460] [SUPERSEDED by D-2462]
 
 ### RESUME IN ONE BREATH
 PR A (feature/S-REL-VERSION-IDENTITY, batched E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 v1.2 + S-REL-DOCS-AGNOSTIC-001 v1.1) LOCAL adversarial cascade CONVERGED — HUMAN-ADJUDICATED at CLEAN(PR-merge) (D-2461). 10 LOCAL passes: pass-1 CRIT (GITHUB_REF_NAME branch-leak → cli version test fail on all 5 CI legs) + 2 MED; pass-2 HIGH (dead build-script tests + divergent resolver copy) + 2 MED; pass-3 MED (is_tag_build derivation untested); pass-4 code-clean; pass-5 code-clean + ADR anchor_stories drift; pass-6 CLEAN(PR-merge); pass-7 MED (gate AC-002/003 README coverage false-green); pass-8 CLEAN(strict); pass-9 2 LOW story-text; pass-10 CLEAN(strict). All real findings fixed; OBS docs-CI-wiring deferred to S-REL-DOCS-CI-WIRE-001. S-REL-BVERSION-INJECT-001 v1.1→v1.2 this burst (Task-5/EC-003 build.rs sketch re-synced to ADR-064 v1.7 and_then empty guard + shared-resolver structure; AC-003 grep scoped to 4 migration files). story_index v3.003 (total_stories 334). Feature HEAD c4a451fa3 → PR A. Binary + ADR-064 v1.7 converged; production-grade. Governing objective: TDD 3 remaining beta.1-blocking stories + merge PR A → tag v1.0.0-beta.1.
