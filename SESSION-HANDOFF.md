@@ -1,18 +1,61 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.081"
+version: "8.082"
 status: current
-timestamp: 2026-09-05T23:30:00Z
+timestamp: 2026-09-06T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2464 (2026-09-05): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #262 PR-LEVEL adversary 3-CLEAN cascade RECORDED: pass-1 CLEAN(strict); pass-2 MED-1 (ADR-064 §D2 CWE-93/CWE-20 hardening) + OBS; pass-3 OBS. 3-CLEAN streak RESET 0/3 (frozen-HEAD rule; BC-5.39.001). ADR-064 v1.8→v1.9 (§D2 mandates first-line extraction + is_semver_shaped gate; §D4 §Surface B swept). ARCH-INDEX v2.366→v2.367. Feature HEAD d5aefbfaa→14b8c4503 (just check 6045/6045; docs gate 9/9; pushed). OBS process-gap DEFERRED to S-REL-DOCS-CI-WIRE-001. NEXT: restart 3-CLEAN on HEAD 14b8c4503. develop_head UNCHANGED 29b9d4fad. bc_index/vp_index/story_index/holdout_index UNCHANGED. arch_index v2.366→v2.367. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.991→v8.992. SESSION-HANDOFF v8.080→v8.081. §RESUME SNAPSHOT D-2464 inserted; D-2463 SUPERSEDED.**
+> **D-2465 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #262 (E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001) ADMIN SQUASH-MERGED to develop @19887ebcd on explicit human authorization. Merge commit 19887ebcdbdcbd3469c3cff46153e421e9e88e88. develop_head 29b9d4fad→19887ebcd. PR-LEVEL adversary cascade CONVERGED 3-CLEAN(strict) on frozen HEAD 4c5a12d00. pr-reviewer APPROVE cycle-6; security CLEAN(PR-merge) (SEC-001/SEC-002 CLOSED); CI 51/51 green. POL-14 NO-OP (behavioral_contracts: [] on all three). story_index v3.004→v3.005. bc_index/vp_index/arch_index/holdout_index UNCHANGED. S-REL-AGENT-VERSION-001 now unblocked. NEXT: TDD S-REL-AGENT-VERSION-001 off develop 19887ebcd. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.992→v8.993. SESSION-HANDOFF v8.081→v8.082. §RESUME SNAPSHOT D-2465 inserted; D-2464 SUPERSEDED.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2464 (2026-09-05 — PR #262 PR-LEVEL cascade RECORDED; 3-CLEAN streak RESET 0/3 on HEAD 14b8c4503; ADR-064 v1.9; restart 3-CLEAN then merge + TDD S-REL-AGENT-VERSION-001 NEXT) [supersedes D-2463]
+## §RESUME SNAPSHOT — D-2465 (2026-09-06 — PR #262 ADMIN SQUASH-MERGED @19887ebcd; E-REL-IDENTITY 3 stories MERGED; TDD S-REL-AGENT-VERSION-001 NEXT) [supersedes D-2464]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. PR #262 (E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001) ADMIN SQUASH-MERGED to develop @19887ebcd on explicit human authorization. PR-LEVEL adversary cascade CONVERGED 3-CLEAN(strict) on frozen HEAD 4c5a12d00. Merge commit 19887ebcdbdcbd3469c3cff46153e421e9e88e88. develop_head 29b9d4fad→19887ebcd. NEXT: TDD S-REL-AGENT-VERSION-001 off develop 19887ebcd → PR B git-cliff → tag v1.0.0-beta.1.
+
+### GOVERNING OBJECTIVE
+Ship v1.0.0-beta.1 as a Claroty-xDome-only evaluation release using BETA channel. Architecture: ADR-063 v1.3 (git-cliff 2.14.1 + two-layer CHANGELOG model) + ADR-064 v1.9 (GITHUB_REF_NAME → PRISM_VERSION at 6 prism-bin sites GATED on GITHUB_REF_TYPE=="tag"; §D2 mandates CWE-93 first-line extraction + CWE-20 is_semver_shaped gate; §D4 prism-mcp serverInfo runtime wiring + prism-spec-engine per-crate build.rs; cargo-release 1.1.5 stable entrypoint) + ADR-050 v2.4 (§D6: both surfaces emit prism/{PRODUCT_VERSION}). Release build path functional on develop (PR #262 merged @19887ebcd). First actual GitHub Release = v1.0.0-beta.1 after S-REL-AGENT-VERSION-001 PR + PR B land.
+
+### HEADS (backup boundary — all pushed unless noted)
+- `develop`: origin = `19887ebcd` (PR #262 merged 2026-09-06).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- `main`: `bdf24cec8` (stub, untouched).
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
+- Worktrees: ACTIVE — none (S-REL-VERSION-IDENTITY MERGED+REMOVABLE). PARKED: S-3.09 (@43c41389d, KEEP), W3-FIX-S307-001 (@fcab8717c, DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired.
+2. **TDD S-REL-AGENT-VERSION-001** (new worktree off develop 19887ebcd):
+   - Story v1.0: E-REL-IDENTITY; ADR-064 v1.9 D4 (prism-mcp serverInfo runtime wiring) + ADR-050 v2.4 D6 (prism-spec-engine per-crate build.rs); 5 RGTs/8 ACs strict TDD.
+   - RG-002: MCP `initialize` wire-shape assertion (MUST assert serialized JSON serverInfo.version != "0.1.0").
+   - Per-story holdout gate: HS-032 (3 P1 scenarios, HIDDEN, SINGLE-USE) BEFORE demo/push.
+   - LOCAL 3-CLEAN before push; own PR; pr-reviewer + security cycle.
+3. **PR B** (E-REL-NOTES, after S-REL-AGENT-VERSION-001 merges): new worktree → S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001. TDD + LOCAL cascade + PR-LEVEL review.
+4. CLOSE obsolete PR #255 (human clicks Close; do NOT merge).
+5. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` → release.yml publishes 5-platform pre-release.
+
+### PENDING USER-APPROVED WORK
+- Force-push to any branch — needs explicit human approval.
+
+### DECISION DELTA
+D-2465 (2026-09-06 post-merge burst): PR #262 (E-REL-IDENTITY) ADMIN SQUASH-MERGED to develop @19887ebcd on explicit human authorization (admin override of review-required branch protection; self-authored PR could not receive GitHub APPROVED review). Merge commit 19887ebcdbdcbd3469c3cff46153e421e9e88e88. develop_head 29b9d4fad→19887ebcd. PR-LEVEL adversary cascade CONVERGED 3-CLEAN(strict) on frozen HEAD 4c5a12d00: first 3-CLEAN attempt reset by MED-1 (ADR-064 §D2 understated CWE-93/CWE-20 hardening — D-2464 fix) + code OBS; feature HEAD advanced 14b8c4503→4c5a12d00; final 3-CLEAN on frozen 4c5a12d00. pr-reviewer APPROVE (cycle-6); security CLEAN(PR-merge) (SEC-001/SEC-002 CLOSED); CI 51/51. Accepted LOW residuals (build-operator/privileged-only). POL-14 NO-OP. S-REL-AGENT-VERSION-001 unblocked (depends_on MERGED). STORY-INDEX v3.004→v3.005. TD-VSDD-097: Dim-1/2/3 CLEAR. TD-VSDD-091/POL-39 CLEAN.
+
+### STANDING DECISIONS (carry forward)
+(a) Production-grade default / no pragmatic convergence. (b) D-989 + D-2445 autonomy (merge+tag on green gates; force-push any branch needs human). (c) beta channel + keep 1.0.0 core. (d) git-cliff hybrid changelog (ADR-063 v1.3). (e) cargo-release single bump entrypoint (ADR-064 v1.9 D3). (f) GITHUB_REF_NAME build.rs PRISM_VERSION injection, tag-gated (ADR-064 v1.9 D2; CWE-93/CWE-20 hardened). (g) prism-mcp serverInfo.version + prism-spec-engine UA → PRISM_VERSION via S-REL-AGENT-VERSION-001 (ADR-064 v1.9 D4 + ADR-050 v2.4 D6). (h) docs version-agnostic. (i) full git-cliff generation for beta.1 first-release. (j) heartbeat cron b98bd9dc durable.
+
+### HEARTBEAT
+Durable cron b98bd9dc (8,23,38,53 * * * *). CLAUDE.md §Orchestrator Auto-Recovery Heartbeat authoritative; RESUME STEP 1 = CronList → re-arm if absent/expired.
+
+### WORKTREE INVENTORY
+ACTIVE: none (S-REL-VERSION-IDENTITY MERGED+REMOVABLE). PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2464 (2026-09-05 — PR #262 PR-LEVEL cascade RECORDED; 3-CLEAN streak RESET 0/3 on HEAD 14b8c4503; ADR-064 v1.9; restart 3-CLEAN then merge + TDD S-REL-AGENT-VERSION-001 NEXT) [supersedes D-2463] [SUPERSEDED by D-2465]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. PR-LEVEL adversary 3-CLEAN cascade on PR #262: pass-1 CLEAN(strict); pass-2 MED-1 (ADR-064 §D2 understated CWE-93/CWE-20 hardening) + OBS; pass-3 OBS. 3-CLEAN streak RESET 0/3 (frozen-HEAD rule; BC-5.39.001). MED-1 REMEDIATED: ADR-064 v1.8→v1.9 (§D2 mandates first-line extraction + is_semver_shaped gate; §D4 §Surface B swept). Code OBS REMEDIATED: feature HEAD d5aefbfaa→14b8c4503 (is_semver_shaped parse order fixed; dead filter removed; stale code-comment pins replaced; just check 6045/6045; pushed). OBS process-gap DEFERRED to S-REL-DOCS-CI-WIRE-001. NEXT: restart PR-LEVEL 3-CLEAN from 0/3 on frozen HEAD 14b8c4503 → merge PR #262 on explicit human auth → TDD S-REL-AGENT-VERSION-001 → PR B git-cliff → tag v1.0.0-beta.1.
