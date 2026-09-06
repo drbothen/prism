@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.9"
+version: "2.0"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -15,7 +15,7 @@ anchor_stories:
   - S-REL-BVERSION-INJECT-001   # D2 — cites ADR-064 D2 in §Authority
   - S-REL-DOCS-AGNOSTIC-001     # D1/D2 — cites ADR-064 D1/D2 in §Authority
   - S-REL-VBUMP-001             # D3 — cites ADR-064 D3 in §Authority
-  - S-REL-AGENT-VERSION-001     # D4 — PROPOSED; story to be authored; cites ADR-064 D4 in §Authority
+  - S-REL-AGENT-VERSION-001     # D4 — authored (draft, v1.3-pending); cites ADR-064 D4 in §Authority
 related_adrs: [ADR-050, ADR-062, ADR-063]
 related_bcs: []
 locked_decisions: []
@@ -34,12 +34,17 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md
   - .factory/specs/architecture/decisions/ADR-062-product-version-alignment.md
   - .factory/research/version-management-2026.md
-input-hash: "e5e35fd"
+input-hash: "dabc1b9"
 ---
 
 # ADR-064: Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release
 
 ## Status
+
+ACCEPTED v2.0 (2026-09-06) — SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001
+updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on
+disk with status:draft and cites ADR-064 §D4 in §Authority. Frontmatter/traceability only — no
+decision content changed.
 
 ACCEPTED v1.9 (2026-09-05) — MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION
 arm hardened against CWE-93 (embedded-newline injection of a second cargo directive) and CWE-20
@@ -751,6 +756,7 @@ ACCEPTED. All four decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.0 | 2026-09-06 | architect | SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001 updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on disk with status:draft and cites ADR-064 §D4 in §Authority. Frontmatter/traceability only — no decision content changed. |
 | 1.9 | 2026-09-05 | architect | MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION arm hardened against CWE-93 (embedded-newline injection of second cargo directive) + CWE-20 (unvalidated version string). `resolve_prism_version` step 1 takes FIRST LINE ONLY via `s.lines().next().unwrap_or("").trim()` before accepting override. New `is_semver_shaped` structural validator: ACCEPT `MAJOR.MINOR.PATCH[-pre][+build]` (non-empty dot-separated identifiers, chars `[0-9A-Za-z-]`); REJECT empty prerelease/build/identifier, 4th dotted core component, non-numeric core; lightweight structural check, NOT `semver` crate (build.rs remains dep-free); must-pass: `1.0.0`, `1.0.0-dev`, `1.0.0-beta.1`, `1.0.0-rc.2`, `1.0.0+build.5`, `1.0.0-beta.1+exp.sha.5114f85`; must-reject: `1.0.0-`, `1.0.0+`, `develop`, `1.0`, `1.0.0.0`, `a.b.c`. D2 fallback chain step 1 updated: shape check fail → FALL THROUGH to `GITHUB_REF_NAME` arm. D4 §Surface B swept in-burst: injection sites table row for `crates/prism-spec-engine/build.rs` updated to explicitly include CWE-93/CWE-20 hardening; narrative updated to state both implementations inherit the hardening per D2 normative contract. TD-VSDD-097 Dim-1 CLEAR (sole ADR carrying build.rs contract). Dim-2 CLEAR (§D4 §Surface B swept in-burst). Dim-3: hardening MUSTs anchor to S-REL-AGENT-VERSION-001 (Surface B) and S-REL-BVERSION-INJECT-001 (prism-bin, already merged). |
 | 1.8 | 2026-09-05 | architect | D4 added (S-1 human-directed): agent-facing version surface expansion. prism-mcp serverInfo.version: runtime wiring via `PrismServer.product_version` field + `with_deps` parameter + boot.rs step-9 `env!("PRISM_VERSION")`; `get_info` uses `self.product_version` in `Implementation::new`. prism-spec-engine user-agent: per-crate `build.rs` emitting `PRISM_VERSION` (D2-conformant fallback chain); `build_http_client_with_timeout` changes `CARGO_PKG_VERSION` to `PRISM_VERSION`. D2 §Context out-of-scope paragraph superseded by forward reference to D4. New story S-REL-AGENT-VERSION-001 proposed for D4 implementation. ADR-050 §D6 cross-ref: after D4 ships, all outbound HTTP clients emit coherent `prism/{PRODUCT_VERSION}`. `related_adrs` extended with ADR-050. `anchor_stories` extended with S-REL-AGENT-VERSION-001. `inputs` extended with prism-mcp/src/server.rs, prism-spec-engine/src/pipeline.rs, ADR-050. S-REL-BVERSION-INJECT-001 AC-004 downstream impact flagged. TD-VSDD-097 Dim-1 CLEAR (no sibling ADR restates 6-site D2 scope). Dim-2 flagged: S-REL-BVERSION-INJECT-001 AC-004 is a downstream copy of D2 out-of-scope scope boundary — story-writer must amend AC-004 when S-REL-AGENT-VERSION-001 is authored. Dim-3: new D4 MUSTs anchored to S-REL-AGENT-VERSION-001. |
 | 1.7 | 2026-09-05 | architect | pass-5 OBS-1 sync: D2 build.rs sketch updated — `map` → `and_then` with post-strip empty guard; degenerate tag `"v"` → stripped `""` → `None` → falls through to CARGO_PKG_VERSION. Sketch now satisfies "PRISM_VERSION is never empty" invariant for all tag inputs. Empty-string rule paragraph updated to document the post-strip guard. Status as of v1.7 updated with OBS-1 note. Frontmatter/sketch only — no decision-content change. |

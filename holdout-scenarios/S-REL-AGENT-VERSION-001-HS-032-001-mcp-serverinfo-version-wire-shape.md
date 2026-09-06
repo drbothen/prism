@@ -43,7 +43,7 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-0
 
 **Story:** S-REL-AGENT-VERSION-001 (HS-032 group)
 **Must Pass:** YES (P1 — blocks story merge)
-**Authority:** ADR-064 v1.8 D4 §Surface A — `PrismServer::get_info` must return
+**Authority:** ADR-064 §D4 §Surface A — `PrismServer::get_info` must return
 `Implementation::new("prism", self.product_version)` where `product_version` is the
 `env!("PRISM_VERSION")` value threaded from boot step 9.
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
@@ -120,9 +120,9 @@ to `"1.0.0-dev"` (the PRISM_VERSION for a local/develop build)
 
 | Source | Clause | Scenario Aspect |
 |--------|--------|-----------------|
-| ADR-064 v1.8 D4 §Surface A | `get_info` row: `Implementation::new("prism", self.product_version)` | Primary assertion: serverInfo.version is not "0.1.0" |
-| ADR-064 v1.8 D4 §Surface A | boot.rs row: `env!("PRISM_VERSION")` passed as final arg to `with_deps` | Wiring chain: product_version reaches get_info via boot step 9 |
-| ADR-064 v1.8 D4 §Purpose | "An LLM agent reads serverInfo.version in the handshake to identify which prism server it is talking to" | Agent-facing correctness: the version a connected agent sees |
+| ADR-064 §D4 §Surface A | `get_info` row: `Implementation::new("prism", self.product_version)` | Primary assertion: serverInfo.version is not "0.1.0" |
+| ADR-064 §D4 §Surface A | boot.rs row: `env!("PRISM_VERSION")` passed as final arg to `with_deps` | Wiring chain: product_version reaches get_info via boot step 9 |
+| ADR-064 §D4 §Purpose | "An LLM agent reads serverInfo.version in the handshake to identify which prism server it is talking to" | Agent-facing correctness: the version a connected agent sees |
 
 ---
 

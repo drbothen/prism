@@ -44,8 +44,8 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-0
 
 **Story:** S-REL-AGENT-VERSION-001 (HS-032 group)
 **Must Pass:** YES (P1 — blocks story merge)
-**Authority:** ADR-064 v1.8 D4 §Status as of v1.8: "All four agent/tenant-visible
-surfaces MUST emit the same PRISM_VERSION after D4 ships." AND ADR-064 D4 §Purpose:
+**Authority:** ADR-064 §D4 §Status: "All four agent/tenant-visible
+surfaces MUST emit the same PRISM_VERSION after D4 ships." AND ADR-064 §D4 §Purpose:
 "v1.0.0-beta.1 MUST self-identify coherently to LLM agents (serverInfo.version) and
 to sensor tenants (HTTP user-agent)."
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
@@ -118,9 +118,9 @@ are run in the same session — their observations suffice for this coherence ch
 
 | Source | Clause | Scenario Aspect |
 |--------|--------|-----------------|
-| ADR-064 v1.8 D4 §Purpose | "All four agent/tenant-visible surfaces MUST emit the same PRISM_VERSION after D4 ships" | Core coherence invariant |
-| ADR-064 v1.8 D4 §Surface A | serverInfo.version wiring via self.product_version | Surface A version source |
-| ADR-064 v1.8 D4 §Surface B + ADR-050 v2.4 D6 | User-Agent via env!("PRISM_VERSION") in pipeline.rs | Surface B version source |
+| ADR-064 §D4 §Purpose | "All four agent/tenant-visible surfaces MUST emit the same PRISM_VERSION after D4 ships" | Core coherence invariant |
+| ADR-064 §D4 §Surface A | serverInfo.version wiring via self.product_version | Surface A version source |
+| ADR-064 §D4 §Surface B + ADR-050 §D6 | User-Agent via env!("PRISM_VERSION") in pipeline.rs | Surface B version source |
 | ADR-064 D2 (via D4) | Both surfaces resolve from the same PRISM_VERSION source (build.rs injection) | Single source of truth |
 
 ---

@@ -44,9 +44,8 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-0
 
 **Story:** S-REL-AGENT-VERSION-001 (HS-032 group)
 **Must Pass:** YES (P1 — blocks story merge)
-**Authority:** ADR-050 v2.4 D6 normative call:
-`concat!("prism/", env!("PRISM_VERSION"))` — updated from `CARGO_PKG_VERSION` in v2.4
-(ADR-064 D4 cross-reference). AND ADR-064 v1.8 D4 §Surface B injection site table:
+**Authority:** ADR-050 §D6 normative call:
+`concat!("prism/", env!("PRISM_VERSION"))` (ADR-064 §D4 cross-reference). AND ADR-064 §D4 §Surface B injection site table:
 `build_http_client_with_timeout` in `pipeline.rs`: `CARGO_PKG_VERSION` → `PRISM_VERSION`.
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
 before demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
@@ -155,9 +154,9 @@ Configure prism's sensor spec to point to `http://localhost:19090`.
 
 | Source | Clause | Scenario Aspect |
 |--------|--------|-----------------|
-| ADR-050 v2.4 D6 | `build_http_client_with_timeout` in `crates/prism-spec-engine/src/pipeline.rs` MUST use `.user_agent(concat!("prism/", env!("PRISM_VERSION")))` | Primary assertion: UA header on wire equals "prism/1.0.0-dev" |
-| ADR-064 v1.8 D4 §Surface B | `pipeline.rs` injection site: `CARGO_PKG_VERSION` → `PRISM_VERSION` | Surface B migration correctness |
-| ADR-064 v1.8 D4 §Surface B | `crates/prism-spec-engine/build.rs` (new file) emits `PRISM_VERSION` | Build script must exist and emit correctly for env!("PRISM_VERSION") to resolve |
+| ADR-050 §D6 | `build_http_client_with_timeout` in `crates/prism-spec-engine/src/pipeline.rs` MUST use `.user_agent(concat!("prism/", env!("PRISM_VERSION")))` | Primary assertion: UA header on wire equals "prism/1.0.0-dev" |
+| ADR-064 §D4 §Surface B | `pipeline.rs` injection site: `CARGO_PKG_VERSION` → `PRISM_VERSION` | Surface B migration correctness |
+| ADR-064 §D4 §Surface B | `crates/prism-spec-engine/build.rs` (new file) emits `PRISM_VERSION` | Build script must exist and emit correctly for env!("PRISM_VERSION") to resolve |
 
 ---
 
@@ -232,7 +231,7 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
 
 If this scenario fails, send to the builder (one-line, no scenario specifics):
 
-`"HOLDOUT FAIL: HS-032-002 (satisfaction: X.XX) — prism-spec-engine outbound HTTP User-Agent header carries an unexpected version string; check build_http_client_with_timeout in crates/prism-spec-engine/src/pipeline.rs uses env!(\"PRISM_VERSION\") not env!(\"CARGO_PKG_VERSION\") (ADR-064 D4 §Surface B + ADR-050 v2.4 D6), and that crates/prism-spec-engine/build.rs exists and emits PRISM_VERSION"`
+`"HOLDOUT FAIL: HS-032-002 (satisfaction: X.XX) — prism-spec-engine outbound HTTP User-Agent header carries an unexpected version string; check build_http_client_with_timeout in crates/prism-spec-engine/src/pipeline.rs uses env!(\"PRISM_VERSION\") not env!(\"CARGO_PKG_VERSION\") (ADR-064 D4 §Surface B + ADR-050 §D6), and that crates/prism-spec-engine/build.rs exists and emits PRISM_VERSION"`
 
 Do NOT disclose: the specific version string expected, the old library version value, or
 the observation mechanism (DTU log vs echo server).
@@ -263,4 +262,4 @@ prism-spec-engine library crate version, not "1.0.0-dev".
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. Spec-engine outbound HTTP User-Agent wire-level test: UA must be prism/1.0.0-dev on local dev, NOT prism/{library-version}. Catches pipeline.rs CARGO_PKG_VERSION → PRISM_VERSION migration gap. ADR-050 v2.4 D6 + ADR-064 D4 §Surface B authority. Claroty DTU as primary observation target; echo server as fallback. SINGLE-USE. |
+| 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. Spec-engine outbound HTTP User-Agent wire-level test: UA must be prism/1.0.0-dev on local dev, NOT prism/{library-version}. Catches pipeline.rs CARGO_PKG_VERSION → PRISM_VERSION migration gap. ADR-050 §D6 + ADR-064 D4 §Surface B authority. Claroty DTU as primary observation target; echo server as fallback. SINGLE-USE. |
