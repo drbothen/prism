@@ -27,6 +27,10 @@
 pub mod column_mapping;
 // S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 — shared RFC-3339→µs helper (ADR-052 D2/D5)
 pub mod datetime;
+// S-REL-AGENT-VERSION-001 MED-1 — shared pure resolver: include!'d by build.rs +
+// exported here so tests can import resolve_prism_version / resolve_is_tag_build
+// from prism_spec_engine::version_resolver (single source of truth, ADR-064 D4 §Surface B).
+pub mod version_resolver;
 // S-SPEC-ENV-VAR-001 — Post-TOML-parse env var token resolver (BC-2.16.009 §Validation Rules 6)
 pub mod env_resolver;
 // SS-19 — Infusion Enrichment Framework (S-1.14)

@@ -21,17 +21,25 @@
 //! gate, non-release CI builds bake `PRISM_VERSION="develop"` into compiled code,
 //! causing incorrect user-agent strings. (F-VID-P1-CRIT-001, ADR-064 §D2)
 //!
-//! Note: this build.rs is self-contained — it does NOT use `include!` from
-//! `prism-bin/src/version_resolver.rs`. Build scripts run in the crate's own context;
-//! cross-crate `include!` would reference a path that is not available during
-//! `prism-spec-engine`'s build. The algorithm is small and stable (~40 lines) and is
-//! covered independently by unit tests added to `prism-spec-engine/tests/` (RG-003..005).
+//! The resolver logic lives in `src/version_resolver.rs` (shared with the
+//! `prism_spec_engine` lib target via `pub mod version_resolver` so that
+//! unit tests in `version_resolver.rs` exercise the EXACT same function bodies
+//! called here via `include!`).
+//!
+//! MED-1 (S-REL-AGENT-VERSION-001 LOCAL pass-1): the previous arrangement had all
+//! resolver logic inlined in this file (private functions, structurally untestable).
+//! None of the security-critical branches (SEC-001 CWE-93, SEC-002 CWE-20, the
+//! is_tag_build gate, prism_build_version_rejected) were exercised by any test.
+//! This `include!` arrangement mirrors the ratified prism-bin HIGH-1/MED-001 fix.
 //!
 //! Authority: ADR-064 D4 §Surface B, S-REL-AGENT-VERSION-001 AC-006.
 
 fn main() {
-    // Re-run if the build script itself changes.
+    // Re-run if the build script itself or the included resolver source changes.
+    // Without these, Cargo's implicit dep-info tracking may not detect changes to
+    // the include!'d file, causing stale PRISM_VERSION values in incremental builds.
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/version_resolver.rs");
     // Re-run if any relevant env var changes (ADR-064 D4 §Surface B — four directives).
     println!("cargo:rerun-if-env-changed=PRISM_BUILD_VERSION");
     println!("cargo:rerun-if-env-changed=GITHUB_REF_NAME");
@@ -41,20 +49,15 @@ fn main() {
     let cargo_version = env!("CARGO_PKG_VERSION");
 
     // GITHUB_REF_NAME is set on ALL GitHub Actions runs — branch name on push/pull_request
-    // events, tag name only on tag-push events. Gate on GITHUB_REF_TYPE == "tag" (or
-    // GITHUB_REF starts with "refs/tags/") to avoid baking "develop" / "feature/..."
-    // into non-release binaries. F-VID-P1-CRIT-001.
-    let is_tag_build = std::env::var("GITHUB_REF_TYPE")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .map(|t| t.trim() == "tag")
-        .unwrap_or_else(|| {
-            std::env::var("GITHUB_REF")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-                .map(|r| r.starts_with("refs/tags/"))
-                .unwrap_or(false)
-        });
+    // events, tag name only on tag-push events. Gate on GITHUB_REF_TYPE == "tag" (or GITHUB_REF
+    // starts with "refs/tags/") to avoid baking "develop" / "feature/..." into non-release
+    // binaries. F-VID-P1-CRIT-001.
+    //
+    // MED-1 (S-REL-AGENT-VERSION-001): derivation extracted to resolve_is_tag_build() in
+    // version_resolver.rs so that the #[cfg(test)] block there exercises the EXACT same logic.
+    let ref_type = std::env::var("GITHUB_REF_TYPE").ok();
+    let ref_val = std::env::var("GITHUB_REF").ok();
+    let is_tag_build = resolve_is_tag_build(ref_type.as_deref(), ref_val.as_deref());
 
     let build_version = std::env::var("PRISM_BUILD_VERSION").ok();
     let ref_name = std::env::var("GITHUB_REF_NAME").ok();
@@ -81,120 +84,9 @@ fn main() {
     println!("cargo:rustc-env=PRISM_VERSION={version}");
 }
 
-// ─── Inline resolver (D2-conformant, dependency-free) ────────────────────────
-//
-// These functions are inlined (not include!'d from prism-bin) because build.rs
-// runs in the prism-spec-engine build context and cannot reference prism-bin source.
-// The algorithm is identical to prism-bin/src/version_resolver.rs; any change to
-// the D2 normative contract MUST be applied to BOTH files (ADR-064 D4 §Surface B:
-// "parallel implementations are acceptable when the spec is authoritative").
-//
-// Unit tests in crates/prism-spec-engine/tests/version_identity.rs provide
-// independent coverage of the compiled env var (RG-003/RG-004/RG-005), confirming
-// that this inline copy functions correctly as a parallel implementation.
-
-/// Lightweight semver-shape validator for `PRISM_BUILD_VERSION` inputs.
-///
-/// Accepts `X.Y.Z`, `X.Y.Z-<prerelease>`, `X.Y.Z+<build>`, or
-/// `X.Y.Z-<prerelease>+<build>` where X, Y, Z are non-empty ASCII digit sequences
-/// and prerelease/build identifiers are non-empty dot-separated `[0-9A-Za-z-]` strings.
-///
-/// Returns `false` for: empty prerelease (`1.0.0-`), empty build (`1.0.0+`),
-/// empty dot-chain identifier (`1.0.0-a..b`), four-component core (`1.0.0.0`),
-/// non-numeric core (`a.b.c`), or two-component core (`1.0`).
-///
-/// Authority: SEC-001 (CWE-93) + SEC-002 (CWE-20), ADR-064 D2.
-fn is_semver_shaped(s: &str) -> bool {
-    // Step 1: split off optional build metadata at the FIRST '+'.
-    let (core_and_pre, build) = match s.split_once('+') {
-        Some((c, b)) => (c, Some(b)),
-        None => (s, None),
-    };
-    if let Some(b) = build {
-        for id in b.split('.') {
-            if id.is_empty()
-                || !id
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-            {
-                return false;
-            }
-        }
-    }
-    // Step 2: split off optional prerelease at the FIRST '-'.
-    let (base, pre) = match core_and_pre.split_once('-') {
-        Some((b, p)) => (b, Some(p)),
-        None => (core_and_pre, None),
-    };
-    if let Some(p) = pre {
-        for id in p.split('.') {
-            if id.is_empty()
-                || !id
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-            {
-                return false;
-            }
-        }
-    }
-    // Step 3: base must be exactly three dot-separated non-empty digit sequences.
-    let mut parts = base.split('.');
-    let major = parts.next().unwrap_or("");
-    let minor = parts.next().unwrap_or("");
-    let patch = parts.next().unwrap_or("");
-    !major.is_empty()
-        && !minor.is_empty()
-        && !patch.is_empty()
-        && parts.next().is_none()
-        && major.bytes().all(|b| b.is_ascii_digit())
-        && minor.bytes().all(|b| b.is_ascii_digit())
-        && patch.bytes().all(|b| b.is_ascii_digit())
-}
-
-/// ADR-064 §D2 normative fallback chain (pure function, inline copy for build.rs context).
-///
-/// Fallback chain:
-/// 1. `build_version` — wins if present, first line non-empty after trim, AND semver-shaped.
-///    SEC-001 (CWE-93): first line only. SEC-002 (CWE-20): shape-gated.
-/// 2. `ref_name` with single leading `v` stripped — only on `is_tag_build=true`,
-///    only when post-strip result is non-empty/non-whitespace (OBS-1 post-strip guard).
-/// 3. `cargo_version` — final fallback (library crate version on local dev).
-fn resolve_prism_version(
-    build_version: Option<&str>,
-    is_tag_build: bool,
-    ref_name: Option<&str>,
-    cargo_version: &str,
-) -> String {
-    // Step 1: PRISM_BUILD_VERSION explicit override.
-    if let Some(v) = build_version {
-        let first_line = v.lines().next().unwrap_or(v).trim();
-        if !first_line.is_empty() && is_semver_shaped(first_line) {
-            return first_line.to_string();
-        }
-    }
-    // Step 2: GITHUB_REF_NAME — only on tag builds.
-    if is_tag_build && let Some(r) = ref_name.filter(|s| !s.trim().is_empty()) {
-        let name = r.trim();
-        let version = name.strip_prefix('v').unwrap_or(name);
-        if !version.trim().is_empty() {
-            return version.to_string();
-        }
-    }
-    // Step 3: CARGO_PKG_VERSION fallback.
-    cargo_version.to_string()
-}
-
-/// Returns the offending first-line value when a non-empty PRISM_BUILD_VERSION fails
-/// the semver-shape gate, or None if absent/accepted.
-/// Used to emit `cargo:warning=` diagnostics (OBS-1, ADR-064 D2).
-fn prism_build_version_rejected(raw: Option<&str>) -> Option<String> {
-    let v = raw?;
-    let first_line = v.lines().next().unwrap_or(v).trim();
-    if first_line.is_empty() {
-        return None;
-    }
-    if is_semver_shaped(first_line) {
-        return None;
-    }
-    Some(first_line.to_string())
-}
+// Shared pure resolvers — include! brings the same source into the build-script
+// context that `pub mod version_resolver` brings into the lib target.
+// Unit tests in `src/version_resolver.rs` import and exercise resolve_prism_version,
+// resolve_is_tag_build, prism_build_version_rejected, and is_semver_shaped against
+// the EXACT same function bodies called here. (MED-1 S-REL-AGENT-VERSION-001.)
+include!("src/version_resolver.rs");
