@@ -154,6 +154,16 @@ pub struct PrismServer {
     /// `None` in test-only construction (`PrismServer::new()`) — `check_sensor_health`
     /// falls back to spec-only mode when `health_checker` is `None`.
     health_checker: Option<Arc<SensorHealthChecker>>,
+    /// Product version string — threaded from boot step 9 via `with_deps()`.
+    ///
+    /// `PrismServer::new()` (test constructor) sets `"0.0.0-test"` — distinguishable
+    /// from any release, indicates test context (ADR-064 D4 §Surface A).
+    /// Production boot passes `env!("PRISM_VERSION")` via `with_deps()` (AC-005).
+    ///
+    /// prism-mcp MUST NOT have a build.rs — no `env!("PRISM_VERSION")` in library
+    /// source (ADR-064 D4 §Architecture Compliance Rules: "No CI env-var resolution
+    /// logic in library crates"). The value is resolved in prism-bin and threaded here.
+    product_version: &'static str,
 }
 
 impl PrismServer {
@@ -181,6 +191,10 @@ impl PrismServer {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            // ADR-064 D4 §Surface A: "0.0.0-test" is distinguishable from any release
+            // and indicates test context. get_info() returns this via self.product_version
+            // so RG-001/RG-002 can assert on "0.0.0-test" directly.
+            product_version: "0.0.0-test",
         }
     }
 
@@ -283,6 +297,7 @@ impl PrismServer {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         }
     }
 
@@ -301,6 +316,16 @@ impl PrismServer {
     /// - `spec_dir` — Spec directory path for reload_config and add_sensor_spec
     /// - `alias_store` — AliasStore for alias CRUD tools
     /// - `org_registry` — OrgRegistry for alias CRUD allowlist validation (IMP-8)
+    /// - `product_version` — product version string from `env!("PRISM_VERSION")` in prism-bin;
+    ///   surfaced via `get_info()` as `serverInfo.version` in the MCP initialize handshake
+    ///   (ADR-064 D4 §Surface A). MUST be `env!("PRISM_VERSION")` at the prism-bin call site
+    ///   (AC-005). prism-mcp has no build.rs — the version is resolved in prism-bin and
+    ///   threaded here as `&'static str` (compile-time constant, no heap allocation).
+    // ADR-064 D4 §Surface A: adding product_version as a final parameter is wiring, not redesign
+    // (ADR-022 §C). The 9th parameter exceeds clippy::too_many_arguments threshold=8; suppressed
+    // here because this is the production wiring constructor and the parameter count reflects
+    // production boot dependencies, not API design smell.
+    #[allow(clippy::too_many_arguments)]
     pub fn with_deps(
         injection_scanner: Arc<InjectionScanner>,
         query_engine: Arc<QueryEngine>,
@@ -310,6 +335,7 @@ impl PrismServer {
         spec_dir: PathBuf,
         alias_store: Arc<Mutex<AliasStore>>,
         org_registry: Arc<prism_core::OrgRegistry>,
+        product_version: &'static str,
     ) -> Self {
         // S-5.04 F-S504-P1-001: Wire SensorHealthChecker with the adapter registry AND the
         // resolved spec map so that check_one can read probe_table + first-table fallback from
@@ -337,6 +363,7 @@ impl PrismServer {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: Some(health_checker),
+            product_version,
         }
     }
 
@@ -5614,6 +5641,12 @@ E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.\n\
 #[prompt_handler(router = self.prompt_router)]
 #[tool_handler(
     name = "prism",
+    // NOTE: This proc macro attribute value ("0.1.0") is SUPERSEDED by the explicit
+    // get_info() override below (ADR-064 D4 §Surface A §Note). The actual MCP
+    // serverInfo.version reported to LLM agents is `self.product_version`, threaded
+    // from boot step 9 via `with_deps(env!("PRISM_VERSION"))`. The rmcp proc macro
+    // accepts only string literals in this position (`Lit::Str`); env!() expressions
+    // are not valid here. The authoritative version surface is get_info(), not this attribute.
     version = "0.1.0",
     instructions = "Prism: ephemeral federated security sensor query engine. \
                     Query sensor data with PrismQL, manage sensor specs, and \
@@ -5625,6 +5658,10 @@ impl ServerHandler for PrismServer {
         // F-PASS11-MED-3 fix: declare tools + prompts + resources capabilities.
         // rmcp-1.7.0 ServerCapabilities::builder() supports all three; prompts and
         // resources are declared as active capability sets (S-5.03 implements all three).
+        //
+        // ADR-064 D4 §Surface A: serverInfo.version is `self.product_version`, injected
+        // from boot step 9 via `with_deps(env!("PRISM_VERSION"))`. The explicit return
+        // value here supersedes the stale `version = "0.1.0"` proc macro attribute above.
         ServerInfo::new(
             ServerCapabilities::builder()
                 .enable_tools()
@@ -5635,7 +5672,7 @@ impl ServerHandler for PrismServer {
                 .enable_resources_subscribe()
                 .build(),
         )
-        .with_server_info(Implementation::new("prism", "0.1.0"))
+        .with_server_info(Implementation::new("prism", self.product_version))
     }
 
     // ─── Resource overrides (rmcp 1.7 — no #[resource_handler] macro exists) ───
@@ -6363,6 +6400,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -6707,6 +6745,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -6826,6 +6865,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         let params = ConfirmActionParams {
@@ -7578,6 +7618,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -7612,6 +7653,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -7645,6 +7687,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -7748,6 +7791,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         (server, confirmation_store, tmpdir)
@@ -7961,6 +8005,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         let params = CreateAliasParams {
@@ -8009,6 +8054,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         let params = DeleteAliasParams {
@@ -9468,6 +9514,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: None,
+            product_version: "0.0.0-test",
         };
 
         let params = ExplainQueryParams {
@@ -10507,6 +10554,7 @@ mod tests {
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
             health_checker: Some(Arc::new(health_checker)),
+            product_version: "0.0.0-test",
         };
 
         // BC-2.08.005: client_id required (OOD-001 adjudication).

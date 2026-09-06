@@ -2941,6 +2941,11 @@ pub async fn step9_start_mcp_server(
         alias_store,
         // IMP-8: wire org_registry for alias CRUD allowlist validation.
         org_registry_for_server,
+        // ADR-064 D4 §Surface A (AC-005): product version from D2 build.rs injection.
+        // env!("PRISM_VERSION") resolves at compile time from prism-bin/build.rs.
+        // Threaded into PrismServer so get_info() returns the correct serverInfo.version
+        // in the MCP initialize handshake (S-REL-AGENT-VERSION-001 AC-005).
+        env!("PRISM_VERSION"),
     )
     // S-5.04 F-S504-P1-005: wire RocksDB backend into PrismContext so health timestamps
     // survive server restarts (BC-2.08.004 postcondition 2). `storage_for_context` was
