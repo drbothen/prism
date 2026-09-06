@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-IDENTITY
 priority: P1
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: product-owner
 timestamp: "2026-09-05T00:00:00Z"
@@ -98,7 +98,7 @@ phase: "3"
 
 **Story ID:** S-REL-AGENT-VERSION-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** F-A
 **Priority:** P1 (HIGH — human-directed beta.1 scope, S-1 decision 2026-09-05)
 **Points:** 5
@@ -215,8 +215,8 @@ before any implementation task (Task 7 onwards) begins.
 
 | ID | Test Name | What It Asserts | Crate |
 |----|-----------|----------------|-------|
-| RG-001 | `test_server_info_version_is_product_version` | `PrismServer::get_info().server_info.version` == `env!("PRISM_VERSION")`; fails RED because current code returns `"0.1.0"` | `prism-mcp` |
-| RG-002 | `test_server_info_version_mcp_initialize_wire_shape` | WIRE-SHAPE assertion: the serialized `initialize` response JSON `serverInfo.version` field equals `env!("PRISM_VERSION")`, not `"0.1.0"`; asserts on the actual JSON bytes per CLAUDE.md §Conventions §Wire-shape assertion discipline | `prism-mcp` |
+| RG-001 | `test_server_info_version_is_product_version` | `PrismServer::new().get_info().server_info.version` == `"0.0.0-test"` (the runtime-wired default set by `PrismServer::new`); fails RED because current `get_info` returns `Implementation::new("prism", "0.1.0")` — `"0.1.0"` != `"0.0.0-test"`. `env!("PRISM_VERSION")` MUST NOT appear in prism-mcp tests: prism-mcp has no build.rs (ADR-064 D4 §Surface A architecture compliance rule) | `prism-mcp` |
+| RG-002 | `test_server_info_version_mcp_initialize_wire_shape` | WIRE-SHAPE assertion: the serialized `initialize` response JSON `serverInfo.version` field equals `"0.0.0-test"` (the `PrismServer::new` runtime default), not `"0.1.0"`; asserts on the actual JSON bytes per CLAUDE.md §Conventions §Wire-shape assertion discipline. `env!("PRISM_VERSION")` MUST NOT appear in prism-mcp tests (prism-mcp has no build.rs per ADR-064 D4 §Surface A) | `prism-mcp` |
 | RG-003 | `test_prism_spec_engine_prism_version_env_var_is_available` | `env!("PRISM_VERSION")` compiles and is non-empty in prism-spec-engine context; fails RED (compilation error) before `crates/prism-spec-engine/build.rs` exists | `prism-spec-engine` |
 | RG-004 | `test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env` | On local dev (no `GITHUB_REF_NAME`/`PRISM_BUILD_VERSION`), `env!("PRISM_VERSION")` == `env!("CARGO_PKG_VERSION")` in prism-spec-engine context; fails RED before build.rs exists | `prism-spec-engine` |
 | RG-005 | `test_infusion_http_client_sends_prism_product_version_user_agent` | `build_http_client_with_timeout` constructs a client whose user-agent header string matches `concat!("prism/", env!("PRISM_VERSION"))`; fails RED because current code uses `env!("CARGO_PKG_VERSION")` (resolves to prism-spec-engine library version, not product version) | `prism-spec-engine` |
@@ -242,12 +242,15 @@ add:
 fn test_server_info_version_is_product_version() {
     let server = PrismServer::new(/* ... minimal construction ... */);
     let info = server.get_info();
-    // Fails RED: current get_info returns Implementation::new("prism", "0.1.0")
-    // which would make this assertion fail.
+    // prism-mcp has no build.rs — env!("PRISM_VERSION") MUST NOT appear here.
+    // (ADR-064 D4 §Surface A: "No CI env-var resolution logic in library crates".)
+    // PrismServer::new() sets product_version: "0.0.0-test" (the runtime-wired default).
+    // Fails RED: current get_info returns Implementation::new("prism", "0.1.0");
+    // "0.1.0" != "0.0.0-test", so the assertion below fails before any migration.
     assert_eq!(
         info.server_info.version,
-        env!("PRISM_VERSION"),
-        "serverInfo.version must equal PRISM_VERSION; got {:?}",
+        "0.0.0-test",
+        "serverInfo.version via new() must equal \"0.0.0-test\" (runtime default); got {:?}",
         info.server_info.version
     );
 }
@@ -266,6 +269,9 @@ fn test_server_info_version_mcp_initialize_wire_shape() {
     // Serialize the server info response to JSON and assert on the wire bytes.
     // This ensures the LLM agent sees the correct version at the protocol level,
     // not just at the Rust struct level (BC-2.11.001 null-not-absent wire discipline).
+    // NOTE: prism-mcp has no build.rs — env!("PRISM_VERSION") MUST NOT appear here.
+    // (ADR-064 D4 §Surface A: "No CI env-var resolution logic in library crates".)
+    // PrismServer::new() injects product_version: "0.0.0-test" as the runtime default.
     let server = PrismServer::new(/* ... */);
     let info = server.get_info();
     let json = serde_json::to_string(&info).expect("server info must serialize");
@@ -274,11 +280,11 @@ fn test_server_info_version_mcp_initialize_wire_shape() {
         !json.contains("\"0.1.0\""),
         "wire output must not contain stale \"0.1.0\" version; got: {json}"
     );
-    // Must contain the product version:
-    let expected_version = env!("PRISM_VERSION");
+    // Must contain the new() runtime default "0.0.0-test" (not env!("PRISM_VERSION"),
+    // which MUST NOT appear in prism-mcp tests per ADR-064 D4 §Surface A):
     assert!(
-        json.contains(expected_version),
-        "wire output must contain PRISM_VERSION={expected_version}; got: {json}"
+        json.contains("\"0.0.0-test\""),
+        "wire output must contain new() default \"0.0.0-test\"; got: {json}"
     );
 }
 ```
@@ -729,4 +735,5 @@ D4 "TD-VSDD-097 Dim-2 flagged" directive:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-06 | story-writer | OBS-2 fix (LOCAL adversary): corrected Task 1 / Task 2 prism-mcp test snippets and RG-001 / RG-002 table rows to assert `"0.0.0-test"` (the `PrismServer::new` runtime-wired default) instead of `env!("PRISM_VERSION")`. Consistent with ADR-064 D4 §Surface A architecture compliance rule: prism-mcp is a library crate with no build.rs; `env!("PRISM_VERSION")` MUST NOT appear in prism-mcp source or tests. Implementation was already correct; only the story task prose and RG table rows were stale. |
 | 1.0 | 2026-09-05 | product-owner | Initial authoring. ADR-064 D4 materialization (S-1 human-directed beta.1 scope). Surface A: PrismServer runtime wiring + boot.rs step-9 pass-through. Surface B: prism-spec-engine/build.rs D2-conformant per-crate injection + pipeline.rs user-agent migration. SAC-1 compliant: RG-001..RG-005 enumerated, density 5/8=0.625, red-then-green ordering enforced. AC-004 amendment applied to S-REL-BVERSION-INJECT-001. 3 holdout scenarios HS-032-001..003 authored. ADR-050 v2.4 D6 traced. TD-VSDD-097: Dim-1 CLEAR (S-REL-BVERSION-INJECT-001 is the sibling story; swept and amended AC-004 in same burst per anchor-back rule). Dim-2 CLEAR (no verbatim copy-source section introduced). Dim-3: all MUSTs anchored to story ACs + ADR-064 D4 authority. |
