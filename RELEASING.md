@@ -26,13 +26,14 @@ complete, compiled, packaged Prism as deployed to operators. It answers: "what
 version of Prism is running on this machine?"
 
 `prism-bin` is the only crate that carries the product version as its own `version`
-field in `Cargo.toml`. When a release is cut, **bump `prism-bin` to match the tag**.
+field in `Cargo.toml`. When a **stable** release is cut, **bump `prism-bin` to match the tag**.
 This makes `prism --version` report the correct product version.
 
 The `release-promote` workflow mechanically enforces this invariant: if the
-dispatched `tag` input (e.g. `v1.0.0-beta.2`) does not exactly match the `prism-bin`
+dispatched `tag` input (e.g. `v1.0.0`) does not exactly match the `prism-bin`
 Cargo.toml `version` field (the tag name minus the leading `v`) on the develop tree, the promotion
-fails with a clear error before anything is written to `main`.
+fails with a clear error before anything is written to `main`. This is the **stable** lane;
+pre-release tags use `release-tag.yml` which applies BASE-MATCH (see Pre-release exception below).
 
 All other workspace crates (prism-core, prism-query, prism-spec-engine, prism-sensors,
 etc.) carry **independent semver versions on their own cadence**. They are all
@@ -73,7 +74,7 @@ following fallback chain:
 3. `CARGO_PKG_VERSION` (local dev default; always `1.0.0-dev` on `develop`)
 
 This means `prism --version` on `develop` reports `prism 1.0.0-dev` locally, and
-`prism <tag-version>` on a tagged CI build — without requiring `prism-bin`
+**reports** `prism <tag-version>` on a tagged CI build — without requiring `prism-bin`
 `Cargo.toml` to be updated for every pre-release tag.
 
 ---
@@ -159,7 +160,7 @@ protection, or project convention — not just policy.
 | Never skip git hooks (`--no-verify`) | TD-FACTORY-HOOK-BYPASS-001 P0 violation |
 | No AI attribution in commits | Project convention; see CLAUDE.md §Git Workflow |
 | Tag must live on `main`, not `develop` | release.yml triggers on `v*` tags; a tag on develop produces a release from the wrong base |
-| Tag input to `release-promote` must equal `prism-bin` Cargo.toml version | `release-promote` validate job fails; promotion is blocked. Mechanically enforced — see §1 note. |
+| Tag input to `release-promote` must equal `prism-bin` Cargo.toml version (stable lane only) | `release-promote` validate job fails; promotion is blocked. Mechanically enforced — see §1 note. Pre-release tags bypass this by using `release-tag.yml` directly (see §1 Pre-release exception). |
 | Conventional commit for the release-prep commit | Enforced by lefthook pre-commit hook (local) or by workflow convention (CI-generated commit) |
 | All 24 required CI status checks must pass on develop | Branch protection on develop enforces this before the release-prep PR can merge |
 | `RELEASE_PROMOTE_TOKEN` secret must be configured | `release-promote` cannot authenticate to push `main` or the semver tag (GITHUB_TOKEN cannot bypass main branch protection) |
@@ -212,7 +213,9 @@ Follow this procedure exactly. Do not improvise. The two release workflows
 safe to automate; human decisions (CHANGELOG curation, final approval) remain
 explicit gates.
 
-Replace `X.Y.Z` throughout with the actual version number (for stable) or `X.Y.Z-CHANNEL.N` (for pre-releases such as rc, beta, alpha).
+Replace `X.Y.Z` throughout with the actual version number.
+
+**Pre-releases:** Do NOT use this procedure for pre-release tags. Use `release-tag.yml` directly (see `docs/RELEASE-CHANNELS.md §3`).
 
 ### Prerequisites
 

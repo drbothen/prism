@@ -18,7 +18,7 @@
 #   AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-channel.N) in
 #            docs/ scripts/ RELEASING.md README.md (F-VID-P1-MED-002: catches "1.0.0-rc.2" etc.)
 #   AC-007: README.md contains no hardcoded v1.0.0-rc. strings
-#   AC-008: This script exists and exits 0 — satisfied when this banner is printed GREEN.
+#   AC-008: CI-wiring confirmed by S-REL-DOCS-CI-WIRE-001 (post-beta.1); passing run confirms docs are version-agnostic.
 #
 # Authority: ADR-064 D1/D2, S-REL-DOCS-AGNOSTIC-001 v1.1,
 #            S-REL-VERSION-IDENTITY pass-6 OBS-1 (README.md extension),
@@ -208,7 +208,7 @@ fi
 # AC-006b: Full sweep — no non-v-prefixed pre-release semver (F-VID-P1-MED-002)
 # Catches strings like "1.0.0-rc.2" or "1.0.0-beta.1" (no leading v) that the
 # AC-006 v1.0.0-rc. pattern misses. Pattern: X.Y.Z-channel.N where channel is
-# rc, beta, or alpha. The develop default (1.0.0-dev) does not match (no .N suffix).
+# rc, beta, alpha, or nightly. The develop default (1.0.0-dev) does not match (no .N suffix).
 # This script is excluded because it legitimately names the pattern.
 #
 # MED-2 (S-REL-VERSION-IDENTITY pass-2): changed [^v] to (^|[^v]) so that a

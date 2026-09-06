@@ -78,7 +78,7 @@ fn test_cli_version_subcommand_exits_zero() {
 /// BC: BC-2.10.006 postcondition
 /// ADR-022 §A: version subcommand must print semver.
 ///
-/// AC-2 exact requirement: `prism X.Y.Z` (semantic version from Cargo.toml).
+/// AC-2 exact requirement: `prism X.Y.Z` (semantic version).
 ///
 /// MED-1 (S-REL-VERSION-IDENTITY pass-2): the previous version was a tautology —
 /// it asserted `stdout.contains(env!("PRISM_VERSION"))`, and the binary prints exactly
@@ -86,10 +86,12 @@ fn test_cli_version_subcommand_exits_zero() {
 /// contained.  A build.rs bug that leaked `PRISM_VERSION="develop"` would never be caught
 /// because `"develop".contains("develop") == true`.
 ///
-/// Fix: assert on the CONCRETE Cargo.toml base version ("1.0.0-dev") AND assert the output
-/// contains no '/'.  A leaked branch ref ("develop", "feature/S-3.01", "260/merge") cannot
-/// contain "/" (the forward-slash check covers PR merge refs and feature branches) while
-/// "1.0.0-dev" is a specific value that would fail if the resolver returned a branch name.
+/// B-1 fix (S-REL-VERSION-IDENTITY review-cycle-1): `ci.yml` has an unfiltered
+/// `on: push:` that fires on tag refs too.  On a `v1.0.0-beta.1` tag push,
+/// `PRISM_VERSION="1.0.0-beta.1"` while `CARGO_PKG_VERSION` remains `"1.0.0-dev"`.
+/// A literal `stdout.contains(CARGO_PKG_VERSION)` assertion then fails on all 6 CI legs.
+/// Fix: assert the reported string is valid semver (not a leaked branch ref) regardless
+/// of whether this is a tag build or a non-tag build.
 ///
 /// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
@@ -101,28 +103,23 @@ fn test_cli_version_output_contains_semver() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Assert the concrete CARGO_PKG_VERSION base ("1.0.0-dev") — this is a specific
-    // value, not a self-referential env!("PRISM_VERSION") lookup.  On non-tag builds
-    // PRISM_VERSION == CARGO_PKG_VERSION == "1.0.0-dev", so this assertion is satisfiable.
-    // If a leaked branch name such as "develop" were baked in, stdout would not contain
-    // "1.0.0-dev" and this assertion would FAIL.
+    // Strip the "prism " prefix and assert the remainder is valid semver.
+    // A leaked branch ref ("develop", "feature/S-3.01", "260/merge") is NOT valid semver,
+    // so this assertion fails when a branch name is baked into the binary (F-VID-P1-CRIT-001).
+    // Works on both non-tag builds (PRISM_VERSION="1.0.0-dev") and tag builds
+    // (PRISM_VERSION="1.0.0-beta.1") without a hard-coded expected value (B-1 fix).
+    let reported = stdout
+        .trim()
+        .strip_prefix("prism ")
+        .expect("expected 'prism <version>' format in version output");
+    let without_newline = reported.trim();
     assert!(
-        stdout.contains(env!("CARGO_PKG_VERSION")),
-        "prism version output must contain CARGO_PKG_VERSION '{}' (AC-2, non-tag build; \
-         MED-1: non-tautological check); got stdout: {}",
-        env!("CARGO_PKG_VERSION"),
-        stdout
+        semver::Version::parse(without_newline).is_ok(),
+        "prism version output must be valid semver (not a leaked branch ref); got: {without_newline}"
     );
-
-    // Assert no '/' in the version output.  Forward slashes appear in branch names
-    // ("feature/S-3.01", "260/merge") and PR merge refs.  Their presence would prove
-    // a branch name was baked into the binary (F-VID-P1-CRIT-001 regression).
     assert!(
-        !stdout.contains('/'),
-        "prism version output must not contain '/' — a forward slash indicates a \
-         leaked branch ref was baked into PRISM_VERSION (F-VID-P1-CRIT-001, MED-1); \
-         got stdout: {}",
-        stdout
+        !without_newline.contains('/'),
+        "leaked branch ref baked into PRISM_VERSION: {without_newline}"
     );
 }
 

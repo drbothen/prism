@@ -4705,6 +4705,7 @@ dependencies = [
  "rmcp",
  "rpassword",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",

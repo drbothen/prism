@@ -331,28 +331,41 @@ fn test_prism_version_site_user_agent() {
 // to fail.
 // ============================================================================
 
-/// AC-005 literal (S-REL-BVERSION-INJECT-001): on a non-tag build, `PRISM_VERSION`
-/// equals `CARGO_PKG_VERSION`.  Test always builds in non-tag context (local dev / CI
-/// non-release), so both are "1.0.0-dev".
+/// AC-005 (S-REL-BVERSION-INJECT-001): on a non-tag build, `PRISM_VERSION` equals
+/// `CARGO_PKG_VERSION`.  On a tag build, `PRISM_VERSION` is the stripped tag — valid
+/// semver but not equal to `CARGO_PKG_VERSION` ("1.0.0-dev").
 ///
-/// Also asserts RG-001: `PRISM_VERSION` is non-empty.
+/// `PRISM_VERSION_IS_TAG_BUILD` is emitted by `build.rs` alongside `PRISM_VERSION`,
+/// allowing this assertion to be conditional on the actual build context.
+/// `ci.yml` has an unfiltered `on: push:` that fires on tag refs too, so a literal
+/// `"1.0.0-dev"` equality assertion would fail on the `v1.0.0-beta.1` tag push
+/// across all 6 CI legs (B-1, S-REL-VERSION-IDENTITY review-cycle-1).
 ///
 /// Authority: ADR-064 D2 v1.5, S-REL-BVERSION-INJECT-001 AC-005.
 #[test]
 fn test_prism_version_equals_cargo_pkg_version_on_non_tag_build() {
-    // RG-001: PRISM_VERSION must not be empty.
-    assert!(
-        !env!("PRISM_VERSION").is_empty(),
-        "PRISM_VERSION must not be empty (RG-001, S-REL-BVERSION-INJECT-001); \
-         build.rs resolver returned an empty string"
-    );
-    // AC-005 literal: on a non-tag build, PRISM_VERSION == CARGO_PKG_VERSION.
-    assert_eq!(
-        env!("PRISM_VERSION"),
-        env!("CARGO_PKG_VERSION"),
-        "PRISM_VERSION must equal CARGO_PKG_VERSION on non-tag builds \
-         (AC-005, ADR-064 D2 step-3 fallback; tests always build non-tag)"
-    );
+    // On local dev and non-tag CI builds, PRISM_VERSION must equal CARGO_PKG_VERSION.
+    // PRISM_VERSION_IS_TAG_BUILD is emitted by build.rs alongside PRISM_VERSION,
+    // allowing this assertion to be conditional on the actual build context.
+    // ci.yml has an unfiltered `on: push:` that fires on tag refs, so a literal
+    // "1.0.0-dev" assertion would fail on the beta.1 tag push (6 CI legs).
+    if env!("PRISM_VERSION_IS_TAG_BUILD") == "false" {
+        assert_eq!(
+            env!("PRISM_VERSION"),
+            env!("CARGO_PKG_VERSION"),
+            "On non-tag builds, PRISM_VERSION must equal CARGO_PKG_VERSION \
+             (fallback chain step 3, AC-005, ADR-064 D2)"
+        );
+    } else {
+        // Tag build: PRISM_VERSION is the stripped tag, not CARGO_PKG_VERSION.
+        // Assert it is valid semver and not a leaked branch ref.
+        let v = env!("PRISM_VERSION");
+        assert!(
+            semver::Version::parse(v).is_ok(),
+            "On tag builds, PRISM_VERSION must be valid semver; got: {v}"
+        );
+        assert!(!v.contains('/'), "leaked branch ref in PRISM_VERSION: {v}");
+    }
 }
 
 /// Load-bearing gate (HIGH-1): non-tag refs must NOT leak branch name into the binary.

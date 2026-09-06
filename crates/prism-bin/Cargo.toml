@@ -416,6 +416,7 @@ name = "version_identity"
 path = "tests/version_identity.rs"
 
 [dev-dependencies]
+semver = "1"
 rmcp = { workspace = true }
 tempfile = "3"
 libc = "0.2"

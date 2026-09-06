@@ -56,6 +56,7 @@ fn main() {
     );
 
     println!("cargo:rustc-env=PRISM_VERSION={version}");
+    println!("cargo:rustc-env=PRISM_VERSION_IS_TAG_BUILD={is_tag_build}");
 }
 
 // Shared pure resolvers — include! brings the same source into the build-script
