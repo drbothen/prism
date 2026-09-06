@@ -94,8 +94,10 @@ fn test_prism_spec_engine_prism_version_env_var_is_available() {
 /// too, so the unconditional equality assertion failed on tag-push CI runs across all legs
 /// (B-1 analogue — same failure class as prism-bin before its guard was added).
 ///
-/// Sibling-sweep D1: mirrors `test_prism_version_equals_cargo_pkg_version_on_non_tag_build`
-/// in `crates/prism-bin/tests/version_identity.rs` byte-for-byte.
+/// Sibling-sweep D1: structurally identical (guard logic) to the prism-bin twin
+/// `test_prism_version_equals_cargo_pkg_version_on_non_tag_build` in
+/// `crates/prism-bin/tests/version_identity.rs`; differs only in the diagnostic-message
+/// ADR/AC citation and the test name.
 ///
 /// Traces to: ADR-064 v1.9 D4 §Surface B D2 normative fallback chain step 3;
 /// S-REL-AGENT-VERSION-001 AC-006.
