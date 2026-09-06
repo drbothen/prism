@@ -1,4 +1,4 @@
-# prism.toml.example — Prism v1.0.0-rc.1 configuration template
+# prism.toml.example — Prism configuration template
 #
 # Copy this file to prism.toml in your config directory.
 # Place your config directory path in the PRISM_CONFIG_DIR environment variable,
@@ -19,7 +19,7 @@
 #   8. Run: prism start
 #
 # Note: the ENRICH clause and LocalLookup (MMDB/CSV/JSON) code path are present
-# in the binary; no infusion specs or WASM plugins are bundled in v1.0.0-rc.1.
+# in the binary; no infusion specs or WASM plugins are bundled in this release.
 # Enrichment is not part of the validated rc.1 surface. See the Enrichment
 # section near the bottom of this file.
 
@@ -27,9 +27,9 @@
 # spec_dir (required)
 # ---------------------------------------------------------------------------
 # Path to the directory containing *.sensor.toml spec files.
-# In v1.0.0-rc.1, sensor specs are NOT bundled in the release archive; download
-# them from the GitHub repository. See docs/SETUP.md §4 for the exact command.
-# (Future releases (S-REL-010) will embed built-in sensor specs in the binary.)
+# Sensor specs are bundled in the release archive alongside this file (in specs/).
+# Copy them to the path set as spec_dir, or leave them adjacent and set
+# spec_dir = "./specs". See docs/SETUP.md §4 for the full setup guide.
 #
 # Relative paths are resolved from the config directory (where prism.toml lives).
 spec_dir = "./specs"
@@ -47,7 +47,7 @@ state_dir = "/var/lib/prism/state"
 # ---------------------------------------------------------------------------
 # Path to the directory scanned for *.prx WASM plugin files.
 # Place any WASM enrichment plugins here. Enrichment plugins are not bundled in
-# v1.0.0-rc.1. Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
+# this release. Omit or set PRISM_DISABLE_PLUGIN_LOAD=1 to skip plugin loading.
 # plugin_dir = "./plugins"
 
 # ---------------------------------------------------------------------------
@@ -86,17 +86,17 @@ org_slug = "my-org"               # kebab-case; used in audit logs and MCP conte
 # credential_backend (optional; default: keyring)
 # ---------------------------------------------------------------------------
 # Controls where sensor API credentials are stored and retrieved.
-# Prism v1.0.0-rc.1 supports the OS keyring backend only.
+# Prism supports the OS keyring backend.
 # "keyring" — OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager)
 #
 # [credential_backend]
 # type = "keyring"
 #
 # Note: the encrypted_file backend (Argon2id-encrypted file store) is not
-# available in v1.0.0-rc.1; it is planned for a future release.
+# available yet; it is planned for a future release.
 
 # ---------------------------------------------------------------------------
-# Enrichment / infusion (engine present; not validated in v1.0.0-rc.1)
+# Enrichment / infusion (engine present; validation status may vary by release)
 # ---------------------------------------------------------------------------
 # The binary includes the ENRICH clause and file-backed LocalLookup (MMDB/CSV/JSON)
 # infusion code path. No infusion specs (e.g. threatintel.infusion.toml,

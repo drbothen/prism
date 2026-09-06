@@ -53,7 +53,7 @@ workspace versions used during development do not correspond to distribution ver
 
 ### Pre-release tags
 
-A tag containing a hyphen (e.g., `v1.0.0-alpha.1`, `v1.1.0-beta.2`) is automatically
+A tag containing a hyphen (e.g., `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`) is automatically
 marked as a pre-release by the release workflow. Tags without a hyphen are treated as
 stable releases and are marked Latest on GitHub.
 
@@ -61,7 +61,7 @@ stable releases and are marked Latest on GitHub.
 
 The `develop` branch carries `prism-bin` at version `1.0.0-dev`. **No `Cargo.toml`
 version bump is needed between pre-releases on the same X.Y.Z cycle** (e.g., between
-`v1.0.0-alpha.1` and `v1.0.0-beta.1`). Instead, the binary version is injected at build
+`vX.Y.Z-alpha.N` and `vX.Y.Z-beta.N`). Instead, the binary version is injected at build
 time via `PRISM_VERSION`, resolved by `crates/prism-bin/build.rs` through the
 following fallback chain:
 
