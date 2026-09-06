@@ -27,31 +27,57 @@ use prism_bin::version_resolver::resolve_prism_version;
 
 /// RG-001 (S-REL-DEV-RESET-001)
 ///
-/// Assert that `prism-bin/Cargo.toml` `version` is `"1.0.0-dev"`.
+/// Assert that `prism-bin/Cargo.toml` `version` satisfies the ADR-064 D1 invariant:
+/// `CARGO_PKG_VERSION` must be `X.Y.Z` (stable, e.g. after release-prep.yml bumps before
+/// a stable tag) or `X.Y.Z-dev` (develop channel).  It must NEVER be `X.Y.Z-rc.N`,
+/// `X.Y.Z-beta.N`, `X.Y.Z-alpha.N`, etc. — those stale channel suffixes are exactly
+/// what S-REL-DEV-RESET-001 was created to fix.
 ///
-/// **RED before implementation:** `CARGO_PKG_VERSION` == `"1.0.0-rc.1"` — assertion fails.
-/// **GREEN after implementation:** Cargo.toml reset to `1.0.0-dev` per ADR-064 D1.
+/// **RED before implementation:** `CARGO_PKG_VERSION` == `"1.0.0-rc.1"` — pre-release
+/// segment is `rc.1`, assertion fails.
+/// **GREEN after implementation:** Cargo.toml reset to `1.0.0-dev` (pre == "dev") or to
+/// `1.0.0` (pre empty, stable release build).
+///
+/// B-3 fix (S-REL-VERSION-IDENTITY review-cycle-2): replaced literal `"1.0.0-dev"` equality
+/// with the ADR-064 D1 invariant so that release-prep.yml stable-release PRs (which bump
+/// Cargo.toml to `X.Y.Z`) still pass the CI suite on the `on: push:` trigger.
 ///
 /// Authority: ADR-064 D1, S-REL-DEV-RESET-001 AC-001, RELEASE-CHANNELS.md §3.
 #[test]
 fn test_prism_bin_cargo_toml_version_is_dev() {
-    assert_eq!(
-        env!("CARGO_PKG_VERSION"),
-        "1.0.0-dev",
-        "prism-bin Cargo.toml must be reset to 1.0.0-dev per ADR-064 D1 \
-         (S-REL-DEV-RESET-001 AC-001). Current value indicates the Cargo.toml \
-         edit has not yet been applied."
+    // The ADR-064 D1 invariant: CARGO_PKG_VERSION on develop is either X.Y.Z (stable,
+    // e.g. when release-prep.yml bumps before a stable tag) or X.Y.Z-dev (develop channel).
+    // It must never be X.Y.Z-rc.N, X.Y.Z-beta.N, etc. — those are the stale suffixes
+    // that S-REL-DEV-RESET-001 was created to fix.
+    let cargo_version = env!("CARGO_PKG_VERSION");
+    let parsed = semver::Version::parse(cargo_version).unwrap_or_else(|e| {
+        panic!(
+            "CARGO_PKG_VERSION '{}' is not valid semver: {}",
+            cargo_version, e
+        )
+    });
+    let pre = &parsed.pre;
+    assert!(
+        pre.is_empty() || pre.as_str() == "dev",
+        "CARGO_PKG_VERSION '{}' has pre-release segment '{}' — must be empty (stable) or 'dev' (develop channel). \
+         Channel suffixes like rc.N, beta.N, alpha.N must only appear in PRISM_VERSION via build.rs tag injection.",
+        cargo_version,
+        pre
     );
 }
 
 /// RG-002 (S-REL-DEV-RESET-001)
 ///
 /// Assert that `tests/external/non-exhaustive-violation/Cargo.lock` records
-/// `prism-bin` at version `"1.0.0-dev"`.
+/// `prism-bin` at the same version as `CARGO_PKG_VERSION`.
 ///
 /// **RED before implementation:** the nested workspace Cargo.lock still pins `"1.0.0-rc.1"`.
 /// **GREEN after implementation:** `cargo update -p prism-bin` regenerates both lockfiles
-/// per S-REL-DEV-RESET-001 AC-003.
+/// per S-REL-DEV-RESET-001 AC-003, and the lockfile matches CARGO_PKG_VERSION.
+///
+/// B-3 fix (S-REL-VERSION-IDENTITY review-cycle-2): replaced literal `"1.0.0-dev"` in the
+/// lockfile check with a dynamic `env!("CARGO_PKG_VERSION")` format so that the assertion
+/// holds after release-prep.yml bumps Cargo.toml (and regenerates lockfiles) to `X.Y.Z`.
 ///
 /// Authority: ADR-064 D1 ownership map, S-REL-DEV-RESET-001 AC-003.
 #[test]
@@ -61,11 +87,18 @@ fn test_non_exhaustive_lockfile_version_matches() {
         .find(r#"name = "prism-bin""#)
         .expect("prism-bin entry not found in non-exhaustive-violation/Cargo.lock");
     let tail = &lock[idx..];
+    // B-3 fix: build the expected version line dynamically from CARGO_PKG_VERSION so that
+    // this test stays green after release-prep.yml bumps the workspace to a stable version.
+    // The lockfile must always match Cargo.toml — using the literal "1.0.0-dev" would fail
+    // when release-prep.yml cuts the stable release and both files are updated to X.Y.Z.
+    let expected_version_line = format!(r#"version = "{}""#, env!("CARGO_PKG_VERSION"));
     assert!(
-        tail.contains(r#"version = "1.0.0-dev""#),
-        "tests/external/non-exhaustive-violation/Cargo.lock still pins prism-bin to an \
-         old version. Run: cd tests/external/non-exhaustive-violation && cargo update -p prism-bin \
-         (S-REL-DEV-RESET-001 AC-003)"
+        tail.contains(&expected_version_line),
+        "tests/external/non-exhaustive-violation/Cargo.lock still pins prism-bin to a \
+         different version than CARGO_PKG_VERSION (expected '{}'). \
+         Run: cd tests/external/non-exhaustive-violation && cargo update -p prism-bin \
+         (S-REL-DEV-RESET-001 AC-003)",
+        expected_version_line
     );
 }
 
@@ -240,14 +273,28 @@ fn test_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
         "strip_prefix removes exactly one v; 'vv1.0.0' → 'v1.0.0' not '1.0.0' (F-VID-P1-LOW-001)"
     );
 
-    // ---- (3) CARGO_PKG_VERSION gate (S-REL-DEV-RESET-001 pre-condition) ----
-    assert_eq!(
-        env!("CARGO_PKG_VERSION"),
-        "1.0.0-dev",
-        "CARGO_PKG_VERSION must be '1.0.0-dev' after S-REL-DEV-RESET-001 \
-         (ADR-064 D1). Local dev fallback path requires this value. \
-         Current value shows S-REL-DEV-RESET-001 has not been applied."
-    );
+    // ---- (3) CARGO_PKG_VERSION ADR-064 D1 invariant ----
+    // B-3 fix (S-REL-VERSION-IDENTITY review-cycle-2): replaced literal "1.0.0-dev" equality
+    // with the ADR-064 D1 invariant — CARGO_PKG_VERSION must be X.Y.Z (stable) or X.Y.Z-dev.
+    // Literal equality would fail on the release-prep.yml stable-release PR where Cargo.toml
+    // is bumped to X.Y.Z and CI runs the full suite on the resulting `on: push:` trigger.
+    {
+        let cargo_version = env!("CARGO_PKG_VERSION");
+        let parsed = semver::Version::parse(cargo_version).unwrap_or_else(|e| {
+            panic!(
+                "CARGO_PKG_VERSION '{}' is not valid semver: {}",
+                cargo_version, e
+            )
+        });
+        let pre = &parsed.pre;
+        assert!(
+            pre.is_empty() || pre.as_str() == "dev",
+            "CARGO_PKG_VERSION '{}' has pre-release segment '{}' — must be empty (stable) or 'dev' (develop channel). \
+             Channel suffixes like rc.N, beta.N, alpha.N must only appear in PRISM_VERSION via build.rs tag injection.",
+            cargo_version,
+            pre
+        );
+    }
 }
 
 /// RG-003 (S-REL-BVERSION-INJECT-001)
@@ -276,6 +323,10 @@ fn test_prism_version_site_version_subcommand() {
         let path = format!("{manifest_dir}/{rel_path}");
         let content =
             std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("could not read {path}: {e}"));
+        // B-6 (S-REL-VERSION-IDENTITY review-cycle-2): content grep; a doc-comment mentioning
+        // CARGO_PKG_VERSION (e.g. "// Previously: CARGO_PKG_VERSION, now using PRISM_VERSION")
+        // would cause a false-fail here.  If this starts failing unexpectedly, check for new
+        // doc-comments referencing the old env var before assuming the migration regressed.
         assert!(
             !content.contains("CARGO_PKG_VERSION"),
             "prism-bin/{rel_path} must not reference CARGO_PKG_VERSION after \
@@ -307,6 +358,9 @@ fn test_prism_version_site_user_agent() {
         .expect("could not read crates/prism-bin/src/spec_driven_adapter.rs");
 
     // boot.rs: 2 user-agent call sites in build_http_client_with_timeout.
+    // B-6 (S-REL-VERSION-IDENTITY review-cycle-2): content grep; a doc-comment mentioning
+    // CARGO_PKG_VERSION would cause a false-fail.  If this starts failing unexpectedly,
+    // check for new doc-comments referencing the old env var before assuming regression.
     assert!(
         !boot_rs.contains(r#"concat!("prism/", env!("CARGO_PKG_VERSION"))"#),
         "boot.rs user-agent still uses CARGO_PKG_VERSION; migrate to PRISM_VERSION per \
@@ -315,6 +369,7 @@ fn test_prism_version_site_user_agent() {
     );
 
     // spec_driven_adapter.rs: 1 user-agent call site in spec-driven fetch builder.
+    // B-6 (S-REL-VERSION-IDENTITY review-cycle-2): same content-grep caveat as boot.rs above.
     assert!(
         !spec_driven.contains(r#"concat!("prism/", env!("CARGO_PKG_VERSION"))"#),
         "spec_driven_adapter.rs user-agent still uses CARGO_PKG_VERSION; migrate to \

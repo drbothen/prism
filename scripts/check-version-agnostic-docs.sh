@@ -182,25 +182,33 @@ needed between pre-releases. See S-REL-DOCS-AGNOSTIC-001 AC-005 for the required
 fi
 
 # ---------------------------------------------------------------------------
-# AC-006: Full sweep — no hardcoded v1.0.0-rc. in docs/, scripts/, RELEASING.md, README.md
+# AC-006: Full sweep — no hardcoded v-prefixed pre-release semver in docs/, scripts/, RELEASING.md, README.md
 # This is the definitive gate; it catches any occurrence not covered by AC-001/004/007.
 # This script is excluded from the sweep because it legitimately names the pattern
 # it checks for (test infrastructure, not install documentation).
 # README.md added to sweep: OBS-1, S-REL-VERSION-IDENTITY pass-6.
+#
+# B-4 fix (S-REL-VERSION-IDENTITY review-cycle-2): generalized pattern from the specific
+# 'v1.0.0-rc.' literal to 'v[X.Y.Z-(rc|beta|alpha|nightly).N]' so that version strings
+# like 'v1.0.0-beta.1' or 'v1.0.0-alpha.2' are also caught. AC-001/AC-004/AC-007 retain
+# their specific v1.0.0-rc. checks for targeted diagnostics; AC-006 is the general gate.
 # ---------------------------------------------------------------------------
 SELF="$(basename "${BASH_SOURCE[0]}")"
 # Use || true to prevent set -o pipefail from aborting when grep finds zero matches
 # (grep exits 1 with no output; wc -l would output "0" correctly, but pipefail
 # propagates the grep non-zero exit through the pipeline assignment).
-FULL_SWEEP=$(grep -r 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md README.md \
+FULL_SWEEP=$(grep -rE 'v[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+    docs/ scripts/ RELEASING.md README.md \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || FULL_SWEEP=0
 if [ "$FULL_SWEEP" -eq 0 ]; then
-    pass "AC-006: Full sweep — no hardcoded v1.0.0-rc. strings found in docs/ scripts/ RELEASING.md README.md"
+    pass "AC-006: Full sweep — no hardcoded v-prefixed pre-release semver (v[X.Y.Z-(rc|beta|alpha|nightly).N]) \
+found in docs/ scripts/ RELEASING.md README.md"
 else
-    fail "AC-006: Full sweep found ${FULL_SWEEP} hardcoded v1.0.0-rc. string(s). \
-Fix all occurrences before declaring S-REL-DOCS-AGNOSTIC-001 complete."
+    fail "AC-006: Full sweep found ${FULL_SWEEP} hardcoded v-prefixed pre-release semver string(s) \
+(e.g. v1.0.0-rc.1, v1.0.0-beta.1). Fix all occurrences before declaring S-REL-DOCS-AGNOSTIC-001 complete."
     echo "       Occurrences:"
-    grep -rn 'v1\.0\.0-rc\.' docs/ scripts/ RELEASING.md README.md \
+    grep -rnE 'v[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
+        docs/ scripts/ RELEASING.md README.md \
         --exclude="$SELF" | sed 's/^/         /' || true
 fi
 
