@@ -78,24 +78,48 @@ fn test_cli_version_subcommand_exits_zero() {
 /// BC: BC-2.10.006 postcondition
 /// ADR-022 §A: version subcommand must print semver.
 ///
-/// AC-2 exact requirement: `prism X.Y.Z` (semantic version from Cargo.toml).
+/// AC-2 exact requirement: `prism X.Y.Z` (semantic version).
+///
+/// MED-1 (S-REL-VERSION-IDENTITY pass-2): the previous version was a tautology —
+/// it asserted `stdout.contains(env!("PRISM_VERSION"))`, and the binary prints exactly
+/// `env!("PRISM_VERSION")`, so the test always passed regardless of what PRISM_VERSION
+/// contained.  A build.rs bug that leaked `PRISM_VERSION="develop"` would never be caught
+/// because `"develop".contains("develop") == true`.
+///
+/// B-1 fix (S-REL-VERSION-IDENTITY review-cycle-1): `ci.yml` has an unfiltered
+/// `on: push:` that fires on tag refs too.  On a `v1.0.0-beta.1` tag push,
+/// `PRISM_VERSION="1.0.0-beta.1"` while `CARGO_PKG_VERSION` remains `"1.0.0-dev"`.
+/// A literal `stdout.contains(CARGO_PKG_VERSION)` assertion then fails on all 6 CI legs.
+/// Fix: assert the reported string is valid semver (not a leaked branch ref) regardless
+/// of whether this is a tag build or a non-tag build.
 ///
 /// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
 fn test_cli_version_output_contains_semver() {
-    let expected_version = env!("CARGO_PKG_VERSION");
     let output = Command::new(prism_bin())
         .args(["version"])
         .output()
         .expect("failed to spawn prism binary");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Strip the "prism " prefix and assert the remainder is valid semver.
+    // A leaked branch ref ("develop", "feature/S-3.01", "260/merge") is NOT valid semver,
+    // so this assertion fails when a branch name is baked into the binary (F-VID-P1-CRIT-001).
+    // Works on both non-tag builds (PRISM_VERSION="1.0.0-dev") and tag builds
+    // (PRISM_VERSION="1.0.0-beta.1") without a hard-coded expected value (B-1 fix).
+    let reported = stdout
+        .trim()
+        .strip_prefix("prism ")
+        .expect("expected 'prism <version>' format in version output");
+    let without_newline = reported.trim();
     assert!(
-        stdout.contains(expected_version),
-        "prism version output must contain semver '{}' (AC-2); \
-         got stdout: {}",
-        expected_version,
-        stdout
+        semver::Version::parse(without_newline).is_ok(),
+        "prism version output must be valid semver (not a leaked branch ref); got: {without_newline}"
+    );
+    assert!(
+        !without_newline.contains('/'),
+        "leaked branch ref baked into PRISM_VERSION: {without_newline}"
     );
 }
 

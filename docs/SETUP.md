@@ -1,15 +1,16 @@
 # Prism — Operator Setup and Installation Guide
 
-**Version**: v1.0.0-rc.1  
 **Audience**: New operators deploying Prism against a live sensor tenant for the first time.
 
 This guide takes you from a fresh machine to a running `prism start` with a working
 Claroty xDome sensor connection and Claude Code wired as an MCP client.
 
-> **Note on future releases**: v1.0.0-rc.1 requires the operator to supply sensor
-> spec files from the GitHub repository (see §4). A future release will embed built-in
-> sensor specs directly in the binary, making the spec placement step optional.
-> That work is tracked as S-REL-010 and is not part of this release.
+> **Note on sensor specs**: Release archives bundle sensor spec files in `specs/` alongside
+> the binary and `prism.toml.example`. **If you extracted the release archive manually**,
+> the `specs/` directory is already present — skip §4 and proceed to §5. **If you installed
+> via `install.sh` or `install.ps1`**, those scripts deploy only the binary; obtain spec
+> files from the GitHub repository as described in §4. A future release will embed built-in
+> sensor specs directly in the binary (S-REL-010).
 
 ---
 
@@ -61,14 +62,17 @@ To pin a specific version:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
-  --version v1.0.0-rc.1
+  --version <version>
 ```
+
+Replace `<version>` with the tag from the newest pre-release on the
+[GitHub Releases page](https://github.com/drbothen/prism/releases).
 
 To preview without installing:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
-  --version v1.0.0-rc.1 --dry-run
+  --version <version> --dry-run
 ```
 
 To skip provenance verification (e.g., `gh` CLI not installed):
@@ -90,28 +94,31 @@ To pin a specific version (environment variable is required for `irm | iex` — 
 arguments cannot be passed through that pattern):
 
 ```powershell
-$env:PRISM_INSTALL_VERSION = 'v1.0.0-rc.1'
+$env:PRISM_INSTALL_VERSION = '<version>'
 irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
 ```
 
 ### Manual download (fallback)
 
 If the install scripts are unavailable, download the archive directly from the
-[v1.0.0-rc.1 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1):
+[GitHub Releases page](https://github.com/drbothen/prism/releases). Navigate to the
+newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre-releases).
 
-| Platform | Archive |
-|----------|---------|
-| macOS (Apple Silicon) | `prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz` |
-| Linux (glibc — Debian, Ubuntu, RHEL) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux (musl — Alpine, static) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz` |
-| Windows (x86_64) | `prism-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` |
+| Platform | Archive filename pattern |
+|----------|--------------------------|
+| macOS (Apple Silicon) | `prism-<version>-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `prism-<version>-x86_64-apple-darwin.tar.gz` |
+| Linux (glibc — Debian, Ubuntu, RHEL) | `prism-<version>-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux (musl — Alpine, static) | `prism-<version>-x86_64-unknown-linux-musl.tar.gz` |
+| Windows (x86_64) | `prism-<version>-x86_64-pc-windows-msvc.zip` |
+
+Replace `<version>` with the tag you downloaded from the GitHub Releases page.
 
 Extract and place the binary in a directory on your `PATH`:
 
 ```bash
 # macOS / Linux example
-tar xzf prism-v1.0.0-rc.1-<target>.tar.gz
+tar xzf prism-<version>-<triple>.tar.gz
 chmod +x prism
 mv prism /usr/local/bin/prism
 ```
@@ -127,7 +134,7 @@ the Sigstore build provenance, which the manual path requires separately (see §
 
 ```bash
 prism --version
-# Expected: prism 1.0.0-rc.1
+# Expected output: prism <version>  (your installed version may differ)
 ```
 
 ### Verify checksum (manual download only)
@@ -147,12 +154,12 @@ The install scripts perform this check automatically and abort on mismatch.
 ### Verify build provenance (optional, requires `gh` CLI)
 
 ```bash
-gh attestation verify prism-v1.0.0-rc.1-<target>.tar.gz \
+gh attestation verify prism-<version>-<triple>.tar.gz \
   --repo drbothen/prism \
   --signer-workflow drbothen/prism/.github/workflows/release.yml
 ```
 
-Replace `<target>` with the exact archive filename for your platform. A successful
+Replace `<version>` and `<triple>` with the tag and platform triple you downloaded. A successful
 verification confirms the binary was built by the official GitHub Actions release
 workflow, not a third party.
 
@@ -160,9 +167,13 @@ workflow, not a third party.
 
 ## 4. Obtain Sensor Specs
 
-**Important**: The install scripts deploy the `prism` binary only. Sensor TOML spec files
-are not bundled in the binary. You must place them at the `spec_dir` path declared in
-`prism.toml` (configured in §6).
+> **Archive users (manual download):** Sensor specs are included in the release archive
+> under `specs/` alongside the binary. Copy that directory to your `spec_dir`, or set
+> `spec_dir = "./specs"` in `prism.toml` (§6) to use them in place. You can skip to §5.
+
+**Install-script users:** The install scripts deploy the `prism` binary only. Sensor TOML
+spec files are not embedded in the binary. You must place them at the `spec_dir` path
+declared in `prism.toml` (configured in §6).
 
 Download the sensor specs directly from the GitHub repository:
 
@@ -170,7 +181,7 @@ Download the sensor specs directly from the GitHub repository:
 # Create a directory to hold specs (use any path you prefer)
 mkdir -p /etc/prism/specs
 
-# Download the Claroty xDome spec (v1.0.0-rc.1 supported sensor)
+# Download the Claroty xDome spec (primary supported sensor)
 curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/crates/prism-sensors/specs/claroty.sensor.toml \
   -o /etc/prism/specs/claroty.sensor.toml
 ```
@@ -184,9 +195,9 @@ grep -c '^\[\[tables\]\]' /etc/prism/specs/claroty.sensor.toml
 
 Additional sensor specs (CrowdStrike, Armis, Cyberint) are in the repository at
 `crates/prism-sensors/specs/`. They are present in the workspace but not validated
-against live tenants in rc.1; the Claroty xDome sensor is the only fully supported
-sensor in this release. Download additional specs only if you have those sensor tenants
-and intend to test them.
+against live tenants in pre-release builds; the Claroty xDome sensor is the only fully
+supported sensor in this release. Download additional specs only if you have those sensor
+tenants and intend to test them.
 
 ---
 
@@ -251,7 +262,7 @@ state_dir = "/etc/prism/state"
 
 ### plugin_dir (optional)
 
-Path for `*.prx` WASM plugin files. No enrichment plugins are bundled in v1.0.0-rc.1.
+Path for `*.prx` WASM plugin files. No enrichment plugins are bundled in pre-release builds.
 Omit this field or leave it commented out.
 
 ### [[orgs]]
@@ -533,7 +544,7 @@ arrives. Structured log output goes to stderr.
 Expected startup log lines (structured JSON or text depending on `PRISM_LOG_FORMAT`):
 
 ```
-Prism v1.0.0-rc.1
+Prism <version>
 Config loaded successfully  config_dir=/etc/prism
 OrgRegistry initialized  org_count=1
 Sensor TOML specs loaded  spec_dir=/etc/prism/specs
@@ -681,13 +692,13 @@ If rows return with `_source_type: "live"`, setup is complete.
 | `docs/DEMO-RUNBOOK.md` | Full demo execution guide with PrismQL query examples, multi-table SOC workflows, and troubleshooting |
 | `RELEASING.md` | Release procedure for maintainers — version bumps, tagging, CI gates |
 | `prism.toml.example` | Annotated config template with all supported fields |
-| `CHANGELOG.md` | Full change log for v1.0.0-rc.1 |
+| `CHANGELOG.md` | Full change log |
 
-### Supported sensors in v1.0.0-rc.1
+### Supported sensors in this release
 
 Only **Claroty xDome** is fully validated in this release (14 tables, live-tenant tested
 2026-09-04). CrowdStrike Falcon, Cyberint, and Armis sensor code is present in the binary
-but not validated against live tenants; those sensors return in v1.0.0.
+but not validated against live tenants; those sensors return in the v1.0.0 stable release.
 
 ### Multi-tenant setup
 
@@ -695,9 +706,9 @@ Add additional `[[orgs]]` entries to `prism.toml`, create a customer overlay dir
 for each org, and run `prism credential set` once per org. The `--org-slug` flag selects
 which org's credential entry to write.
 
-### Enrichment (not available in rc.1)
+### Enrichment (not available in pre-release builds)
 
 The `| enrich` PrismQL operator and the enrichment engine are present in the binary.
 No enrichment infusion specs (`*.infusion.toml`) or WASM enrichment plugins are bundled
-in v1.0.0-rc.1. Attempting an enrich query returns E-QUERY-039 (UDF not found) with an
-empty available-UDFs list — this is expected behavior, not a crash.
+in pre-release builds. Attempting an enrich query returns E-QUERY-039 (UDF not found)
+with an empty available-UDFs list — this is expected behavior, not a crash.

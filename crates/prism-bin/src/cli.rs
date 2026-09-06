@@ -31,7 +31,7 @@ pub use crate::credential_cli::CredentialArgs;
 ///   5  permission-denied (credential store access denied)
 #[derive(Debug, Parser)]
 #[command(name = "prism", about = "Prism MCP server for MSSP sensor management")]
-#[command(version)]
+#[command(version = env!("PRISM_VERSION"))]
 pub struct CliArgs {
     /// Override the config directory.
     /// Default: platform default config directory (per the dirs crate) joined with "prism".

@@ -1,7 +1,7 @@
 # Prism
 
 [![CI](https://github.com/drbothen/prism/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/drbothen/prism/actions/workflows/ci.yml)
-[![v1.0.0-rc.1](https://img.shields.io/badge/version-v1.0.0--rc.1-blue)](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1)
+[![Latest Release](https://img.shields.io/github/v/release/drbothen/prism?include_prereleases)](https://github.com/drbothen/prism/releases)
 
 Prism is a Rust MCP server that unifies multi-client security sensor management
 for MSSP analysts. It provides a single PrismQL query interface over live sensor
@@ -12,13 +12,14 @@ system and a confirmation-token workflow.
 
 ## Status
 
-Prism v1.0.0-rc.1 is the first release candidate. It ships with Claroty xDome as the
-sole supported sensor (14 tables), the full PrismQL query engine, MCP server,
-multi-tenant architecture, formal verification, and structured audit logging.
-CrowdStrike Falcon, Cyberint, and Armis code is present in the workspace but not
-supported in rc.1; they return in the final v1.0.0 release.
+The current pre-release ships with Claroty xDome as the sole supported sensor
+(14 tables), the full PrismQL query engine, MCP server, multi-tenant architecture,
+formal verification, and structured audit logging. CrowdStrike Falcon, Cyberint,
+and Armis adapters are present in the workspace but are not yet supported in the
+pre-release; they return in the final stable release.
 
-See `CHANGELOG.md` for the full list of what shipped in v1.0.0-rc.1.
+See the [GitHub Releases page](https://github.com/drbothen/prism/releases) for
+the current pre-release and `CHANGELOG.md` for the full list of what shipped.
 
 ## Install
 
@@ -30,11 +31,14 @@ curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install
 
 Auto-detects platform (macOS Apple Silicon/Intel, Linux glibc, Linux musl), verifies
 the SHA-256 checksum, and installs to `/usr/local/bin` or `~/.local/bin`. To pin a
-specific version:
+specific version, find the tag on the
+[GitHub Releases page](https://github.com/drbothen/prism/releases)
+(navigate to the newest pre-release — do **not** use `/releases/latest/`, which
+excludes pre-releases) and pass it with `--version`:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
-  --version v1.0.0-rc.1
+  --version <version>
 ```
 
 **Windows (PowerShell 5.1+):**
@@ -46,33 +50,34 @@ irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | 
 Installs to `%LOCALAPPDATA%\prism\bin`. To pin a version:
 
 ```powershell
-$env:PRISM_INSTALL_VERSION = 'v1.0.0-rc.1'
+$env:PRISM_INSTALL_VERSION = '<version>'
 irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
 ```
 
 ### Manual download (fallback)
 
 Download the archive for your platform from the
-[v1.0.0-rc.1 release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1):
+[GitHub Releases page](https://github.com/drbothen/prism/releases). Navigate to the
+newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre-releases).
 
-| Platform | Archive |
-|----------|---------|
-| macOS (Apple Silicon) | `prism-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `prism-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz` |
-| Linux (glibc) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux (musl) | `prism-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz` |
-| Windows | `prism-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` |
+| Platform | Archive filename pattern |
+|----------|--------------------------|
+| macOS (Apple Silicon) | `prism-<version>-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `prism-<version>-x86_64-apple-darwin.tar.gz` |
+| Linux (glibc) | `prism-<version>-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux (musl) | `prism-<version>-x86_64-unknown-linux-musl.tar.gz` |
+| Windows | `prism-<version>-x86_64-pc-windows-msvc.zip` |
 
 ```bash
 # macOS / Linux example
-tar xzf prism-v1.0.0-rc.1-<target>.tar.gz
+tar xzf prism-<version>-<triple>.tar.gz
 chmod +x prism && mv prism /usr/local/bin/prism
 prism --version
 ```
 
 ### Verify
 
-Verify checksums (from the [release page](https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1)):
+Verify checksums from the [GitHub Releases page](https://github.com/drbothen/prism/releases):
 
 ```bash
 # macOS
@@ -84,7 +89,7 @@ sha256sum -c checksums.txt
 Verify build provenance (requires `gh` CLI):
 
 ```bash
-gh attestation verify prism-v1.0.0-rc.1-<target>.tar.gz \
+gh attestation verify prism-<version>-<triple>.tar.gz \
   --repo drbothen/prism \
   --signer-workflow drbothen/prism/.github/workflows/release.yml
 ```

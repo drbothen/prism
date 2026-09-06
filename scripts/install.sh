@@ -3,8 +3,8 @@
 #
 # USAGE
 #   curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
-#   bash install.sh --version v1.0.0-rc.1
-#   bash install.sh --version v1.0.0-rc.1 --dry-run
+#   bash install.sh --version <version>
+#   bash install.sh --version <version> --dry-run
 #
 # SUPPORTED PLATFORMS
 #   aarch64-apple-darwin      macOS (Apple Silicon)
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
       if [[ $# -lt 2 ]]; then
-        printf 'ERROR: --version requires a value (e.g. --version v1.0.0-rc.1)\n' >&2
+        printf 'ERROR: --version requires a value (e.g. --version <tag>)\n' >&2
         exit 1
       fi
       VERSION="${2}"
@@ -105,7 +105,7 @@ if [[ -z "${VERSION}" ]]; then
     | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
   if [[ -z "${VERSION}" ]]; then
     printf 'ERROR: failed to resolve latest release version from GitHub API\n' >&2
-    printf '  Try passing an explicit version: --version v1.0.0-rc.1\n' >&2
+    printf '  Try passing an explicit version: --version <tag>\n' >&2
     exit 1
   fi
 fi
@@ -113,7 +113,7 @@ fi
 # SEC-005/SEC-007: validate VERSION format before URL construction — full semver anchor
 # rejects prefix-only matches (e.g. "v1evil") and non-semver forms (e.g. "v1", "v1.0").
 if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-  printf 'ERROR: VERSION must be a full semver tag (e.g. v1.0.0 or v1.0.0-rc.1); got: %s\n' "${VERSION}" >&2
+  printf 'ERROR: VERSION must be a full semver tag (e.g. v1.0.0 or v1.0.0-<channel>.N); got: %s\n' "${VERSION}" >&2
   exit 1
 fi
 

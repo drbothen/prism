@@ -26,13 +26,14 @@ complete, compiled, packaged Prism as deployed to operators. It answers: "what
 version of Prism is running on this machine?"
 
 `prism-bin` is the only crate that carries the product version as its own `version`
-field in `Cargo.toml`. When a release is cut, **bump `prism-bin` to match the tag**.
+field in `Cargo.toml`. When a **stable** release is cut, **bump `prism-bin` to match the tag**.
 This makes `prism --version` report the correct product version.
 
 The `release-promote` workflow mechanically enforces this invariant: if the
-dispatched `tag` input (e.g. `v1.0.0-rc.2`) does not exactly match the `prism-bin`
-Cargo.toml `version` field (e.g. `1.0.0-rc.2`) on the develop tree, the promotion
-fails with a clear error before anything is written to `main`.
+dispatched `tag` input (e.g. `v1.0.0`) does not exactly match the `prism-bin`
+Cargo.toml `version` field (the tag name minus the leading `v`) on the develop tree, the promotion
+fails with a clear error before anything is written to `main`. This is the **stable** lane;
+pre-release tags use `release-tag.yml` which applies BASE-MATCH (see Pre-release exception below).
 
 All other workspace crates (prism-core, prism-query, prism-spec-engine, prism-sensors,
 etc.) carry **independent semver versions on their own cadence**. They are all
@@ -52,9 +53,30 @@ workspace versions used during development do not correspond to distribution ver
 
 ### Pre-release tags
 
-A tag containing a hyphen (e.g., `v1.0.0-rc.1`, `v1.1.0-beta.2`) is automatically
+A tag containing a hyphen (e.g., `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`) is automatically
 marked as a pre-release by the release workflow. Tags without a hyphen are treated as
 stable releases and are marked Latest on GitHub.
+
+### Pre-release exception (ADR-064 D2)
+
+The `develop` branch carries `prism-bin` at version `1.0.0-dev`. **No `Cargo.toml`
+version bump is needed between pre-releases on the same X.Y.Z cycle** (e.g., between
+`vX.Y.Z-alpha.N` and `vX.Y.Z-beta.N`). Instead, the binary version is injected at build
+time via `PRISM_VERSION`, resolved by `crates/prism-bin/build.rs` through the
+following fallback chain:
+
+1. `PRISM_BUILD_VERSION` env var (explicit override; must be semver-shaped —
+   `X.Y.Z[-pre][+build]` — otherwise it is ignored and the chain falls through)
+2. `GITHUB_REF_NAME` env var with a leading `v` stripped — **only on tag builds**
+   (`GITHUB_REF_TYPE == "tag"`, or fallback: `GITHUB_REF` starts with `refs/tags/`).
+   On non-tag runs (branch pushes, pull requests) this arm is skipped entirely and the
+   resolver falls through to `CARGO_PKG_VERSION`, preventing branch names such as
+   `develop` or `feature/S-3.01` from being baked into the binary.
+3. `CARGO_PKG_VERSION` (local dev default; always `1.0.0-dev` on `develop`)
+
+This means `prism --version` on `develop` reports `prism 1.0.0-dev` locally, and
+**reports** `prism <tag-version>` on a tagged CI build — without requiring `prism-bin`
+`Cargo.toml` to be updated for every pre-release tag.
 
 ---
 
@@ -139,7 +161,7 @@ protection, or project convention — not just policy.
 | Never skip git hooks (`--no-verify`) | TD-FACTORY-HOOK-BYPASS-001 P0 violation |
 | No AI attribution in commits | Project convention; see CLAUDE.md §Git Workflow |
 | Tag must live on `main`, not `develop` | release.yml triggers on `v*` tags; a tag on develop produces a release from the wrong base |
-| Tag input to `release-promote` must equal `prism-bin` Cargo.toml version | `release-promote` validate job fails; promotion is blocked. Mechanically enforced — see §1 note. |
+| Tag input to `release-promote` must equal `prism-bin` Cargo.toml version (stable lane only) | `release-promote` validate job fails; promotion is blocked. Mechanically enforced — see §1 note. Pre-release tags bypass this by using `release-tag.yml` directly (see §1 Pre-release exception). |
 | Conventional commit for the release-prep commit | Enforced by lefthook pre-commit hook (local) or by workflow convention (CI-generated commit) |
 | All 24 required CI status checks must pass on develop | Branch protection on develop enforces this before the release-prep PR can merge |
 | `RELEASE_PROMOTE_TOKEN` secret must be configured | `release-promote` cannot authenticate to push `main` or the semver tag (GITHUB_TOKEN cannot bypass main branch protection) |
@@ -192,7 +214,9 @@ Follow this procedure exactly. Do not improvise. The two release workflows
 safe to automate; human decisions (CHANGELOG curation, final approval) remain
 explicit gates.
 
-Replace `X.Y.Z` throughout with the actual version (e.g. `1.0.0-rc.2`).
+Replace `X.Y.Z` throughout with the actual version number.
+
+**Pre-releases:** Do NOT use this procedure for pre-release tags. Use `release-tag.yml` directly (see `docs/RELEASE-CHANNELS.md §3`).
 
 ### Prerequisites
 
@@ -236,10 +260,15 @@ The PR body contains a checklist. Before merging:
 1. Curate the CHANGELOG scaffold: categorize entries under Added / Fixed / Changed /
    Security / Removed; remove the `> **SCAFFOLD**` notice when done.
 2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
-3. Update the README version badge and install URLs if this is not a pre-release:
-   - The `[![vX.Y.Z](...)]` shield badge URL in the README header
-   - All install URL paths (e.g. `prism-v1.0.0-rc.1-` → `prism-vX.Y.Z-`) in the `## Install` section
-   Push these to the release branch before merging.
+3. Confirm the README reflects this release:
+   - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
+     badge driven by the GitHub Releases API — it updates automatically when the release
+     is published. No manual badge URL edit is required.
+   - The `## Install` section uses `<version>` placeholders and references the GitHub
+     Releases page; no URL updates are needed for the install instructions.
+   - Review the `## Status` section text for any new or removed sensor support that
+     should be noted in this release.
+   Push any README changes to the release branch before merging.
 4. Wait for all 24 required CI checks to pass.
 5. Merge the PR to `develop` (squash or merge commit per project convention).
 

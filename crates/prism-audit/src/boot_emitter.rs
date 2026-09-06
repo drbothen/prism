@@ -47,7 +47,9 @@ pub struct BootAuditEmitter {
 ///
 /// All fields are specified by BC-2.05.012 §Postconditions lines 111-120.
 pub struct BootSentinelFields<'a> {
-    /// Semver string from CARGO_PKG_VERSION (e.g. "0.1.0").
+    /// Semver string from `env!("PRISM_VERSION")` (set by `prism-bin/build.rs`,
+    /// ADR-064 D2). Resolves to the injected tag version on CI tag builds
+    /// (e.g. "1.0.0-beta.1") or to CARGO_PKG_VERSION ("1.0.0-dev") on local/non-tag builds.
     pub prism_version: &'a str,
     /// Hash or redacted identifier for the config directory
     /// (BC-2.05.012: "config_dir MUST be redacted — only a hash or basename").
@@ -78,7 +80,8 @@ impl BootAuditEmitter {
     /// Required fields:
     /// - `event_type`: `"boot.audit.initialized"`
     /// - `timestamp`: RFC 3339 string (F-PASS2-HIGH-2)
-    /// - `prism_version`: semver from CARGO_PKG_VERSION
+    /// - `prism_version`: semver from `env!("PRISM_VERSION")` (injected by `prism-bin/build.rs`
+    ///   per ADR-064 D2; fed from `boot.rs` at the `BootAuditEmitter` init site)
     /// - `config_dir`: redacted path hash (BC-2.05.012 invariant)
     /// - `org_count`: integer count of registered orgs
     /// - `boot_step`: `6` (ADR-022 §B step numbering)

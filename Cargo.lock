@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "prism-bin"
-version = "1.0.0-rc.1"
+version = "1.0.0-dev"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -4705,6 +4705,7 @@ dependencies = [
  "rmcp",
  "rpassword",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",

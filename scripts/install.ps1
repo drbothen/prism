@@ -6,10 +6,10 @@
 #   iex (irm 'https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1')
 #
 #   With version pin (set env var before piping - positional args cannot be passed through iex):
-#     $env:PRISM_INSTALL_VERSION = 'v1.0.0-rc.1'; irm .../install.ps1 | iex
+#     $env:PRISM_INSTALL_VERSION = '<version>'; irm .../install.ps1 | iex
 #
 #   Direct invocation with parameters:
-#     pwsh -File scripts/install.ps1 -Version v1.0.0-rc.1
+#     pwsh -File scripts/install.ps1 -Version <version>
 #     pwsh -File scripts/install.ps1 -DryRun
 #
 # PLATFORM
@@ -85,7 +85,7 @@ if (-not $Version) {
 # SEC-005/SEC-007: validate Version format before URL/path construction — full semver anchor
 # rejects prefix-only matches (e.g. "v1evil") and non-semver forms (e.g. "v1", "v1.0").
 if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$') {
-    Write-Error "Version must be a full semver tag (e.g. v1.0.0 or v1.0.0-rc.1); got: $Version"
+    Write-Error "Version must be a full semver tag (e.g. v1.0.0 or v1.0.0-<channel>.N); got: $Version"
     exit 1
 }
 

@@ -848,7 +848,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 /// output.  On failure, emits to stderr and calls `std::process::exit(4)`.
 ///
 /// Format: JSON if `PRISM_LOG_FORMAT=json`; pretty otherwise.
-/// First log line: `tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"))`.
+/// First log line: `tracing::info!("Prism v{}", env!("PRISM_VERSION"))`.
 ///
 /// # Writer: stderr only (BC-2.10.006 §Postconditions / §Invariants)
 ///
@@ -887,7 +887,7 @@ pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
     }
 
     // AC-5: first log line must be Prism version.
-    tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Prism v{}", env!("PRISM_VERSION"));
 }
 
 /// Resolve relative path fields in [`PrismConfig`] against `config_dir`.
@@ -1859,7 +1859,7 @@ fn step6_init_audit(
     // confirmed writable via AuditEmitter."
     let emitter = BootAuditEmitter::new(Arc::clone(&backend));
 
-    let version = env!("CARGO_PKG_VERSION");
+    let version = env!("PRISM_VERSION");
 
     // Redact config_dir: use SHA-256 hash of the path, not the raw path.
     // BC-2.05.012: "config_dir field MUST be redacted (only a hash or basename)".
@@ -1998,7 +1998,7 @@ pub async fn plugin_load_step_with_audit(
         // Construct runtime without loading plugins (MCP server still binds with zero plugins).
         let http_client = reqwest::Client::builder()
             // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
-            .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("prism/", env!("PRISM_VERSION")))
             .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
             .build()
             .map_err(|e| {
@@ -2024,7 +2024,7 @@ pub async fn plugin_load_step_with_audit(
     // error that EC-D-009 requires (expect_used = "deny" in workspace clippy config).
     let http_client = reqwest::Client::builder()
         // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
-        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("prism/", env!("PRISM_VERSION")))
         .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
         .build()
         .map_err(|e| {

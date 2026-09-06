@@ -25,6 +25,11 @@
 // Re-exported modules — all public for integration test access from boot_tests.rs.
 pub mod boot;
 pub mod cli;
+// S-REL-VERSION-IDENTITY HIGH-1: shared pure resolver so that `tests/version_identity.rs`
+// imports and exercises the EXACT same function that `build.rs` uses to emit PRISM_VERSION.
+// `build.rs` includes this file via `include!("src/version_resolver.rs")`; the lib target
+// loads it as a normal module. Single source of truth for the ADR-064 D2 fallback chain.
+pub mod version_resolver;
 // S-DEMO-003: `prism credential set` subcommand — AD-017 compliant keyring write.
 // New CLI-facing write path for credentials (BC-2.03.007, BC-2.06.001, SS-03 + SS-22).
 pub mod credential_cli;
