@@ -25,6 +25,12 @@
 //! Authority: ADR-064 D2 v1.5, S-REL-BVERSION-INJECT-001 AC-001.
 
 fn main() {
+    // Re-run if the build script itself or the included resolver source changes.
+    // N-1 (S-REL-VERSION-IDENTITY review-cycle-5): without these, Cargo's implicit
+    // dep-info tracking may not detect changes to the include!'d file, causing stale
+    // PRISM_VERSION values in incremental builds.
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/version_resolver.rs");
     // Re-run if any relevant env var changes.
     println!("cargo:rerun-if-env-changed=PRISM_BUILD_VERSION");
     println!("cargo:rerun-if-env-changed=GITHUB_REF_NAME");

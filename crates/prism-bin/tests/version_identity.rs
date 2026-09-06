@@ -216,14 +216,17 @@ fn test_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
     );
 
     // PRISM_BUILD_VERSION wins over GITHUB_REF_NAME (ADR-064 D2 step 1).
+    // SEC-001/SEC-002 (review-cycle-5): PRISM_BUILD_VERSION must be semver-shaped to pass
+    // through; use a valid semver value here ("2.0.0-test.1" rather than "custom-override"
+    // which is not semver-shaped and falls through under the new security gate).
     assert_eq!(
         resolve_prism_version(
-            Some("custom-override"),
+            Some("2.0.0-test.1"),
             true,
             Some("v1.0.0-beta.1"),
             "1.0.0-dev"
         ),
-        "custom-override",
+        "2.0.0-test.1",
         "PRISM_BUILD_VERSION must take priority over GITHUB_REF_NAME (ADR-064 D2 step 1)"
     );
 
@@ -523,14 +526,17 @@ fn test_shared_resolver_tag_ref_strips_single_v() {
 #[test]
 fn test_shared_resolver_build_version_precedence_and_empty_fallthrough() {
     // (a) PRISM_BUILD_VERSION wins over GITHUB_REF_NAME on tag build.
+    // SEC-001/SEC-002 (review-cycle-5): PRISM_BUILD_VERSION must be semver-shaped;
+    // "custom-override" was not semver-shaped and now falls through under the security gate.
+    // Use a valid semver value instead.
     assert_eq!(
         resolve_prism_version(
-            Some("custom-override"),
+            Some("2.0.0-test.1"),
             true,
             Some("v1.0.0-beta.1"),
             "1.0.0-dev"
         ),
-        "custom-override",
+        "2.0.0-test.1",
         "SHARED RESOLVER: PRISM_BUILD_VERSION must win over everything (chain step 1)"
     );
     // (b) PRISM_BUILD_VERSION wins even on non-tag build.

@@ -286,5 +286,5 @@ if [ "$FAIL" -gt 0 ]; then
 fi
 
 echo ""
-echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001..AC-008 satisfied."
+echo "GREEN: All checks pass. S-REL-DOCS-AGNOSTIC-001 AC-001, AC-002, AC-003, AC-004, AC-005, AC-006, AC-006b, AC-007, AC-009 satisfied."
 exit 0
