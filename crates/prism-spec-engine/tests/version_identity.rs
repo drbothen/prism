@@ -113,23 +113,36 @@ fn test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
     // allowing this assertion to be conditional on the actual build context.
     // ci.yml has an unfiltered `on: push:` that fires on tag refs, so an unconditional
     // equality assertion fails on the beta.1 tag push (all CI legs) — HIGH-1.
-    if env!("PRISM_VERSION_IS_TAG_BUILD") == "false" {
+    //
+    // OBS-C: Gate the equality branch on BOTH is_tag_build==false AND no build-time override.
+    // Setting PRISM_BUILD_VERSION=1.2.3 on a non-tag checkout makes PRISM_VERSION="1.2.3"
+    // while PRISM_VERSION_IS_TAG_BUILD remains "false" → the old guard took the equality branch
+    // and asserted "1.2.3" == "0.9.0", producing a spurious failure (OBS-C, S-REL-AGENT-VERSION-001).
+    //
+    // option_env! is a compile-time macro that returns None when the env var is not set
+    // at build time, or Some(val) when it is. Treating None/empty/whitespace as "no override"
+    // matches the resolve_prism_version fallback-chain semantics (F-VID-P1-MED-001).
+    let is_non_tag_build = env!("PRISM_VERSION_IS_TAG_BUILD") == "false";
+    let has_build_version_override = option_env!("PRISM_BUILD_VERSION")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+    if is_non_tag_build && !has_build_version_override {
         assert_eq!(
             env!("PRISM_VERSION"),
             env!("CARGO_PKG_VERSION"),
-            "On non-tag builds, PRISM_VERSION must equal CARGO_PKG_VERSION \
-             (fallback chain step 3, ADR-064 v1.9 D4 §Surface B). \
+            "On non-tag builds without PRISM_BUILD_VERSION override, PRISM_VERSION must equal \
+             CARGO_PKG_VERSION (fallback chain step 3, ADR-064 v1.9 D4 §Surface B). \
              Got PRISM_VERSION={:?}, CARGO_PKG_VERSION={:?}",
             env!("PRISM_VERSION"),
             env!("CARGO_PKG_VERSION"),
         );
     } else {
-        // Tag build: PRISM_VERSION is the stripped tag, not CARGO_PKG_VERSION.
-        // Assert it is valid semver and not a leaked branch ref.
+        // Override (PRISM_BUILD_VERSION set) or tag build: PRISM_VERSION is a specific version,
+        // not CARGO_PKG_VERSION. Assert it is valid semver and not a leaked branch ref.
         let v = env!("PRISM_VERSION");
         assert!(
             semver::Version::parse(v).is_ok(),
-            "On tag builds, PRISM_VERSION must be valid semver; got: {v}"
+            "On tag or override builds, PRISM_VERSION must be valid semver; got: {v}"
         );
         assert!(!v.contains('/'), "leaked branch ref in PRISM_VERSION: {v}");
     }
@@ -154,6 +167,14 @@ fn test_spec_engine_build_rs_fallback_uses_cargo_pkg_version_when_no_env() {
 /// source code uses `env!("PRISM_VERSION")` at the user-agent call site — confirmed by
 /// S-REL-AGENT-VERSION-001 AC-007 grep check (`grep CARGO_PKG_VERSION pipeline.rs` returns no
 /// match at the `build_http_client_with_timeout` user-agent call site).
+///
+/// Compile-gate role: RG-005 is effectively a compile-gate duplicate of RG-003 — both gate
+/// on `env!("PRISM_VERSION")` being resolvable at compile time (i.e., build.rs exists and
+/// emits the env var). RG-003 is the canonical compile-gate for the build.rs existence
+/// contract; RG-005 is retained to document the specific `pipeline.rs` user-agent call site
+/// dependency and to serve as a redundant compile-gate at the interface boundary. The inline
+/// wiremock test `test_infusion_http_client_sends_prism_user_agent` is the removal-guard;
+/// RG-005 is the compile-time existence guard (OBS-1, S-REL-AGENT-VERSION-001).
 ///
 /// Traces to: ADR-064 v1.9 D4 §Surface B — `pipeline.rs` row:
 ///   Before: `env!("CARGO_PKG_VERSION")`
