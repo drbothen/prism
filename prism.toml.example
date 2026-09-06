@@ -9,10 +9,11 @@
 #      See docs/SETUP.md §2 and README.md for install commands.
 #   2. Decide where your config directory lives (e.g., /etc/prism/ or ~/prism/).
 #   3. Copy this file there as prism.toml.
-#   4. Download the Claroty xDome sensor spec from the GitHub repository and place
-#      it in spec_dir. See docs/SETUP.md §4 for the exact curl command.
-#      (Note: a future release (S-REL-010) will embed built-in sensor specs directly
-#      in the binary; rc.1 requires the operator to supply spec files.)
+#   4. Sensor specs are included in this release archive under specs/. Copy the
+#      specs/ directory to the path set as spec_dir, or set spec_dir = "./specs"
+#      to use them in place. See docs/SETUP.md §4.
+#      (If you installed via install.sh/install.ps1 without the archive, download
+#      specs from the GitHub repository as described in docs/SETUP.md §4.)
 #   5. Set state_dir to a writable path for RocksDB persistent state.
 #   6. Add at least one [[orgs]] entry with a UUID v7 org_id and a kebab-case org_slug.
 #   7. Configure credentials with `prism credential set` (see `prism credential --help`).
@@ -20,7 +21,7 @@
 #
 # Note: the ENRICH clause and LocalLookup (MMDB/CSV/JSON) code path are present
 # in the binary; no infusion specs or WASM plugins are bundled in this release.
-# Enrichment is not part of the validated rc.1 surface. See the Enrichment
+# Enrichment is not part of the validated release surface. See the Enrichment
 # section near the bottom of this file.
 
 # ---------------------------------------------------------------------------
@@ -101,6 +102,6 @@ org_slug = "my-org"               # kebab-case; used in audit logs and MCP conte
 # The binary includes the ENRICH clause and file-backed LocalLookup (MMDB/CSV/JSON)
 # infusion code path. No infusion specs (e.g. threatintel.infusion.toml,
 # nvd.infusion.toml) or WASM enrichment plugins are bundled with this release.
-# Enrichment is not part of the validated rc.1 surface; plugin-based enrichment
+# Enrichment is not part of the validated release surface; plugin-based enrichment
 # (ThreatIntel via .prx) and NVD-dependent paths ship in a later release.
 # Prism boots cleanly without an infusions/ directory.

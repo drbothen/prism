@@ -334,6 +334,19 @@ fn test_prism_version_site_version_subcommand() {
              Migrate this site to env!(\"PRISM_VERSION\") per ADR-064 D2 site table."
         );
     }
+
+    // Runtime presence check: PRISM_VERSION must be non-empty at compile time.
+    // (S-REL-VERSION-IDENTITY review-cycle-4 S-1: strengthens source-text absence-only check)
+    // A revert of the migration would cause build.rs to disappear, breaking the env! macro
+    // itself; but an empty PRISM_BUILD_VERSION + missing GITHUB_REF_NAME could yield an
+    // empty value without failing the absence assertions above. This assertion catches that.
+    let version_const: &str = env!("PRISM_VERSION");
+    assert!(
+        !version_const.is_empty(),
+        "PRISM_VERSION must be non-empty at compile time (ADR-064 D2 never-empty invariant). \
+         If this fails, PRISM_VERSION resolved to empty string when build.rs ran — check \
+         the resolve_prism_version fallback chain in src/version_resolver.rs."
+    );
 }
 
 /// RG-004 (S-REL-BVERSION-INJECT-001)
@@ -374,6 +387,24 @@ fn test_prism_version_site_user_agent() {
         !spec_driven.contains(r#"concat!("prism/", env!("CARGO_PKG_VERSION"))"#),
         "spec_driven_adapter.rs user-agent still uses CARGO_PKG_VERSION; migrate to \
          PRISM_VERSION per ADR-064 D2 (S-REL-BVERSION-INJECT-001 AC-003)."
+    );
+
+    // Runtime presence check: the user-agent constant built from PRISM_VERSION must be
+    // non-empty and well-formed. (S-REL-VERSION-IDENTITY review-cycle-4 S-1)
+    // Deleting the concat!("prism/", env!("PRISM_VERSION")) lines in boot.rs or
+    // spec_driven_adapter.rs would break compilation, but an empty PRISM_VERSION would
+    // produce "prism/" — caught here without triggering a compile error.
+    let expected_ua = concat!("prism/", env!("PRISM_VERSION"));
+    assert!(
+        !expected_ua.is_empty() && expected_ua.starts_with("prism/"),
+        "user-agent string must be 'prism/<version>'; got: {}",
+        expected_ua
+    );
+    assert!(
+        !expected_ua.ends_with('/'),
+        "user-agent must not end with '/' — PRISM_VERSION is empty (ADR-064 D2 never-empty \
+         invariant). Got: {}",
+        expected_ua
     );
 }
 

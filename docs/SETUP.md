@@ -5,10 +5,12 @@
 This guide takes you from a fresh machine to a running `prism start` with a working
 Claroty xDome sensor connection and Claude Code wired as an MCP client.
 
-> **Note on sensor specs**: The current pre-release requires the operator to supply sensor
-> spec files from the GitHub repository (see §4). A future release will embed built-in
-> sensor specs directly in the binary, making the spec placement step optional.
-> That work is tracked as S-REL-010 and is not part of this release.
+> **Note on sensor specs**: Release archives bundle sensor spec files in `specs/` alongside
+> the binary and `prism.toml.example`. **If you extracted the release archive manually**,
+> the `specs/` directory is already present — skip §4 and proceed to §5. **If you installed
+> via `install.sh` or `install.ps1`**, those scripts deploy only the binary; obtain spec
+> files from the GitHub repository as described in §4. A future release will embed built-in
+> sensor specs directly in the binary (S-REL-010).
 
 ---
 
@@ -165,9 +167,13 @@ workflow, not a third party.
 
 ## 4. Obtain Sensor Specs
 
-**Important**: The install scripts deploy the `prism` binary only. Sensor TOML spec files
-are not bundled in the binary. You must place them at the `spec_dir` path declared in
-`prism.toml` (configured in §6).
+> **Archive users (manual download):** Sensor specs are included in the release archive
+> under `specs/` alongside the binary. Copy that directory to your `spec_dir`, or set
+> `spec_dir = "./specs"` in `prism.toml` (§6) to use them in place. You can skip to §5.
+
+**Install-script users:** The install scripts deploy the `prism` binary only. Sensor TOML
+spec files are not embedded in the binary. You must place them at the `spec_dir` path
+declared in `prism.toml` (configured in §6).
 
 Download the sensor specs directly from the GitHub repository:
 

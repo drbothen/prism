@@ -259,10 +259,15 @@ The PR body contains a checklist. Before merging:
 1. Curate the CHANGELOG scaffold: categorize entries under Added / Fixed / Changed /
    Security / Removed; remove the `> **SCAFFOLD**` notice when done.
 2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
-3. Update the README version badge and install URLs if this is not a pre-release:
-   - The `[![vX.Y.Z](...)]` shield badge URL in the README header
-   - All install URL paths (e.g. `prism-<old>-` → `prism-vX.Y.Z-`) in the `## Install` section
-   Push these to the release branch before merging.
+3. Confirm the README reflects this release:
+   - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
+     badge driven by the GitHub Releases API — it updates automatically when the release
+     is published. No manual badge URL edit is required.
+   - The `## Install` section uses `<version>` placeholders and references the GitHub
+     Releases page; no URL updates are needed for the install instructions.
+   - Review the `## Status` section text for any new or removed sensor support that
+     should be noted in this release.
+   Push any README changes to the release branch before merging.
 4. Wait for all 24 required CI checks to pass.
 5. Merge the PR to `develop` (squash or merge commit per project convention).
 

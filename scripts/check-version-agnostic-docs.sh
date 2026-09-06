@@ -182,11 +182,12 @@ needed between pre-releases. See S-REL-DOCS-AGNOSTIC-001 AC-005 for the required
 fi
 
 # ---------------------------------------------------------------------------
-# AC-006: Full sweep — no hardcoded v-prefixed pre-release semver in docs/SETUP.md, scripts/, RELEASING.md, README.md
+# AC-006: Full sweep — no hardcoded v-prefixed pre-release semver in docs/SETUP.md, scripts/, RELEASING.md, README.md, prism.toml.example
 # This is the definitive gate; it catches any occurrence not covered by AC-001/004/007.
 # This script is excluded from the sweep because it legitimately names the pattern
 # it checks for (test infrastructure, not install documentation).
 # README.md added to sweep: OBS-1, S-REL-VERSION-IDENTITY pass-6.
+# prism.toml.example added to sweep: B-9, S-REL-VERSION-IDENTITY review-cycle-4.
 # Scope is docs/SETUP.md (not all of docs/) — docs/RELEASE-CHANNELS.md and other
 # docs/ files legitimately use concrete pre-release semver examples as instructional
 # content (tag format examples, maturity model illustrations). Narrowing to
@@ -202,17 +203,17 @@ SELF="$(basename "${BASH_SOURCE[0]}")"
 # (grep exits 1 with no output; wc -l would output "0" correctly, but pipefail
 # propagates the grep non-zero exit through the pipeline assignment).
 FULL_SWEEP=$(grep -rE 'v[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-    docs/SETUP.md scripts/ RELEASING.md README.md \
+    docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || FULL_SWEEP=0
 if [ "$FULL_SWEEP" -eq 0 ]; then
     pass "AC-006: Full sweep — no hardcoded v-prefixed pre-release semver (v[X.Y.Z-(rc|beta|alpha|nightly).N]) \
-found in docs/SETUP.md scripts/ RELEASING.md README.md"
+found in docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example"
 else
     fail "AC-006: Full sweep found ${FULL_SWEEP} hardcoded v-prefixed pre-release semver string(s) \
 (e.g. v1.0.0-rc.1, v1.0.0-beta.1). Fix all occurrences before declaring S-REL-DOCS-AGNOSTIC-001 complete."
     echo "       Occurrences:"
     grep -rnE 'v[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-        docs/SETUP.md scripts/ RELEASING.md README.md \
+        docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example \
         --exclude="$SELF" | sed 's/^/         /' || true
 fi
 
@@ -231,9 +232,10 @@ fi
 # or a non-v character.  "v1.0.0-rc.2" still does NOT match because [^v]
 # does not match 'v' and ^ does not apply mid-line.
 # README.md added to sweep: OBS-1, S-REL-VERSION-IDENTITY pass-6.
+# prism.toml.example added to sweep: B-9, S-REL-VERSION-IDENTITY review-cycle-4.
 # ---------------------------------------------------------------------------
 NONV_PRERELEASE=$(grep -rE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-    docs/SETUP.md scripts/ RELEASING.md README.md \
+    docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example \
     --exclude="$SELF" 2>/dev/null | wc -l | tr -d ' ') || NONV_PRERELEASE=0
 if [ "$NONV_PRERELEASE" -eq 0 ]; then
     pass "AC-006b: Full sweep — no non-v-prefixed pre-release semver (X.Y.Z-(rc|beta|alpha|nightly).N) found"
@@ -243,8 +245,31 @@ else
 (F-VID-P1-MED-002: use 'prism 1.0.0' or 'prism <version>' format examples)."
     echo "       Occurrences:"
     grep -rnE '(^|[^v])[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha|nightly)\.[0-9]+' \
-        docs/SETUP.md scripts/ RELEASING.md README.md \
+        docs/SETUP.md scripts/ RELEASING.md README.md prism.toml.example \
         --exclude="$SELF" | sed 's/^/         /' || true
+fi
+
+# ---------------------------------------------------------------------------
+# AC-009: prism.toml.example — no bare pre-release channel qualifiers in prose
+# (B-9, S-REL-VERSION-IDENTITY review-cycle-4)
+# Catches bare channel qualifiers like "rc.1", "beta.2", "alpha.3" that appear
+# in TOML comment prose WITHOUT a leading vX.Y.Z- prefix. These slip past AC-006
+# and AC-006b which both require the X.Y.Z component. A comment like "not part
+# of the validated rc.1 surface" would not be caught by either general gate.
+# Pattern: word boundary or non-alnum, then (rc|beta|alpha)\.\d+
+# (nightly is excluded as it doesn't take a .N suffix in practice)
+# This script is excluded (SELF) because it legitimately names these patterns.
+# ---------------------------------------------------------------------------
+BARE_CHANNEL=$(grep -E '(^|[^a-z])(rc|beta|alpha)\.[0-9]+' \
+    prism.toml.example 2>/dev/null | grep -v "^$SELF" | wc -l | tr -d ' ') || BARE_CHANNEL=0
+if [ "$BARE_CHANNEL" -eq 0 ]; then
+    pass "AC-009: prism.toml.example — no bare pre-release channel qualifiers (rc.N, beta.N, alpha.N) in prose"
+else
+    fail "AC-009: prism.toml.example contains ${BARE_CHANNEL} bare pre-release channel qualifier(s) \
+(e.g. 'rc.1', 'beta.2' without a vX.Y.Z- prefix). Remove version-specific qualifiers from \
+comment prose (B-9, S-REL-VERSION-IDENTITY review-cycle-4)."
+    echo "       Occurrences:"
+    grep -nE '(^|[^a-z])(rc|beta|alpha)\.[0-9]+' prism.toml.example | sed 's/^/         /' || true
 fi
 
 # ---------------------------------------------------------------------------
