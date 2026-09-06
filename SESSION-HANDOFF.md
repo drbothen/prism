@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.083"
+version: "8.084"
 status: current
 timestamp: 2026-09-06T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2467 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — TD-VSDD-097 Dim-2 DRIFT-SWEEP. S-REL-AGENT-VERSION-001 v1.1→v1.2 (5 drift sites + 3 structure tables corrected to ratified MED-1/HIGH-1/OBS-C code fixes; input-hash recomputed 3126255). STORY-INDEX v3.006→v3.007. LOCAL 3-CLEAN streak RESET 0/3; re-gate pending on code HEAD 461549e92 → HS-032 holdout gate → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/arch_index/holdout_index UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.994→v8.995. SESSION-HANDOFF v8.083→v8.084. §RESUME SNAPSHOT D-2467 inserted; D-2466 SUPERSEDED.**
 
 > **D-2466 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — OBS-2 STORY-ARTIFACT CORRECTION. S-REL-AGENT-VERSION-001 v1.0→v1.1 (story-writer: Task-1/Task-2 + RG-001/RG-002 snippets corrected to assert "0.0.0-test" default; env!("PRISM_VERSION") references removed from prism-mcp tests per ADR-064 §D4 §Surface A; ACs and RG names UNCHANGED). STORY-INDEX v3.005→v3.006. LOCAL 3-CLEAN streak RESET 0/3; re-gate pending on new local HEAD. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/arch_index/holdout_index UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.993→v8.994. SESSION-HANDOFF v8.082→v8.083. §RESUME SNAPSHOT D-2466 inserted; D-2465 SUPERSEDED.**
 
@@ -14,7 +16,37 @@ timestamp: 2026-09-06T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2466 (2026-09-06 — S-REL-AGENT-VERSION-001 v1.1 OBS-2 corrected; LOCAL cascade in-flight on feature/S-REL-AGENT-VERSION-001) [supersedes D-2465]
+## §RESUME SNAPSHOT — D-2467 (2026-09-06 — S-REL-AGENT-VERSION-001 v1.2 Dim-2 drift-sweep committed; LOCAL cascade re-gate on code HEAD 461549e92) [supersedes D-2466]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 story-of-record at v1.2 (TD-VSDD-097 Dim-2 drift-sweep committed this burst; 5 drift sites + 3 structure tables corrected; input-hash 3126255). Code branch feature/S-REL-AGENT-VERSION-001 at local commit 461549e92 (OBS-1 "byte-for-byte" → "structurally identical" test-doc nit applied; not yet pushed). LOCAL 3-CLEAN streak RESET 0/3; re-gate on frozen code HEAD 461549e92 → HS-032 holdout gate → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd.
+
+### GOVERNING OBJECTIVE
+v1.0.0-beta.1 release: deliver all 4 beta.1-blocking stories (S-REL-DEV-RESET-001 MERGED; S-REL-BVERSION-INJECT-001 MERGED; S-REL-DOCS-AGNOSTIC-001 MERGED; S-REL-AGENT-VERSION-001 IN-FLIGHT). Then PR B (git-cliff notes) → tag v1.0.0-beta.1.
+
+### NEXT ACTIONS (in order)
+0. RESUME STEP 0: CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired.
+1. LOCAL adversary re-gate on frozen code HEAD 461549e92 (streak 0/3; all prior MED-1/HIGH-1/OBS-C code fixes in; OBS-1 applied). 3-CLEAN required before holdout gate.
+2. Complete LOCAL 3-CLEAN (streak 0/3; re-gate on frozen HEAD 461549e92).
+3. Per-story holdout gate: HS-032 (3 P1 scenarios, HIDDEN, SINGLE-USE) BEFORE demo/push.
+4. Demo → push → PR (story v1.2; ADR-064 v1.9 D4; 5 RGTs/8 ACs; own PR separate from PR #262).
+5. PR B (E-REL-NOTES): S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001. New worktree off updated develop AFTER S-REL-AGENT-VERSION-001 PR merges.
+6. CLOSE obsolete PR #255 (do NOT merge; human clicks Close).
+7. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
+
+### HEADS (backup boundary)
+- develop: origin = 19887ebcd (PR #262 merged 2026-09-06).
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- main: bdf24cec8 (stub, untouched).
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
+- WORKTREES: ACTIVE — feature/S-REL-AGENT-VERSION-001 (local, not pushed). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+### Changelog (this snapshot)
+D-2467 (2026-09-06 Dim-2 drift-sweep burst): S-REL-AGENT-VERSION-001 v1.1→v1.2. 5 drift sites corrected: (1) Task-12/risk-mitigations: ratified include!/pub mod two-file arrangement. (2) BC table/AC-006: ratified let-chain (not and_then). (3) PRISM_VERSION_IS_TAG_BUILD second emission documented. (4) RG-004/Task-4: guarded equality form. (5) File Structure/Architecture Mapping/Purity Classification tables: src/version_resolver.rs + lib.rs pub mod rows added. input-hash 3126255. STORY-INDEX v3.006→v3.007. LOCAL 3-CLEAN streak RESET 0/3; re-gate pending code HEAD 461549e92.
+
+---
+
+## §RESUME SNAPSHOT — D-2466 (2026-09-06 — S-REL-AGENT-VERSION-001 v1.1 OBS-2 corrected; LOCAL cascade in-flight on feature/S-REL-AGENT-VERSION-001) [supersedes D-2465] [SUPERSEDED by D-2467]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 in LOCAL 3-CLEAN cascade on feature/S-REL-AGENT-VERSION-001 (local worktree, not pushed). Prior LOCAL fixes: MED-1 (untested prism-spec-engine resolver → shared version_resolver.rs + load-bearing tests), HIGH-1 (RG-004 tag-build guard + PRISM_VERSION_IS_TAG_BUILD emission). In-flight code fixes (human-authorized): OBS-1 (UA-removal guard) + OBS-C (precise non-fallback guard + prism-bin twin sibling-sweep). OBS-2 story-artifact correction committed this burst (story v1.0→v1.1). LOCAL 3-CLEAN streak RESET 0/3; re-gate pending on new local HEAD → HS-032 holdout gate → demo → push → PR. develop_head UNCHANGED 19887ebcd.
