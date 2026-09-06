@@ -261,7 +261,7 @@ fi
 # This script is excluded (SELF) because it legitimately names these patterns.
 # ---------------------------------------------------------------------------
 BARE_CHANNEL=$(grep -E '(^|[^a-z])(rc|beta|alpha)\.[0-9]+' \
-    prism.toml.example 2>/dev/null | grep -v "^$SELF" | wc -l | tr -d ' ') || BARE_CHANNEL=0
+    prism.toml.example 2>/dev/null | wc -l | tr -d ' ') || BARE_CHANNEL=0
 if [ "$BARE_CHANNEL" -eq 0 ]; then
     pass "AC-009: prism.toml.example — no bare pre-release channel qualifiers (rc.N, beta.N, alpha.N) in prose"
 else

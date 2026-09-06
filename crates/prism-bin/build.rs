@@ -1,6 +1,6 @@
 //! Build script for `prism-bin`.
 //!
-//! Resolves `PRISM_VERSION` via the ADR-064 D2 v1.5 normative fallback chain:
+//! Resolves `PRISM_VERSION` via the ADR-064 §D2 normative fallback chain:
 //!   1. `PRISM_BUILD_VERSION` env var — used only when set AND non-empty (explicit
 //!      override for tooling/testing)
 //!   2. `GITHUB_REF_NAME` env var — used only when (a) non-empty AND (b) `is_tag_build`
@@ -13,7 +13,7 @@
 //! on push/pull_request, tag name only on tag-push. Without the `GITHUB_REF_TYPE`
 //! gate, non-release CI builds bake `PRISM_VERSION="develop"` into the binary,
 //! failing `test_cli_version_output_contains_semver` on all 5 ci.yml legs.
-//! (F-VID-P1-CRIT-001, ADR-064 D2 v1.5)
+//! (F-VID-P1-CRIT-001, ADR-064 §D2)
 //!
 //! The resolved value is emitted as `PRISM_VERSION` and available at compile
 //! time via `env!("PRISM_VERSION")` in all `prism-bin` source files.
@@ -22,7 +22,7 @@
 //! `prism_bin` lib target so that `tests/version_identity.rs` exercises the
 //! EXACT same function this script calls — HIGH-1, S-REL-VERSION-IDENTITY pass-2).
 //!
-//! Authority: ADR-064 D2 v1.5, S-REL-BVERSION-INJECT-001 AC-001.
+//! Authority: ADR-064 §D2, S-REL-BVERSION-INJECT-001 AC-001.
 
 fn main() {
     // Re-run if the build script itself or the included resolver source changes.

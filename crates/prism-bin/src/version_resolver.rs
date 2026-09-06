@@ -1,4 +1,4 @@
-// ADR-064 D2 v1.5 normative fallback chain — shared pure resolver.
+// ADR-064 §D2 normative fallback chain — shared pure resolver.
 //
 // This file is the SINGLE source of truth for `resolve_prism_version` AND
 // `resolve_is_tag_build`.  It is `include!`'d by `build.rs` (build-script
@@ -22,31 +22,74 @@
 // Note: uses `//` (not `//!`) throughout so the file is valid in BOTH the
 // `include!` context (mid-file in build.rs) and the `mod` context (lib.rs).
 //
-// Authority: ADR-064 D2 v1.6, S-REL-BVERSION-INJECT-001 HIGH-1,
+// Authority: ADR-064 §D2, S-REL-BVERSION-INJECT-001 HIGH-1,
 //            S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001,
 //            S-REL-VERSION-IDENTITY pass-5 OBS-1.
 
 /// Lightweight semver-shape validator for `PRISM_BUILD_VERSION` inputs.
 ///
-/// Accepts `X.Y.Z` or `X.Y.Z-<prerelease>` where X, Y, Z are non-empty ASCII
-/// digit sequences.  This is intentionally NOT a full semver parser — the goal
-/// is to reject obviously-wrong values (e.g. branch names, CRLF-injected payloads)
-/// without adding the `semver` crate to `[build-dependencies]`.  Full semver
-/// validation happens at the test layer via `semver::Version::parse`.
+/// Accepts `X.Y.Z`, `X.Y.Z-<prerelease>`, `X.Y.Z+<build>`, or
+/// `X.Y.Z-<prerelease>+<build>` where:
+/// - X, Y, Z are non-empty ASCII digit sequences.
+/// - `<prerelease>` and `<build>` are one-or-more dot-separated identifiers,
+///   each NON-EMPTY, consisting of chars `[0-9A-Za-z-]`.
 ///
-/// Returns `true` for values that look like `1.0.0` or `1.0.0-beta.1`.
-/// Returns `false` for anything that doesn't start with `X.Y.Z`.
+/// Parse order: strip build metadata on the FIRST `+`, then strip prerelease
+/// on the FIRST `-`, then validate the `X.Y.Z` core.  This is intentionally
+/// NOT a full semver parser — the goal is to reject obviously-wrong values
+/// (e.g. branch names, CRLF-injected payloads) without adding the `semver`
+/// crate to `[build-dependencies]`.  Full semver validation happens at the
+/// test layer via `semver::Version::parse`.
+///
+/// Returns `true` for values shaped like `1.0.0`, `1.0.0-beta.1`,
+/// `1.0.0+build.5`, or `1.0.0-beta.1+exp.sha.5114f85`.
+/// Returns `false` for empty prerelease (`1.0.0-`), empty build (`1.0.0+`),
+/// empty dot-chain identifier (`1.0.0-a..b`), four-component core (`1.0.0.0`),
+/// non-numeric core (`a.b.c`), or two-component core (`1.0`).
 ///
 /// SEC-001/SEC-002 (S-REL-VERSION-IDENTITY review-cycle-5): called by
 /// `resolve_prism_version` to prevent CWE-93 header injection (CRLF) and
 /// CWE-20 unvalidated input from reaching `cargo:rustc-env=`.
 fn is_semver_shaped(s: &str) -> bool {
-    // Split off optional prerelease at the FIRST '-'.
-    let base = match s.split_once('-') {
-        Some((b, _pre)) => b,
-        None => s,
+    // Step 1: split off optional build metadata at the FIRST '+'.
+    let (core_and_pre, build) = match s.split_once('+') {
+        Some((c, b)) => (c, Some(b)),
+        None => (s, None),
     };
-    // The base must be exactly three dot-separated non-empty digit sequences.
+    // Validate build identifiers: one-or-more dot-separated,
+    // each NON-EMPTY, chars [0-9A-Za-z-].
+    if let Some(b) = build {
+        for id in b.split('.') {
+            if id.is_empty()
+                || !id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+            {
+                return false;
+            }
+        }
+    }
+
+    // Step 2: split off optional prerelease at the FIRST '-'.
+    let (base, pre) = match core_and_pre.split_once('-') {
+        Some((b, p)) => (b, Some(p)),
+        None => (core_and_pre, None),
+    };
+    // Validate prerelease identifiers: one-or-more dot-separated,
+    // each NON-EMPTY, chars [0-9A-Za-z-].
+    if let Some(p) = pre {
+        for id in p.split('.') {
+            if id.is_empty()
+                || !id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+            {
+                return false;
+            }
+        }
+    }
+
+    // Step 3: the base must be exactly three dot-separated non-empty digit sequences.
     let mut parts = base.split('.');
     let major = parts.next().unwrap_or("");
     let minor = parts.next().unwrap_or("");
@@ -60,7 +103,7 @@ fn is_semver_shaped(s: &str) -> bool {
         && patch.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// ADR-064 D2 v1.6 normative fallback chain (pure function — shared source).
+/// ADR-064 §D2 normative fallback chain (pure function — shared source).
 ///
 /// Fallback chain:
 /// 1. `build_version` wins if present, its first line is non-empty after trim, AND the
@@ -80,7 +123,7 @@ fn is_semver_shaped(s: &str) -> bool {
 ///
 /// All empty-string / whitespace-only values are treated as absent (F-VID-P1-MED-001).
 ///
-/// Authority: ADR-064 D2 v1.6, S-REL-BVERSION-INJECT-001 AC-001.
+/// Authority: ADR-064 §D2, S-REL-BVERSION-INJECT-001 AC-001.
 pub fn resolve_prism_version(
     build_version: Option<&str>,
     is_tag_build: bool,
@@ -131,7 +174,7 @@ pub fn resolve_prism_version(
 /// - `ref_type`: `std::env::var("GITHUB_REF_TYPE").ok().as_deref()`
 /// - `ref_val`:  `std::env::var("GITHUB_REF").ok().as_deref()`
 ///
-/// Authority: ADR-064 D2 v1.5, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
+/// Authority: ADR-064 §D2, S-REL-VERSION-IDENTITY pass-3 F-VID-MED-001.
 pub fn resolve_is_tag_build(ref_type: Option<&str>, ref_val: Option<&str>) -> bool {
     // Step 1: GITHUB_REF_TYPE primary discriminator.
     // Empty/whitespace values are filtered out (treated as absent).
@@ -281,6 +324,9 @@ mod tests {
         assert!(is_semver_shaped("1.0.0-beta.1"));
         assert!(is_semver_shaped("1.0.0-rc.2"));
         assert!(is_semver_shaped("1.0.0-alpha.0"));
+        // Build metadata must be accepted (OBS finding — previous impl rejected these).
+        assert!(is_semver_shaped("1.0.0+build.5"));
+        assert!(is_semver_shaped("1.0.0-beta.1+exp.sha.5114f85"));
     }
 
     #[test]
@@ -294,5 +340,9 @@ mod tests {
         assert!(!is_semver_shaped("1.0.0.0")); // four components
         assert!(!is_semver_shaped("a.b.c"));
         assert!(!is_semver_shaped("1.x.0"));
+        // Malformed prerelease/build identifiers must be rejected.
+        assert!(!is_semver_shaped("1.0.0-")); // empty prerelease identifier
+        assert!(!is_semver_shaped("1.0.0+")); // empty build identifier
+        assert!(!is_semver_shaped("1.0.0-a..b")); // empty identifier in prerelease dot-chain
     }
 }
