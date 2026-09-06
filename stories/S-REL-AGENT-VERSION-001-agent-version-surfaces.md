@@ -112,7 +112,7 @@ phase: "3"
 
 **Story ID:** S-REL-AGENT-VERSION-001
 **Status:** draft
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** F-A
 **Priority:** P1 (HIGH — human-directed beta.1 scope, S-1 decision 2026-09-05)
 **Points:** 5
