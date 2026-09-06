@@ -8,7 +8,7 @@ must_pass: true
 priority: P1
 epic_id: "E-REL-IDENTITY"
 story_source: "S-REL-AGENT-VERSION-001"
-version: "1.1"
+version: "1.2"
 status: active
 used: false
 last_evaluated: null
@@ -33,7 +33,7 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-032 group). Tests version COHERENCE across both agent-facing surfaces in a SINGLE run using override build (PRISM_BUILD_VERSION=1.0.0-beta.1): the MCP serverInfo.version (Surface A) and the spec-engine outbound HTTP User-Agent (Surface B) must both report '1.0.0-beta.1'. On plain local dev the surfaces legitimately diverge (Surface A=1.0.0-dev, Surface B=0.9.0) — the override build makes the coherence assertion discriminating. Catches the split-wiring defect: Surface A wired but Surface B still uses library version (V_UA=prism/0.9.0 ≠ V_MCP=1.0.0-beta.1), or vice versa. Requires combined MCP + DTU session. Test-writer and implementer must NOT read this file."
+notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-032 group). Tests version COHERENCE across both agent-facing surfaces in a SINGLE run using override build (PRISM_BUILD_VERSION=1.0.0-beta.1): the MCP serverInfo.version (Surface A) and the spec-engine outbound HTTP User-Agent (Surface B) must both report '1.0.0-beta.1'. On plain local dev the surfaces legitimately diverge (Surface A=1.0.0-dev, Surface B=0.9.0) — the override build makes the coherence assertion discriminating. Catches the split-wiring defect: Surface A wired but Surface B still uses library version (V_UA=prism/0.9.0 ≠ V_MCP=1.0.0-beta.1), or vice versa. Requires combined MCP + enrichment session (same setup as HS-032-002): sensor data server on port 19089 + enrichment echo server on port 19090 (PRISM_DTU_MODE=true). V_UA is captured from the enrichment echo server stdout (not DTU access log — Claroty DTU has no standalone server binary per process-gap note in HOLDOUT-INDEX). Test-writer and implementer must NOT read this file."
 ---
 
 # HS-032-003: product-version coherence across both agent-facing surfaces
@@ -79,12 +79,15 @@ A partial implementation where one surface was migrated but the other was not:
 
 **Given** prism is built from the S-REL-AGENT-VERSION-001 story branch with
 `PRISM_BUILD_VERSION=1.0.0-beta.1` (override build — see setup step 1)
-**And** prism MCP stdio is started with a Claroty DTU configured
-**When** an MCP `initialize` handshake is performed AND THEN a PrismQL query is
-executed that triggers an outbound HTTP call to the DTU
+**And** a sensor data server (port 19089) and an enrichment echo server (port 19090) are
+running (same two-server setup as HS-032-002)
+**And** prism MCP stdio is started with `PRISM_DTU_MODE=true` and the holdout config
+pointing the sensor at port 19089 and the infusion at port 19090
+**When** an MCP `initialize` handshake is performed AND THEN the enrichment query
+`SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)` is
+executed (triggering an HTTP GET to the enrichment echo server)
 **Then** `serverInfo.version` from the initialize response equals `V` (some version string)
-**And** the `User-Agent` header on the DTU-bound HTTP request also equals `prism/V`
-(same `V`)
+**And** the `User-Agent` header on the enrichment HTTP GET also equals `prism/V` (same `V`)
 **And** `V` equals `"1.0.0-beta.1"` (the injected PRISM_BUILD_VERSION override)
 
 ---
@@ -107,17 +110,37 @@ the coherence assertion discriminating.
    design (EC-004) — asserted coherence at "1.0.0-dev" would false-fail the correct
    implementation.
 
-2. Start the Claroty DTU locally (for request-header observation).
+2. Start the sensor data server (port 19089) and enrichment echo server (port 19090)
+   using the same commands as HS-032-002 §Setup steps 2-3. If running HS-032-001 and
+   HS-032-002 in the same session, these servers are already running.
 
-3. Start prism in MCP stdio mode with the Claroty sensor configured.
+3. Start prism in MCP stdio mode using the same holdout config as HS-032-002 §Setup
+   steps 4-8 (config dir `/tmp/prism-holdout`, `PRISM_DTU_MODE=true`,
+   `CLAROTY_INSTANCE_URL=http://127.0.0.1:19089`,
+   `PRISM_CLIENTS_HOLDOUT_EVAL_SENSORS_CLAROTY_BEARER_TOKEN=dummy-holdout-token`,
+   `./target/debug/prism start --mcp-stdio --config-dir /tmp/prism-holdout`).
 
 4. **Step A:** Issue the MCP `initialize` request. Capture `result.serverInfo.version`
    from the wire-level JSON response. Call this value `V_MCP`.
 
-5. **Step B:** Issue a PrismQL SELECT query via the MCP `query` tool (same session, same
-   prism instance) that triggers an outbound HTTP call to the Claroty DTU. Observe the
-   `User-Agent` header on the inbound request at the DTU. Strip the `"prism/"` prefix
-   from the User-Agent to get `V_UA`.
+5. **Step B:** Issue the enrichment query via MCP `query` tool (same session, same prism
+   instance). Observe the `ENRICHMENT-UA:` line in the enrichment echo server (port 19090)
+   stdout. Strip the `"prism/"` prefix from the User-Agent to get `V_UA`:
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 2,
+     "method": "tools/call",
+     "params": {
+       "name": "query",
+       "arguments": {
+         "sql": "SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)"
+       }
+     }
+   }
+   ```
+   Capture the `ENRICHMENT-UA:` output line from the echo server stdout. Strip the
+   `"prism/"` prefix to get `V_UA`.
 
 6. **Coherence assertion:** Assert `V_MCP == V_UA`.
 
@@ -143,11 +166,12 @@ are run in the same session — their observations suffice for this coherence ch
 
 1. Obtain `V_MCP` from the `initialize` response `result.serverInfo.version`.
 
-2. Obtain `V_UA` by stripping `"prism/"` prefix from the observed User-Agent header on
-   the outbound DTU request.
+2. Obtain `V_UA` by stripping the `"prism/"` prefix from the `ENRICHMENT-UA:` line in the
+   enrichment echo server (port 19090) stdout — the User-Agent observed when
+   `prism-spec-engine::pipeline::build_http_client_with_timeout` makes the HttpLookup GET.
 
-3. If either observation is a SETUP-FAILURE (prism did not start, DTU not reachable,
-   headers not observable): record SETUP-FAILURE for this scenario.
+3. If either observation is a SETUP-FAILURE (prism did not start, enrichment echo server
+   not reachable, no `ENRICHMENT-UA:` line appeared): record SETUP-FAILURE for this scenario.
 
 4. **Coherence assertion:** Compare `V_MCP` and `V_UA`.
    - If `V_MCP == V_UA`: record PASS on "coherence" dimension.
@@ -194,12 +218,13 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
   "0.0.0-test" value indicates `PrismServer::new` (test constructor) was used at boot
   instead of `with_deps`. The with_deps wiring at boot step 9 was not applied.
 
-- **V_MCP = "1.0.0-beta.1", V_UA = "prism/0.9.0":** Record FAIL on coherence. This is
-  the PRIMARY discriminating FAIL case: Surface A correctly picks up the override
-  (prism-bin build.rs step 1 resolves PRISM_BUILD_VERSION=1.0.0-beta.1, threaded through
-  with_deps to get_info), but Surface B migration was not applied — pipeline.rs still uses
-  `env!("CARGO_PKG_VERSION")` which resolves to prism-spec-engine's own crate version
-  "0.9.0" regardless of the PRISM_BUILD_VERSION override.
+- **V_MCP = "1.0.0-beta.1", V_UA = "0.9.0" (from enrichment echo server):** Record FAIL
+  on coherence. This is the PRIMARY discriminating FAIL case: Surface A correctly picks up
+  the override (prism-bin build.rs resolves PRISM_BUILD_VERSION=1.0.0-beta.1, threaded
+  through with_deps to get_info), but Surface B migration was not applied — `pipeline.rs`
+  still uses `env!("CARGO_PKG_VERSION")` which resolves to prism-spec-engine's own crate
+  version "0.9.0" regardless of the PRISM_BUILD_VERSION override. V_UA is captured from
+  the `ENRICHMENT-UA:` output line on the enrichment echo server on port 19090.
 
 - **V_MCP = "0.1.0", V_UA = "prism/1.0.0-beta.1":** Record FAIL on coherence. Surface B
   was correctly migrated (and override was picked up by prism-spec-engine/build.rs), but
@@ -207,10 +232,11 @@ Rate each dimension 0.0–1.0; take weighted average. Satisfying threshold: ≥ 
 
 - **Both V_MCP and V_UA = "1.0.0-dev" (override not picked up by either surface):**
   Record PARTIAL on "correct-value" dimension (coherent but unexpected value). Verify that
-  the build invocation in setup step 1 correctly set PRISM_BUILD_VERSION=1.0.0-beta.1.
+  the build invocation in setup step 1 correctly exported PRISM_BUILD_VERSION=1.0.0-beta.1.
   Both observations must come from the SAME prism instance per setup — if HS-032-001 and
   HS-032-002 were run in separate sessions, re-run this coherence check in a fresh combined
-  session with the override build.
+  session with the override build. V_UA comes from the enrichment echo server (port 19090)
+  `ENRICHMENT-UA:` output line.
 
 ---
 
@@ -229,20 +255,24 @@ exact coherence mismatch values.
 
 | Field | Description |
 |-------|-------------|
-| corpus_source | prism binary from S-REL-AGENT-VERSION-001 branch, built with PRISM_BUILD_VERSION=1.0.0-beta.1; combined MCP initialize + Claroty DTU session |
+| corpus_source | prism binary from S-REL-AGENT-VERSION-001 branch, built with PRISM_BUILD_VERSION=1.0.0-beta.1; combined MCP initialize + enrichment session (sensor data server port 19089 + enrichment echo server port 19090, same two-server setup as HS-032-002) |
 | corpus_size | Two version observations from the same binary instance; one coherence assertion + one value assertion |
-| known_edge_cases | V_MCP != V_UA (split-wiring; one surface stale); V_MCP = "0.0.0-test" (test constructor at boot); both = "1.0.0-dev" (override not picked up — coherent but PARTIAL) |
+| known_edge_cases | V_MCP != V_UA (split-wiring; one surface stale); V_MCP = "0.0.0-test" (test constructor at boot); both = "1.0.0-dev" (override not picked up — coherent but PARTIAL); SETUP-FAILURE if enrichment echo server not running or PRISM_DTU_MODE not set |
 | false_positive_threshold | Zero: V_MCP == V_UA == "1.0.0-beta.1" is an unambiguous pass for the override build |
 | false_negative_threshold | Zero: V_MCP != V_UA is an unambiguous split-wiring defect |
 
 **Known-good corpus:** prism binary with both Surface A and Surface B correctly wired,
 built with `PRISM_BUILD_VERSION=1.0.0-beta.1` — expected: `V_MCP = "1.0.0-beta.1"`,
-`V_UA = "prism/1.0.0-beta.1"`, coherence passes.
+`V_UA = "1.0.0-beta.1"` (from enrichment echo server `ENRICHMENT-UA: prism/1.0.0-beta.1`),
+coherence passes.
 
 **Known-problematic corpus:** prism binary with partial Surface B migration (Surface A
 wired, Surface B still uses CARGO_PKG_VERSION), built with the same override — expected:
-`V_MCP = "1.0.0-beta.1"`, `V_UA = "prism/0.9.0"`, coherence fails. This is the primary
-discriminating FAIL case for the coherence scenario.
+`V_MCP = "1.0.0-beta.1"`, `V_UA = "0.9.0"` (from enrichment echo server
+`ENRICHMENT-UA: prism/0.9.0`), coherence fails. This is the primary discriminating FAIL
+case for the coherence scenario. Note: a plain sensor query from the same binary would
+show `prism/1.0.0-beta.1` on the sensor-fetch client (already migrated), confirming that
+the enrichment path is essential for discriminating Surface B.
 
 ---
 
@@ -250,5 +280,6 @@ discriminating FAIL case for the coherence scenario.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | f-srav-high-001-enrichment-path-redesign | 2026-09-06 | product-owner | F-SRAV-HIGH-001 fix (Surface B observation path correction for coherence scenario). Updated §Setup Step B to use enrichment echo server (port 19090) instead of Claroty DTU access log for V_UA observation — aligns with HS-032-002 v1.2 enrichment-path redesign. Root cause: Claroty DTU has no standalone server binary (HOLDOUT-INDEX process-gap note); DTU is only instantiable inside test harnesses. V_UA now observed via `ENRICHMENT-UA:` line from the enrichment echo server on port 19090. §Setup steps 2–3 updated (replace DTU start command with HS-032-002 two-server setup reference). §Verification step 2 updated (V_UA from enrichment echo stdout not DTU access log). §Edge Conditions FAIL case updated (V_UA="prism/0.9.0" from enrichment endpoint). §real-world-corpus corpus_source updated. Notes updated. |
 | 1.1 | hs-032-override-build-model-fix | 2026-09-06 | product-owner | HIGH defect fix (F-SRAV-HIGH-001 root cause). Rewrote to override-build model: evaluator builds with PRISM_BUILD_VERSION=1.0.0-beta.1. Coherence now asserted at "1.0.0-beta.1" (V_MCP == V_UA == "1.0.0-beta.1"). Local-dev plain build was non-discriminating: both surfaces legitimately diverge (Surface A = 1.0.0-dev, Surface B = 0.9.0) — asserted "1.0.0-dev" equality would false-fail correct implementation. §Edge Conditions rewritten: FAIL case is genuine mismatch V_UA="prism/0.9.0" (not the ratified local-dev state). Updated §Scenario split-wiring descriptions, §BDD, §Setup, §Verification, §Rubric, §Edge Conditions, §real-world-corpus, notes. |
 | 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. Coherence test: V_MCP (serverInfo.version) must equal V_UA (User-Agent version suffix) and both must equal "1.0.0-dev" on local dev build. Catches split-wiring defect where one surface is migrated but the other is not. ADR-064 D4 §Purpose ("all surfaces emit same PRISM_VERSION") authority. SINGLE-USE. |
