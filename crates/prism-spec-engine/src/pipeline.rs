@@ -1364,7 +1364,7 @@ fn build_paged_url_impl(
 /// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
 pub(crate) fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        // ADR-050 v2.4 §D6 normative form: PRISM_VERSION (not CARGO_PKG_VERSION).
+        // ADR-050 §D6 normative form: PRISM_VERSION (not CARGO_PKG_VERSION).
         // env!("PRISM_VERSION") resolves at compile time from crates/prism-spec-engine/build.rs
         // (D2-conformant fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME tag-gated →
         // CARGO_PKG_VERSION). concat! produces a &'static str with zero allocation at runtime.
