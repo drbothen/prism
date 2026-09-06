@@ -39,7 +39,9 @@
 //! HIGH-1 (S-REL-AGENT-VERSION-001 LOCAL pass-2): emit PRISM_VERSION_IS_TAG_BUILD
 //! alongside PRISM_VERSION so that tests/version_identity.rs::RG-004 can gate its
 //! equality assertion on actual build context, preventing CI failure on tag pushes.
-//! Mirrors the prism-bin build.rs pattern byte-for-byte (sibling-sweep D1).
+//! Structurally mirrors the prism-bin build.rs pattern (shared version_resolver.rs
+//! via include! + pub mod); the files differ in headers, notes, and crate references
+//! (sibling-sweep D1).
 //!
 //! Authority: ADR-064 D4 §Surface B, S-REL-AGENT-VERSION-001 AC-006.
 
