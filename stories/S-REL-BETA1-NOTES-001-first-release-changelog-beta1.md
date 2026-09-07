@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -32,7 +32,7 @@ blocks: []
 points: 3
 estimated_days: 1
 risk: LOW
-acceptance_criteria_count: 5
+acceptance_criteria_count: 6
 red_gate_tests: 0
 # red_gate_tests: 0 — facade mode. No Rust code.
 estimated_passes: "1 human-in-the-loop cycle"
@@ -75,7 +75,7 @@ phase: "3"
 
 **Story ID:** S-REL-BETA1-NOTES-001
 **Status:** ready
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -155,6 +155,7 @@ Verification is operational (implementer must explicitly perform and document ea
 - AC-003: confirm `## [1.0.0-beta.1]` header precedes first `### Highlights` in file; no `### Highlights` appears above it
 - AC-004: `grep -E '### (Added|Fixed|Performance|Changed|Security|Breaking Changes)' CHANGELOG.md` → ≥1 match inside beta.1 section
 - AC-005: count `-` bullet lines in `### Highlights` section → 5–8 bullets
+- AC-006: `grep -c '## \[1\.0\.0-beta\.1\]' CHANGELOG.md` → exactly 1 match (no duplicate section; prior manual section removed before generate)
 - Dry-run `git cliff --tag v1.0.0-beta.1 --unreleased --output /dev/stdout` output snippet documented in PR description
 
 ---
@@ -184,7 +185,25 @@ Verification is operational (implementer must explicitly perform and document ea
    Common additions: skip test commits, skip MCP-related infra changes, skip any
    project-specific categories. Commit the updated `cliff.toml` before continuing.
 
-4. **Generate Layer-2 content:**
+4. **Detect and reconcile any pre-existing `## [1.0.0-beta.1]` section:**
+   Check whether CHANGELOG.md already contains a `## [1.0.0-beta.1]` section:
+   ```bash
+   grep -c '## \[1\.0\.0-beta\.1\]' CHANGELOG.md
+   ```
+   If the count is **1 or more**, remove the existing manual section BEFORE running
+   git-cliff in Task 5. The manual beta.1 section introduced by PR #261
+   ("CHANGELOG beta.1 section") was authored by hand and must be replaced by the
+   git-cliff generated section to avoid a duplicate block.
+
+   Reconciliation procedure:
+   - Delete lines from the existing `## [1.0.0-beta.1]` header down to (but not
+     including) the next `## [` header (or end of file if no subsequent version header).
+   - Verify the deletion: `grep -c '## \[1\.0\.0-beta\.1\]' CHANGELOG.md` → 0 matches.
+   - Proceed to Task 5 (git-cliff `--prepend` will create exactly one fresh block).
+
+   If the count is **0**, no action needed — proceed directly to Task 5.
+
+5. **Generate Layer-2 content:**
    Run:
    ```bash
    git cliff --tag v1.0.0-beta.1 --prepend CHANGELOG.md
@@ -192,7 +211,7 @@ Verification is operational (implementer must explicitly perform and document ea
    This prepends the `## [1.0.0-beta.1]` block (with categorized commit sections) to
    `CHANGELOG.md`.
 
-5. **Dispatch `vsdd-factory:technical-writer` for Layer-1 draft:**
+6. **Dispatch `vsdd-factory:technical-writer` for Layer-1 draft:**
    Provide the agent:
    - The git-cliff output (Layer-2 body) as context
    - Instruction: draft `### Highlights` (5-8 bullets), `### Breaking Changes (narrative)`
@@ -201,7 +220,7 @@ Verification is operational (implementer must explicitly perform and document ea
    - Target placement: INSIDE the `## [1.0.0-beta.1]` block, BEFORE the first
      git-cliff `###` section.
 
-6. **Insert Layer-1 draft into CHANGELOG.md:**
+7. **Insert Layer-1 draft into CHANGELOG.md:**
    Edit `CHANGELOG.md` to insert the technical-writer draft:
    ```
    ## [1.0.0-beta.1] - YYYY-MM-DD
@@ -224,14 +243,14 @@ Verification is operational (implementer must explicitly perform and document ea
    ...
    ```
 
-7. **Human curation gate (in PR description):**
+8. **Human curation gate (in PR description):**
    The PR description must include a review checklist:
    - `[ ] Layer-1 Highlights reviewed and curated`
    - `[ ] Layer-1 Breaking Changes (narrative) reviewed (or confirmed empty)`
    - `[ ] Aspirational features removed from Highlights`
    - `[ ] Layer-2 commit categorization spot-checked`
 
-8. **Verify AC-001..AC-005.**
+9. **Verify AC-001..AC-006.**
 
 ---
 
@@ -260,6 +279,14 @@ returns at least one match inside the `## [1.0.0-beta.1]` section.
 The `### Highlights` section under `## [1.0.0-beta.1]` contains 5-8 bullet items
 (lines starting with `-`). (traces to ADR-063 D6 §3 — "intentionally short Highlights
 block; 5-8 bullets maximum")
+
+### AC-006: Exactly one ## [1.0.0-beta.1] section exists in CHANGELOG.md
+`grep -c '## \[1\.0\.0-beta\.1\]' CHANGELOG.md` returns exactly 1. A pre-existing
+manual `## [1.0.0-beta.1]` section (e.g., introduced by PR #261) must be detected and
+removed in Task 4 before the git-cliff `--prepend` invocation in Task 5, so that
+exactly one section exists post-generation. (traces to ADR-063 D6 §1 — `--unreleased
+--prepend` adds a new header on each invocation and will produce a duplicate block if
+a prior manual section is not removed first)
 
 ---
 
@@ -368,5 +395,6 @@ Three reasons the gate does not apply:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-07 | story-writer | F-9 (LOCAL adversary pass-1 duplicate-section risk): AC-006 added — operator must detect pre-existing ## [1.0.0-beta.1] section in CHANGELOG.md before generating and reconcile so exactly ONE block exists post-generation (PR #261 introduced a manual section; git cliff --prepend would create a duplicate without this gate). Task 4 (new) detect+reconcile step inserted; old Tasks 4–8 renumbered to 5–9. acceptance_criteria_count 5→6. status ready unchanged. |
 | 1.1 | 2026-09-06 | story-writer | Sweep #13: Task 1 `--latest` reference replaced with `--unreleased --tag` (both cases); EC-002 updated to use `--unreleased --tag v1.0.0-beta.1` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D6 first-release handling materialization |

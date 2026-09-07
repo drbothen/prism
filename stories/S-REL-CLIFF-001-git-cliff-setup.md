@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.3"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -58,8 +58,13 @@ assumption_validations: []
 risk_mitigations:
   - "git-cliff 2.14.1 must be pinned exactly. Future upgrades require bumping the
     pin in release-prep.yml and noting the version in the next ADR version per ADR-063 D1."
-  - "The GITHUB_TOKEN secret is available by default in GitHub Actions. The [remote.github]
-    section in cliff.toml uses it for PR link injection. No PAT required."
+  - "PR link injection is token-free (ADR-063 v1.7 D3 Deviation-1). The
+    `commit_preprocessors` regex rewrites `(#NNN)` in squash-merge commit subjects into
+    markdown links BEFORE Tera rendering — no GITHUB_TOKEN or remote API call needed.
+    The body template renders `{{ commit.message }}` (which already contains the link)
+    and reads NO `commit.remote.*` fields (those require GITHUB_TOKEN and are empty in
+    token-free dry-runs). The `[remote.github]` section is retained for possible future
+    remote-API use but the body template ignores it."
   - "The git cliff invocation in release-prep.yml uses `--unreleased --tag` (NOT
     `--latest`). `--unreleased` renders all commits not yet in any tag; combined with
     `--tag` it writes the new section header. Do NOT add -o/--output alongside
@@ -70,13 +75,18 @@ risk_mitigations:
     If the develop dry-run output is still noisy, additional skip rules may be added
     before the beta.1 tag (ADR-063 D6 noise-control gate)."
   - "Breaking Changes section must appear BEFORE Added in the output. The authoritative
-    mechanism is the numbered-group-name-prefix idiom per ADR-063 v1.5 D3: commit_parsers
-    group values carry <!-- N --> HTML comment sort prefixes (<!-- 0 -->Breaking Changes
-    before <!-- 1 -->Added); the Tera body template strips them via
-    {{ group | striptags | trim }} (native git-cliff 2.14.1 mechanism per `git cliff --init`
-    default template; regex_replace is NOT a built-in Tera filter in git-cliff 2.14.1 —
-    Filter 'regex_replace' not found confirmed via dry-run).
-    [git] group_order is NOT a valid key in git-cliff 2.14.1 and MUST NOT be added."
+    mechanism per ADR-063 v1.7 D3 is a Tera filter-based two-part body: (1) a manual
+    `### Breaking Changes` section rendered FIRST via `commits | filter(attribute=\"breaking\",
+    value=true)`; (2) a `commits | filter(attribute=\"breaking\", value=false) |
+    group_by(attribute=\"group\")` loop for non-breaking commits. `{ breaking = true }`
+    parser-level grouping is NOT effective in git-cliff 2.14.1 — a `feat!:` commit still
+    lands in its message-derived group regardless of parser position — and MUST NOT be
+    relied upon; no `{ breaking = true }` entry appears in cliff.toml commit_parsers.
+    Non-breaking groups use the numbered-group-name-prefix idiom (`<!-- 1 -->Added` through
+    `<!-- 5 -->Security`); the Tera body strips them via `{{ group | striptags | trim }}`
+    (native git-cliff 2.14.1 mechanism; regex_replace is NOT a built-in Tera filter —
+    Filter 'regex_replace' not found confirmed via dry-run). `[git] group_order` is NOT
+    a valid key in git-cliff 2.14.1 and MUST NOT be added."
 inputs:
   - ".github/workflows/release-prep.yml"
   - ".factory/specs/architecture/decisions/ADR-063-changelog-release-notes-architecture.md"
@@ -90,7 +100,7 @@ phase: "3"
 
 **Story ID:** S-REL-CLIFF-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.5
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -118,7 +128,7 @@ This story creates the `cliff.toml` at the repo root and patches `release-prep.y
 As a release engineer, I want git-cliff to automatically generate categorized
 CHANGELOG entries from Conventional Commits history, so that the manual categorization
 step in release-prep is eliminated and every release section has consistent
-Added/Fixed/Performance/Changed/Security sections with PR numbers and author attribution.
+Added/Fixed/Performance/Changed/Security sections with PR number links.
 
 ---
 
@@ -140,8 +150,8 @@ This story has no subsystem behavioral contracts. Authority is ADR-063 D1/D3/D5.
 |---------------------|--------|
 | ADR-063 D1 | `git-cliff 2.14.1` pinned; install via `cargo install git-cliff --version 2.14.1 --locked` |
 | ADR-063 D3 | Commit type → CHANGELOG section mapping (feat→Added; fix→Fixed; perf→Performance; refactor→Changed; security→Security; docs/ci/test/chore/style/build/revert→skip) |
-| ADR-063 D3 | Breaking Changes section ordered BEFORE Added |
-| ADR-063 D3 | GitHub PR link injection via [remote.github] section (owner/repo) |
+| ADR-063 v1.7 D3 | Breaking Changes section ordered BEFORE Added via Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST; `{ breaking = true }` parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon |
+| ADR-063 v1.7 D3 | GitHub PR link injection token-free via `commit_preprocessors` regex — `(#NNN)` rewritten to markdown link BEFORE Tera rendering; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `[remote.github]` retained but body template ignores it |
 | ADR-063 v1.2 D5 | Step 7 invocation: `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` |
 | ADR-063 v1.2 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
 | ADR-063 D4 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001 is the separate follow-on story) |
@@ -185,19 +195,33 @@ description before the PR can be reviewed.
      and `trim = true`
    - `[git]` section: `conventional_commits = true`, `filter_unconventional = true`,
      `tag_pattern = "v[0-9].*"`, `sort_commits = "oldest"`
-   - `commit_parsers` table: feat→Added, fix→Fixed, perf→Performance, refactor→Changed,
-     security→Security, docs/ci/test/chore/style/build/revert each with `skip = true`
+   - `commit_preprocessors` entry for token-free PR link injection (ADR-063 v1.7 D3
+     Deviation-1): `{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" }`
+     rewrites `(#NNN)` in squash-merge commit subjects to markdown links BEFORE Tera
+     rendering — no GITHUB_TOKEN or remote API call needed. The body template renders
+     `{{ commit.message }}` (which already contains the link). Do NOT add
+     `commit.remote.pr_number` or `commit.remote.pr_url` to the body template; those
+     fields require GITHUB_TOKEN and are empty in token-free dry-runs.
+   - `commit_parsers` table using numbered-group-name-prefix idiom for non-breaking groups:
+     feat→`<!-- 1 -->Added`, fix→`<!-- 2 -->Fixed`, perf→`<!-- 3 -->Performance`,
+     refactor→`<!-- 4 -->Changed`, security→`<!-- 5 -->Security`,
+     docs/ci/test/chore/style/build/revert each with `skip = true`. No
+     `{ breaking = true }` entry — breaking commits are handled entirely by the Tera body
+     filter (ADR-063 v1.7 D3 Deviation-2), not parser-level grouping.
    - `protect_breaking_commits = true`
-   - `[remote.github]` section: `owner = "jmagady"`, `repo = "prism"`
-   - Breaking Changes section must appear BEFORE Added in the output — use the
-     numbered-group-name-prefix idiom per ADR-063 v1.5 D3: `commit_parsers` group
-     values carry `<!-- N -->` HTML comment sort prefixes (`<!-- 0 -->Breaking
-     Changes` before `<!-- 1 -->Added`); the Tera body template strips them via
-     `{{ group | striptags | trim }}` (native git-cliff 2.14.1 mechanism per
-     `git cliff --init` default template; `regex_replace` is NOT a built-in Tera
-     filter in git-cliff 2.14.1 — `Filter 'regex_replace' not found` confirmed via
-     dry-run). `[git] group_order` does NOT exist in git-cliff 2.14.1 and MUST NOT
-     be added. Verify section ordering in dry-run output.
+   - `[remote.github]` section: `owner = "drbothen"`, `repo = "prism"` (retained for
+     possible future remote-API use; the body template ignores it — `commit.remote.*`
+     fields are NOT read)
+   - Breaking Changes section must appear BEFORE Added in the output — use the Tera
+     filter-based two-part body per ADR-063 v1.7 D3: (1) a manual `### Breaking Changes`
+     section rendered FIRST via `commits | filter(attribute="breaking", value=true)`;
+     (2) a `commits | filter(attribute="breaking", value=false) | group_by(attribute="group")`
+     loop for non-breaking commits with `### {{ group | striptags | trim }}` headers.
+     `{ breaking = true }` parser-level grouping is NOT effective in git-cliff 2.14.1 —
+     a `feat!:` commit still lands in its message-derived group (`<!-- 1 -->Added`)
+     regardless of parser position — and MUST NOT be relied upon. `[git] group_order`
+     does NOT exist in git-cliff 2.14.1 and MUST NOT be added. Verify section ordering
+     in dry-run output.
 
 3. **Run dry-run on develop history:**
    ```bash
@@ -273,16 +297,22 @@ and does NOT show `-o CHANGELOG.md` or `--output CHANGELOG.md`.
 ### AC-006: Breaking Changes section precedes Added in cliff.toml output
 Dry-run on a commit history that includes BREAKING CHANGE footers shows the
 `### Breaking Changes` section before the `### Added` section in the generated
-CHANGELOG body. The numbered-group-name-prefix idiom (ADR-063 v1.5 D3) must be
-in place: `<!-- 0 -->Breaking Changes` appears before `<!-- 1 -->Added` in
-cliff.toml `commit_parsers`; the Tera body template strips the `<!-- N -->` prefix
-via `{{ group | striptags | trim }}` (native git-cliff 2.14.1 mechanism per
-`git cliff --init` default template; `regex_replace` is NOT a built-in Tera filter
-in git-cliff 2.14.1 — `Filter 'regex_replace' not found` confirmed via dry-run);
+CHANGELOG body. The authoritative mechanism (ADR-063 v1.7 D3 Deviation-2) is a
+Tera filter-based two-part body: `commits | filter(attribute="breaking", value=true)`
+renders a manual `### Breaking Changes` section FIRST; then
+`commits | filter(attribute="breaking", value=false) | group_by(attribute="group")`
+renders non-breaking groups with `### {{ group | striptags | trim }}` headers.
+`{ breaking = true }` parser-level grouping is NOT effective in git-cliff 2.14.1
+(a `feat!:` commit still lands in `<!-- 1 -->Added` regardless of parser position);
+no `{ breaking = true }` entry appears in cliff.toml `commit_parsers`. Non-breaking
+groups use the numbered-prefix idiom (`<!-- 1 -->Added` through `<!-- 5 -->Security`);
+`striptags | trim` is the native strip filter (per `git cliff --init` default template;
+`regex_replace` is NOT a built-in Tera filter in git-cliff 2.14.1 —
+`Filter 'regex_replace' not found` confirmed via dry-run).
 `[git] group_order` MUST NOT appear in cliff.toml (it does not exist in git-cliff
 2.14.1). Verify by: `grep 'group_order' cliff.toml` must return no match.
-(traces to ADR-063 v1.5 D3 — numbered-group-name-prefix idiom; Breaking Changes
-ordered first via <!-- 0 --> sort prefix; `striptags | trim` is the native strip filter)
+(traces to ADR-063 v1.7 D3 — filter-based two-part body; Breaking Changes first via
+`commits | filter(attribute="breaking", value=true)`; `striptags | trim` for non-breaking)
 
 ---
 
@@ -311,7 +341,7 @@ tooling epic.
 | Dependency | Version | Notes |
 |------------|---------|-------|
 | `git-cliff` | `2.14.1` | `cargo install git-cliff --version 2.14.1 --locked`; Rust-native static binary; no new runtime |
-| `GITHUB_TOKEN` | N/A | Built-in GitHub Actions secret; required for PR link injection via [remote.github] |
+| `GITHUB_TOKEN` | not needed | Token-free PR links via `commit_preprocessors` regex (ADR-063 v1.7 D3 Deviation-1); no GITHUB_TOKEN required for cliff.toml operation; `[remote.github]` retained but body template ignores `commit.remote.*` fields |
 
 ---
 
@@ -375,7 +405,7 @@ fabricate a holdout for a gate that definitionally does not apply.
 | EC-001 | Shallow clone (`fetch-depth: 1`) in release-prep.yml checkout | `git cliff` cannot walk tag range; checkout must use `fetch-depth: 0`. Verify before AC-006 |
 | EC-002 | No prior tag exists (first release) | Do NOT use `--latest` here: `--latest` processes commits belonging to the latest *existing* tag and is unreliable with zero prior tags. Per ADR-063 D6, the first release uses `git cliff --tag v1.0.0-beta.1` (no `--latest`); the git-cliff 2.14.1 documented full-history/first-release pattern is `git cliff --unreleased --tag <version>` (source: git-cliff.org/docs/usage/examples, verified 2026-09-05). The beta.1 CHANGELOG is produced by S-REL-BETA1-NOTES-001, which correctly omits `--latest`. |
 | EC-003 | Prior tag is `v1.0.0-rc.1`; unreleased commits span `v1.0.0-rc.1..HEAD` | `--unreleased` automatically selects commits not yet in any tag; combined with `--tag v1.0.0-beta.1` the output section is headed `## [1.0.0-beta.1]`. No `--latest` needed |
-| EC-004 | `GITHUB_TOKEN` not set locally for dry-run | PR links will not be injected in local dry-run; that is acceptable (CI has the token) |
+| EC-004 | `GITHUB_TOKEN` not set locally for dry-run | PR links ARE injected even without GITHUB_TOKEN: the `commit_preprocessors` regex rewrites `(#NNN)` in the commit subject before Tera rendering, so no token is needed for the preprocessor path. The `[remote.github]` API integration is not used by the body template. Dry-run PR link output matches CI output. |
 | EC-005 | Commit messages don't follow Conventional Commits (human hotfix commits) | `filter_unconventional = true` omits them; CHANGELOG quality is bounded by commit discipline per ADR-063 §Consequences |
 
 ---
@@ -384,6 +414,8 @@ fabricate a holdout for a gate that definitionally does not apply.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.7 §D3). DEVIATION-1 (PR-link token-free): Task 2 `commit_preprocessors` bullet added — `(#NNN)` rewritten to markdown link BEFORE Tera rendering via regex preprocessor; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `commit.remote.pr_number`/`commit.remote.pr_url` NOT read. `[remote.github]` note updated (retained, body template ignores it). Behavioral Contracts PR-link row updated. Library & Framework GITHUB_TOKEN row updated (not needed). risk_mitigations GITHUB_TOKEN bullet updated. DEVIATION-2 (Breaking Changes filter-based): `{ breaking = true, group = "<!-- 0 -->Breaking Changes" }` commit_parser guidance removed — that parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon. Task 2 commit_parsers bullet updated (numbered prefix starts at `<!-- 1 -->Added`; no `<!-- 0 -->`). Task 2 Breaking Changes bullet replaced with Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST, then `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")`. Behavioral Contracts Breaking Changes row updated. risk_mitigations Breaking Changes bullet updated. AC-006 mechanism updated (filter-based; `group_order` MUST NOT and `striptags \| trim` preserved). No-group_order, striptags\|trim, numbered-prefix for non-breaking groups (`<!-- 1 -->Added` … `<!-- 5 -->Security`) preserved throughout. |
+| 1.4 | 2026-09-07 | story-writer | F-7/Dim-2 (ADR-063 v1.6 §D3 reconciliation): Task 2 [remote.github] owner corrected jmagady→drbothen (ADR-063 v1.2 D3 C3 — owner=drbothen is the single source of truth per §D3 and shipped cliff.toml). §Narrative "and author attribution" removed — ADR-063 v1.6 D3 F-4 drops per-entry @author attribution for single-author project; PR-number links retained. |
 | 1.3 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.4→v1.5 §D3 spec-accuracy correction): replace `regex_replace(pattern="<!-- \\d+ -->", replacement="")` with `striptags \| trim` in Task 2 Tera body template snippet, AC-006 marker-strip criterion, and risk_mitigations Breaking Changes ordering bullet. State explicitly that `regex_replace` is NOT a built-in Tera filter in git-cliff 2.14.1 (`Filter 'regex_replace' not found` confirmed via dry-run); `striptags \| trim` is the native mechanism per `git cliff --init` default template. Numbered-group-name-prefix ordering language and `[git] group_order` MUST-NOT statement unchanged. ADR-063 version refs updated from v1.4 D3 → v1.5 D3 throughout. Status: ready unchanged. |
 | 1.2 | 2026-09-06 | story-writer | Sweep #14 (group_order): replace group_order language in Task 2, AC-006, and risk_mitigations with ADR-063 v1.4 D3 numbered-group-name-prefix idiom; state that [git] group_order does NOT exist in git-cliff 2.14.1 and MUST NOT be added; status draft→ready |
 | 1.1 | 2026-09-05 | story-writer | Sync to ADR-063 v1.2 D5 — replace `--latest` with `--unreleased --tag ... --prepend` throughout; Task 4 YAML, Task 6 dry-run, Behavioral Contracts table, Architecture Compliance Rules, risk_mitigations, title, and blocks comment all updated to use `--unreleased` |

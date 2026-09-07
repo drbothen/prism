@@ -171,3 +171,36 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
      Pass data above was reconstructed from the Decisions Log (D-2200..D-2244) and Phase Progress Finding Progression column.
      Original field format: adversary_pass_N_findings: "description"
      Original field format: adversary_pass_N_date: "YYYY-MM-DD" -->
+
+---
+
+## E-REL-NOTES LOCAL Cascade (S-REL-CLIFF-001 + S-REL-WRITER-001)
+
+**Target:** Frozen code worktree HEAD b90663a23 → fix-burst landed at 38a662224 (feature/E-REL-NOTES-changelog; NOT pushed; code-only worktree commit by devops — out of scope for factory burst).
+
+**Scope:** git-cliff 2.14.1 two-layer CHANGELOG + release-notes pipeline; cliff.toml, release-prep.yml, RELEASING.md, ADR-063, S-REL-CLIFF-001, S-REL-BETA1-NOTES-001.
+
+| Pass | Date | Findings | HIGH | MED | LOW | OBS | Streak | Verdict |
+|------|------|----------|------|-----|-----|-----|--------|---------|
+| Pass 1 | 2026-09-07 | 9 (+ post-fix empirical corrections) | 1 | 3 | 2 | 3 | 0/3 | CLEAN(strict): NO — all 9 FIXED; streak begins at 0/3 |
+
+**Pass 1 finding summary:**
+
+- F-1 HIGH (devops): cliff.toml `commit_groups` non-existent in git-cliff 2.14.1 → native `group_by` attribute; token-free dry-run exit 0 verified.
+- F-2 MED (devops): release-prep.yml Step 7a `## [v${VERSION}]` → `## [${VERSION}]` (cliff omits leading `v` in tag-derived headings).
+- F-3 MED (devops): RELEASING.md §4 rewritten — two-layer git-cliff path replaces stale manual scaffold.
+- F-4 MED (architect): ADR-063 v1.5→v1.6 — author attribution DROPPED per single-author signal.
+- F-5 LOW (devops): release-prep.yml stale scaffold comments swept.
+- F-6 LOW (devops): synthetic-breaking dry-run captured in `.rel-artifacts/cliff-dryrun-breaking-sample.txt`; Breaking-before-Added ordering verified.
+- F-7 OBS (story-writer): S-REL-CLIFF-001 v1.3→v1.4 — Task 2 [remote.github] owner `jmagady`→`drbothen`.
+- F-8 OBS (architect): ADR-063 v1.6 — D3 sketch/prose inconsistency resolved: feat bodies dropped, BREAKING footer inline retained (no free-form body paragraphs).
+- F-9 OBS (story-writer): S-REL-BETA1-NOTES-001 v1.1→v1.2 — AC-006 dedup guard for pre-existing `## [1.0.0-beta.1]` section; Task 4 renamed detect+reconcile step; acceptance_criteria_count 5→6.
+
+**Post-fix empirical accuracy corrections (ADR-063 v1.6→v1.7; architect + story-writer):**
+
+- DEVIATION-1: Token-free PR-links — `commit.remote.pr_number` and `pr_url` are NOT exposed by git-cliff's Tera context; PR-links are injected via `commit_preprocessors` regex `replace` on the raw commit subject. GITHUB_TOKEN is not required for changelog generation. S-REL-CLIFF-001 Task 2, BCtable, Library GITHUB_TOKEN row, and risk_mitigations updated to v1.5.
+- DEVIATION-2: `{ breaking = true }` `commit_parser` grouping NOT effective in git-cliff 2.14.1 for routing to a dedicated "Breaking Changes" header. Filter-based Tera two-part body (detect `BREAKING CHANGE:` trailer → emit `**Breaking Changes:**\n\n` sub-header) is authoritative. The erroneous `{ breaking = true }` entry was REMOVED from ADR-063 §D3 sketch in v1.7.
+
+**TD-VSDD-097 sweep verdict:** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 v1.7 → S-REL-CLIFF-001 Task-2/§Narrative/BCtable swept same fix-burst; devops cliff.toml already aligned on code worktree). Dim-3 CLEAR (ordering MUST anchored to CLIFF-001 AC-006; F-9 AC-006 anchored in BETA1-NOTES).
+
+**Next:** LOCAL adversary pass-2 on frozen code HEAD 38a662224 → 3-CLEAN → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.

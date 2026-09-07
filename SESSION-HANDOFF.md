@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.093"
+version: "8.094"
 status: current
-timestamp: 2026-09-07T08:04:00Z
+timestamp: 2026-09-07T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -34,7 +34,45 @@ timestamp: 2026-09-07T08:04:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2476 (2026-09-07 — E-REL-NOTES STORIES READY; ADR-063 v1.5 CORRECTED; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2475]
+## §RESUME SNAPSHOT — D-2477 (2026-09-07 — E-REL-NOTES LOCAL pass-1 ALL FIXED; code @38a662224; ADR-063 v1.7; streak 0/3) [supersedes D-2476]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-1 (9 findings) ALL FIXED. Code worktree feature/E-REL-NOTES-changelog advanced b90663a23→38a662224 (devops fix-burst; not a factory commit). ADR-063 v1.7: DEVIATION-1 token-free PR-links via commit_preprocessors regex (GITHUB_TOKEN not needed; commit.remote.pr_number/pr_url NOT Tera-accessible); DEVIATION-2 {breaking=true} parser-grouping NOT effective in git-cliff 2.14.1 — filter-based Tera two-part body is authoritative. S-REL-CLIFF-001 v1.5; S-REL-BETA1-NOTES-001 v1.2 (AC-006 dedup guard). LOCAL 3-CLEAN streak 0/3. NEXT ACTION: re-gate LOCAL adversary on frozen 38a662224 → 3-CLEAN → BETA1-NOTES-001 curation → demo → PR B.
+
+### Governing Objective
+v1.0.0-beta.1 release: E-REL-NOTES pass-1 ALL FIXED @38a662224; re-gate LOCAL adversary → BETA1-NOTES curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. **LOCAL adversary re-gate** on frozen code HEAD 38a662224 (`.worktrees/E-REL-NOTES` / feature/E-REL-NOTES-changelog). Spec: ADR-063 v1.7 (§D3 striptags|trim + commit_preprocessors PR-links + filter-based breaking, §D4 technical-writer Layer-1 top-block, §D5 release-prep.yml --unreleased --tag). BC-5.39.001 3-CLEAN. Frozen-HEAD rule: any push resets streak to 0/3.
+3. After 3-CLEAN: **S-REL-BETA1-NOTES-001** (ready v1.2) — generate CHANGELOG §[1.0.0-beta.1] (--unreleased --tag v1.0.0-beta.1; ADR-063 §D6 first-release handling; AC-006 dedup guard for pre-existing ##[1.0.0-beta.1] section) + human curation → demo-recorder per-AC → push → PR B.
+4. **PR B** → PR-LEVEL 3-CLEAN → admin squash-merge (explicit in-session human auth; self-authored PR needs --admin bypass).
+5. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+Merges/tags: explicit in-session human auth. Force-push any branch: explicit human approval. beta channel, keep 1.0.0 core; v1.0.0-rc.1 = never-published ghost (D-2452).
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred.
+- Human UI cleanup: close PR #255 (OBSOLETE rc.1 CHANGELOG — close, do NOT merge).
+- S-REL-VBUMP-001 remains draft (not beta.1-blocking).
+
+### DECISION DELTA
+D-2477 = E-REL-NOTES LOCAL pass-1 fix-burst (9 findings ALL FIXED). Code HEAD b90663a23→38a662224 (devops; code-only). ADR-063 v1.5→v1.7 (DEVIATION-1 token-free PR-links + DEVIATION-2 filter-based breaking). S-REL-CLIFF-001 v1.3→v1.5; S-REL-BETA1-NOTES-001 v1.1→v1.2. ARCH-INDEX v2.370→v2.372; STORY-INDEX v3.014→v3.016. STATE v9.004→v9.005; SESSION-HANDOFF v8.093→v8.094.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- E-REL-NOTES worktree: `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 38a662224, pass-1 ALL FIXED). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2477: E-REL-NOTES LOCAL pass-1 fix-burst (9 findings ALL FIXED; code HEAD b90663a23→38a662224). ADR-063 v1.5→v1.7 (DEVIATION-1+2). S-REL-CLIFF-001 v1.3→v1.5. S-REL-BETA1-NOTES-001 v1.1→v1.2. ARCH-INDEX v2.370→v2.372. STORY-INDEX v3.014→v3.016. §RESUME SNAPSHOT D-2477 inserted; D-2476 SUPERSEDED. STATE v9.004→v9.005; SESSION-HANDOFF v8.093→v8.094.
+
+---
+
+## §RESUME SNAPSHOT — D-2476 (2026-09-07 — E-REL-NOTES STORIES READY; ADR-063 v1.5 CORRECTED; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2475] [SUPERSEDED by D-2477]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. All 3 beta.1-blocking E-REL-NOTES stories READY (CLIFF-001 v1.3 / WRITER-001 v1.1 / BETA1-NOTES-001 v1.1). CLIFF-001+WRITER-001 delivered on worktree @b90663a23 (git-cliff 2.14.1; all ACs PASS; actionlint clean; dry-run confirmed). ADR-063 v1.5: spec-accuracy corrected (§D3 regex_replace→striptags|trim; git-cliff 2.14.1 has no built-in regex_replace Tera filter). NEXT ACTION: LOCAL adversary pass on CLIFF-001+WRITER-001 → BETA1-NOTES curation → demo → PR B → (human-auth) admin squash-merge → (human-auth) tag v1.0.0-beta.1.

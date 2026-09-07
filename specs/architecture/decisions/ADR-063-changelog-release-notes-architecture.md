@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.5"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,45 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.7 (2026-09-07) — D3 spec-accuracy update: two empirically-verified mechanism
+deviations from the v1.6 §D3 cliff.toml sketch documented to match the shipped cliff.toml
+(worktree feature/E-REL-NOTES-changelog, S-REL-CLIFF-001 implementation).
+
+Deviation 1 — PR-link mechanism (token-free): v1.6 sketch used `commit.remote.pr_number` /
+`commit.remote.pr_url` in the body template, requiring `GITHUB_TOKEN` + `[remote.github]` API
+integration; those fields are empty in a token-free dry-run. Verified mechanism: a
+`commit_preprocessors` regex rewrites `(#NNN)` in squash-merge commit subjects into markdown
+links BEFORE Tera rendering — no `GITHUB_TOKEN` or remote API call needed. Body template renders
+`{{ commit.message }}` (which already contains the link); `commit.remote.*` fields are NOT read.
+`[remote.github]` block retained but body template ignores it. §D3 "GitHub PR link injection"
+prose updated; cliff.toml sketch `commit_preprocessors` updated; `commit.remote.pr_number/pr_url`
+clause removed from body template. §Consequences PR-numbers bullet updated.
+
+Deviation 2 — Breaking Changes section ordering: v1.6 sketch used
+`{ breaking = true, group = "<!-- 0 -->Breaking Changes" }` as the first `commit_parsers` entry,
+expecting breaking commits to route to that group before type-based parsers applied. Verified in
+git-cliff 2.14.1: `{ breaking = true }` in `commit_parsers` does NOT override message-based group
+assignment — a `feat!:` commit still lands in `<!-- 1 -->Added` regardless of parser position.
+Shipped cliff.toml uses a Tera two-part body: manual `### Breaking Changes` section via
+`commits | filter(attribute="breaking", value=true)` rendered BEFORE the main
+`commits | filter(attribute="breaking", value=false) | group_by(attribute="group")` loop.
+Breaking entries render first; non-breaking entries group normally. `{ breaking = true }` commit_parser
+entry removed from sketch. §D3 sketch body template and breaking-section-ordering prose updated.
+`{ breaking = true }` parser-level grouping is NOT effective in git-cliff 2.14.1 and MUST NOT be
+relied upon. Numbered-group-name-prefix idiom + `striptags | trim` preserved for non-breaking groups.
+No change to D1/D2/D4/D5/D6.
+
+ACCEPTED v1.6 (2026-09-07) — D3 internal consistency correction (F-4/F-8): (F-4) per-entry
+`@author` attribution DROPPED — Prism is a single-author project; uniform `by @handle` on every
+changelog entry is noise, not differentiation signal. PR links `(#NNN)` are retained. cliff.toml
+sketch body template updated: `by @{{ commit.remote.username }}` removed from PR-link block.
+§D3 subsection renamed "GitHub PR link injection". §Consequences attribution bullet removed.
+(F-8) Commit body inclusion policy corrected — feat commit bodies are NOT rendered;
+subject-line-only for all entry types. BREAKING CHANGE footer values ARE surfaced inline via
+`commit.breaking_description` (appended as `— {description}` when present); cliff.toml sketch
+updated with `breaking_description` render block. §D3 "Commit body inclusion policy" prose
+corrected. No change to D1/D2/D4/D5/D6.
 
 ACCEPTED v1.5 (2026-09-07) — D3 spec-accuracy correction: git-cliff 2.14.1 has NO built-in
 `regex_replace` Tera filter (`Filter 'regex_replace' not found` confirmed via dry-run). The
@@ -140,15 +179,25 @@ assertion in CI rather than a per-PR fragment presence check.
 
 The Breaking Changes section is ordered first, before Added, to surface upgrade risk immediately.
 
-**GitHub PR/author injection:** The `[remote.github]` section of `cliff.toml` sets
-`owner = "drbothen"` and `repo = "prism"` as separate fields (the `[remote.github]` block has no
-combined `repository` key; owner and repo are distinct). The `commit_preprocessors` section uses
-the standard git-cliff GitHub link template to inject `(#NNN)` PR links and `@author`
-attribution. This requires the `GITHUB_TOKEN` secret, available by default in GitHub Actions.
+**GitHub PR link injection (token-free via `commit_preprocessors`):** Prism uses squash-merge;
+every merged PR commit subject already contains `(#NNN)`. A `commit_preprocessors` regex
+(`{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" }`)
+rewrites `(#NNN)` into a markdown link BEFORE Tera rendering — no `GITHUB_TOKEN` or remote API
+call needed. The body template renders `{{ commit.message }}`, which already contains the link.
+The `commit.remote.pr_number` and `commit.remote.pr_url` fields (populated only when
+`GITHUB_TOKEN` is available via the `[remote.github]` API integration) are NOT read by the body
+template; the v1.6 approach using those fields renders nothing in a token-free dry-run. The
+`[remote.github]` block (`owner = "drbothen"`, `repo = "prism"`, fields distinct — no combined
+`repository` key) is retained for possible future remote-API use but the body template ignores it.
+Per-entry `@author` attribution is NOT injected — Prism is a single-author project; uniform author
+handles on every entry are noise rather than signal.
 
-**Commit body inclusion policy:** Commit bodies and footers are included in the output for
-`feat` and `BREAKING CHANGE` entries only. For `fix` and `perf`, only the subject line is emitted.
-This keeps the body manageable while preserving upgrade-critical detail for features and breaks.
+**Commit body inclusion policy:** Only the commit subject line (`{{ commit.message }}`) is
+rendered for all entry types. BREAKING CHANGE footer values are surfaced inline via
+`{{ commit.breaking_description }}` when present (appended after the subject as
+`— {description}`). Full commit bodies are NOT rendered — feat bodies tend toward verbose prose
+better suited to the Layer-1 curated top-block (D4); the BREAKING CHANGE footer value via
+`breaking_description` surfaces the migration signal at lower verbosity without body noise.
 
 **Sketch of `cliff.toml` (informative — authoritative at file creation time):**
 
@@ -159,11 +208,17 @@ body = """
 {% if version %}## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}## [Unreleased]
 {% endif %}
-{% for group, commits in commits | group_by(attribute="group") %}
+{% set breaking_commits = commits | filter(attribute="breaking", value=true) %}
+{% if breaking_commits | length > 0 %}
+### Breaking Changes
+{% for commit in breaking_commits %}
+- **BREAKING** {{ commit.message }}{% if commit.breaking_description %} — {{ commit.breaking_description }}{% endif %}
+{% endfor %}
+{% endif %}
+{% for group, group_commits in commits | filter(attribute="breaking", value=false) | group_by(attribute="group") %}
 ### {{ group | striptags | trim }}
-{% for commit in commits %}
-- {% if commit.breaking %}**BREAKING** {% endif %}{{ commit.message }}\
-{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ commit.remote.pr_url }})) by @{{ commit.remote.username }}{% endif %}
+{% for commit in group_commits %}
+- {{ commit.message }}
 {% endfor %}
 {% endfor %}
 """
@@ -173,11 +228,11 @@ trim = true
 [git]
 conventional_commits = true
 filter_unconventional = true
-commit_preprocessors = []
+commit_preprocessors = [
+  # Rewrite "(#NNN)" in squash-merge commit subjects to markdown PR links — token-free.
+  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" },
+]
 commit_parsers = [
-  # `breaking = true` matches commits with `!` type suffix or `BREAKING CHANGE:` footer.
-  # Listed first so breaking commits resolve to <!-- 0 --> before type-based parsers.
-  { breaking = true, group = "<!-- 0 -->Breaking Changes" },
   { message = "^feat", group = "<!-- 1 -->Added" },
   { message = "^fix", group = "<!-- 2 -->Fixed" },
   { message = "^perf", group = "<!-- 3 -->Performance" },
@@ -204,28 +259,32 @@ owner = "drbothen"
 repo = "prism"
 ```
 
-**Breaking Changes section ordering — authoritative mechanism (`group_order` does not exist in
-git-cliff 2.14.1):**
+**Breaking Changes section ordering — authoritative mechanism (filter-based Tera two-part body;
+`group_order` does not exist in git-cliff 2.14.1; `{ breaking = true }` parser-level grouping
+NOT effective):**
 
 `[git] group_order` is NOT a valid key in git-cliff 2.14.1's `cliff.toml` schema and MUST NOT be
-added. The authoritative mechanism is the **numbered-group-name-prefix idiom** shown in the sketch
-above: each `commit_parsers` `group` value carries an `<!-- N -->` HTML comment sort prefix, and
-the Tera body template strips it with `striptags | trim` (the native HTML-comment-stripping
-mechanism in git-cliff 2.14.1; git-cliff has NO built-in `regex_replace` Tera filter —
-`Filter 'regex_replace' not found` confirmed via `git cliff --unreleased --output /dev/stdout`
-dry-run; `striptags | trim` is per the `git cliff --init` default template). Because git-cliff's
-Tera `group_by(attribute="group")` iterates in ascending string-sort order, `<!-- 0 -->Breaking Changes`
-renders before `<!-- 1 -->Added`. The `breaking = true` commit parser (listed first in the sketch)
-assigns commits with a `!` type suffix or `BREAKING CHANGE:` footer to `<!-- 0 -->Breaking Changes`
-before type-based parsers apply.
+added. `{ breaking = true }` in `commit_parsers` does NOT override message-based group assignment
+in git-cliff 2.14.1 — a `feat!:` commit still lands in its message-derived group (e.g.,
+`<!-- 1 -->Added`) regardless of parser position; this was verified empirically during
+S-REL-CLIFF-001 implementation. `{ breaking = true }` parser-level grouping is NOT effective in
+git-cliff 2.14.1 and MUST NOT be relied upon; the `{ breaking = true }` entry is therefore absent
+from `commit_parsers` in the sketch above.
 
-Alternative: git-cliff 2.14's `commit_groups` template variable (see git-cliff.org/docs §Tera
-Template Context) may support explicit group ordering outside `group_by`; consult the
-template-context reference before using it.
+The authoritative mechanism is a **Tera two-part body**: (1) a manual `### Breaking Changes`
+section rendered FIRST via `commits | filter(attribute="breaking", value=true)`, and (2) a
+`commits | filter(attribute="breaking", value=false) | group_by(attribute="group")` loop for
+non-breaking commits. Breaking entries render before Added/Fixed/etc.; non-breaking entries group
+normally. The `striptags | trim` strip (git-cliff 2.14.1 has NO built-in `regex_replace` Tera
+filter — `Filter 'regex_replace' not found` confirmed via `git cliff --unreleased --output /dev/stdout`
+dry-run; `striptags | trim` is per the `git cliff --init` default template) is applied to group
+names in the non-breaking `group_by` loop. The numbered-group-name-prefix idiom (`<!-- N -->` sort
+prefixes on `commit_parsers` group values) is still used for non-breaking sections to maintain
+consistent ordering.
 
 The implementing story (S-REL-CLIFF-001) owns the canonical `cliff.toml` and validates the
-numbered-prefix idiom against git-cliff 2.14.1; the numbered-prefix idiom is the REQUIRED
-starting point.
+filter-based breaking section against git-cliff 2.14.1; the filter-based approach is the REQUIRED
+mechanism (anchored to S-REL-CLIFF-001 AC-006).
 
 ### D4 — Two-Layer CHANGELOG Model
 
@@ -392,7 +451,11 @@ git-cliff is the correct choice for Prism for five reasons, all verified in
 
 - CHANGELOG body generation is automated; no manual categorization step in release-prep
 - Keep-a-Changelog structure (Added/Fixed/Performance/Changed/Security) applied consistently
-- PR numbers and author attribution appear in every entry automatically
+- PR numbers appear in every entry automatically (token-free via `commit_preprocessors` regex —
+  Prism's squash-merge commit subjects already contain `(#NNN)`; no `GITHUB_TOKEN` or remote API
+  call needed); no per-entry author attribution (single-author project — uniform handles are noise,
+  not signal)
+- BREAKING CHANGE footer values are surfaced inline via `commit.breaking_description`
 - The two-layer model in RELEASING.md §5 is operationalized: Layer-2 (git-cliff body) is prepended
   first as a `## [VERSION]` block; Layer-1 (technical-writer `### Highlights / Breaking Changes /
   Upgrade Notes` sections) is inserted inside that block afterward. The `release.yml` awk extraction
@@ -467,6 +530,8 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-09-07 | architect | D3 spec-accuracy update: two empirically-verified mechanism deviations from the v1.6 §D3 cliff.toml sketch documented to match shipped cliff.toml (S-REL-CLIFF-001 implementation). DEVIATION-1 — PR-link mechanism (token-free): `commit_preprocessors` regex rewrites `(#NNN)` in squash-merge commit subjects into markdown links BEFORE Tera rendering — no `GITHUB_TOKEN` required; `commit.remote.pr_number/pr_url` NOT read by body template (empty in token-free dry-run); `[remote.github]` block retained but body template ignores it. cliff.toml sketch: `commit_preprocessors` updated with regex; `commit.remote.pr_number/pr_url` clause removed from body template; §D3 "GitHub PR link injection" prose updated; §Consequences PR-numbers bullet updated. DEVIATION-2 — Breaking Changes section ordering: `{ breaking = true }` in `commit_parsers` does NOT override message-based group assignment in git-cliff 2.14.1 (verified empirically: `feat!:` still lands in `<!-- 1 -->Added` regardless of parser position); single `group_by` loop with `{ breaking = true }` parser does not produce a separate Breaking Changes group. Shipped mechanism: Tera two-part body — manual `### Breaking Changes` section via `commits \| filter(attribute="breaking", value=true)` rendered BEFORE `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")` loop; `{ breaking = true }` commit_parser entry removed from sketch; numbered-prefix idiom + `striptags \| trim` preserved for non-breaking groups. §D3 sketch body template and breaking-section-ordering prose updated. `{ breaking = true }` parser-level grouping MUST NOT be relied upon in git-cliff 2.14.1. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task-2 describes cliff.toml template (commit_parsers + body) referencing v1.6 mechanisms — sweep to v1.7 filter-based breaking section + preprocessor PR-link in same burst. Dim-3 CLEAR: ordering MUST anchored to S-REL-CLIFF-001 AC-006 — confirmed. |
+| 1.6 | 2026-09-07 | architect | D3 internal consistency correction (F-4/F-8): (F-4) per-entry `@author` attribution DROPPED — single-author project; uniform `by @handle` on every entry is noise not signal; `by @{{ commit.remote.username }}` removed from cliff.toml sketch PR-link block; §D3 "GitHub PR/author injection" section renamed to "GitHub PR link injection"; §Consequences attribution bullet removed. (F-8) commit body inclusion policy corrected — subject-line-only for all entry types; feat commit bodies NOT rendered; BREAKING CHANGE footer value surfaced inline via `commit.breaking_description` (appended as `— {description}` when present); cliff.toml sketch updated with `breaking_description` render block; §D3 "Commit body inclusion policy" prose corrected; §Consequences updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §Narrative mentions "author attribution" — that phrase must be removed. Dim-3 CLEAR: no new MUSTs; existing CLIFF-001 AC anchors unchanged. |
 | 1.5 | 2026-09-07 | architect | D3 spec-accuracy correction: git-cliff 2.14.1 has NO built-in `regex_replace` Tera filter (`Filter 'regex_replace' not found` confirmed via dry-run). `striptags \| trim` is the native marker-stripping mechanism (per `git cliff --init` default template). cliff.toml sketch body template updated from `regex_replace(pattern="<!-- \\d+ -->", replacement="")` to `striptags \| trim`. Numbered-group-name-prefix ordering intent unchanged. `[git] group_order` non-existent key statement unchanged (still correct). TD-VSDD-097: Dim-1 CLEAR (no ADR twin affected by Tera-filter-name fix). Dim-2 HANDOFF: `regex_replace` snippet copied into S-REL-CLIFF-001 (Task 2, AC-006, risk_mitigations) — story-writer must sweep those three locations to `striptags \| trim` in the same burst. Dim-3 CLEAR: marker-strip MUST anchored to S-REL-CLIFF-001 AC-006 grep + ordering gate. |
 | 1.4 | 2026-09-06 | architect | D3 corrected: `[git] group_order` is not a valid git-cliff 2.14.1 cliff.toml key and MUST NOT be used. Numbered-group-name-prefix idiom is the authoritative mechanism for Breaking Changes section ordering: `commit_parsers` group values updated with `<!-- N -->` sort prefixes (`<!-- 0 -->Breaking Changes` first via `breaking = true` parser); Tera body template updated with `regex_replace` strip expression. Reference: git-cliff.org/docs §Configuration → Template Context → regex_replace. |
 | 1.3 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-NOTES/E-REL-IDENTITY stories verified on disk and citing ADR-063 in §Authority — S-REL-CLIFF-001 (D1/D3/D5), S-REL-WRITER-001 (D4/D5), S-REL-BETA1-NOTES-001 (D6), S-REL-VBUMP-001 (D1 git-cliff ownership). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
