@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.089"
+version: "8.090"
 status: current
-timestamp: 2026-09-06T00:00:00Z
+timestamp: 2026-09-06T12:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2473 (2026-09-06): POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED to develop @a4cd1b3fd on explicit human authorization (admin override; self-authored PR). Merge commit a4cd1b3fdc1a7da91b3341c9b15d69461efdccb0. develop_head 19887ebcd→a4cd1b3fd. PR-LEVEL adversary 3-CLEAN(strict) on frozen HEAD 2b50853fb; pr-reviewer READY; security-reviewer CLEAN(PR-merge) (SEC-001 LOW = ratified ADR-064 §D2 residual); CI 51/51 green. POL-14 NO-OP (behavioral_contracts: []). ADR-064 §D4 + ADR-050 §D6 REALIZED. E-REL-IDENTITY COMPLETE (PR #262 + PR #263 merged). story_index v3.011→v3.012. bc_index v10.06/vp_index v2.22/arch_index v2.368/holdout_index v1.42 UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.000→v9.001. SESSION-HANDOFF v8.089→v8.090. §RESUME SNAPSHOT D-2473 inserted; D-2472 SUPERSEDED.**
 
 > **D-2472 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — HS-032 holdout-gate disposition + S-REL-HOLDOUT-HARNESS-001 registered. HS-032 HUMAN-ADJUDICATED ACCEPT-ON-SUBSTANCE: HS-032-001 PASS/CONSUMED (sat 1.00; serverInfo.version = "1.0.0-beta.1" on wire); HS-032-002/003 HARNESS-BLOCKED/NOT-CONSUMED (0 adapters registered → 0 enrich → :19090 unreachable; Surface-B substance guaranteed by wiremock test_infusion_http_client_sends_prism_user_agent + AC-007; deferred to S-REL-HOLDOUT-HARNESS-001 draft v0.1 POST-beta.1). §Setup interface errors corrected (HS-032-003). S-REL-AGENT-VERSION-001 LOCAL+holdout ACCEPTED + demo committed on feature HEAD 2b50853fb. NEXT: push → PR → PR-LEVEL 3-CLEAN → merge (explicit human auth) → PR B → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd. bc_index v10.06/vp_index v2.22/arch_index v2.368 UNCHANGED. story_index v3.010→v3.011 (total_stories 335→336). holdout_index v1.41→v1.42. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.999→v9.000. SESSION-HANDOFF v8.088→v8.089. §RESUME SNAPSHOT D-2472 inserted; D-2471 SUPERSEDED.**
 
@@ -26,7 +28,36 @@ timestamp: 2026-09-06T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2472 (2026-09-06 — HS-032 ACCEPT-ON-SUBSTANCE; demo committed on 2b50853fb; push → PR next) [supersedes D-2471]
+## §RESUME SNAPSHOT — D-2473 (2026-09-06 — PR #263 MERGED; E-REL-IDENTITY COMPLETE; develop @a4cd1b3fd) [supersedes D-2472]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 MERGED via PR #263 to develop @a4cd1b3fd (2026-09-06; explicit human auth). All 4 beta.1-blocking stories MERGED (PR #262: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001; PR #263: S-REL-AGENT-VERSION-001). E-REL-IDENTITY COMPLETE. ADR-064 §D4 + ADR-050 §D6 REALIZED. STORY-INDEX v3.012 (total_stories 336 UNCHANGED). HOLDOUT-INDEX v1.42. develop_head a4cd1b3fd.
+
+### Governing Objective
+v1.0.0-beta.1 release: all 4 beta.1-blocking E-REL-IDENTITY stories MERGED. NEXT: PR B (git-cliff notes) → tag v1.0.0-beta.1.
+
+### Critical Path — Next 4 Steps
+1. PR B (E-REL-NOTES): new worktree off develop @a4cd1b3fd → S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001.
+2. CLOSE obsolete PR #255 (do NOT merge; human clicks Close).
+3. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
+4. Post-beta.1: S-REL-HOLDOUT-HARNESS-001 (P2; Surface-B UA end-to-end), S-REL-DOCS-CI-WIRE-001 (P2; ci.yml version-agnostic check).
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- WORKTREES: ACTIVE — none (feature/S-REL-AGENT-VERSION-001 merged; REMOVABLE). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Decisions / State
+D-2473 (2026-09-06 post-merge burst): PR #263 MERGED @a4cd1b3fd. PR-LEVEL 3-CLEAN(strict) on frozen HEAD 2b50853fb. E-REL-IDENTITY COMPLETE. story_index v3.011→v3.012. develop_head 19887ebcd→a4cd1b3fd.
+
+### Changelog (this snapshot)
+- D-2473: PR #263 (S-REL-AGENT-VERSION-001) MERGED; develop_head 19887ebcd→a4cd1b3fd; E-REL-IDENTITY COMPLETE; story_index v3.011→v3.012; STATE v9.000→v9.001; SESSION-HANDOFF v8.089→v8.090.
+
+---
+
+## §RESUME SNAPSHOT — D-2472 (2026-09-06 — HS-032 ACCEPT-ON-SUBSTANCE; demo committed on 2b50853fb; push → PR next) [supersedes D-2471] [SUPERSEDED by D-2473]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 LOCAL cascade converged-on-substance (human-accepted) + holdout gate HS-032 ACCEPT-ON-SUBSTANCE (D-2472): HS-032-001 PASS/CONSUMED (sat 1.00; serverInfo.version = "1.0.0-beta.1" on wire); HS-032-002/003 HARNESS-BLOCKED/NOT-CONSUMED (0 adapters registered → 0 enrich → :19090 unreachable; Surface-B substance guaranteed by wiremock test_infusion_http_client_sends_prism_user_agent + AC-007; deferred to S-REL-HOLDOUT-HARNESS-001). Demo evidence committed on feature HEAD 2b50853fb. STORY-INDEX v3.011 (total_stories 336). HOLDOUT-INDEX v1.42. develop_head UNCHANGED 19887ebcd.

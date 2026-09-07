@@ -5267,3 +5267,34 @@ This is a known architectural limitation: the Claroty DTU clone was built for in
 **Action (deferred, non-blocking):** Track as post-v1 candidate. Not suitable for current v1 scope given deadline constraints and the SETUP-FAILURE-quiescent protocol already handles it correctly.
 
 **Source:** D-2429 HS-031 holdout gate run. DEFECT-CLAROTY-SORTBY-DETERMINISM-001. [codification-assess] — single occurrence; assess standalone DTU server as post-v1 infrastructure story.
+
+---
+
+## Lesson: TD-VSDD-097 Dim-2 Downstream-Copy Sweep Gap — Recurrent Within a Single Story Cascade
+
+**Date recorded:** 2026-09-06
+**D-NNN anchor:** D-2473 (post-merge cycle-closing checklist, S-REL-AGENT-VERSION-001)
+**Tags:** [td-vsdd-097] [dim-2] [downstream-copy] [sibling-sweep] [process-gap] [codification-assess]
+**Classification:** CODIFICATION-ASSESS — Recurrence threshold MET (~4 occurrences within the LOCAL cascade of a single story). Meets 3-recurrence threshold for structural intervention consideration.
+
+**Description:**
+
+During the LOCAL adversary cascade for S-REL-AGENT-VERSION-001, TD-VSDD-097 Dim-2 (downstream copy target) sweep gaps recurred approximately 4 times. The pattern: a code fix was correctly applied to the source artifact (story, ADR, holdout scenario), but the downstream copy targets that verbatim-mirror sections of that source were not swept in the same burst. Specific manifestations observed:
+
+1. Code fix (e.g., task prose, RG snippet) applied to story body but corresponding HOLDOUT-INDEX section that mirrors or references the same content was not updated in the same burst.
+2. ADR pin update applied to story but HOLDOUT-INDEX HS-032 group description carrying the same pin was not swept.
+3. Story body correction applied but the story's own §Holdout section cross-referencing the same state was missed.
+4. Story v1.N frontmatter row bumped correctly but an artifact referencing "v1.N-1" phrasing in a separate sidecar (e.g., HOLDOUT-INDEX detail rows) was missed, requiring a separate micro-burst fix.
+
+Each miss required a subsequent micro-burst (TD-VSDD-096 records-only or full burst) to correct, and each reset the LOCAL 3-CLEAN streak under the frozen-HEAD rule (per BC-5.39.001: any spec-perimeter change resets the streak). This extended the LOCAL cascade by an estimated 4 additional fix-bursts that could have been avoided by a systematic Dim-2 sweep at each burst.
+
+**Root Cause:**
+The Dim-2 check ("if any section of the edited artifact is copied verbatim into a downstream artifact, sweep that section and its copy in the SAME burst") was applied reactively (after the adversary found the miss) rather than proactively (before declaring the burst complete). The downstream artifacts (HOLDOUT-INDEX, story §Holdout references, scenario files) are numerous and not co-located with the primary artifact being edited.
+
+**Candidate Structural Intervention:**
+At each burst, before committing, explicitly enumerate Dim-2 targets as a checklist step. For S-REL-AGENT-VERSION-001's artifact set, the Dim-2 checklist would be: (a) HOLDOUT-INDEX HS-032 group desc + detail rows; (b) individual scenario files HS-032-001/002/003 body; (c) story §Holdout cross-reference section; (d) any ADR §anchor_stories annotation referencing the story's current version. This enumeration should happen at burst-authoring time, not after the adversary finds the miss.
+
+**Action (codification — meets threshold):**
+This recurrence meets the 3-occurrence threshold (TD-VSDD-097 codification rationale). Consider adding a story-local Dim-2 target list as a mandatory field in the story §Holdout section or as a checklist step in the state-burst protocol for stories that have holdout scenarios. The specific mapping (story ↔ HOLDOUT-INDEX group ↔ scenario files) is predictable at materialization time and should be recorded explicitly.
+
+**Source:** D-2473 cycle-closing checklist sweep, S-REL-AGENT-VERSION-001 LOCAL cascade (D-2466 through D-2472). ~4 Dim-2 miss occurrences within a single story's LOCAL phase. [codification-assess] — threshold MET; structural intervention warranted.
