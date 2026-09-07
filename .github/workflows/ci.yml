@@ -68,7 +68,7 @@ jobs:
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
       # Optimization 1: Swatinem/rust-cache for incremental build caching
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: clippy-stable
@@ -213,7 +213,7 @@ jobs:
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
       # Optimization 1: Swatinem/rust-cache — per-target shared key for cache isolation
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: test-${{ matrix.target }}
@@ -483,7 +483,7 @@ jobs:
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
       # Optimization 1: Swatinem/rust-cache
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: test-no-default-features
@@ -540,7 +540,7 @@ jobs:
           targets: wasm32-wasip1
       # Optimization 1: Swatinem/rust-cache for incremental build caching.
       # Separate shared-key from the host-target build to avoid cache namespace collision.
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: wasm32-compile-check
@@ -631,7 +631,7 @@ jobs:
         with:
           targets: wasm32-wasip1
       # Separate shared-key from wasm32-compile-check to avoid cache namespace collision.
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: wasm32-threatintel-staleness-check
@@ -839,7 +839,7 @@ jobs:
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
       # Optimization 1: Swatinem/rust-cache
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: semver
@@ -912,7 +912,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
         with:
           toolchain: nightly
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: fuzz-smoke-${{ runner.os }}
@@ -1040,7 +1040,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: perimeter-compile-fail
@@ -1281,7 +1281,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: non-exhaustive-compile-fail
@@ -1346,7 +1346,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: no-hardcoded-sensors-compile-fail
