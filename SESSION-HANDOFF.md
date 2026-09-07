@@ -1,14 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.092"
+version: "8.093"
 status: current
-timestamp: 2026-09-07T05:00:00Z
+timestamp: 2026-09-07T08:04:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2475 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES story-readiness + ADR-correction burst. 3 beta.1-blocking E-REL-NOTES stories readied: S-REL-CLIFF-001 [draft v1.1]→[ready v1.2] + S-REL-WRITER-001 [draft v1.0]→[ready v1.1] + S-REL-BETA1-NOTES-001 [draft v1.0]→[ready v1.1]. S-REL-VBUMP-001 v1.1→v1.2 (spec-accuracy sweep; status unchanged: draft). ADR-063 v1.3→v1.4 + ADR-064 v2.0→v2.1 corrected (remove-uncertainty pass: git-cliff 2.14.1 + cargo-release 1.1.5 CONFIRMED current). ARCH-INDEX v2.368→v2.369. STORY-INDEX v3.012→v3.013. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/holdout_index v1.42/total_stories 336 ALL UNCHANGED. TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.002→v9.003. SESSION-HANDOFF v8.091→v8.092. §RESUME SNAPSHOT D-2475 inserted; D-2474 SUPERSEDED.**
+> **D-2476 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — spec-accuracy correction: ADR-063 v1.4→v1.5 (§D3 regex_replace→striptags|trim) + S-REL-CLIFF-001 v1.2→v1.3 (Dim-2 sweep). CLIFF-001+WRITER-001 delivered on worktree @b90663a23 (git-cliff 2.14.1; all ACs PASS; actionlint clean; dry-run confirmed). ADR-063 v1.5: git-cliff 2.14.1 has no built-in regex_replace Tera filter; striptags|trim is the native strip mechanism per git cliff --init default. ARCH-INDEX v2.369→v2.370. STORY-INDEX v3.013→v3.014. TD-VSDD-097: Dim-1 CLEAR (no sibling twin); Dim-2 DISCHARGED (ADR-063 §D3 → CLIFF-001 Task2/AC-006/risk_mitigations swept same burst); Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/holdout_index v1.42/total_stories 336 ALL UNCHANGED. records-lint L1/L7/L9/L10 PASS. STATE v9.003→v9.004. SESSION-HANDOFF v8.092→v8.093. §RESUME SNAPSHOT D-2475 SUPERSEDED by D-2476.**
+
+> **D-2475 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES story-readiness + ADR-correction burst. 3 beta.1-blocking E-REL-NOTES stories readied: S-REL-CLIFF-001 [draft v1.1]→[ready v1.2] + S-REL-WRITER-001 [draft v1.0]→[ready v1.1] + S-REL-BETA1-NOTES-001 [draft v1.0]→[ready v1.1]. S-REL-VBUMP-001 v1.1→v1.2 (spec-accuracy sweep; status unchanged: draft). ADR-063 v1.3→v1.4 + ADR-064 v2.0→v2.1 corrected (remove-uncertainty pass: git-cliff 2.14.1 + cargo-release 1.1.5 CONFIRMED current). ARCH-INDEX v2.368→v2.369. STORY-INDEX v3.012→v3.013. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/holdout_index v1.42/total_stories 336 ALL UNCHANGED. TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.002→v9.003. SESSION-HANDOFF v8.091→v8.092. §RESUME SNAPSHOT D-2475 inserted; D-2474 SUPERSEDED. [SUPERSEDED by D-2476]**
 
 > **D-2474 (2026-09-06): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — durable §RESUME SNAPSHOT D-2474 authored. E-REL-IDENTITY COMPLETE (PR #262 + #263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean) ready for PR B delivery. NEXT: ready 3 E-REL-NOTES stories (S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001) → TDD-deliver PR B → git-cliff CHANGELOG → tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.012/total_stories 336 ALL UNCHANGED. TD-VSDD-097: N/A (session-wrap state update only; no spec/code content change). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.001→v9.002. SESSION-HANDOFF v8.090→v8.091. §RESUME SNAPSHOT D-2474 inserted; D-2473 SUPERSEDED. [SUPERSEDED by D-2475]**
 
@@ -32,7 +34,46 @@ timestamp: 2026-09-07T05:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2475 (2026-09-07 — E-REL-NOTES STORIES READY; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2474]
+## §RESUME SNAPSHOT — D-2476 (2026-09-07 — E-REL-NOTES STORIES READY; ADR-063 v1.5 CORRECTED; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2475]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. All 3 beta.1-blocking E-REL-NOTES stories READY (CLIFF-001 v1.3 / WRITER-001 v1.1 / BETA1-NOTES-001 v1.1). CLIFF-001+WRITER-001 delivered on worktree @b90663a23 (git-cliff 2.14.1; all ACs PASS; actionlint clean; dry-run confirmed). ADR-063 v1.5: spec-accuracy corrected (§D3 regex_replace→striptags|trim; git-cliff 2.14.1 has no built-in regex_replace Tera filter). NEXT ACTION: LOCAL adversary pass on CLIFF-001+WRITER-001 → BETA1-NOTES curation → demo → PR B → (human-auth) admin squash-merge → (human-auth) tag v1.0.0-beta.1.
+
+### Governing Objective
+v1.0.0-beta.1 release: 3 E-REL-NOTES stories READY; CLIFF-001+WRITER-001 delivered; deliver PR B then tag.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. PR B — E-REL-NOTES git-cliff CHANGELOG pipeline, batched on the EXISTING worktree `.worktrees/E-REL-NOTES` (branch feature/E-REL-NOTES-changelog @ b90663a23):
+   a. Stories are already READY — do NOT re-ready. S-REL-CLIFF-001 v1.3 (cliff.toml + release-prep.yml integration; striptags|trim native strip filter; numbered-group-name-prefix; no group_order). S-REL-WRITER-001 v1.1 (technical-writer Layer-1 top-block dispatch). S-REL-BETA1-NOTES-001 v1.1 (full CHANGELOG generation + curation; --unreleased --tag, first-release handling).
+   b. CLIFF-001 + WRITER-001 ACs PASS on @b90663a23. NEXT: LOCAL adversary 3-CLEAN on CLIFF-001+WRITER-001 code → BETA1-NOTES curation → demo-recorder per-AC → push → PR B → PR-LEVEL 3-CLEAN → admin squash-merge on EXPLICIT in-session human auth (self-authored PR needs --admin bypass auth).
+3. Generate CHANGELOG §[1.0.0-beta.1] on develop + Layer-1 top-block.
+4. Tag v1.0.0-beta.1: `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). TAG needs explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+S-1 (agent version surfaces) DONE + in beta.1 (human decision). beta channel + keep 1.0.0 core; v1.0.0-rc.1 = never-published ghost. Merges/tags need explicit in-session human auth; force-push any branch needs human approval.
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred from HS-032.
+- Human UI cleanup: delete merged remote branch origin/feature/S-REL-AGENT-VERSION-001; close obsolete PR #255.
+- S-REL-VBUMP-001 remains draft (status unchanged); not beta.1-blocking; deliver after beta.1 tag.
+
+### DECISION DELTA
+D-2476 = spec-accuracy correction: ADR-063 v1.4→v1.5 (§D3 regex_replace→striptags|trim; git-cliff 2.14.1 has no built-in regex_replace Tera filter). S-REL-CLIFF-001 v1.2→v1.3 (Dim-2 downstream sweep). ARCH-INDEX v2.369→v2.370; STORY-INDEX v3.013→v3.014. D-2475 E-REL-NOTES readiness burst remains valid; D-2474 session wrap unchanged.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ b90663a23, CLIFF-001+WRITER-001 ACs PASS). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2476: Spec-accuracy correction: ADR-063 v1.4→v1.5 (§D3 striptags|trim), S-REL-CLIFF-001 v1.2→v1.3 (Dim-2 sweep), ARCH-INDEX v2.369→v2.370, STORY-INDEX v3.013→v3.014. §RESUME SNAPSHOT D-2476 inserted; D-2475 SUPERSEDED. STATE v9.003→v9.004; SESSION-HANDOFF v8.092→v8.093. develop_head UNCHANGED a4cd1b3fd.
+
+---
+
+## §RESUME SNAPSHOT — D-2475 (2026-09-07 — E-REL-NOTES STORIES READY; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2474] [SUPERSEDED by D-2476]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. All 3 beta.1-blocking E-REL-NOTES stories are now READY (CLIFF-001 v1.2 / WRITER-001 v1.1 / BETA1-NOTES-001 v1.1). ADR-063 v1.4 + ADR-064 v2.1 corrected. NEXT ACTION: per-story facade delivery of PR B on `.worktrees/E-REL-NOTES`, starting with S-REL-CLIFF-001.

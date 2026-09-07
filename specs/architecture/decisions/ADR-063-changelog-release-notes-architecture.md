@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.4"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,14 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.5 (2026-09-07) — D3 spec-accuracy correction: git-cliff 2.14.1 has NO built-in
+`regex_replace` Tera filter (`Filter 'regex_replace' not found` confirmed via dry-run). The
+native marker-stripping mechanism is `striptags | trim` (per the `git cliff --init` default
+template). cliff.toml sketch Tera body template updated to `{{ group | striptags | trim }}`.
+Numbered-group-name-prefix ordering intent is UNCHANGED — `<!-- 0 -->Breaking Changes` still
+renders before `<!-- 1 -->Added` via ascending string-sort of `group_by(attribute="group")`.
+`[git] group_order` non-existent key statement unchanged (still correct). No change to D1/D2/D4/D5/D6.
 
 ACCEPTED v1.4 (2026-09-06) — D3 corrected: `[git] group_order` does not exist in git-cliff
 2.14.1 and MUST NOT be used. Numbered-group-name-prefix idiom is the authoritative mechanism:
@@ -152,7 +160,7 @@ body = """
 {% else %}## [Unreleased]
 {% endif %}
 {% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | regex_replace(pattern="<!-- \\d+ -->", replacement="") | trim }}
+### {{ group | striptags | trim }}
 {% for commit in commits %}
 - {% if commit.breaking %}**BREAKING** {% endif %}{{ commit.message }}\
 {% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ commit.remote.pr_url }})) by @{{ commit.remote.username }}{% endif %}
@@ -202,9 +210,11 @@ git-cliff 2.14.1):**
 `[git] group_order` is NOT a valid key in git-cliff 2.14.1's `cliff.toml` schema and MUST NOT be
 added. The authoritative mechanism is the **numbered-group-name-prefix idiom** shown in the sketch
 above: each `commit_parsers` `group` value carries an `<!-- N -->` HTML comment sort prefix, and
-the Tera body template strips it with `regex_replace` (a git-cliff Tera extension — reference:
-git-cliff.org/docs §Configuration → Template Context → regex_replace). Because git-cliff's Tera
-`group_by(attribute="group")` iterates in ascending string-sort order, `<!-- 0 -->Breaking Changes`
+the Tera body template strips it with `striptags | trim` (the native HTML-comment-stripping
+mechanism in git-cliff 2.14.1; git-cliff has NO built-in `regex_replace` Tera filter —
+`Filter 'regex_replace' not found` confirmed via `git cliff --unreleased --output /dev/stdout`
+dry-run; `striptags | trim` is per the `git cliff --init` default template). Because git-cliff's
+Tera `group_by(attribute="group")` iterates in ascending string-sort order, `<!-- 0 -->Breaking Changes`
 renders before `<!-- 1 -->Added`. The `breaking = true` commit parser (listed first in the sketch)
 assigns commits with a `!` type suffix or `BREAKING CHANGE:` footer to `<!-- 0 -->Breaking Changes`
 before type-based parsers apply.
@@ -457,6 +467,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-09-07 | architect | D3 spec-accuracy correction: git-cliff 2.14.1 has NO built-in `regex_replace` Tera filter (`Filter 'regex_replace' not found` confirmed via dry-run). `striptags \| trim` is the native marker-stripping mechanism (per `git cliff --init` default template). cliff.toml sketch body template updated from `regex_replace(pattern="<!-- \\d+ -->", replacement="")` to `striptags \| trim`. Numbered-group-name-prefix ordering intent unchanged. `[git] group_order` non-existent key statement unchanged (still correct). TD-VSDD-097: Dim-1 CLEAR (no ADR twin affected by Tera-filter-name fix). Dim-2 HANDOFF: `regex_replace` snippet copied into S-REL-CLIFF-001 (Task 2, AC-006, risk_mitigations) — story-writer must sweep those three locations to `striptags \| trim` in the same burst. Dim-3 CLEAR: marker-strip MUST anchored to S-REL-CLIFF-001 AC-006 grep + ordering gate. |
 | 1.4 | 2026-09-06 | architect | D3 corrected: `[git] group_order` is not a valid git-cliff 2.14.1 cliff.toml key and MUST NOT be used. Numbered-group-name-prefix idiom is the authoritative mechanism for Breaking Changes section ordering: `commit_parsers` group values updated with `<!-- N -->` sort prefixes (`<!-- 0 -->Breaking Changes` first via `breaking = true` parser); Tera body template updated with `regex_replace` strip expression. Reference: git-cliff.org/docs §Configuration → Template Context → regex_replace. |
 | 1.3 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-NOTES/E-REL-IDENTITY stories verified on disk and citing ADR-063 in §Authority — S-REL-CLIFF-001 (D1/D3/D5), S-REL-WRITER-001 (D4/D5), S-REL-BETA1-NOTES-001 (D6), S-REL-VBUMP-001 (D1 git-cliff ownership). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.2 | 2026-09-05 | architect | C2: D5 Step 7 `--latest` → `--unreleased --tag` (documented pre-tag pattern; robust for first and recurring releases; `--latest` unreliable when no prior tag exists). D4 Layer-2 description + step-order note updated to match. D6 item 1 updated (--unreleased handles first-release automatically). Rationale #4 updated. C3: D3 prose corrected — `[remote.github]` `owner`/`repo` fields replace `repository` combined key; owner corrected `jmagady` → `drbothen`; cliff.toml sketch updated. |
