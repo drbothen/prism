@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -75,7 +75,7 @@ phase: "3"
 
 **Story ID:** S-REL-BETA1-NOTES-001
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -234,7 +234,7 @@ Verification is operational (implementer must explicitly perform and document ea
    ### Upgrade Notes
    [technical-writer draft — or OMIT if empty]
 
-   ### Breaking Changes (from commits)
+   ### Breaking Changes
    [git-cliff BREAKING CHANGE footers — if any]
 
    ### Added
@@ -385,7 +385,7 @@ Three reasons the gate does not apply:
 |----|-------------|-------------------|
 | EC-001 | v1.0.0-rc.1 tag does NOT exist in the repo | Use full history from initial commit; output may be very long; noise control is critical |
 | EC-002 | v1.0.0-rc.1 tag EXISTS | Range is v1.0.0-rc.1..v1.0.0-beta.1; use `--unreleased --tag v1.0.0-beta.1` (git-cliff auto-selects commits since the last existing tag via `--unreleased`). DO NOT use `--latest` (ADR-063 D5/D6) |
-| EC-003 | No BREAKING CHANGE commits in the range | Omit `### Breaking Changes (narrative)` and `### Breaking Changes (from commits)` sections |
+| EC-003 | No BREAKING CHANGE commits in the range | Omit `### Breaking Changes (narrative)` and `### Breaking Changes` sections |
 | EC-004 | Technical-writer draft includes aspirational features | Human curation gate removes them before merge |
 | EC-005 | Layer-2 output is empty (all commits were skipped) | Do not ship an empty section; add representative feat/fix entries manually or revisit skip rules |
 
@@ -395,6 +395,7 @@ Three reasons the gate does not apply:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep: ADR-063 v1.10 §D4 heading label `### Breaking Changes (from commits)` → `### Breaking Changes` (plain heading, as emitted by git-cliff) in Task 7 example block and EC-003 omit-if-empty rule. Surrounding semantics (git-cliff-emitted breaking section, omit-if-empty) unchanged. |
 | 1.2 | 2026-09-07 | story-writer | F-9 (LOCAL adversary pass-1 duplicate-section risk): AC-006 added — operator must detect pre-existing ## [1.0.0-beta.1] section in CHANGELOG.md before generating and reconcile so exactly ONE block exists post-generation (PR #261 introduced a manual section; git cliff --prepend would create a duplicate without this gate). Task 4 (new) detect+reconcile step inserted; old Tasks 4–8 renumbered to 5–9. acceptance_criteria_count 5→6. status ready unchanged. |
 | 1.1 | 2026-09-06 | story-writer | Sweep #13: Task 1 `--latest` reference replaced with `--unreleased --tag` (both cases); EC-002 updated to use `--unreleased --tag v1.0.0-beta.1` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D6 first-release handling materialization |

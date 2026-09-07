@@ -188,6 +188,7 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 | Pass 4 | 2026-09-07 | 1 | 0 | 0 | 0 | 1 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — OBS-1 FIXED by devops workflow-prose @d457ab745; no spec change; actionlint clean; WRITER-001 AC-004 STILL SATISFIED |
 | Pass 5 | 2026-09-07 | 1 | 0 | 1 | 0 | 0 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): NO — MED-1 FIXED by devops pure-doc fix @7809f7e66; no spec/story/index change; actionlint clean; WRITER-001 AC-002/AC-003 intact |
 | Pass 6 | 2026-09-07 | 4 | 0 | 2 | 2 | 0 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): NO — 2 MED + 2 LOW; all 4 FIXED @1b0504b7d + 4 proactive holistic-audit fixes (H-A §4 Step 2 Layer-1 dispatch + H-B §5 step-order + H-C §4 Step 6 install scripts + infusion-term sweep) |
+| Pass 7 | 2026-09-07 | 2 | 0 | 0 | 1 | 1 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — 1 LOW + 1 OBS; both FIXED: LOW @5ead5f1cb (devops comment); OBS via ADR-063 v1.10 §D4 label + BETA1-NOTES v1.3 Dim-2 sweep (architect + story-writer); executable config + all 11 ACs adversary-CLEAN |
 
 **Pass 1 finding summary:**
 
@@ -268,4 +269,13 @@ DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — 
 
 **TD-VSDD-097 sweep verdict (D-2482):** N/A — records + STATE update only; no spec/BC/ADR content changed this burst. Dim-1/2/3 N/A (no spec/BC/ADR authored or amended). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites).
 
-**Next:** LOCAL adversary re-gate on frozen code HEAD 1b0504b7d (D-2482; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+**Next (after pass-6):** LOCAL adversary re-gate on frozen code HEAD 1b0504b7d (D-2482; streak 0/3) → pass-7 below.
+
+**Pass 7 finding summary (1 LOW + 1 OBS; CLEAN(strict): NO, CLEAN(PR-merge): YES; code @5ead5f1cb; ADR-063 v1.9→v1.10):**
+
+- LOW-1 (devops): release-prep.yml pre-strip comment mislabeled strip-to-empty as "first release" — the pre-strip step runs on every release (not only first releases); accurate description is "manually-reset state". Comment corrected; RELEASING.md §5 OBS-3 cross-reference added. Code fix-burst @5ead5f1cb.
+- OBS-1 (architect, out-of-diff): ADR-063 §D4 used heading `### Breaking Changes (from commits)` while §D3 specifies the canonical form `### Breaking Changes` (no parenthetical annotation); inconsistency between documented format and the shipped breaking-changes heading. Fixed: ADR-063 v1.9→v1.10 §D4 breaking-heading label corrected to plain `### Breaking Changes` (Option a, consistent with §D3 + actual Tera filter output). ARCH-INDEX v2.374→v2.375 (ADR-063 pin v1.9→v1.10; v2.374 L1-backfill included — architect added missing v2.374 changelog row). S-REL-BETA1-NOTES-001 v1.2→v1.3 (Task 7 + EC-003 breaking-heading label swept; Dim-2 DISCHARGED). STORY-INDEX v3.018→v3.019.
+
+**TD-VSDD-097 sweep verdict (D-2483):** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D4 breaking-heading label → BETA1-NOTES-001 Task 7 + EC-003 swept same burst; S-REL-CLIFF-001 Task 2/AC-006 and S-REL-WRITER-001 confirmed clean against the §D3 canonical `### Breaking Changes` form). Dim-3 CLEAR (no new MUSTs introduced; existing breaking-change MUST in CLIFF-001 AC-006 anchored unchanged).
+
+**Next (after pass-7):** LOCAL adversary re-gate on frozen code HEAD 5ead5f1cb (D-2483; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
