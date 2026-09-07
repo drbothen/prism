@@ -357,19 +357,26 @@ Verify all of the following before declaring the release complete:
    `actions/attest-build-provenance` during the build step, visible in the
    workflow run's artifact attestations, verifiable via `gh attestation verify`).
 4. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
-5. Generated release notes (from `--generate-notes`) are present.
+5. **Release body** is present and contains the curated `## [VERSION]` CHANGELOG content
+   (Layer-1 Highlights + Layer-2 git-cliff entries) extracted via `--notes-file` by
+   the `publish-release` job. (`--generate-notes` is intentionally NOT used — the curated
+   CHANGELOG section is the authoritative and complete release body.)
 6. **Bundled specs** are present in each archive. Spot-check a tar.gz:
    ```bash
    curl -sL https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
-     | tar tzf - | grep -E 'specs/|infusions/|prism\.toml\.example'
+     | tar tzf - | grep -E 'specs/|prism\.toml\.example'
    ```
-   Expected: four `specs/*.sensor.toml` entries, two `infusions/*.infusion.toml`
-   entries, and `prism.toml.example` — all at archive root level.
+   Expected: `specs/claroty.sensor.toml` and `prism.toml.example` — both at archive
+   root level.
 
-### Step 7 — Update the GitHub Release body
+### Step 7 — Verify the GitHub Release body
 
-The workflow creates the release with `--generate-notes` but without the curated
-install/verify narrative. Edit the body as described in §5 Release Notes Convention.
+The `publish-release` job sets the release body from the curated `## [VERSION]`
+CHANGELOG section (Layer-1 Highlights + Layer-2 git-cliff entries) via `--notes-file`.
+No routine body editing is required. If install or upgrade narrative that belongs in
+the release body was not captured inside the `## [VERSION]` CHANGELOG block, add it
+to the release body via the GitHub UI (Edit on the Releases page). Refer to §5 for
+the canonical install and verification text.
 
 ---
 
@@ -513,18 +520,15 @@ specs needed for a bootable installation — no source repository clone required
 **Archive contents:**
 - `prism` (or `prism.exe` on Windows) — the compiled binary
 - `prism.toml.example` — configuration template with inline instructions
-- `specs/` — the four built-in sensor TOML specs (`armis`, `claroty`, `crowdstrike`, `cyberint`)
-- `infusions/` — the two built-in infusion TOML specs (`threatintel`, `nvd`)
+- `specs/claroty.sensor.toml` — the bundled Claroty xDome sensor TOML spec
 
 **Install steps (all platforms):**
 1. Extract the archive (see platform commands below).
 2. Copy `prism.toml.example` to `prism.toml` in your chosen config directory.
 3. Copy `specs/` to the path you set as `spec_dir` in `prism.toml` (or leave it
    adjacent and set `spec_dir = "./specs"`).
-4. Copy `infusions/` alongside `prism.toml` — it is auto-scanned from the config
-   directory at boot (`{config_dir}/infusions/`).
-5. Edit `prism.toml`: set `state_dir`, add `[[orgs]]` entries, configure credentials.
-6. Run `prism start`.
+4. Edit `prism.toml`: set `state_dir`, add `[[orgs]]` entries, configure credentials.
+5. Run `prism start`.
 
 **macOS (Apple Silicon):**
 curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
