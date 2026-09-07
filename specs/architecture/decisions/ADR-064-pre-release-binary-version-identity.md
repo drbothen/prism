@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "2.0"
+version: "2.1"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -34,12 +34,24 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md
   - .factory/specs/architecture/decisions/ADR-062-product-version-alignment.md
   - .factory/research/version-management-2026.md
-input-hash: "dabc1b9"
+input-hash: "2734e6e"
 ---
 
 # ADR-064: Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release
 
 ## Status
+
+ACCEPTED v2.1 (2026-09-06) — D3 corrected: `[package] publish = false` at the manifest level
+causes cargo-release >= 1.0.0 to disable the entire release process for the crate, not just the
+crates.io publish step. `release = true` added to `[package.metadata.release]` to override the
+manifest-level release-disable inference. Note: `publish = false` INSIDE `[package.metadata.release]`
+only skips the cargo publish step and does NOT counteract the manifest-level disable — both keys
+are needed. Mandatory dry-run gate (`cargo release -p prism-bin <ver>` without `--execute`) added
+as a blocking contract before any `--execute` invocation; gate confirms the crate is selected for
+release and discharges residual uncertainty about whether `metadata.release.release = true` fully
+overrides the manifest-level inference in all cargo-release 1.1.5 scenarios. Gate is a BLOCKING
+acceptance criterion in S-REL-VBUMP-001 ACs. Reference: cargo-release reference.md §release
+(github.com/crate-ci/cargo-release §docs/reference.md). No change to D1/D2/D4 decision content.
 
 ACCEPTED v2.0 (2026-09-06) — SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001
 updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on
@@ -391,7 +403,17 @@ invoke cargo-release; they tag develop as-is.
 ```toml
 # crates/prism-bin/Cargo.toml
 [package.metadata.release]
-publish = false                  # prism crates never hit crates.io
+# REQUIRED: `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0
+# to disable the ENTIRE release process for this crate ("nothing to release" → exit 101), not
+# just the crates.io publish step. `release = true` here overrides that inference and re-enables
+# the release process. Reference: cargo-release reference.md §release
+# (github.com/crate-ci/cargo-release §docs/reference.md).
+#
+# Note: `publish = false` BELOW (inside [package.metadata.release]) is a SEPARATE key —
+# it controls only the `cargo publish` step (skips crates.io upload). It does NOT counteract
+# the manifest-level disable. Both `release = true` and `publish = false` are required.
+release = true                   # override manifest-level publish=false release-disable
+publish = false                  # skip crates.io publish only — prism crates are internal
 shared-version = false           # do NOT cascade to the 24 sibling crates
 tag = false                      # release-promote.yml owns the tag push (environment gate)
 push = false                     # prep produces bumped branch + PR only; promote owns push
@@ -417,6 +439,17 @@ exactly = 1                      # anti-drift guard: FAILS if match count change
 **Invocation (stable path, inside `release-prep.yml`):**
 
 ```bash
+# MANDATORY dry-run gate — cargo-release default when --execute is omitted.
+# Confirms prism-bin is selected for release and [package.metadata.release] release=true
+# is effective against the manifest-level publish=false inference.
+# A "nothing to release" error or "skipping prism-bin" output here means the manifest-level
+# inference was NOT overridden — investigate cargo-release configuration before proceeding.
+# Residual uncertainty: whether metadata.release.release=true fully overrides the manifest-level
+# inference in all cargo-release 1.1.5 scenarios is discharged by this gate passing cleanly.
+# This dry-run gate is a BLOCKING acceptance criterion in S-REL-VBUMP-001 ACs.
+cargo release -p prism-bin "${NEXT_VERSION}"
+
+# Execute: only after dry-run passes without error or warning about skipped crates.
 cargo release -p prism-bin "${NEXT_VERSION}" --execute --no-confirm
 ```
 
@@ -658,7 +691,7 @@ misleading for a development build.
   that defers to `CARGO_PKG_VERSION` locally and applies `GITHUB_REF_NAME` only in CI tag builds,
   keeping `Cargo.toml` as the human-readable source of truth for local development.
 
-### Status as of v1.9
+### Status as of v2.1
 
 ACCEPTED. All four decisions are finalized:
 - D1 (S-REL-DEV-RESET-001): BLOCKING before beta.1 — prism-bin reset to `1.0.0-dev`
@@ -670,8 +703,10 @@ ACCEPTED. All four decisions are finalized:
   filtering on all env-var arms including post-strip guard for degenerate `"v"` tag (F-VID-P1-MED-001
   + pass-5 OBS-1)
 - D3 (S-REL-VBUMP-001 + S-REL-DOCS-AGNOSTIC-001): High priority before stable v1.0.0 — cargo-release
-  1.1.5 single-command bump; RELEASING.md §1 pre-release exception to be documented in
-  S-REL-DOCS-AGNOSTIC-001
+  1.1.5 single-command bump; `[package.metadata.release]` requires `release = true` (v2.1: overrides
+  manifest-level `publish = false` release-disable) AND `publish = false` (skips crates.io upload
+  only); mandatory dry-run gate (`cargo release -p prism-bin <ver>` without `--execute`) is a BLOCKING
+  AC in S-REL-VBUMP-001; RELEASING.md §1 pre-release exception to be documented in S-REL-DOCS-AGNOSTIC-001
 - D4 (S-REL-AGENT-VERSION-001): HIGH before stable v1.0.0 — prism-mcp serverInfo.version via
   runtime wiring (`PrismServer.product_version` + `with_deps` + `env!("PRISM_VERSION")` at boot
   step 9); prism-spec-engine user-agent via per-crate build.rs emitting `PRISM_VERSION` per D2
@@ -756,6 +791,7 @@ ACCEPTED. All four decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.1 | 2026-09-06 | architect | D3 corrected: `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0 to disable the entire release process for prism-bin, not just the crates.io publish step. Added `release = true` to `[package.metadata.release]` to override the manifest-level release-disable inference. Note: the existing `publish = false` inside `[package.metadata.release]` only skips the cargo publish step and does NOT counteract the manifest-level disable. Added mandatory dry-run gate (`cargo release -p prism-bin <ver>` without `--execute`) as a blocking contract before `--execute`; gate confirms crate is selected for release; residual uncertainty discharged by gate. Anchored to S-REL-VBUMP-001 ACs. Reference: cargo-release reference.md §release (github.com/crate-ci/cargo-release §docs/reference.md). |
 | 2.0 | 2026-09-06 | architect | SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001 updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on disk with status:draft and cites ADR-064 §D4 in §Authority. Frontmatter/traceability only — no decision content changed. |
 | 1.9 | 2026-09-05 | architect | MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION arm hardened against CWE-93 (embedded-newline injection of second cargo directive) + CWE-20 (unvalidated version string). `resolve_prism_version` step 1 takes FIRST LINE ONLY via `s.lines().next().unwrap_or("").trim()` before accepting override. New `is_semver_shaped` structural validator: ACCEPT `MAJOR.MINOR.PATCH[-pre][+build]` (non-empty dot-separated identifiers, chars `[0-9A-Za-z-]`); REJECT empty prerelease/build/identifier, 4th dotted core component, non-numeric core; lightweight structural check, NOT `semver` crate (build.rs remains dep-free); must-pass: `1.0.0`, `1.0.0-dev`, `1.0.0-beta.1`, `1.0.0-rc.2`, `1.0.0+build.5`, `1.0.0-beta.1+exp.sha.5114f85`; must-reject: `1.0.0-`, `1.0.0+`, `develop`, `1.0`, `1.0.0.0`, `a.b.c`. D2 fallback chain step 1 updated: shape check fail → FALL THROUGH to `GITHUB_REF_NAME` arm. D4 §Surface B swept in-burst: injection sites table row for `crates/prism-spec-engine/build.rs` updated to explicitly include CWE-93/CWE-20 hardening; narrative updated to state both implementations inherit the hardening per D2 normative contract. TD-VSDD-097 Dim-1 CLEAR (sole ADR carrying build.rs contract). Dim-2 CLEAR (§D4 §Surface B swept in-burst). Dim-3: hardening MUSTs anchor to S-REL-AGENT-VERSION-001 (Surface B) and S-REL-BVERSION-INJECT-001 (prism-bin, already merged). |
 | 1.8 | 2026-09-05 | architect | D4 added (S-1 human-directed): agent-facing version surface expansion. prism-mcp serverInfo.version: runtime wiring via `PrismServer.product_version` field + `with_deps` parameter + boot.rs step-9 `env!("PRISM_VERSION")`; `get_info` uses `self.product_version` in `Implementation::new`. prism-spec-engine user-agent: per-crate `build.rs` emitting `PRISM_VERSION` (D2-conformant fallback chain); `build_http_client_with_timeout` changes `CARGO_PKG_VERSION` to `PRISM_VERSION`. D2 §Context out-of-scope paragraph superseded by forward reference to D4. New story S-REL-AGENT-VERSION-001 proposed for D4 implementation. ADR-050 §D6 cross-ref: after D4 ships, all outbound HTTP clients emit coherent `prism/{PRODUCT_VERSION}`. `related_adrs` extended with ADR-050. `anchor_stories` extended with S-REL-AGENT-VERSION-001. `inputs` extended with prism-mcp/src/server.rs, prism-spec-engine/src/pipeline.rs, ADR-050. S-REL-BVERSION-INJECT-001 AC-004 downstream impact flagged. TD-VSDD-097 Dim-1 CLEAR (no sibling ADR restates 6-site D2 scope). Dim-2 flagged: S-REL-BVERSION-INJECT-001 AC-004 is a downstream copy of D2 out-of-scope scope boundary — story-writer must amend AC-004 when S-REL-AGENT-VERSION-001 is authored. Dim-3: new D4 MUSTs anchored to S-REL-AGENT-VERSION-001. |

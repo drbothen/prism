@@ -5,8 +5,8 @@ title: "devops: first-release CHANGELOG production for v1.0.0-beta.1 — dry-run
 wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
-status: draft
-version: "1.0"
+status: ready
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -37,6 +37,18 @@ red_gate_tests: 0
 # red_gate_tests: 0 — facade mode. No Rust code.
 estimated_passes: "1 human-in-the-loop cycle"
 holdout_scenarios: []
+# HOLDOUT-N/A: tdd_mode=facade; crates_touched=[]; no built prism binary; no MCP-visible
+# surface. This is an operations/execution story: it runs git-cliff to produce CHANGELOG.md
+# content, then dispatches vsdd-factory:technical-writer for the Layer-1 draft, then
+# requires a MANDATORY human curation gate before merge (story explicitly states
+# estimated_passes: "1 human-in-the-loop cycle"). All verification is structural: grep on
+# CHANGELOG.md (AC-001..AC-004) and bullet-count check (AC-005). The Layer-1 Highlights
+# content requires human editorial judgment — no machine holdout can substitute for that.
+# git-cliff is an external CLI tool, not the prism MCP binary. No info-asymmetry surface
+# exists. Gate definitionally inapplicable per CLAUDE.md story-level holdout gate
+# definition (requires built prism binary + MCP stdio wire assertions, scoped to the
+# story's touched surface). Do NOT fabricate a machine holdout for human-in-the-loop
+# CHANGELOG curation.
 assumption_validations: []
 risk_mitigations:
   - "For beta.1 the full history range is used (no --latest; ADR-063 D6). If a prior
@@ -62,8 +74,8 @@ phase: "3"
 # S-REL-BETA1-NOTES-001 — First-Release CHANGELOG for v1.0.0-beta.1
 
 **Story ID:** S-REL-BETA1-NOTES-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.1
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -136,21 +148,28 @@ Well within the 30% context window budget.
 
 ## Red Gate Test List (SAC-1)
 
-**tdd_mode: facade — no Rust Red Gate tests.** Verification is operational:
-- Dry-run output must be non-empty and correctly categorized
-- Final CHANGELOG.md must contain a `## [1.0.0-beta.1]` section with Layer-1 and
-  Layer-2 content
+**tdd_mode: facade — Red Gate is N/A.** No Rust production code; no Red Gate tests.
+Verification is operational (implementer must explicitly perform and document each check):
+- AC-001: `grep '## \[1.0.0-beta.1\]' CHANGELOG.md` → exactly 1 match
+- AC-002: `grep '### Highlights' CHANGELOG.md` → match inside `## [1.0.0-beta.1]` section (before next `## [` header)
+- AC-003: confirm `## [1.0.0-beta.1]` header precedes first `### Highlights` in file; no `### Highlights` appears above it
+- AC-004: `grep -E '### (Added|Fixed|Performance|Changed|Security|Breaking Changes)' CHANGELOG.md` → ≥1 match inside beta.1 section
+- AC-005: count `-` bullet lines in `### Highlights` section → 5–8 bullets
+- Dry-run `git cliff --tag v1.0.0-beta.1 --unreleased --output /dev/stdout` output snippet documented in PR description
 
 ---
 
 ## Tasks
 
-1. **Determine the tag range:**
+1. **Determine the tag range (`--unreleased` handles both cases — do NOT use `--latest`):**
    Check if `v1.0.0-rc.1` exists as a git tag:
-   - If yes: range is `v1.0.0-rc.1..v1.0.0-beta.1`; `git cliff --tag v1.0.0-beta.1` with
-     the prior tag already set uses `--latest` to get this range, OR use explicit range.
-   - If no: full history from initial commit; use `git cliff --tag v1.0.0-beta.1`
-     without `--latest`.
+   - If yes: `--unreleased` selects commits since the last existing tag (v1.0.0-rc.1..HEAD).
+     Dry-run invocation: `git cliff --tag v1.0.0-beta.1 --unreleased --output /dev/stdout`.
+   - If no: `--unreleased` selects all commits from the initial commit.
+     Dry-run invocation: `git cliff --tag v1.0.0-beta.1 --unreleased --output /dev/stdout`.
+   In both cases the invocation is identical: `--tag v1.0.0-beta.1 --unreleased`.
+   DO NOT use `--latest`; `--latest` requires the tag to already exist on HEAD and is
+   unreliable for the pre-tag first-release scenario (ADR-063 D5/D6).
 
 2. **Run the dry-run pass:**
    ```bash
@@ -302,12 +321,43 @@ block; 5-8 bullets maximum")
 
 ---
 
+## Holdout Applicability
+
+**Determination: N/A**
+
+The story-level holdout gate (CLAUDE.md, human-approved 2026-07-13) requires a built
+prism binary and an MCP-visible surface with wire-level assertions. This story has
+`tdd_mode: facade` and `crates_touched: []` — it produces no prism binary. Its entire
+deliverable is CHANGELOG.md content (Layer-2 git-cliff output + Layer-1 human-drafted
+narrative).
+
+Three reasons the gate does not apply:
+
+1. **No built prism binary.** The story's outputs are static text files. git-cliff is
+   an external CLI tool, not the prism MCP binary. No MCP stdio surface is created or
+   exercised.
+
+2. **All structural verification is implementer-visible.** AC-001..AC-005 are grep/count
+   assertions on CHANGELOG.md that the implementer explicitly performs. There is no
+   hidden machine-verifiable surface with genuine info-asymmetry.
+
+3. **Layer-1 content requires human editorial judgment.** The story mandates a human
+   curation gate (`estimated_passes: "1 human-in-the-loop cycle"`; ADR-063 D6 §3
+   "MANDATORY human curation gate for beta.1"). The Layer-1 Highlights draft is authored
+   by vsdd-factory:technical-writer, reviewed and curated by the release engineer in the
+   PR. A machine holdout cannot substitute for this human gate and must NOT be fabricated
+   as a substitute for it.
+
+`holdout_scenarios: []` — no scenarios authored; HOLDOUT-INDEX unchanged.
+
+---
+
 ## Edge Cases
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | v1.0.0-rc.1 tag does NOT exist in the repo | Use full history from initial commit; output may be very long; noise control is critical |
-| EC-002 | v1.0.0-rc.1 tag EXISTS | Range is v1.0.0-rc.1..v1.0.0-beta.1; use `--latest` flag (git-cliff auto-detects previous tag) |
+| EC-002 | v1.0.0-rc.1 tag EXISTS | Range is v1.0.0-rc.1..v1.0.0-beta.1; use `--unreleased --tag v1.0.0-beta.1` (git-cliff auto-selects commits since the last existing tag via `--unreleased`). DO NOT use `--latest` (ADR-063 D5/D6) |
 | EC-003 | No BREAKING CHANGE commits in the range | Omit `### Breaking Changes (narrative)` and `### Breaking Changes (from commits)` sections |
 | EC-004 | Technical-writer draft includes aspirational features | Human curation gate removes them before merge |
 | EC-005 | Layer-2 output is empty (all commits were skipped) | Do not ship an empty section; add representative feat/fix entries manually or revisit skip rules |
@@ -318,4 +368,5 @@ block; 5-8 bullets maximum")
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-06 | story-writer | Sweep #13: Task 1 `--latest` reference replaced with `--unreleased --tag` (both cases); EC-002 updated to use `--unreleased --tag v1.0.0-beta.1` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D6 first-release handling materialization |

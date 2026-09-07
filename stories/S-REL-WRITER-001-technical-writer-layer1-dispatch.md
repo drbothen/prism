@@ -5,8 +5,8 @@ title: "devops: technical-writer Layer-1 dispatch contract — Highlights/Breaki
 wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
-status: draft
-version: "1.0"
+status: ready
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -41,6 +41,14 @@ red_gate_tests: 0
 # red_gate_tests: 0 — facade mode. No Rust code; no Red Gate.
 estimated_passes: "1 LOCAL adversary pass"
 holdout_scenarios: []
+# HOLDOUT-N/A: tdd_mode=facade; crates_touched=[]; no built prism binary; no MCP-visible
+# surface. Deliverable is a release-prep.yml YAML step (echo placeholder notices) and
+# RELEASING.md prose. All verification is structural grep/text checks the implementer
+# explicitly performs (AC-001..AC-005: grep on YAML file + RELEASING.md text). The
+# dispatch step itself contains only echo commands — it is a placeholder notice, not
+# executable runtime code. No info-asymmetry surface exists. Gate definitionally
+# inapplicable per CLAUDE.md story-level holdout gate definition (requires built prism
+# binary + MCP stdio wire assertions, scoped to the story's touched surface).
 assumption_validations: []
 risk_mitigations:
   - "Layer-1 content (### Highlights etc.) is placed INSIDE the ## [VERSION] block,
@@ -67,8 +75,8 @@ phase: "3"
 # S-REL-WRITER-001 — Technical-Writer Layer-1 Dispatch Contract
 
 **Story ID:** S-REL-WRITER-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.1
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -142,9 +150,13 @@ Well within the 30% context window budget.
 
 ## Red Gate Test List (SAC-1)
 
-**tdd_mode: facade — no Rust Red Gate tests.** Verification is structural:
-- The release-prep.yml has two correctly ordered steps (git-cliff before technical-writer)
-- RELEASING.md §5 documents the two-layer model and the placement rule
+**tdd_mode: facade — Red Gate is N/A.** No Rust production code; no Red Gate tests.
+Verification is via structural grep/text checks the implementer explicitly performs:
+- AC-001: `grep -n 'technical-writer\|Layer-1' .github/workflows/release-prep.yml` → ≥1 match positioned AFTER the git-cliff step
+- AC-002: `grep -n 'Layer 1\|Layer-1\|Highlights' RELEASING.md` → matches in §5 section
+- AC-003: Read RELEASING.md §5 text → confirms placement language is INSIDE (not above) `## [VERSION]` block
+- AC-004: `grep -n 'Layer-1\|Highlights.*reviewed' .github/workflows/release-prep.yml` → ≥1 PR checklist item
+- AC-005: `git diff HEAD -- .github/workflows/release.yml` → no changes
 
 ---
 
@@ -223,7 +235,7 @@ awk extraction mechanism remains unchanged. (traces to ADR-063 D5 — "release.y
 
 | Story | Key Decisions | Patterns Established | Gotchas Discovered |
 |-------|--------------|---------------------|-------------------|
-| S-REL-CLIFF-001 | git-cliff 2.14.1 installed in release-prep.yml | git-cliff step exists and uses `--latest --prepend CHANGELOG.md` | `--output` must NOT be combined with `--prepend` |
+| S-REL-CLIFF-001 | git-cliff 2.14.1 installed in release-prep.yml | git-cliff step uses `--unreleased --tag "${VERSION_TAG}" --prepend CHANGELOG.md` (NOT `--latest`; ADR-063 D5/D6) | `--output` must NOT be combined with `--prepend`; `--latest` MUST NOT be used (unreliable for pre-tag invocations) |
 
 This story adds the Layer-1 step AFTER the S-REL-CLIFF-001 git-cliff step. Read the
 release-prep.yml post-CLIFF-001 state before inserting the new step.
@@ -279,6 +291,30 @@ release-prep.yml post-CLIFF-001 state before inserting the new step.
 
 ---
 
+## Holdout Applicability
+
+**Determination: N/A**
+
+The story-level holdout gate (CLAUDE.md, human-approved 2026-07-13) requires a built
+prism binary and an MCP-visible surface with wire-level assertions. This story has
+`tdd_mode: facade` and `crates_touched: []` — it produces no prism binary. Its entire
+deliverable is a new step in `.github/workflows/release-prep.yml` (composed of `echo`
+placeholder notices that document the expected manual dispatch action) and updated prose
+in `RELEASING.md §5`.
+
+All verification surfaces are structural text checks: AC-001 through AC-005 are grep
+patterns on the YAML workflow file and RELEASING.md. The technical-writer dispatch step
+contains only `echo` commands; it is a workflow documentation artifact, not executable
+product code. There is no runtime execution path, no MCP surface, and no binary
+buildable from this story's changes.
+
+No machine-verifiable hidden surface with genuine info-asymmetry exists. Do NOT
+fabricate a holdout for a gate that definitionally does not apply.
+
+`holdout_scenarios: []` — no scenarios authored; HOLDOUT-INDEX unchanged.
+
+---
+
 ## Edge Cases
 
 | ID | Description | Expected Behavior |
@@ -294,4 +330,5 @@ release-prep.yml post-CLIFF-001 state before inserting the new step.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-06 | story-writer | Sweep #13: Previous-Story-Intelligence `--latest --prepend` → `--unreleased --tag "${VERSION_TAG}" --prepend` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D4/D5 materialization |

@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.3"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -25,12 +25,20 @@ inputs:
   - docs/RELEASE-CHANNELS.md
   - .github/workflows/release-prep.yml
   - .github/workflows/release.yml
-input-hash: "65adac4"
+input-hash: "360fc13"
 ---
 
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.4 (2026-09-06) — D3 corrected: `[git] group_order` does not exist in git-cliff
+2.14.1 and MUST NOT be used. Numbered-group-name-prefix idiom is the authoritative mechanism:
+`commit_parsers` group values carry `<!-- N -->` sort prefixes; Tera body template strips them
+via `regex_replace` (git-cliff Tera extension). `breaking = true` parser added to route breaking
+commits into `<!-- 0 -->Breaking Changes` ahead of type-based parsers. Reference:
+git-cliff.org/docs §Configuration → Template Context → regex_replace. No change to D1/D2/D4/D5/D6
+decision content.
 
 ACCEPTED v1.3 (2026-09-05) — v1.3 backfills `anchor_stories` from §Authority ground truth per
 SAC-2: four E-REL-NOTES/E-REL-IDENTITY stories now exist on disk and cite ADR-063 in §Authority
@@ -144,7 +152,7 @@ body = """
 {% else %}## [Unreleased]
 {% endif %}
 {% for group, commits in commits | group_by(attribute="group") %}
-### {{ group }}
+### {{ group | regex_replace(pattern="<!-- \\d+ -->", replacement="") | trim }}
 {% for commit in commits %}
 - {% if commit.breaking %}**BREAKING** {% endif %}{{ commit.message }}\
 {% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ commit.remote.pr_url }})) by @{{ commit.remote.username }}{% endif %}
@@ -159,11 +167,14 @@ conventional_commits = true
 filter_unconventional = true
 commit_preprocessors = []
 commit_parsers = [
-  { message = "^feat", group = "Added" },
-  { message = "^fix", group = "Fixed" },
-  { message = "^perf", group = "Performance" },
-  { message = "^refactor", group = "Changed" },
-  { message = "^security", group = "Security" },
+  # `breaking = true` matches commits with `!` type suffix or `BREAKING CHANGE:` footer.
+  # Listed first so breaking commits resolve to <!-- 0 --> before type-based parsers.
+  { breaking = true, group = "<!-- 0 -->Breaking Changes" },
+  { message = "^feat", group = "<!-- 1 -->Added" },
+  { message = "^fix", group = "<!-- 2 -->Fixed" },
+  { message = "^perf", group = "<!-- 3 -->Performance" },
+  { message = "^refactor", group = "<!-- 4 -->Changed" },
+  { message = "^security", group = "<!-- 5 -->Security" },
   { message = "^docs", skip = true },
   { message = "^ci", skip = true },
   { message = "^test", skip = true },
@@ -185,9 +196,26 @@ owner = "drbothen"
 repo = "prism"
 ```
 
-The Breaking Changes section positioning (before Added) requires a `group_order` clause if using
-git-cliff templates that support it, or an explicit ordering via section numbering in the group
-name. The implementer story (E-REL-NOTES S-REL-CLIFF-001) owns the canonical `cliff.toml`.
+**Breaking Changes section ordering — authoritative mechanism (`group_order` does not exist in
+git-cliff 2.14.1):**
+
+`[git] group_order` is NOT a valid key in git-cliff 2.14.1's `cliff.toml` schema and MUST NOT be
+added. The authoritative mechanism is the **numbered-group-name-prefix idiom** shown in the sketch
+above: each `commit_parsers` `group` value carries an `<!-- N -->` HTML comment sort prefix, and
+the Tera body template strips it with `regex_replace` (a git-cliff Tera extension — reference:
+git-cliff.org/docs §Configuration → Template Context → regex_replace). Because git-cliff's Tera
+`group_by(attribute="group")` iterates in ascending string-sort order, `<!-- 0 -->Breaking Changes`
+renders before `<!-- 1 -->Added`. The `breaking = true` commit parser (listed first in the sketch)
+assigns commits with a `!` type suffix or `BREAKING CHANGE:` footer to `<!-- 0 -->Breaking Changes`
+before type-based parsers apply.
+
+Alternative: git-cliff 2.14's `commit_groups` template variable (see git-cliff.org/docs §Tera
+Template Context) may support explicit group ordering outside `group_by`; consult the
+template-context reference before using it.
+
+The implementing story (S-REL-CLIFF-001) owns the canonical `cliff.toml` and validates the
+numbered-prefix idiom against git-cliff 2.14.1; the numbered-prefix idiom is the REQUIRED
+starting point.
 
 ### D4 — Two-Layer CHANGELOG Model
 
@@ -429,6 +457,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-09-06 | architect | D3 corrected: `[git] group_order` is not a valid git-cliff 2.14.1 cliff.toml key and MUST NOT be used. Numbered-group-name-prefix idiom is the authoritative mechanism for Breaking Changes section ordering: `commit_parsers` group values updated with `<!-- N -->` sort prefixes (`<!-- 0 -->Breaking Changes` first via `breaking = true` parser); Tera body template updated with `regex_replace` strip expression. Reference: git-cliff.org/docs §Configuration → Template Context → regex_replace. |
 | 1.3 | 2026-09-05 | state-manager | MED-1 SAC-2 anchor_stories backfilled: four E-REL-NOTES/E-REL-IDENTITY stories verified on disk and citing ADR-063 in §Authority — S-REL-CLIFF-001 (D1/D3/D5), S-REL-WRITER-001 (D4/D5), S-REL-BETA1-NOTES-001 (D6), S-REL-VBUMP-001 (D1 git-cliff ownership). SAC-2 VERIFIED-EMPTY annotation removed. Frontmatter/traceability only — no decision content changed. |
 | 1.2 | 2026-09-05 | architect | C2: D5 Step 7 `--latest` → `--unreleased --tag` (documented pre-tag pattern; robust for first and recurring releases; `--latest` unreliable when no prior tag exists). D4 Layer-2 description + step-order note updated to match. D6 item 1 updated (--unreleased handles first-release automatically). Rationale #4 updated. C3: D3 prose corrected — `[remote.github]` `owner`/`repo` fields replace `repository` combined key; owner corrected `jmagady` → `drbothen`; cliff.toml sketch updated. |
 | 1.1 | 2026-09-05 | architect | BLOCKING-2: D5 git-cliff invocation fixed — removed `--output CHANGELOG.md`, keeps `--latest --prepend CHANGELOG.md` only (dual-flag caused duplicate sections). BLOCKING-4/5: D4 Layer-1 placement moved INSIDE the `## [VERSION]` block as `###` sections, not above it — ensures release.yml awk extraction captures Layer-1 without changes to release.yml; D5 technical-writer step reordered to run AFTER git-cliff; CHANGELOG structure example updated; Consequences updated. |

@@ -1,14 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.091"
+version: "8.092"
 status: current
-timestamp: 2026-09-06T15:00:00Z
+timestamp: 2026-09-07T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2474 (2026-09-06): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — durable §RESUME SNAPSHOT D-2474 authored. E-REL-IDENTITY COMPLETE (PR #262 + #263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean) ready for PR B delivery. NEXT: ready 3 E-REL-NOTES stories (S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001) → TDD-deliver PR B → git-cliff CHANGELOG → tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.012/total_stories 336 ALL UNCHANGED. TD-VSDD-097: N/A (session-wrap state update only; no spec/code content change). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.001→v9.002. SESSION-HANDOFF v8.090→v8.091. §RESUME SNAPSHOT D-2474 inserted; D-2473 SUPERSEDED.**
+> **D-2475 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES story-readiness + ADR-correction burst. 3 beta.1-blocking E-REL-NOTES stories readied: S-REL-CLIFF-001 [draft v1.1]→[ready v1.2] + S-REL-WRITER-001 [draft v1.0]→[ready v1.1] + S-REL-BETA1-NOTES-001 [draft v1.0]→[ready v1.1]. S-REL-VBUMP-001 v1.1→v1.2 (spec-accuracy sweep; status unchanged: draft). ADR-063 v1.3→v1.4 + ADR-064 v2.0→v2.1 corrected (remove-uncertainty pass: git-cliff 2.14.1 + cargo-release 1.1.5 CONFIRMED current). ARCH-INDEX v2.368→v2.369. STORY-INDEX v3.012→v3.013. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/holdout_index v1.42/total_stories 336 ALL UNCHANGED. TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.002→v9.003. SESSION-HANDOFF v8.091→v8.092. §RESUME SNAPSHOT D-2475 inserted; D-2474 SUPERSEDED.**
+
+> **D-2474 (2026-09-06): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — durable §RESUME SNAPSHOT D-2474 authored. E-REL-IDENTITY COMPLETE (PR #262 + #263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean) ready for PR B delivery. NEXT: ready 3 E-REL-NOTES stories (S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001) → TDD-deliver PR B → git-cliff CHANGELOG → tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.012/total_stories 336 ALL UNCHANGED. TD-VSDD-097: N/A (session-wrap state update only; no spec/code content change). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.001→v9.002. SESSION-HANDOFF v8.090→v8.091. §RESUME SNAPSHOT D-2474 inserted; D-2473 SUPERSEDED. [SUPERSEDED by D-2475]**
 
 > **D-2473 (2026-09-06): POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED to develop @a4cd1b3fd on explicit human authorization (admin override; self-authored PR). Merge commit a4cd1b3fdc1a7da91b3341c9b15d69461efdccb0. develop_head 19887ebcd→a4cd1b3fd. PR-LEVEL adversary 3-CLEAN(strict) on frozen HEAD 2b50853fb; pr-reviewer READY; security-reviewer CLEAN(PR-merge) (SEC-001 LOW = ratified ADR-064 §D2 residual); CI 51/51 green. POL-14 NO-OP (behavioral_contracts: []). ADR-064 §D4 + ADR-050 §D6 REALIZED. E-REL-IDENTITY COMPLETE (PR #262 + PR #263 merged). story_index v3.011→v3.012. bc_index v10.06/vp_index v2.22/arch_index v2.368/holdout_index v1.42 UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.000→v9.001. SESSION-HANDOFF v8.089→v8.090. §RESUME SNAPSHOT D-2473 inserted; D-2472 SUPERSEDED.**
 
@@ -30,7 +32,46 @@ timestamp: 2026-09-06T15:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2474 (2026-09-06 — SESSION WRAP; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2473]
+## §RESUME SNAPSHOT — D-2475 (2026-09-07 — E-REL-NOTES STORIES READY; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2474]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. All 3 beta.1-blocking E-REL-NOTES stories are now READY (CLIFF-001 v1.2 / WRITER-001 v1.1 / BETA1-NOTES-001 v1.1). ADR-063 v1.4 + ADR-064 v2.1 corrected. NEXT ACTION: per-story facade delivery of PR B on `.worktrees/E-REL-NOTES`, starting with S-REL-CLIFF-001.
+
+### Governing Objective
+v1.0.0-beta.1 release: 3 E-REL-NOTES stories READY; deliver PR B then tag.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. PR B — E-REL-NOTES git-cliff CHANGELOG pipeline, batched on the EXISTING worktree `.worktrees/E-REL-NOTES` (branch feature/E-REL-NOTES-changelog @ a4cd1b3fd):
+   a. Stories are already READY — do NOT re-ready. S-REL-CLIFF-001 v1.2 (cliff.toml + release-prep.yml integration; numbered-group-name-prefix; no group_order). S-REL-WRITER-001 v1.1 (technical-writer Layer-1 top-block dispatch). S-REL-BETA1-NOTES-001 v1.1 (full CHANGELOG generation + curation; --unreleased --tag, first-release handling).
+   b. Per-story TDD delivery (facade; holdout N/A per HOLDOUT-N/A annotation in each story): stubs/failing tests (test-writer) → implementer TDD → LOCAL adversary 3-CLEAN → demo-recorder per-AC → push → PR B → PR-LEVEL 3-CLEAN → admin squash-merge on EXPLICIT in-session human auth (self-authored PR needs --admin bypass auth).
+3. Generate CHANGELOG §[1.0.0-beta.1] on develop + Layer-1 top-block.
+4. Tag v1.0.0-beta.1: `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). TAG needs explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+S-1 (agent version surfaces) DONE + in beta.1 (human decision). beta channel + keep 1.0.0 core; v1.0.0-rc.1 = never-published ghost. Merges/tags need explicit in-session human auth; force-push any branch needs human approval.
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred from HS-032.
+- Human UI cleanup: delete merged remote branch origin/feature/S-REL-AGENT-VERSION-001; close obsolete PR #255.
+- S-REL-VBUMP-001 remains draft (status unchanged); not beta.1-blocking; deliver after beta.1 tag.
+
+### DECISION DELTA
+D-2475 = E-REL-NOTES story-readiness + ADR-correction burst. 3 stories readied; ADR-063/064 corrected; ARCH-INDEX v2.369; STORY-INDEX v3.013. D-2474 session wrap remains valid; D-2473 PR #263 merge unchanged.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2475: E-REL-NOTES story-readiness + ADR-correction burst. §RESUME SNAPSHOT D-2475 inserted; D-2474 SUPERSEDED. story_index v3.012→v3.013; arch_index v2.368→v2.369. ADR-063 v1.3→v1.4; ADR-064 v2.0→v2.1. STATE v9.002→v9.003; SESSION-HANDOFF v8.091→v8.092. develop_head UNCHANGED a4cd1b3fd.
+
+---
+
+## §RESUME SNAPSHOT — D-2474 (2026-09-06 — SESSION WRAP; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2473] [SUPERSEDED by D-2475]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY version identity COMPLETE — PR #262 + #263 merged to develop @ a4cd1b3fd; prism-mcp serverInfo.version + prism-spec-engine UA now carry the injected PRISM_VERSION. ONLY beta.1 work left is PR B (git-cliff CHANGELOG pipeline) then the tag. NEXT ACTION: ready the 3 E-REL-NOTES stories then TDD-deliver PR B on the already-created .worktrees/E-REL-NOTES worktree.

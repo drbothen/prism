@@ -5,8 +5,8 @@ title: "devops: git-cliff setup — cliff.toml at repo root + release-prep.yml S
 wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
-status: draft
-version: "1.1"
+status: ready
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -46,6 +46,14 @@ red_gate_tests: 0
 # history produces non-empty, correct-categorization output.
 estimated_passes: "1-2 LOCAL adversary passes"
 holdout_scenarios: []
+# HOLDOUT-N/A: tdd_mode=facade; crates_touched=[]; no built prism binary; no MCP-visible
+# surface. Verification is via git-cliff dry-run CLI execution that the implementer
+# explicitly performs: AC-002 (skip-rules output check), AC-006 (breaking-changes
+# ordering), and Tasks 3+6 both require running the dry-run and documenting the output
+# snippet in the PR description. git-cliff is an external CLI tool — not the prism MCP
+# binary. No info-asymmetry surface exists. Gate definitionally inapplicable per CLAUDE.md
+# story-level holdout gate definition (requires built prism binary + MCP stdio wire
+# assertions, scoped to the story's touched surface).
 assumption_validations: []
 risk_mitigations:
   - "git-cliff 2.14.1 must be pinned exactly. Future upgrades require bumping the
@@ -61,9 +69,12 @@ risk_mitigations:
   - "cliff.toml skip rules suppress docs/ci/test/chore/style/build/revert commits.
     If the develop dry-run output is still noisy, additional skip rules may be added
     before the beta.1 tag (ADR-063 D6 noise-control gate)."
-  - "Breaking Changes section must appear BEFORE Added in the output. The cliff.toml
-    body template uses group_by; group_order or section numbering may be needed to
-    enforce ordering. Verify in dry-run output."
+  - "Breaking Changes section must appear BEFORE Added in the output. The authoritative
+    mechanism is the numbered-group-name-prefix idiom per ADR-063 v1.4 D3: commit_parsers
+    group values carry <!-- N --> HTML comment sort prefixes (<!-- 0 -->Breaking Changes
+    before <!-- 1 -->Added); the Tera body template strips them via
+    {{ group | regex_replace(pattern=\"<!-- \\d+ -->\", replacement=\"\") | trim }}.
+    [git] group_order is NOT a valid key in git-cliff 2.14.1 and MUST NOT be added."
 inputs:
   - ".github/workflows/release-prep.yml"
   - ".factory/specs/architecture/decisions/ADR-063-changelog-release-notes-architecture.md"
@@ -76,8 +87,8 @@ phase: "3"
 # S-REL-CLIFF-001 — git-cliff Setup: cliff.toml + release-prep.yml Step 7 Replacement
 
 **Story ID:** S-REL-CLIFF-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -176,8 +187,13 @@ description before the PR can be reviewed.
      security→Security, docs/ci/test/chore/style/build/revert each with `skip = true`
    - `protect_breaking_commits = true`
    - `[remote.github]` section: `owner = "jmagady"`, `repo = "prism"`
-   - Breaking Changes section must appear BEFORE Added in the output (verify via
-     dry-run; add `group_order` if needed)
+   - Breaking Changes section must appear BEFORE Added in the output — use the
+     numbered-group-name-prefix idiom per ADR-063 v1.4 D3: `commit_parsers` group
+     values carry `<!-- N -->` HTML comment sort prefixes (`<!-- 0 -->Breaking
+     Changes` before `<!-- 1 -->Added`); the Tera body template strips them via
+     `{{ group | regex_replace(pattern="<!-- \\d+ -->", replacement="") | trim }}`.
+     `[git] group_order` does NOT exist in git-cliff 2.14.1 and MUST NOT be added.
+     Verify section ordering in dry-run output.
 
 3. **Run dry-run on develop history:**
    ```bash
@@ -253,7 +269,12 @@ and does NOT show `-o CHANGELOG.md` or `--output CHANGELOG.md`.
 ### AC-006: Breaking Changes section precedes Added in cliff.toml output
 Dry-run on a commit history that includes BREAKING CHANGE footers shows the
 `### Breaking Changes` section before the `### Added` section in the generated
-CHANGELOG body. (traces to ADR-063 D3 — "Breaking Changes section is ordered first")
+CHANGELOG body. The numbered-group-name-prefix idiom (ADR-063 v1.4 D3) must be
+in place: `<!-- 0 -->Breaking Changes` appears before `<!-- 1 -->Added` in
+cliff.toml `commit_parsers`; `[git] group_order` MUST NOT appear in cliff.toml
+(it does not exist in git-cliff 2.14.1). Verify by: `grep 'group_order' cliff.toml`
+must return no match. (traces to ADR-063 v1.4 D3 — numbered-group-name-prefix idiom;
+Breaking Changes ordered first via <!-- 0 --> sort prefix)
 
 ---
 
@@ -315,6 +336,30 @@ tooling epic.
 
 ---
 
+## Holdout Applicability
+
+**Determination: N/A**
+
+The story-level holdout gate (CLAUDE.md, human-approved 2026-07-13) requires a built
+prism binary and an MCP-visible surface with wire-level assertions. This story has
+`tdd_mode: facade` and `crates_touched: []` — it produces no prism binary. Its entire
+deliverable is `cliff.toml` (TOML config) and a `.github/workflows/release-prep.yml`
+patch.
+
+All verification surfaces are explicitly exercised by the implementer before PR:
+AC-002 requires running `git cliff --unreleased --output /dev/stdout` and inspecting
+skip-rule output; AC-006 requires verifying Breaking Changes precedes Added in dry-run
+output; Tasks 3 and 6 both require running the dry-run and documenting the output
+snippet in the PR description. git-cliff is an external CLI tool, not the prism MCP
+binary, so no MCP stdio wire-level assertions are possible.
+
+No machine-verifiable hidden surface with genuine info-asymmetry exists. Do NOT
+fabricate a holdout for a gate that definitionally does not apply.
+
+`holdout_scenarios: []` — no scenarios authored; HOLDOUT-INDEX unchanged.
+
+---
+
 ## Edge Cases
 
 | ID | Description | Expected Behavior |
@@ -331,5 +376,6 @@ tooling epic.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-06 | story-writer | Sweep #14 (group_order): replace group_order language in Task 2, AC-006, and risk_mitigations with ADR-063 v1.4 D3 numbered-group-name-prefix idiom; state that [git] group_order does NOT exist in git-cliff 2.14.1 and MUST NOT be added; status draft→ready |
 | 1.1 | 2026-09-05 | story-writer | Sync to ADR-063 v1.2 D5 — replace `--latest` with `--unreleased --tag ... --prepend` throughout; Task 4 YAML, Task 6 dry-run, Behavioral Contracts table, Architecture Compliance Rules, risk_mitigations, title, and blocks comment all updated to use `--unreleased` |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D1/D3/D5 materialization |

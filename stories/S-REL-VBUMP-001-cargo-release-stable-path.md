@@ -6,7 +6,7 @@ wave: F-B
 epic_id: E-REL-IDENTITY
 priority: P1
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -37,7 +37,7 @@ risk: MEDIUM
 # MEDIUM risk: this is a stub — the full implementation will be authored before
 # stable v1.0.0. The stub must be correct but may be incomplete for edge cases
 # that only become visible during stable release preparation.
-acceptance_criteria_count: 4
+acceptance_criteria_count: 5
 red_gate_tests: 0
 # red_gate_tests: 0 — facade mode. No Rust code.
 estimated_passes: 1
@@ -47,8 +47,10 @@ risk_mitigations:
   - "cargo-release version 1.1.5 (ADR-064 D3) — pin exactly in install step of
     release-prep.yml; do not use 'latest'."
   - "Stub scope: the cargo-release config in prism-bin/Cargo.toml sets the
-    [package.metadata.release] block with the known-correct fields; full pre-release
-    tag handling detail is documented as out-of-scope (BEFORE-STABLE)."
+    [package.metadata.release] block including `release = true` (required to override
+    the manifest-level `[package] publish = false` release-disable per ADR-064 v2.1 §D3)
+    and all other known-correct fields; full pre-release tag handling detail is documented
+    as out-of-scope (BEFORE-STABLE)."
   - "release-prep.yml Python-heredoc steps are replaced by `cargo release --dry-run`
     for the stable path only; the pre-release path (S-REL-CLIFF-001 + S-REL-BVERSION-INJECT-001)
     is unchanged."
@@ -69,7 +71,7 @@ phase: "3"
 
 **Story ID:** S-REL-VBUMP-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.2
 **Wave:** F-B
 **Priority:** P1 (BEFORE-STABLE; NOT beta.1-blocking)
 **Points:** 5
@@ -136,6 +138,8 @@ This story has no subsystem behavioral contracts. Authority is ADR-064 D3.
 | ADR-064 D3 | cargo-release 1.1.5 for stable path only |
 | ADR-063 D1 | git-cliff owns CHANGELOG; cargo-release must NOT also update it |
 | ADR-064 D1 | prism-bin Cargo.toml already at 1.0.0-dev before this story executes |
+| ADR-064 v2.1 §D3 | `[package.metadata.release] release = true` is REQUIRED — `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0 to disable the entire release process ("nothing to release" → exit 101); `release = true` in `[package.metadata.release]` overrides that inference (reference: cargo-release reference.md §release) |
+| ADR-064 v2.1 §D3 | Mandatory dry-run gate before any `--execute`: `cargo release -p prism-bin <ver>` (no `--execute`) must confirm prism-bin is selected for release — not listed as "nothing to release" or exit 101 (AC-005) |
 
 ---
 
@@ -170,12 +174,22 @@ Verification is a `cargo release --dry-run` output check:
 
    ```toml
    [package.metadata.release]
-   # cargo-release 1.1.5 (ADR-064 v1.4 D3) — stable path only.
+   # cargo-release 1.1.5 (ADR-064 v2.1 §D3) — stable path only.
+   # REQUIRED: `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0
+   # to disable the ENTIRE release process ("nothing to release" → exit 101), not just the
+   # crates.io publish step. `release = true` here overrides that inference and re-enables
+   # the release process. Reference: cargo-release reference.md §release
+   # (github.com/crate-ci/cargo-release §docs/reference.md).
+   release = true                # REQUIRED: override manifest-level publish=false release-disable
    # Pre-release versioning is handled by build.rs + GITHUB_REF_NAME (ADR-064 D2).
    sign-tag = true
    sign-commit = false
    push = false                  # CI pushes; not cargo-release
-   publish = false               # Workspace is not published to crates.io
+   publish = false               # Skip crates.io publish only — prism crates are internal.
+                                  # Note: this `publish = false` key (inside [package.metadata.release])
+                                  # is a SEPARATE key from `release = true` above — it controls only
+                                  # the cargo publish step and does NOT counteract the manifest-level
+                                  # release-disable. Both keys are required (ADR-064 v2.1 §D3).
    # pre-release-commit-message is intentionally OMITTED.
    # That key expects a STRING template (e.g. "chore: release {{version}}"), not a bool.
    # Passing `false` is a type error in cargo-release 1.1.5. To suppress the interim
@@ -253,9 +267,13 @@ This stub is NOT sufficient for that gate. It is sufficient for:
 
 ## Acceptance Criteria
 
-### AC-001: prism-bin/Cargo.toml contains [package.metadata.release] block
+### AC-001: prism-bin/Cargo.toml contains [package.metadata.release] block with release = true
 `grep '\[package\.metadata\.release\]' crates/prism-bin/Cargo.toml` returns 1 match.
-(traces to ADR-064 D3 — cargo-release config required for stable path)
+`grep -A 15 '\[package\.metadata\.release\]' crates/prism-bin/Cargo.toml` shows `release = true`
+within the block. The `release = true` key is REQUIRED to override the manifest-level
+`[package] publish = false` release-disable inference in cargo-release >= 1.0.0 — without it,
+cargo-release exits 101 with "nothing to release" for prism-bin.
+(traces to ADR-064 v2.1 §D3 — manifest-level `publish = false` release-disable override)
 
 ### AC-002: cargo-release disables CHANGELOG updates
 The `[package.metadata.release]` block does not configure cargo-release to update
@@ -277,6 +295,17 @@ No publish steps reported (publish disabled).
 and the surrounding step has an `if:` condition excluding pre-release tags.
 (traces to ADR-064 D3 — stable-path CI must validate cargo-release plan)
 
+### AC-005: BLOCKING dry-run gate — prism-bin is selected (not "nothing to release")
+`cargo release -p prism-bin "${NEXT_VERSION}"` (without `--execute`; cargo-release 1.1.5
+default is dry-run when `--execute` is absent) exits 0 AND output confirms prism-bin is
+selected for release. A "nothing to release" message or exit 101 means `metadata.release.release = true`
+did not override the manifest-level `publish = false` inference — investigate configuration
+before any `--execute` invocation. This gate is MANDATORY and must be verified before the
+`--execute` step in Task 5. (traces to ADR-064 v2.1 §D3 — "mandatory dry-run gate is a
+BLOCKING acceptance criterion in S-REL-VBUMP-001 ACs"; discharges residual uncertainty about
+whether `metadata.release.release = true` fully overrides manifest-level inference in all
+cargo-release 1.1.5 scenarios)
+
 ---
 
 ## Previous Story Intelligence
@@ -296,6 +325,7 @@ and the surrounding step has an `if:` condition excluding pre-release tags.
 | git-cliff owns CHANGELOG | ADR-063 D1 | AC-002: cargo-release CHANGELOG update disabled |
 | cargo-release is stable-path only | ADR-064 D3 | AC-004: dry-run step gated on `!contains(ref, '-beta')` |
 | publish disabled (workspace is not a crates.io crate) | ADR-064 D3 prose | `publish = false` in Cargo.toml metadata (`disable-publish` is a stale pre-1.0 key; not valid in 1.1.5) |
+| `release = true` in `[package.metadata.release]` (manifest-level disable override) | ADR-064 v2.1 §D3 | AC-001: `grep -A 15 '[package.metadata.release]'` confirms `release = true`; AC-005 BLOCKING dry-run gate confirms no "nothing to release" / exit 101 |
 
 ---
 
@@ -350,5 +380,6 @@ and the surrounding step has an `if:` condition excluding pre-release tags.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-06 | story-writer | Dim-2 handoff per ADR-064 v2.1 §D3: add `release = true` to Task 1 TOML sketch (manifest-level publish=false disable-override); amend AC-001 to check `release = true`; add AC-005 BLOCKING dry-run crate-selection gate; add Behavioral Contracts row for release = true + dry-run gate; add Architecture Compliance Rules row; update Stub scope risk_mitigations bullet; acceptance_criteria_count 4→5; version v1.0→v1.2 |
 | 1.1 | 2026-09-05 | story-writer | Sync to ADR-064 v1.4 D3 — remove stale `disable-publish` key; remove `pre-release-commit-message = false` (type error; key expects string or omission); add `pre-release-hook` as single bash -c wrapper; fix Before Stable Gate and EC-002 references |
 | 1.0 | 2026-09-05 | story-writer | Initial stub — ADR-064 D3 cargo-release configuration; full detail deferred to BEFORE-STABLE |
