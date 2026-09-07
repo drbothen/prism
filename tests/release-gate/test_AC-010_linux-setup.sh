@@ -56,7 +56,7 @@ else
 fi
 
 # DEFECT-REL001-PROTOC-MISSING-001 + F-REL001-P10-001:
-# protoc toolchain is required by prost-build (prism-ocsf build.rs) on all 5 matrix legs.
+# protoc toolchain is required by prost-build (prism-ocsf build.rs) on all 4 matrix legs.
 # The fix-burst that added the setup-protoc step must have a load-bearing suite assertion
 # per the F-REL001-P10-001 codified discipline (any fix-burst adding load-bearing workflow
 # logic must add a suite assertion in the same burst).
@@ -82,10 +82,10 @@ if [ -z "$protoc_block" ]; then
   tap_fail "AC-010: setup-protoc step block not found in release.yml" \
     "AC-010 FAIL: expected '- name: Install protoc (required by prost-build' step — absent entirely"
 elif echo "$protoc_block" | grep -qF 'if:' 2>/dev/null; then
-  tap_fail "AC-010: setup-protoc step is gated by if: (must run on all 5 matrix legs)" \
+  tap_fail "AC-010: setup-protoc step is gated by if: (must run on all 4 matrix legs)" \
     "AC-010 FAIL: setup-protoc step must be unconditional — 'if:' found in step block"
 else
-  tap_pass "AC-010: setup-protoc step runs unconditionally on all 5 matrix legs (no if: gate)"
+  tap_pass "AC-010: setup-protoc step runs unconditionally on all 4 matrix legs (no if: gate)"
 fi
 
 # DEFECT-REL001-MUSL-CXX-001 + F-REL001-P10-001 (SID-2 composed assertions):

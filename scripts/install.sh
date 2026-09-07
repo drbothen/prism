@@ -156,7 +156,7 @@ case "${OS}-${ARCH}" in
     ;;
   *)
     printf 'ERROR: unsupported platform: %s-%s\n' "${OS}" "${ARCH}" >&2
-    printf '  Supported: macOS (arm64, x86_64), Linux x86_64 (glibc/musl)\n' >&2
+    printf '  Supported: macOS (arm64), Linux x86_64 (glibc/musl)\n' >&2
     printf '  For Windows (x86_64-pc-windows-msvc), use scripts/install.ps1\n' >&2
     exit 1
     ;;

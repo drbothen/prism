@@ -32,7 +32,7 @@ product or runtime behavior changed between the rc.1 tag and beta.1.
 
 #### CI/CD and Release Infrastructure
 
-- Full 5-platform release pipeline (`aarch64-apple-darwin`, `x86_64-apple-darwin`,
+- Full 4-platform release pipeline (`aarch64-apple-darwin`,
   `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `x86_64-pc-windows-msvc`)
   with static musl via `cargo-zigbuild`, build-provenance attestations, and
   `checksums.txt` generation (S-0.01, S-REL-001, #1, #228)

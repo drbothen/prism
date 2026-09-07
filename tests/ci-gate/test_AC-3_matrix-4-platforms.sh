@@ -36,7 +36,7 @@ for runner in "${RUNNERS[@]}"; do
     tap_pass "AC-3: runner '${runner}' listed under matrix.include"
   else
     tap_fail "AC-3: runner '${runner}' NOT listed under matrix.include" \
-      "AC-3 FAIL: runner '${runner}' missing from ci.yml matrix — all 5 platforms must run in parallel"
+      "AC-3 FAIL: runner '${runner}' missing from ci.yml matrix — all 4 platforms must run in parallel"
   fi
 done
 

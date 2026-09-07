@@ -13,7 +13,7 @@
 //! **Critical:** `GITHUB_REF_NAME` is set on ALL GitHub Actions runs — branch name
 //! on push/pull_request, tag name only on tag-push. Without the `GITHUB_REF_TYPE`
 //! gate, non-release CI builds bake `PRISM_VERSION="develop"` into the binary,
-//! failing `test_cli_version_output_contains_semver` on all 5 ci.yml legs.
+//! failing `test_cli_version_output_contains_semver` on all 4 ci.yml legs.
 //! (F-VID-P1-CRIT-001, ADR-064 §D2)
 //!
 //! Both `PRISM_VERSION` and `PRISM_VERSION_IS_TAG_BUILD` are emitted and
@@ -45,7 +45,7 @@ fn main() {
     // events, tag name only on tag-push events. Gate on GITHUB_REF_TYPE == "tag" (or GITHUB_REF
     // starts with "refs/tags/") to avoid baking "develop" / "feature/..." into non-release
     // binaries. F-VID-P1-CRIT-001: unconditional use baked PRISM_VERSION="develop" into ci.yml
-    // builds, failing test_cli_version_output_contains_semver on all 5 legs.
+    // builds, failing test_cli_version_output_contains_semver on all 4 legs.
     //
     // MED-001 (pass-3): derivation extracted to resolve_is_tag_build() in version_resolver.rs
     // so that tests/version_identity.rs exercises the EXACT same logic.
