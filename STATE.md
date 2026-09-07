@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "9.011"
+version: "9.012"
 producer: state-manager
-timestamp: 2026-09-07T23:00:00Z
+timestamp: 2026-09-07T23:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ bc_index_version: "10.06"
 # NOTE: D-2432 — BC-INDEX v10.05→v10.06: DEFECT-CLAROTY-SORTBY-DETERMINISM-001 re-gate-pass-1 fix-burst — BC-2.16.013 pin v1.45→v1.46 (LOW-002: coupling + EC-016-013-011 Test-coupling note corrected; RG-009 hardened to strictly enforce timestamp-only id-absent). draft/active/total UNCHANGED 3/261/277. D-2430 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "3.019"
-# NOTE: D-2483 — STORY-INDEX v3.018→v3.019: S-REL-BETA1-NOTES-001 v1.2→v1.3 (Task 7 + EC-003 breaking-heading label swept to plain `### Breaking Changes`; Dim-2 DISCHARGED). total_stories 336 UNCHANGED. D-2479 NOTE archived.
+story_index_version: "3.020"
+# NOTE: D-2484 — STORY-INDEX v3.019→v3.020: S-REL-BETA1-NOTES-001 v1.3→v1.4 (out-of-perimeter spec-drift fix: Task 5/Task 2/Behavioral Contracts `git cliff --tag` → `git cliff --unreleased --tag`; omitted `--unreleased` caused full-history regeneration when prior tag exists). total_stories 336 UNCHANGED. D-2483 NOTE archived.
 arch_index_version: "2.375"
 # NOTE: D-2483 — ARCH-INDEX v2.374→v2.375: ADR-063 pin v1.9→v1.10 (§D4 breaking-heading label corrected to plain `### Breaking Changes`); v2.374 L1-backfill included. D-2479 NOTE archived.
 workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2483 (TD-VSDD-053) — E-REL-NOTES CLIFF+WRITER code @5ead5f1cb (LOCAL pass-7: 1 LOW [pre-strip comment] + 1 OBS [ADR-063 §D4 breaking-heading label] FIXED; executable config + 11 ACs adversary-CLEAN; ADR-063 v1.10; ARCH-INDEX v2.375 incl v2.374 L1 backfill). CLEAN(strict): NO; CLEAN(PR-merge): YES. LOCAL 3-CLEAN(strict) streak 0/3; NEXT: re-gate LOCAL adversary on frozen 5ead5f1cb → 3-CLEAN → BETA1-NOTES CHANGELOG gen + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v9.010→v9.011. SESSION-HANDOFF v8.099→v8.100."
+current_step: "D-2484 (TD-VSDD-053) — E-REL-NOTES CLIFF+WRITER frozen code @5ead5f1cb — LOCAL 3-CLEAN(strict) streak 1/3 (first CLEAN pass, zero diff findings). BETA1-NOTES-001 v1.4 (--unreleased spec-drift fixed, out-of-perimeter). CLEAN(strict): YES; CLEAN(PR-merge): YES. NEXT: LOCAL adversary pass 2/3 then 3/3 on frozen 5ead5f1cb → CONVERGED → BETA1-NOTES CHANGELOG gen + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.375 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v9.011→v9.012. SESSION-HANDOFF v8.100→v8.101."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-07 D-2483: E-REL-NOTES LOCAL pass-7 (2 findings: 1 LOW [pre-strip comment] + 1 OBS [ADR-063 §D4 breaking-heading] FIXED; code @5ead5f1cb; ADR-063 v1.10; ARCH-INDEX v2.375; STORY-INDEX v3.019). CLEAN(strict): NO; CLEAN(PR-merge): YES. LOCAL 3-CLEAN streak 0/3; NEXT: re-gate LOCAL adversary on frozen 5ead5f1cb. trajectory-tail →8→0→1→2. STATE v9.010→v9.011. |
+| **Last Updated** | 2026-09-07 D-2484: E-REL-NOTES LOCAL pass-8 CLEAN(strict): YES — ZERO diff findings; streak 1/3. BETA1-NOTES-001 v1.4 (--unreleased out-of-perimeter spec-drift fix). STORY-INDEX v3.020. trajectory-tail →8→0→1→2. STATE v9.011→v9.012. |
 
 ## Phase Progress
 
@@ -201,6 +201,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 | ID | Author | Date | Decision | Cycle | Updated |
 |----|--------|------|----------|-------|---------|
+| D-2484 | state-manager | 2026-09-07 | **SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL adversary CLEAN(strict) pass-8 on frozen 5ead5f1cb; ZERO diff findings. BC-5.39.001 3-CLEAN(strict) streak 0/3→1/3. Out-of-perimeter courtesy note (NOT a finding, streak NOT reset): S-REL-BETA1-NOTES-001 Task 5/Task 2/Behavioral Contracts `git cliff --tag` → `git cliff --unreleased --tag` — spec-drift corrected by story-writer (v1.3→v1.4); out-of-perimeter because BETA1-NOTES-001 is the next unreleased story, not part of the reviewed CLIFF-001+WRITER-001 diff. STORY-INDEX v3.019→v3.020. CLEAN(strict): YES; CLEAN(PR-merge): YES. TD-VSDD-097: Dim-1 CLEAR (BETA1-NOTES-001 --unreleased fix self-contained; no sibling twin) / Dim-2 CLEAR (Task 5 not a copy-source section for downstream artifacts) / Dim-3 CLEAR (no new unanchored MUSTs). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.375 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.011→v9.012. SESSION-HANDOFF v8.100→v8.101.** | wave-5-e-demo-fidelity | 2026-09-07 |
 | D-2483 | state-manager | 2026-09-07 | **SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL pass-7 fix-burst (1 LOW + 1 OBS FIXED; CLEAN(strict): NO, CLEAN(PR-merge): YES; streak 0/3). Code fix-burst: feature/E-REL-NOTES-changelog HEAD 1b0504b7d→5ead5f1cb (devops; code-only, not a factory commit). LOW-1 (devops): release-prep.yml pre-strip comment mislabeled strip-to-empty as "first release" — corrected to manually-reset state, cross-refs RELEASING.md §5 OBS-3. OBS-1 (architect): ADR-063 v1.9→v1.10 §D4 breaking-heading label corrected from `### Breaking Changes (from commits)` to `### Breaking Changes` (matches §D3 + shipped cliff.toml). Executable config (cliff.toml/release-prep.yml) + all 11 ACs adversary-CLEAN. ARCH-INDEX v2.374→v2.375 (ADR-063 pin v1.9→v1.10; v2.374 L1-backfill included). S-REL-BETA1-NOTES-001 v1.2→v1.3 (Task 7 + EC-003 breaking-heading label swept). STORY-INDEX v3.018→v3.019. TD-VSDD-097: Dim-1 CLEAR (ADR-063 no sibling twin); Dim-2 DISCHARGED (ADR-063 §D4 label → BETA1-NOTES-001 Task7+EC-003 swept same burst; CLIFF-001/WRITER-001 confirmed clean); Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.010→v9.011. SESSION-HANDOFF v8.099→v8.100.** | wave-5-e-demo-fidelity | 2026-09-07 |
 | D-2482 | state-manager | 2026-09-07 | **SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL pass-6 (frozen 7809f7e66): 4 findings (2 MED + 2 LOW) RELEASING.md prose + workflow comment; ALL FIXED @1b0504b7d + 4 holistic-audit proactive fixes. F-1 MED (devops): RELEASING.md §5 "both layers assembled in CI" overstated → Layer-2 auto / Layer-1 manual per ADR-063 D4 (S-REL-WRITER-001). F-2 LOW (devops): §6 recovery cross-ref §2 Step 7a → §5. F-3 LOW (devops): §6 rollback condition "before CHANGELOG modified" → modified-but-never-committed. F-4 MED (devops): Step 7 + cliff.toml idempotency scoped to different-version cycles + Step-3 branch guard. H-A (devops): §4 Step 2 Layer-1 technical-writer dispatch step added (was missing). H-B (devops): §5 step-order Step 7a corrected to manual. H-C (devops): §4 Step 6 install.sh/install.ps1 added. Infusion-term sweep confirmed clean. Executable cliff.toml adversary-CLEAN (pass-6 scope). WRITER-001 AC-002/AC-003 intact. CLIFF/WRITER ACs unaffected. Code fix-burst worktree HEAD 7809f7e66→1b0504b7d. No ADR/story/spec version changed. TD-VSDD-097 N/A (records + STATE only; no spec/BC/ADR content changed; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.374/story_index v3.018 UNCHANGED. total_stories 336 UNCHANGED. LOCAL 3-CLEAN(strict) streak 0/3; NEXT: re-gate LOCAL adversary on frozen 1b0504b7d. SESSION-HANDOFF D-2481 §RESUME SNAPSHOT SUPERSEDED by D-2482. records-lint exit 0. STATE v9.009→v9.010. SESSION-HANDOFF v8.098→v8.099.** | wave-5-e-demo-fidelity | 2026-09-07 |
 | D-2481 | state-manager | 2026-09-07 | **SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL pass-5 (frozen d457ab745): 1 MED (CLEAN(strict): NO, CLEAN(PR-merge): NO). MED-1 (devops): RELEASING.md §4 Step 6 item 5 + Step 7 stale `--generate-notes` prose contradicted §5 + release.yml (`--notes-file` curated-CHANGELOG; `--generate-notes` intentionally omitted) — FIXED by pure-doc devops fix-burst @7809f7e66: §4 Step 6/7 rewritten to `--notes-file` mechanism aligned with §5. Proactive full-file sweep fixed 2 additional stale references (§4 Step 6 item 6 + §5 archive-contents/infusions). Grep-clean: `--generate-notes`/`scaffold`/`git log --merges`/infusions = 0. actionlint CLEAN. WRITER-001 AC-002/AC-003 intact. CLIFF/WRITER ACs unaffected. Code fix-burst worktree HEAD d457ab745→7809f7e66. No ADR/story/spec version changed. TD-VSDD-097 N/A (records + STATE only; no spec/BC/ADR content changed; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.374/story_index v3.018 UNCHANGED. total_stories 336 UNCHANGED. LOCAL 3-CLEAN(strict) streak 0/3; NEXT: re-gate LOCAL adversary on frozen 7809f7e66. SESSION-HANDOFF D-2480 §RESUME SNAPSHOT SUPERSEDED by D-2481. records-lint exit 0. STATE v9.008→v9.009. SESSION-HANDOFF v8.097→v8.098.** | wave-5-e-demo-fidelity | 2026-09-07 |
@@ -411,25 +412,26 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2483 — E-REL-NOTES LOCAL pass-7: 1 LOW + 1 OBS FIXED; code @5ead5f1cb; ADR-063 v1.10; streak 0/3) [supersedes D-2482]
+## Session Resume Checkpoint (D-2484 — E-REL-NOTES LOCAL pass-8 CLEAN(strict) on frozen 5ead5f1cb; streak 1/3; ADR-063 v1.10; BETA1-NOTES-001 v1.4) [supersedes D-2483]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-7 (1 LOW + 1 OBS on frozen 1b0504b7d) FIXED by devops+architect fix-burst — code @5ead5f1cb. LOW-1 (devops): release-prep.yml pre-strip comment mislabeled strip-to-empty as "first release" — corrected to manually-reset state, cross-refs RELEASING.md §5 OBS-3. OBS-1 (architect): ADR-063 v1.9→v1.10 §D4 breaking-heading label corrected from `### Breaking Changes (from commits)` to `### Breaking Changes` (matches §D3 + shipped cliff.toml); S-REL-BETA1-NOTES-001 v1.2→v1.3 Task 7 + EC-003 swept (Dim-2). Executable config (cliff.toml/release-prep.yml) + all 11 ACs adversary-CLEAN. CLEAN(strict): NO; CLEAN(PR-merge): YES. LOCAL 3-CLEAN(strict) streak 0/3. NEXT ACTION: re-gate LOCAL adversary on frozen 5ead5f1cb → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG gen + human curation → demo → PR B.
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-8 on frozen 5ead5f1cb — ZERO diff findings. BC-5.39.001 3-CLEAN(strict) streak advances 0/3→1/3. Out-of-perimeter courtesy note (NOT a finding, streak NOT reset): S-REL-BETA1-NOTES-001 v1.3→v1.4 (Task 5/Task 2/BCs `git cliff --tag` → `git cliff --unreleased --tag`; story-writer spec-drift fix; out-of-perimeter because BETA1-NOTES-001 is the next unreleased story, not part of the CLIFF-001+WRITER-001 reviewed diff). STORY-INDEX v3.020. CLEAN(strict): YES; CLEAN(PR-merge): YES. LOCAL 3-CLEAN(strict) streak 1/3. NEXT ACTION: LOCAL adversary pass 2/3 on SAME frozen 5ead5f1cb → pass 3/3 → CONVERGED → BETA1-NOTES-001 CHANGELOG gen + human curation → demo → PR B.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
-1. **LOCAL adversary re-gate** on frozen code HEAD 5ead5f1cb (branch feature/E-REL-NOTES-changelog in `.worktrees/E-REL-NOTES`). Spec: ADR-063 v1.10 (§D3 striptags|trim, §D3 commit_preprocessors PR-links, §D3 filter-based breaking, §D3 3-substep prepend mechanism with else-arm absent, §D4 `### Breaking Changes` heading, §D4 technical-writer Layer-1 top-block manual dispatch per S-REL-WRITER-001, §D5 release-prep.yml --unreleased --tag). Per BC-5.39.001 3-CLEAN. Frozen HEAD rule: any code push resets streak to 0/3.
-2. **S-REL-BETA1-NOTES-001** (ready v1.3): after 3-CLEAN — generate CHANGELOG §[1.0.0-beta.1] (--unreleased --tag v1.0.0-beta.1; ADR-063 §D6 first-release handling; AC-006 dedup guard for pre-existing ##[1.0.0-beta.1] section) + human curation → demo-recorder → push → PR B.
-3. **PR B** → PR-LEVEL 3-CLEAN → admin squash-merge (explicit in-session human auth; self-authored PR).
-4. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). TAG needs explicit in-session human auth.
-5. **CLOSE obsolete PR #255** (do NOT merge; human clicks Close).
+1. **LOCAL adversary pass 2/3** on frozen code HEAD 5ead5f1cb (branch feature/E-REL-NOTES-changelog in `.worktrees/E-REL-NOTES`). Spec: ADR-063 v1.10 (§D3 striptags|trim, commit_preprocessors PR-links, filter-based breaking, 3-substep prepend mechanism with else-arm absent, §D4 `### Breaking Changes` heading, §D4 technical-writer Layer-1 top-block manual dispatch per S-REL-WRITER-001, §D5 release-prep.yml --unreleased --tag). BC-5.39.001: streak 1/3 on frozen 5ead5f1cb. Frozen-HEAD rule: any code push resets streak to 0/3.
+2. **LOCAL adversary pass 3/3** on same frozen 5ead5f1cb. If CLEAN(strict): CONVERGED (streak 3/3).
+3. **S-REL-BETA1-NOTES-001** (ready v1.4): after 3-CLEAN — generate CHANGELOG §[1.0.0-beta.1] (`git cliff --unreleased --tag v1.0.0-beta.1`; ADR-063 §D6 first-release handling; AC-006 dedup guard for pre-existing ##[1.0.0-beta.1] section) + human curation → demo-recorder → push → PR B.
+4. **PR B** → PR-LEVEL 3-CLEAN → admin squash-merge (explicit in-session human auth; self-authored PR).
+5. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). TAG needs explicit in-session human auth.
+6. **CLOSE obsolete PR #255** (do NOT merge; human clicks Close).
 
 **HEADS (backup boundary):**
 - `develop`: origin = `a4cd1b3fd` (PR #263 merged 2026-09-06; UNCHANGED).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
 - `main`: `bdf24cec8` (stub, untouched).
 - Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
-- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 5ead5f1cb, pass-7 FIXED). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 5ead5f1cb, pass-8 CLEAN; streak 1/3). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **PENDING USER-APPROVED WORK:** Self-authored PRs (S-REL series) need admin override — explicit in-session human auth. Force-push to any branch requires explicit human approval. Tag v1.0.0-beta.1 requires explicit in-session human auth.
 

@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -75,7 +75,7 @@ phase: "3"
 
 **Story ID:** S-REL-BETA1-NOTES-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -123,7 +123,7 @@ This story has no subsystem behavioral contracts. Authority is ADR-063 D6.
 
 | Architecture Source | Clause |
 |---------------------|--------|
-| ADR-063 D6 | Tag range: `git cliff --tag v1.0.0-beta.1` (no `--latest`; full history unless prior tag exists) |
+| ADR-063 D6 | Tag range: `git cliff --unreleased --tag v1.0.0-beta.1` (no `--latest`; `--unreleased` selects full history or range since last tag) |
 | ADR-063 D6 | Dry-run mandatory BEFORE the tag is cut |
 | ADR-063 D6 | Human curation gate MANDATORY for beta.1; technical-writer draft is 5-8 bullets max |
 | ADR-063 D6 | No retroactive re-wording of existing commits |
@@ -174,9 +174,8 @@ Verification is operational (implementer must explicitly perform and document ea
 
 2. **Run the dry-run pass:**
    ```bash
-   git cliff --tag v1.0.0-beta.1 --output /dev/stdout
+   git cliff --unreleased --tag v1.0.0-beta.1 --output /dev/stdout
    ```
-   (Or use `--unreleased --output /dev/stdout` if the tag does not yet exist.)
    Inspect the output for noise (excessive chore/ci/docs entries that passed the skip
    rules).
 
@@ -206,7 +205,7 @@ Verification is operational (implementer must explicitly perform and document ea
 5. **Generate Layer-2 content:**
    Run:
    ```bash
-   git cliff --tag v1.0.0-beta.1 --prepend CHANGELOG.md
+   git cliff --unreleased --tag v1.0.0-beta.1 --prepend CHANGELOG.md
    ```
    This prepends the `## [1.0.0-beta.1]` block (with categorized commit sections) to
    `CHANGELOG.md`.
@@ -395,6 +394,7 @@ Three reasons the gate does not apply:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-09-07 | story-writer | LOCAL adversary defect fix: Task 5 `git cliff --tag v1.0.0-beta.1 --prepend` → `git cliff --unreleased --tag v1.0.0-beta.1 --prepend` (omitted `--unreleased`; without it a prior-tag repo regenerates full history instead of unreleased commits — contradicting AC-006/EC-002/Task 1 and shipped release-prep.yml Step 7). Sweep also fixed Task 2 dry-run (same omission: `--output` invocation missing `--unreleased`) and Behavioral Contracts table example. All other `git cliff` invocations in story already correct. |
 | 1.3 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep: ADR-063 v1.10 §D4 heading label `### Breaking Changes (from commits)` → `### Breaking Changes` (plain heading, as emitted by git-cliff) in Task 7 example block and EC-003 omit-if-empty rule. Surrounding semantics (git-cliff-emitted breaking section, omit-if-empty) unchanged. |
 | 1.2 | 2026-09-07 | story-writer | F-9 (LOCAL adversary pass-1 duplicate-section risk): AC-006 added — operator must detect pre-existing ## [1.0.0-beta.1] section in CHANGELOG.md before generating and reconcile so exactly ONE block exists post-generation (PR #261 introduced a manual section; git cliff --prepend would create a duplicate without this gate). Task 4 (new) detect+reconcile step inserted; old Tasks 4–8 renumbered to 5–9. acceptance_criteria_count 5→6. status ready unchanged. |
 | 1.1 | 2026-09-06 | story-writer | Sweep #13: Task 1 `--latest` reference replaced with `--unreleased --tag` (both cases); EC-002 updated to use `--unreleased --tag v1.0.0-beta.1` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |

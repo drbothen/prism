@@ -279,3 +279,16 @@ DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — 
 **TD-VSDD-097 sweep verdict (D-2483):** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D4 breaking-heading label → BETA1-NOTES-001 Task 7 + EC-003 swept same burst; S-REL-CLIFF-001 Task 2/AC-006 and S-REL-WRITER-001 confirmed clean against the §D3 canonical `### Breaking Changes` form). Dim-3 CLEAR (no new MUSTs introduced; existing breaking-change MUST in CLIFF-001 AC-006 anchored unchanged).
 
 **Next (after pass-7):** LOCAL adversary re-gate on frozen code HEAD 5ead5f1cb (D-2483; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+| Pass 8 | 2026-09-07 | 0 | 0 | 0 | 0 | 0 | 1/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — ZERO diff findings. BC-5.39.001 streak advances 0/3→1/3 on frozen 5ead5f1cb. Out-of-perimeter courtesy note (NOT a finding, streak NOT reset): BETA1-NOTES-001 --unreleased spec-drift fixed v1.3→v1.4 (story-writer). NEXT: pass 2/3 on same frozen HEAD 5ead5f1cb |
+
+**Pass 8 finding summary (CLEAN(strict): YES; ZERO diff findings; streak 1/3):**
+
+No diff findings. The reviewed scope was the CLIFF-001+WRITER-001 diff on frozen code HEAD 5ead5f1cb.
+
+**Out-of-perimeter courtesy note (NOT a finding, did NOT reset streak):**
+
+During pass-8, the adversary noted that S-REL-BETA1-NOTES-001 (the next unreleased story, out-of-perimeter for this pass) had `git cliff --tag` invocations missing `--unreleased` in 3 locations (Task 5 primary invocation, BC table, Task 2 dry-run). This would cause full-history changelog regeneration when a prior tag exists, contradicting AC-006/EC-002/Task 1 and release-prep.yml Step 7. Fixed by story-writer: BETA1-NOTES-001 v1.3→v1.4. This is a .factory-only spec edit; frozen code HEAD 5ead5f1cb UNCHANGED; streak remains valid at 1/3.
+
+**TD-VSDD-097 sweep verdict (D-2484):** Dim-1 CLEAR (BETA1-NOTES-001 --unreleased fix is self-contained; no sibling twin story for BETA1-NOTES-001). Dim-2 CLEAR (Task 5 is not a copy-source section for downstream artifacts). Dim-3 CLEAR (no new unanchored MUSTs).
+
+**Next (after pass-8):** LOCAL adversary pass 2/3 on same frozen code HEAD 5ead5f1cb (D-2484; streak 1/3) → if CLEAN(strict): streak 2/3 → pass 3/3 → CONVERGED → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
