@@ -39,7 +39,7 @@ uuid = { version = "1", features = ["v7"] }
 lru = "0.18"
 # S-1.14-REDO: MaxMind MMDB GeoIP reader for MmdbSource (BC-2.19.001 / AC-1).
 # 0.28 API returns LookupResult<'_, T> from lookup() — NOT bare T (see story Task 4).
-maxminddb = "0.28"
+maxminddb = "0.30"
 # S-1.14-REDO: CSV file-backed source for CsvSource (BC-2.19.001 / AC-7).
 # Use csv::ReaderBuilder::new().has_headers(true).from_path(path) pattern.
 csv = "1.4"
