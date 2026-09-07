@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.090"
+version: "8.091"
 status: current
-timestamp: 2026-09-06T12:00:00Z
+timestamp: 2026-09-06T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2474 (2026-09-06): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — durable §RESUME SNAPSHOT D-2474 authored. E-REL-IDENTITY COMPLETE (PR #262 + #263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean) ready for PR B delivery. NEXT: ready 3 E-REL-NOTES stories (S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001) → TDD-deliver PR B → git-cliff CHANGELOG → tag v1.0.0-beta.1. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.012/total_stories 336 ALL UNCHANGED. TD-VSDD-097: N/A (session-wrap state update only; no spec/code content change). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.001→v9.002. SESSION-HANDOFF v8.090→v8.091. §RESUME SNAPSHOT D-2474 inserted; D-2473 SUPERSEDED.**
 
 > **D-2473 (2026-09-06): POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED to develop @a4cd1b3fd on explicit human authorization (admin override; self-authored PR). Merge commit a4cd1b3fdc1a7da91b3341c9b15d69461efdccb0. develop_head 19887ebcd→a4cd1b3fd. PR-LEVEL adversary 3-CLEAN(strict) on frozen HEAD 2b50853fb; pr-reviewer READY; security-reviewer CLEAN(PR-merge) (SEC-001 LOW = ratified ADR-064 §D2 residual); CI 51/51 green. POL-14 NO-OP (behavioral_contracts: []). ADR-064 §D4 + ADR-050 §D6 REALIZED. E-REL-IDENTITY COMPLETE (PR #262 + PR #263 merged). story_index v3.011→v3.012. bc_index v10.06/vp_index v2.22/arch_index v2.368/holdout_index v1.42 UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.000→v9.001. SESSION-HANDOFF v8.089→v8.090. §RESUME SNAPSHOT D-2473 inserted; D-2472 SUPERSEDED.**
 
@@ -28,7 +30,46 @@ timestamp: 2026-09-06T12:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2473 (2026-09-06 — PR #263 MERGED; E-REL-IDENTITY COMPLETE; develop @a4cd1b3fd) [supersedes D-2472]
+## §RESUME SNAPSHOT — D-2474 (2026-09-06 — SESSION WRAP; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2473]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY version identity COMPLETE — PR #262 + #263 merged to develop @ a4cd1b3fd; prism-mcp serverInfo.version + prism-spec-engine UA now carry the injected PRISM_VERSION. ONLY beta.1 work left is PR B (git-cliff CHANGELOG pipeline) then the tag. NEXT ACTION: ready the 3 E-REL-NOTES stories then TDD-deliver PR B on the already-created .worktrees/E-REL-NOTES worktree.
+
+### Governing Objective
+v1.0.0-beta.1 release: all 4 beta.1-blocking E-REL-IDENTITY stories MERGED. NEXT: PR B (git-cliff notes) → tag v1.0.0-beta.1.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. PR B — E-REL-NOTES git-cliff CHANGELOG pipeline, batched on the EXISTING worktree `.worktrees/E-REL-NOTES` (branch feature/E-REL-NOTES-changelog @ a4cd1b3fd):
+   a. READY the 3 stories (currently draft): S-REL-CLIFF-001 (cliff.toml + release-prep git-cliff `--unreleased --tag <tag> --prepend`), S-REL-WRITER-001 (technical-writer Layer-1 highlights top-block), S-REL-BETA1-NOTES-001 (first-release full git-cliff generation + curation). Bring each to status:ready with SAC-1 enumerated Red Gate list + BC-5.38.001 density check + red-then-green task ordering + 2-4 HIDDEN holdout scenarios (product-owner/story-writer).
+   b. Per-story TDD delivery: stubs/failing tests (test-writer) → implementer TDD → LOCAL adversary 3-CLEAN → story holdout gate → demo-recorder → push → PR B → PR-LEVEL 3-CLEAN → admin squash-merge on EXPLICIT in-session human auth (self-authored PR needs --admin bypass auth).
+3. Generate CHANGELOG §[1.0.0-beta.1] on develop + Layer-1 top-block.
+4. Tag v1.0.0-beta.1: `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane) → release.yml publishes 5-platform BETA pre-release with curated --notes-file body. TAG needs explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+S-1 (agent version surfaces) DONE + in beta.1 (human decision). beta channel + keep 1.0.0 core; v1.0.0-rc.1 = never-published ghost. Merges/tags need explicit in-session human auth; force-push any branch needs human approval.
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred from HS-032 (harness couldn't register a sensor adapter → 0 rows → enrichment never fired; Surface-B wire proven by inline wiremock test + AC-007).
+- Human UI cleanup: delete merged remote branch origin/feature/S-REL-AGENT-VERSION-001; close obsolete PR #255.
+- Lesson logged (D-2473, cycles/wave-5 lessons.md): TD-VSDD-097 Dim-2 downstream-copy sweeps (story-body/holdout/HOLDOUT-INDEX/ADR-pin) must be propagated in the SAME fix-burst as the code fix — recurred ~4× within S-REL-AGENT-VERSION-001.
+
+### DECISION DELTA
+D-2474 = this session wrap (RESUME SNAPSHOT). No un-recorded pipeline decisions remain; D-2473 recorded the PR #263 merge.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2474: SESSION WRAP. §RESUME SNAPSHOT D-2474 inserted; D-2473 SUPERSEDED. STATE v9.001→v9.002; SESSION-HANDOFF v8.090→v8.091. develop_head UNCHANGED a4cd1b3fd. All indices UNCHANGED.
+
+---
+
+## §RESUME SNAPSHOT — D-2473 (2026-09-06 — PR #263 MERGED; E-REL-IDENTITY COMPLETE; develop @a4cd1b3fd) [supersedes D-2472] [SUPERSEDED by D-2474]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 MERGED via PR #263 to develop @a4cd1b3fd (2026-09-06; explicit human auth). All 4 beta.1-blocking stories MERGED (PR #262: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001; PR #263: S-REL-AGENT-VERSION-001). E-REL-IDENTITY COMPLETE. ADR-064 §D4 + ADR-050 §D6 REALIZED. STORY-INDEX v3.012 (total_stories 336 UNCHANGED). HOLDOUT-INDEX v1.42. develop_head a4cd1b3fd.

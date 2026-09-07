@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "9.001"
+version: "9.002"
 producer: state-manager
-timestamp: 2026-09-06T12:00:00Z
+timestamp: 2026-09-06T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,7 +31,7 @@ workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2473 (TD-VSDD-053) — POST-MERGE SINGLE-COMMIT BURST: PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED to develop @a4cd1b3fd (explicit human auth; admin override). PR-LEVEL adversary 3-CLEAN(strict) on frozen HEAD 2b50853fb; pr-reviewer READY; security-reviewer CLEAN(PR-merge) (SEC-001 LOW = ratified ADR-064 §D2 residual); CI 51/51 green. ADR-064 §D4 + ADR-050 §D6 REALIZED. E-REL-IDENTITY COMPLETE (PR #262 + PR #263 merged). S-REL-AGENT-VERSION-001 [merged v1.5]. story_index v3.011→v3.012. develop_head 19887ebcd→a4cd1b3fd. trajectory-tail UNCHANGED →8→0→1→2. NEXT: PR B (E-REL-NOTES) → S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001 → tag v1.0.0-beta.1. STATE v9.000→v9.001. SESSION-HANDOFF v8.089→v8.090."
+current_step: "D-2474 (TD-VSDD-053) — SESSION WRAP SINGLE-COMMIT BURST: durable §RESUME SNAPSHOT D-2474 authored. E-REL-IDENTITY COMPLETE (PR #262 + #263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean). NEXT: ready 3 E-REL-NOTES stories (S-REL-CLIFF-001, S-REL-WRITER-001, S-REL-BETA1-NOTES-001) → TDD-deliver PR B → git-cliff CHANGELOG → tag v1.0.0-beta.1. Lesson (D-2473): TD-VSDD-097 Dim-2 downstream-copy sweeps must propagate in same fix-burst. develop_head UNCHANGED a4cd1b3fd. trajectory-tail UNCHANGED →8→0→1→2. STATE v9.001→v9.002. SESSION-HANDOFF v8.090→v8.091."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +84,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-06 D-2473: PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED to develop @a4cd1b3fd. PR-LEVEL 3-CLEAN(strict) on frozen HEAD 2b50853fb. E-REL-IDENTITY COMPLETE. story_index v3.011→v3.012. develop_head 19887ebcd→a4cd1b3fd. trajectory-tail UNCHANGED →8→0→1→2. STATE v9.000→v9.001. |
+| **Last Updated** | 2026-09-06 D-2474: SESSION WRAP — durable §RESUME SNAPSHOT D-2474. E-REL-IDENTITY COMPLETE (PR #262+#263 merged; develop @a4cd1b3fd). ACTIVE worktree .worktrees/E-REL-NOTES (feature/E-REL-NOTES-changelog). NEXT: PR B (E-REL-NOTES) → tag v1.0.0-beta.1. trajectory-tail UNCHANGED →8→0→1→2. STATE v9.001→v9.002. |
 
 ## Phase Progress
 
@@ -397,26 +397,27 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2473 — PR #263 MERGED; E-REL-IDENTITY COMPLETE; develop @a4cd1b3fd) [supersedes D-2472]
+## Session Resume Checkpoint (D-2474 — SESSION WRAP; develop @a4cd1b3fd; E-REL-NOTES worktree ACTIVE) [supersedes D-2473]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 (ADR-064 §D4 + ADR-050 §D6) MERGED via PR #263 to develop @a4cd1b3fd (2026-09-06; explicit human auth). E-REL-IDENTITY ALL stories merged (PR #262 + PR #263). STORY-INDEX v3.012 (total_stories 336 UNCHANGED). HOLDOUT-INDEX v1.42 UNCHANGED. develop_head a4cd1b3fd.
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY version identity COMPLETE — PR #262 + #263 merged to develop @ a4cd1b3fd; prism-mcp serverInfo.version + prism-spec-engine UA now carry the injected PRISM_VERSION. ONLY beta.1 work left is PR B (git-cliff CHANGELOG pipeline) then the tag. NEXT ACTION: ready the 3 E-REL-NOTES stories then TDD-deliver PR B on the already-created .worktrees/E-REL-NOTES worktree.
 
 **NEXT ACTIONS (in order):**
-0. **RESUME STEP 0:** CronList → re-arm heartbeat cron (8,23,38,53 * * * *) if absent/expired.
-1. **PR B (E-REL-NOTES)**: new worktree off develop @a4cd1b3fd → S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001.
-2. **CLOSE obsolete PR #255** (do NOT merge; human clicks Close).
-3. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
+0. **RESUME STEP 0:** CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+1. **PR B — E-REL-NOTES** (ACTIVE worktree `.worktrees/E-REL-NOTES`, branch feature/E-REL-NOTES-changelog @ a4cd1b3fd): ready 3 stories — S-REL-CLIFF-001 (cliff.toml + release-prep git-cliff), S-REL-WRITER-001 (Layer-1 highlights top-block), S-REL-BETA1-NOTES-001 (first-release full generation + curation). Each to status:ready with SAC-1 Red Gate list + BC-5.38.001 density check + 2-4 HIDDEN holdout scenarios. Then TDD-deliver per story → LOCAL 3-CLEAN → story holdout gate → demo → push → PR B → PR-LEVEL 3-CLEAN → admin squash-merge (explicit in-session human auth; self-authored PR).
+2. Generate CHANGELOG §[1.0.0-beta.1] on develop + Layer-1 top-block.
+3. Tag v1.0.0-beta.1: `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). TAG needs explicit in-session human auth.
+4. **CLOSE obsolete PR #255** (do NOT merge; human clicks Close).
 
 **HEADS (backup boundary):**
 - `develop`: origin = `a4cd1b3fd` (PR #263 merged 2026-09-06).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
 - `main`: `bdf24cec8` (stub, untouched).
 - Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
-- WORKTREES: ACTIVE — none (feature/S-REL-AGENT-VERSION-001 merged; worktree REMOVABLE). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ a4cd1b3fd, clean). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
-**HEARTBEAT:** durable cron (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
+**PENDING USER-APPROVED WORK:** Self-authored PRs (S-REL series) need admin override — explicit in-session human auth. Force-push to any branch requires explicit human approval. Tag v1.0.0-beta.1 requires explicit in-session human auth.
 
-**PENDING USER-APPROVED WORK:** Force-push to any branch requires explicit human approval.
+**HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
 **STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (k) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (l) BETA channel (not RC) for first published pre-release; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063 §versions); cargo-release 1.1.5 stable entrypoint (ADR-064 §D3); GITHUB_REF_NAME build.rs injection GATED on GITHUB_REF_TYPE=="tag" (ADR-064 §D2); prism-mcp serverInfo.version + prism-spec-engine UA → PRISM_VERSION COMPLETE (ADR-064 §D4 + ADR-050 §D6; ADR-064 v2.0); docs VERSION-AGNOSTIC. (n) S-REL-DOCS-CI-WIRE-001 registered (draft stub v0.1; E-REL-IDENTITY; POST-beta.1; P2; D-2456) — ci.yml job for docs version-agnostic check deferred post-beta.1. (o) S-REL-HOLDOUT-HARNESS-001 registered (draft v0.1; E-REL-IDENTITY; POST-beta.1; P2; D-2472) — holdout sensor harness for Surface-B UA end-to-end deferred post-beta.1.
