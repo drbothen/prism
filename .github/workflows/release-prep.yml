@@ -257,7 +257,7 @@ jobs:
       - name: Draft Layer-1 release notes (technical-writer)
         run: |
           set -euo pipefail
-          echo "::notice::Dispatch vsdd-factory:technical-writer to draft Layer-1 release notes"
+          echo "::notice::MANUAL STEP REQUIRED: dispatch vsdd-factory:technical-writer to draft Layer-1 release notes (not auto-run by this workflow)"
           echo "Technical-writer should:"
           echo "  1. Read CHANGELOG.md to find the newly-prepended ## [${VERSION}] block"
           echo "  2. Insert ### Highlights, ### Breaking Changes (narrative), ### Upgrade Notes"
@@ -304,18 +304,20 @@ jobs:
               f'## Release prep: v{version}',
               '',
               f'This PR was created by the `release-prep` workflow. It bumps `prism-bin`',
-              f'to `{version}`, generates a categorized CHANGELOG section via git-cliff',
-              f'(ADR-063 D5), and includes Layer-1 release notes drafted by the',
-              f'technical-writer agent (ADR-063 D4). See RELEASING.md §5 for the',
-              f'two-layer CHANGELOG model.',
+              f'to `{version}` and generates a categorized Layer-2 CHANGELOG section via',
+              f'git-cliff (ADR-063 D5). The Layer-1 `### Highlights` / `### Breaking Changes`',
+              f'/ `### Upgrade Notes` top-block is **not auto-generated** — it must be drafted',
+              f'by dispatching `vsdd-factory:technical-writer` and curated before merge (ADR-063 D4).',
               '',
               '**Before merging:**',
               '1. Review the git-cliff generated CHANGELOG entry (Layer 2) — entries are',
               '   auto-categorized under Added / Fixed / Performance / Changed / Security.',
-              '2. Review and curate the Layer-1 ### Highlights section — confirm it',
-              '   describes current behavior only; remove any aspirational bullets.',
-              '3. Review the Layer-1 ### Breaking Changes (narrative) section — confirm',
-              '   it is accurate, or remove the section if there are no breaking changes.',
+              '2. Dispatch `vsdd-factory:technical-writer` to draft the Layer-1 top-block',
+              '   (`### Highlights` + `### Breaking Changes` / `### Upgrade Notes` if',
+              '   applicable) inside `## [VERSION]` — this block is NOT present at PR',
+              '   open time and must be created before merge (ADR-063 D4).',
+              '3. Review and curate the drafted Layer-1 block — current behavior only;',
+              '   remove aspirational bullets; omit `### Breaking Changes` if none.',
               f'4. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`v{version}`).',
               '5. Wait for all required CI checks to pass.',
               '6. Merge this PR to `develop` (squash or merge commit per project convention).',
@@ -331,7 +333,8 @@ jobs:
               '',
               '## Checklist',
               '- [ ] CHANGELOG Layer-2 (git-cliff) entries reviewed',
-              '- [ ] Layer-1 Highlights section reviewed and curated',
+              '- [ ] Dispatch `vsdd-factory:technical-writer` to DRAFT the Layer-1 `### Highlights` (+ Breaking Changes / Upgrade Notes if applicable) top-block inside `## [VERSION]` (ADR-063 D4)',
+              '- [ ] Review and curate the drafted Layer-1 block; confirm it is present and accurate',
               '- [ ] Layer-1 Breaking Changes (narrative) section reviewed (or confirmed empty)',
               f'- [ ] `prism-bin` version in `Cargo.toml` matches intended tag `v{version}`',
               '- [ ] All required CI checks pass',
