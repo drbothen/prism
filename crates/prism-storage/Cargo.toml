@@ -19,7 +19,7 @@ prism-core = { path = "../prism-core", version = "0.2.0" }
 async-trait = "0.1"
 rocksdb = { version = "0.24" }
 bincode = { version = "2", features = ["serde"] }
-thiserror = "1"
+thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros"] }
