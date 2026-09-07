@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.097"
+version: "8.098"
 status: current
-timestamp: 2026-09-07T20:00:00Z
+timestamp: 2026-09-07T21:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2481 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL pass-5 (frozen d457ab745): 1 MED (CLEAN(strict): NO, CLEAN(PR-merge): NO). MED-1 (devops): RELEASING.md §4 Step 6 item 5 + Step 7 stale `--generate-notes` prose contradicted §5 + release.yml — FIXED by pure-doc devops fix-burst @7809f7e66: §4 Step 6/7 rewritten to `--notes-file` mechanism aligned with §5; proactive full-file sweep fixed 2 additional stale refs (§4 archive-contents/infusions). Grep-clean: `--generate-notes`/`scaffold`/`git log --merges`/infusions = 0. actionlint CLEAN. WRITER-001 AC-002/AC-003 intact. CLIFF/WRITER ACs unaffected. Code fix-burst HEAD d457ab745→7809f7e66. No ADR/story/spec version changed. TD-VSDD-097 N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.374/story_index v3.018 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v9.008→v9.009. SESSION-HANDOFF v8.097→v8.098. §RESUME SNAPSHOT D-2480 SUPERSEDED by D-2481.**
 
 > **D-2480 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL pass-4 (frozen cda652e5f): 1 OBS (CLEAN(strict): NO, CLEAN(PR-merge): YES). OBS-1 (devops): release-prep.yml PR-body Layer-1 top-block overstated as auto-generated per S-REL-WRITER-001 (ADR-063 D4) — workflow-prose fix @d457ab745 (Step 7a → "MANUAL STEP REQUIRED"; PR intro Layer-1 not-auto-generated + ADR-063 D4 cite; before-merge DRAFT-then-curate; checklist split DRAFT + curate action items). actionlint CLEAN. WRITER-001 AC-004 STILL SATISFIED. CLIFF/WRITER ACs all pass. No spec/story/index version changed. TD-VSDD-097 N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.374/story_index v3.018 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.007→v9.008. SESSION-HANDOFF v8.096→v8.097. §RESUME SNAPSHOT D-2479 SUPERSEDED by D-2480.**
 
@@ -40,7 +42,45 @@ timestamp: 2026-09-07T20:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2480 (2026-09-07 — E-REL-NOTES LOCAL pass-4: 1 OBS FIXED; code @d457ab745; ADR-063 v1.9; streak 0/3; CLEAN(PR-merge) reached) [supersedes D-2479]
+## §RESUME SNAPSHOT — D-2481 (2026-09-07 — E-REL-NOTES LOCAL pass-5: 1 MED FIXED; code @7809f7e66; ADR-063 v1.9; streak 0/3) [supersedes D-2480]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-5 (1 MED finding on frozen d457ab745) FIXED by devops pure-doc fix @7809f7e66. MED-1: RELEASING.md §4 Step 6 item 5 + Step 7 stale `--generate-notes` prose contradicted §5 + release.yml (which uses `--notes-file` curated-CHANGELOG, intentionally omits `--generate-notes`); full-file sweep also fixed 2 proactive stale refs (§4 archive-contents and infusions install step). Grep-clean confirmed. No spec/ADR/story changed. actionlint CLEAN. WRITER-001 AC-002/AC-003 intact. ADR-063 v1.9 / S-REL-CLIFF-001 v1.7 / S-REL-BETA1-NOTES-001 v1.2 UNCHANGED. CLEAN(strict): NO; CLEAN(PR-merge): NO. LOCAL 3-CLEAN(strict) streak 0/3. NEXT ACTION: re-gate LOCAL adversary on frozen 7809f7e66 → 3-CLEAN(strict) → BETA1-NOTES-001 curation → demo → PR B.
+
+### Governing Objective
+v1.0.0-beta.1 release: E-REL-NOTES pass-5 MED-1 FIXED @7809f7e66; re-gate LOCAL adversary on frozen 7809f7e66 → 3-CLEAN(strict) → BETA1-NOTES curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. **LOCAL adversary re-gate** on frozen code HEAD 7809f7e66 (`.worktrees/E-REL-NOTES` / feature/E-REL-NOTES-changelog). Spec: ADR-063 v1.9 (§D3 striptags|trim + commit_preprocessors PR-links + filter-based breaking + 3-substep prepend mechanism, else-arm absent from body-template, §D4 technical-writer Layer-1 top-block, §D5 release-prep.yml --unreleased --tag). BC-5.39.001 3-CLEAN(strict). Frozen-HEAD rule: any push resets streak to 0/3.
+3. After 3-CLEAN(strict): **S-REL-BETA1-NOTES-001** (ready v1.2) — generate CHANGELOG §[1.0.0-beta.1] (--unreleased --tag v1.0.0-beta.1; ADR-063 §D6 first-release handling; AC-006 dedup guard for pre-existing ##[1.0.0-beta.1] section) + human curation → demo-recorder per-AC → push → PR B.
+4. **PR B** → PR-LEVEL 3-CLEAN → admin squash-merge (explicit in-session human auth; self-authored PR needs --admin bypass).
+5. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+Merges/tags: explicit in-session human auth. Force-push any branch: explicit human approval. beta channel, keep 1.0.0 core; v1.0.0-rc.1 = never-published ghost (D-2452).
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred.
+- Human UI cleanup: close PR #255 (OBSOLETE rc.1 CHANGELOG — close, do NOT merge).
+- S-REL-VBUMP-001 remains draft (not beta.1-blocking).
+
+### DECISION DELTA
+D-2481 = E-REL-NOTES LOCAL pass-5 (1 MED FIXED; CLEAN(strict): NO; CLEAN(PR-merge): NO). Code HEAD d457ab745→7809f7e66 (devops; pure-doc RELEASING.md only). No spec/story/index versions changed. STATE v9.008→v9.009; SESSION-HANDOFF v8.097→v8.098.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- E-REL-NOTES worktree: `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 7809f7e66, pass-5 MED FIXED). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2481: E-REL-NOTES LOCAL pass-5 (1 MED [RELEASING.md stale --generate-notes prose] FIXED; code HEAD d457ab745→7809f7e66). No spec/story/index version changed. §RESUME SNAPSHOT D-2481 inserted; D-2480 SUPERSEDED. STATE v9.008→v9.009; SESSION-HANDOFF v8.097→v8.098.
+
+---
+
+## §RESUME SNAPSHOT — D-2480 (2026-09-07 — E-REL-NOTES LOCAL pass-4: 1 OBS FIXED; code @d457ab745; ADR-063 v1.9; streak 0/3; CLEAN(PR-merge) reached) [supersedes D-2479] [SUPERSEDED by D-2481]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-4 (1 OBS finding on frozen cda652e5f) FIXED by devops workflow-prose edit @d457ab745. OBS-1: release-prep.yml PR-body Layer-1 top-block overstated as auto-generated per S-REL-WRITER-001 (ADR-063 D4); fixed: Step 7a → "MANUAL STEP REQUIRED"; PR intro Layer-1 not-auto-generated + ADR-063 D4 cite; before-merge DRAFT-then-curate imperative; checklist split DRAFT + curate items. No spec/ADR/story changed. actionlint CLEAN. WRITER-001 AC-004 STILL SATISFIED. ADR-063 v1.9 / S-REL-CLIFF-001 v1.7 / S-REL-BETA1-NOTES-001 v1.2 UNCHANGED. CLEAN(PR-merge) retained. LOCAL 3-CLEAN(strict) streak 0/3. NEXT ACTION: re-gate LOCAL adversary on frozen d457ab745 → 3-CLEAN(strict) → BETA1-NOTES-001 curation → demo → PR B.
