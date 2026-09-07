@@ -387,3 +387,35 @@ Frozen PR HEAD at pass-3 start: c44d2f1e7. Code fix-burst HEAD: c44d2f1e7→c09d
 **TD-VSDD-091/POL-39 CLEAN.** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. arch_index v2.377→v2.378. story_index v3.022→v3.023. trajectory-tail UNCHANGED →8→0→1→2.
 
 **Next (after PR-LEVEL pass-3):** Re-gate PR-LEVEL adversary on frozen code HEAD c09d63593 → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.
+| PR-LEVEL Pass 4 | 2026-09-07 | 0 | 0 | 0 | 0 | 0 | 1/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. First pass of new sequence on frozen c09d63593 (spec fixes S-REL-DROP-INTEL-MAC-001 v1.2 + ADR-063 v1.12 on factory-artifacts). Streak 1/3. NEXT: continue PR-LEVEL passes on frozen c09d63593 |
+
+**PR-LEVEL Pass 4 finding summary (CLEAN(strict): YES; zero findings; streak 1/3):**
+
+Frozen PR HEAD: c09d63593 (code UNCHANGED; spec fixes S-REL-DROP-INTEL-MAC-001 v1.2 + ADR-063 v1.12 committed to factory-artifacts via D-2490). Zero diff findings. Functional deliverable CLEAN. Streak advances 0/3→1/3.
+
+| PR-LEVEL Pass 5 | 2026-09-07 | 0 | 0 | 0 | 0 | 0 | 2/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — zero findings. Second pass of new sequence on frozen c09d63593. Streak 2/3. NEXT: continue PR-LEVEL passes on frozen c09d63593 |
+
+**PR-LEVEL Pass 5 finding summary (CLEAN(strict): YES; zero findings; streak 2/3):**
+
+Frozen PR HEAD: c09d63593 (code UNCHANGED). Zero diff findings. Streak advances 1/3→2/3.
+
+| PR-LEVEL Pass 6 | 2026-09-07 | 2 | 0 | 0 | 1 | 1 | 0/3 RESET | CLEAN(strict): NO; CLEAN(PR-merge): YES — F-1 LOW [spec-drift] + OBS-1 [spec-drift]; code HEAD c09d63593 UNCHANGED (both SPEC-SIDE). FIXED: S-REL-DROP-INTEL-MAC-001 v1.1→v1.2 (VF-001/VF-002/AC-001/AC-003 grep commands lacked historical-docs exclusion filter `| grep -v 'demo-evidence\|cycles\|...'`); ADR-063 v1.11→v1.12 (§D3 cliff.toml breaking block guard `breaking_description != commit.message` documented). [process-gap]: verification grep scopes recursing into docs/ must carry historical-exclusion filter. Streak RESET 0/3 (BC-5.39.001: any finding resets streak; code HEAD UNCHANGED; no DRIFT-ORCH-PRLEVEL-PUSH-001 event). NEXT: restart PR-LEVEL 3-pass on frozen c09d63593 (D-2490 spec-only fix-burst) |
+
+**PR-LEVEL Pass 6 finding summary (CLEAN(strict): NO; 1 LOW + 1 OBS RESOLVED; streak 0/3):**
+
+Frozen PR HEAD at pass-6 start: c09d63593 (code UNCHANGED throughout — both findings SPEC-SIDE only). Spec fix-burst: S-REL-DROP-INTEL-MAC-001 v1.1→v1.2 (story-writer) + ADR-063 v1.11→v1.12 (architect). No code push.
+
+**F-1 LOW [spec-drift] (story-writer, spec fix):** S-REL-DROP-INTEL-MAC-001 verification commands VF-001, VF-002, AC-001, and AC-003 used `git grep` / `grep -r` scoping that recursed into `docs/` and declared "Zero matches" as their expected pass criterion. However, those commands also matched historical content in `docs/demo-evidence/`, `cycles/`, `phase-0-ingestion/`, and `research/` directories which legitimately contain the literal string `x86_64-apple-darwin` as immutable historical records. AC-002 already carried the correct exclusion filter (`| grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'`), but VF-001, VF-002, AC-001, and AC-003 did not. Fix: S-REL-DROP-INTEL-MAC-001 v1.1→v1.2 adds the exclusion filter to all four commands, making them consistent with AC-002 and ensuring "Zero matches" is achievable without excluding the historical record. STORY-INDEX v3.023→v3.024.
+
+**OBS-1 [spec-drift] (architect, spec fix):** ADR-063 §D3 informative sketch of the cliff.toml commit parser configuration omitted documentation of the breaking block guard condition (`breaking_description != commit.message`). This guard ensures that when a commit message already contains the breaking change description in the conventional commit footer, the `breaking_description` field is not duplicated into the generated release notes. The guard was already correctly implemented in the shipped `cliff.toml`, but the §D3 sketch did not mention it, creating a documentation gap. Fix: ADR-063 v1.11→v1.12 — §D3 informative sketch updated to document the guard condition and its rationale. No code change (cliff.toml already correct). ARCH-INDEX v2.378→v2.379.
+
+**Process-gap lesson [process-gap] (codified):** Verification-command grep scopes that recurse into `docs/` or other directories containing immutable historical records MUST carry a historical-exclusion filter to match their "zero matches" expected result. Absence of the exclusion filter produces spurious matches from immutable content and causes false failures on first run. This is analogous to the prior [process-gap] (D-2489) about fix-comments restating banned literals: both represent patterns where the verification mechanism itself contradicts its expected result unless scoped correctly.
+
+**TD-VSDD-097 sweep verdict (D-2490):**
+- Dim-1: CLEAR (ADR-063 v1.12 — no sibling twin; S-REL-DROP-INTEL-MAC-001 v1.2 — no story sibling twin).
+- Dim-2: CLEAR (ADR-063 §D3 guard addition — no downstream story carries a verbatim copy of the §D3 informative sketch; S-REL-DROP-INTEL-MAC-001 grep exclusion fix — self-contained to the story file; AC-002's existing filter form is the upstream anchor, not a copy target).
+- Dim-3: CLEAR (no new unanchored MUSTs; AC-002's existing exclusion filter form anchors the newly applied exclusions in VF-001/VF-002/AC-001/AC-003).
+
+**TD-VSDD-091/POL-39 CLEAN** (no volatile line/version cites; all spec fixes use section/symbol anchor form). develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. arch_index v2.378→v2.379. story_index v3.023→v3.024. trajectory-tail UNCHANGED →8→0→1→2.
+
+**Next (after PR-LEVEL pass-6 / D-2490 spec-fix burst):** Restart PR-LEVEL adversary 3-pass sequence on frozen code HEAD c09d63593 (code UNCHANGED; spec fixes committed to factory-artifacts as D-2490) → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.

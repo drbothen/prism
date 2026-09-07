@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.11"
+version: "1.12"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,8 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.12 (2026-09-07) — §D3 cliff.toml body-template sketch corrected: `breaking_description` inline guard updated to include `and commit.breaking_description != commit.message` — suppresses redundant `— {desc}` suffix when git-cliff defaults `breaking_description` to the commit subject line (identical to `commit.message`); avoids duplicate "subject — subject" rendering. §D3 informative sketch now matches the shipped cliff.toml exactly. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 CLEAR (S-REL-CLIFF-001 contains no `breaking_description` body-template guard — story delegates entirely to ADR-063 sketch; no stale copy present). Dim-3 CLEAR (no new MUST).
 
 ACCEPTED v1.11 (2026-09-07) — §D3 cliff.toml `commit_parsers` catch-all skip parser documented: the shipped `cliff.toml` ends with `{ message = ".*", skip = true }` as the FINAL `commit_parsers` entry. Unlisted conventional types (e.g., `evidence:`, `factory:`, `ci:` prefixes not explicitly enumerated in D3's mapping table) are silently skipped rather than rendered as raw headings. Combined with `protect_breaking_commits = true`, breaking commits are still surfaced via the Tera two-part body filter regardless of the catch-all. This operationalizes D3's "only enumerated types render" intent; the v1.10 sketch was incomplete, not incorrect. §D3 cliff.toml sketch updated with catch-all as final `commit_parsers` entry with inline rationale comment. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed; ADR-064 checked, no cliff.toml `commit_parsers` reference, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §D3/cliff.toml description must include the catch-all skip parser entry if it enumerates `commit_parsers` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST; catch-all operationalizes the already-anchored D3 "only enumerated types render" intent, S-REL-CLIFF-001 AC-006).
 
@@ -234,8 +236,11 @@ handles on every entry are noise rather than signal.
 
 **Commit body inclusion policy:** Only the commit subject line (`{{ commit.message }}`) is
 rendered for all entry types. BREAKING CHANGE footer values are surfaced inline via
-`{{ commit.breaking_description }}` when present (appended after the subject as
-`— {description}`). Full commit bodies are NOT rendered — feat bodies tend toward verbose prose
+`{{ commit.breaking_description }}` when present AND distinct from the subject line
+(guard: `{% if commit.breaking_description and commit.breaking_description != commit.message %}`
+— suppresses redundant `— {desc}` when git-cliff defaults `breaking_description` to the subject,
+appending the suffix only when `breaking_description` carries additional migration detail beyond
+the commit message). Full commit bodies are NOT rendered — feat bodies tend toward verbose prose
 better suited to the Layer-1 curated top-block (D4); the BREAKING CHANGE footer value via
 `breaking_description` surfaces the migration signal at lower verbosity without body noise.
 
@@ -260,7 +265,7 @@ body = """
 {% if breaking_commits | length > 0 %}
 ### Breaking Changes
 {% for commit in breaking_commits %}
-- **BREAKING** {{ commit.message }}{% if commit.breaking_description %} — {{ commit.breaking_description }}{% endif %}
+- **BREAKING** {{ commit.message }}{% if commit.breaking_description and commit.breaking_description != commit.message %} — {{ commit.breaking_description }}{% endif %}
 {% endfor %}
 {% endif %}
 {% for group, group_commits in commits | filter(attribute="breaking", value=false) | group_by(attribute="group") %}
@@ -623,6 +628,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.12 | 2026-09-07 | architect | §D3 cliff.toml body-template sketch corrected: `breaking_description` inline guard updated to `{% if commit.breaking_description and commit.breaking_description != commit.message %}` — suppresses redundant `— {desc}` suffix when git-cliff defaults `breaking_description` to the commit subject line (identical to `commit.message`); avoids duplicate "subject — subject" rendering. §D3 informative sketch now matches the shipped cliff.toml exactly. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 CLEAR (S-REL-CLIFF-001 contains no `breaking_description` body-template guard — story delegates entirely to ADR-063 sketch; no stale copy present). Dim-3 CLEAR (no new MUST). |
 | 1.11 | 2026-09-07 | architect | §D3 catch-all skip parser documented: shipped cliff.toml `commit_parsers` ends with `{ message = ".*", skip = true }` as the FINAL entry — unlisted conventional types (e.g., `evidence:`, `factory:`, `ci:` prefixes not in D3 mapping table) are skipped rather than rendered as raw headings; `protect_breaking_commits = true` ensures breaking commits surface via Tera two-part body filter regardless of the catch-all; operationalizes D3 "only enumerated types render" intent; v1.10 sketch was incomplete, not incorrect. §D3 cliff.toml sketch updated with catch-all as final `commit_parsers` entry. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR twin — confirmed; ADR-064 checked, no cliff.toml `commit_parsers` reference, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §D3/cliff.toml description must include catch-all skip parser if `commit_parsers` is enumerated — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST; catch-all operationalizes already-anchored D3 "only enumerated types render" intent, S-REL-CLIFF-001 AC-006). |
 | 1.10 | 2026-09-07 | architect | §D4 CHANGELOG.md structure block corrected: `### Breaking Changes (from commits)` → plain `### Breaking Changes`. §D3 cliff.toml body template and shipped cliff.toml are authoritative for the emitted heading (plain form); `(from commits)` suffix appeared outside brackets and read as a literal heading. Option (a) applied — block reads as showing literal headings. No change to D1/D2/D3/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-BETA1-NOTES-001 §Tasks (Task 7 structure block) and §Edge Cases (EC-003) carry `### Breaking Changes (from commits)` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST). |
 | 1.9 | 2026-09-07 | architect | §D3 cliff.toml body-template sketch corrected: `{% else %}## [Unreleased]` arm dropped — `## [Unreleased]` comes solely from `[changelog] header` (never from body template); body MUST NOT re-emit it (else arm produces duplicate heading on no-`--tag` dry-runs). Shipped cliff.toml (S-REL-CLIFF-001, cda652e5f) verified: body template is `{% if version %}...{% endif %}` with no else arm; dry-run: exactly one `## [Unreleased]`. Informative note added after cliff.toml sketch. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-CLIFF-001 Task 2 body-template snippet also carries `{% else %}## [Unreleased]` arm — flag for story-writer to sweep in same burst. Dim-3 CLEAR (no new MUST). |

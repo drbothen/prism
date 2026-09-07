@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-07T00:00:00Z"
@@ -100,7 +100,7 @@ phase: "F3"
 
 **Story ID:** S-REL-DROP-INTEL-MAC-001
 **Status:** ready
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -179,13 +179,30 @@ constitute the facade readiness bar. All must pass before this story is merged.
 
 | VF-ID | Command | Expected Result |
 |-------|---------|----------------|
-| VF-001 | `grep -r 'x86_64-apple-darwin\|macos-15-intel' .github/ scripts/ tests/ci-gate/ tests/release-gate/ docs/ rust-toolchain.toml README.md RELEASING.md CLAUDE.md CHANGELOG.md` | Zero matches (CHANGELOG.md scope: pending `## [VERSION]` section only; historical `## [X.Y.Z]` released sections are immutable and excluded) |
-| VF-002 | `grep -r '5-platform\|5 build targets\|5 legs\|5 archive\|5 targets\|5 platform' .github/ docs/ RELEASING.md` | Zero matches |
+| VF-001 | grep for `x86_64-apple-darwin\|macos-15-intel` across CI/scripts/docs/toolchain (full command with historical-path exclusion filter — see **VF-001 full command** below table) | Zero matches |
+| VF-002 | grep for `5-platform\|5 build targets\|5 legs\|5 archive\|5 targets\|5 platform` across CI/docs (full command with historical-path exclusion filter — see **VF-002 full command** below table) | Zero matches |
 | VF-003 | `bash tests/ci-gate/test_AC-3_matrix-4-platforms.sh` | Exit 0 (PASS) |
 | VF-004 | `bash tests/release-gate/test_AC-006_matrix-targets.sh` | Exit 0 (PASS) |
 | VF-005 | `bash tests/release-gate/test_AC-012_install-scripts.sh` | Exit 0 (PASS) |
 
-**VF-001 grep scope exclusions (historical-immutable paths):**
+**VF-001 full command (with historical-path exclusion filter):**
+```bash
+grep -r 'x86_64-apple-darwin\|macos-15-intel' \
+  .github/ scripts/ tests/ci-gate/ tests/release-gate/ docs/ \
+  rust-toolchain.toml README.md RELEASING.md CLAUDE.md CHANGELOG.md \
+  | grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'
+```
+Expected: zero lines of output. CHANGELOG.md scope: pending `## [VERSION]` section only; historical `## [X.Y.Z]` released sections are immutable and excluded.
+
+**VF-002 full command (with historical-path exclusion filter):**
+```bash
+grep -r '5-platform\|5 build targets\|5 legs\|5 archive\|5 targets\|5 platform' \
+  .github/ docs/ RELEASING.md \
+  | grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'
+```
+Expected: zero lines of output.
+
+**Historical-immutable paths excluded by both VF-001 and VF-002:**
 - `docs/demo-evidence/` — IMMUTABLE per ADR-065 §Historical Records
 - `.factory/cycles/` — IMMUTABLE adversarial review records
 - `.factory/phase-0-ingestion/` — IMMUTABLE brownfield analysis
@@ -294,7 +311,7 @@ When: The following grep is run:
 grep -r 'x86_64-apple-darwin\|macos-15-intel' \
   .github/ scripts/install.sh rust-toolchain.toml \
   README.md RELEASING.md CLAUDE.md docs/ tests/ci-gate/ tests/release-gate/ \
-  CHANGELOG.md
+  CHANGELOG.md | grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'
 ```
 Then: Zero matches (excluding `.factory/stories/`, `docs/demo-evidence/`, `.factory/cycles/`,
 `.factory/phase-0-ingestion/`, `.factory/research/`; for `CHANGELOG.md`: historical
@@ -326,8 +343,8 @@ grep -r '5-platform\|5 build targets\|5 legs\|5 platform\|5 archive' \
 ```
 Then: Zero matches (all "5-platform" / "5 build targets" / "5 legs" references replaced
 with "4-platform" / "4 build targets" / "4 legs").
-Also: `grep -r '5-platform\|5 build targets\|5 legs' .github/ docs/ RELEASING.md` → zero matches
-(the sweep is workspace-wide for forward-looking files).
+Also: `grep -r '5-platform\|5 build targets\|5 legs' .github/ docs/ RELEASING.md | grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'` → zero matches
+(the sweep is workspace-wide for forward-looking files; historical `docs/demo-evidence/**` excluded).
 (traces to ADR-065 §D3 — ADR-064 "5-platform" references MUST be updated)
 
 ### AC-004: CI-gate 4-platforms test passes; TARGET_COUNT floor updated to 4 in ci.yml
@@ -524,5 +541,6 @@ All MUSTs anchored to this story + specific ACs. COMPLETE.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.2 | 2026-09-07 | F-1 (PR-LEVEL adversary LOW): append `\| grep -v 'demo-evidence\|cycles\|phase-0-ingestion\|research'` historical-exclusion filter to VF-001, VF-002, AC-001, and AC-003 docs-grep half — commands that recurse into `docs/` and stated "Zero matches" without excluding the immutable `docs/demo-evidence/**` historical records (e.g., `docs/demo-evidence/S-0.01/AC-3-matrix-5-platforms.md` contains "5 platform" + "x86_64-apple-darwin" and produces spurious hits). AC-002 was already correct and is unchanged. |
 | 1.1 | 2026-09-07 | TD-VSDD-097 Dim-2 downstream sweep (ADR-065 v1.1 §Site Inventory). AC-001 + VF-001: added CHANGELOG.md to grep scope — pending `## [VERSION]` section must not reference x86_64-apple-darwin or macos-15-intel; historical `## [X.Y.Z]` released sections are immutable/excluded from the gate. VF-001 scope exclusions: CHANGELOG.md historical section immutability noted. |
 | 1.0 | 2026-09-07 | Initial story. Human-directed ADR-065 v1.0: drop x86_64-apple-darwin (Intel mac); 4-target matrix; 5 ACs anchoring D1/D2/D3; facade mode (CI/docs/shell-test-only); holdout_scenarios: [] HOLDOUT-N/A (infra-only); subsystems: [SS-22]; crates_touched: []; depends_on: []; blocks: []. TD-VSDD-097: Dim-1 CLEAR (no sibling twin); Dim-2 COMPLETE (.factory/ rows swept — S-REL-003/004/005 supersession notes + W3-FIX-CI-001 Intel entry removed + STORY-INDEX S-MAINT-EDITION-SYNC-001 row updated; delta-analysis.md deferred to spec-steward); Dim-3 COMPLETE (all ADR-065 MUSTs anchored to AC-001/AC-002/AC-003). |
