@@ -177,13 +177,13 @@ jobs:
           # This prevents masthead duplication across different-version release-prep cycles.
           # Same-version re-dispatch is guarded by Step 3's branch-existence check, not this pre-strip.
           #
+          # The pre-strip removes the existing # Changelog masthead and any ## [Unreleased]
+          # section before git-cliff runs; git-cliff's [changelog] header re-emits them.
+          # The net result is idempotent across release cycles (see RELEASING.md §5 OBS-3).
           # Zero-versioned-section edge case: if CHANGELOG.md has been manually reset to
           # only a masthead and ## [Unreleased] block with no versioned ## [X.Y.Z] sections,
           # the entire file is stripped to empty so that git-cliff --prepend does not produce
-          # a duplicated masthead + Unreleased. This is NOT the very first git-cliff-driven
-          # release — on that first release, CHANGELOG.md starts directly at a versioned
-          # section (no masthead, no ## [Unreleased] placeholder), so the pre-strip is a
-          # no-op (see RELEASING.md §5 OBS-3).
+          # a duplicated masthead + Unreleased.
           python3 - <<'PYEOF'
           path = 'CHANGELOG.md'
           content = open(path).read()
@@ -240,6 +240,20 @@ jobs:
           )
           if m:
               prev_version = m.group(1)
+              # Guard: verify the derived previous tag actually exists in git history.
+              # A missing tag means the compare URL will be a 404 link; we warn but do not
+              # exit 1 — a missing previous tag produces a degraded but still valid CHANGELOG.
+              import subprocess, sys as _sys
+              _check = subprocess.run(
+                  ['git', 'rev-parse', '-q', '--verify', f'v{prev_version}'],
+                  capture_output=True,
+              )
+              if _check.returncode != 0:
+                  print(
+                      f"Warning: previous tag 'v{prev_version}' not found in git history; "
+                      "compare link may be incorrect",
+                      file=_sys.stderr,
+                  )
               new_unreleased = (
                   f'[Unreleased]: https://github.com/drbothen/prism/compare/v{version}...HEAD'
               )
@@ -335,7 +349,7 @@ jobs:
               '1. Review the git-cliff generated CHANGELOG entry (Layer 2) — entries are',
               '   auto-categorized under Added / Fixed / Performance / Changed / Security.',
               '2. Dispatch `vsdd-factory:technical-writer` to draft the Layer-1 top-block',
-              '   (`### Highlights` + `### Breaking Changes` / `### Upgrade Notes` if',
+              '   (`### Highlights` + `### Breaking Changes (narrative)` / `### Upgrade Notes` if',
               '   applicable) inside `## [VERSION]` — this block is NOT present at PR',
               '   open time and must be created before merge (ADR-063 D4).',
               '3. Review and curate the drafted Layer-1 block — current behavior only;',

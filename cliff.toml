@@ -87,6 +87,8 @@ commit_parsers = [
   { message = "^style", skip = true },
   { message = "^build", skip = true },
   { message = "^revert", skip = true },
+  # Catch-all: skip any commit type not explicitly listed above (prevents unlisted types like 'evidence', 'maintenance', 'factory' from appearing as raw headings)
+  { message = ".*", skip = true },
 ]
 protect_breaking_commits = true
 filter_commits = false
