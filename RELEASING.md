@@ -391,6 +391,18 @@ reviewed and merged.
    repeated release cycles (the masthead is re-emitted from the `cliff.toml` header
    on every run — see below).
 
+   **First-release note (OBS-3):** On the very first git-cliff-driven release,
+   `CHANGELOG.md` starts directly at a versioned section with no `# Changelog` masthead
+   or `## [Unreleased]` placeholder. The pre-strip is a no-op; git-cliff injects the
+   masthead and `## [Unreleased]` for the first time. This is expected self-heal, not
+   an error.
+
+   **Maintainer note (OBS-2):** `## [Unreleased]` is a git-cliff-managed placeholder.
+   Do NOT accumulate hand-authored entries under it — the pre-strip step discards all
+   content under `## [Unreleased]` on every release cycle. Pending release notes belong
+   in the Layer-1 curation top-block inside the released `## [VERSION]` section, added
+   after git-cliff runs in this step.
+
 2. **git-cliff invocation:**
 
    ```bash

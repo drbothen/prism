@@ -175,16 +175,29 @@ jobs:
           # Pre-strip: remove masthead/preamble and any prior [Unreleased] section
           # so git-cliff receives a file starting at the first versioned ## [X.Y.Z] section.
           # This prevents masthead duplication across repeated release-prep cycles.
+          #
+          # Zero-versioned-section edge case: if CHANGELOG.md contains only a masthead
+          # and ## [Unreleased] block with no versioned ## [X.Y.Z] sections (e.g. on the
+          # very first git-cliff-driven release), the entire file is stripped to empty so
+          # that git-cliff --prepend does not produce a duplicated masthead + Unreleased.
           python3 - <<'PYEOF'
           path = 'CHANGELOG.md'
           content = open(path).read()
           lines = content.split('\n')
-          start = 0
-          for i, line in enumerate(lines):
-              # Skip to first versioned section (## [X.Y.Z] — not ## [Unreleased])
-              if line.startswith('## [') and not line.startswith('## [Unreleased]'):
-                  start = i
-                  break
+          n = len(lines)
+          # Explicitly strip the leading masthead/preamble and any [Unreleased] section,
+          # regardless of whether a versioned section follows.
+          i = 0
+          # Step 1: skip non-section prefix (masthead, preamble, blank lines)
+          while i < n and not lines[i].startswith('## ['):
+              i += 1
+          # Step 2: if we landed on ## [Unreleased], skip it and its body
+          if i < n and lines[i].startswith('## [Unreleased]'):
+              i += 1
+              while i < n and not lines[i].startswith('## ['):
+                  i += 1
+          # i now points to the first versioned ## [X.Y.Z] line (or n if none exist)
+          start = i
           open(path, 'w').write('\n'.join(lines[start:]))
           print(f'Pre-strip complete: CHANGELOG.md starts at versioned section (line {start})')
           PYEOF
@@ -221,7 +234,15 @@ jobs:
               open(path, 'w').write(content)
               print(f'Link refs updated: [Unreleased] → v{version}...HEAD, added [{version}] ref (prev: {prev_version})')
           else:
-              print('WARNING: [Unreleased]: compare link not found — add link ref manually')
+              import sys
+              print('::error::CHANGELOG.md [Unreleased]: compare link not found — '
+                    'the footer block is missing or malformed. The new ## [VERSION] '
+                    'section has been prepended but the [Unreleased]: and [VERSION]: '
+                    'compare-link references were NOT updated, which will corrupt '
+                    'PREV-derivation on the next release cycle. '
+                    'Add a valid [Unreleased]: compare link to the CHANGELOG.md footer '
+                    'and re-run release-prep.')
+              sys.exit(1)
           PYEOF
 
       # ------------------------------------------------------------------ #
