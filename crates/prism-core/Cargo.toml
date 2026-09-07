@@ -10,7 +10,7 @@ publish = false
 name = "prism_core"
 
 [dependencies]
-thiserror = "1"
+thiserror = "2"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 regex = "1"

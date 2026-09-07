@@ -43,7 +43,7 @@ axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 # Optional deps — activated only by the `fixture-gen` feature (AC-007/D-056).
 # These are NOT linked into any consumer that does not enable `fixture-gen`.
 chrono = { version = "0.4", features = ["serde"], optional = true }
-thiserror = { version = "1", optional = true }
+thiserror = { version = "2", optional = true }
 prism-core = { path = "../prism-core", optional = true }
 
 [dev-dependencies]
