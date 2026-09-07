@@ -235,7 +235,7 @@ serde_json = "1"
 sha2 = "0.10"
 time = "0.3"
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
-serial_test = "3"
+serial_test = "4"
 tempfile = "3"
 chrono = { version = "0.4", features = ["serde"] }
 # F-PIVOT003-R3-001: genuine E2E enrich pipeline tests (Tests 10 + 11)
