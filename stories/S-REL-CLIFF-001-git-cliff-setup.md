@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -108,7 +108,7 @@ phase: "3"
 
 **Story ID:** S-REL-CLIFF-001
 **Status:** ready
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -160,7 +160,7 @@ This story has no subsystem behavioral contracts. Authority is ADR-063 D1/D3/D5.
 | ADR-063 D3 | Commit type → CHANGELOG section mapping (feat→Added; fix→Fixed; perf→Performance; refactor→Changed; security→Security; docs/ci/test/chore/style/build/revert→skip) |
 | ADR-063 v1.7 D3 | Breaking Changes section ordered BEFORE Added via Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST; `{ breaking = true }` parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon |
 | ADR-063 v1.7 D3 | GitHub PR link injection token-free via `commit_preprocessors` regex — `(#NNN)` rewritten to markdown link BEFORE Tera rendering; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `[remote.github]` retained but body template ignores it |
-| ADR-063 v1.8 D3 | cliff.toml `[changelog] header` MUST carry full masthead + keep-a-changelog preamble + `## [Unreleased]` (NOT empty — `header = ""` corrupts CHANGELOG.md: new section inserted ABOVE masthead) |
+| ADR-063 v1.9 D3 | cliff.toml `[changelog] header` MUST carry full masthead + keep-a-changelog preamble + `## [Unreleased]` (NOT empty — `header = ""` corrupts CHANGELOG.md: new section inserted ABOVE masthead); body template MUST be `{% if version %}...{% endif %}` with NO `{% else %}` arm — `## [Unreleased]` comes solely from `[changelog] header`, never from the body template |
 | ADR-063 v1.8 D3 | Step 7 is a 3-substep flow: (a) PRE-STRIP (Python, before git cliff) — strip prior masthead + `## [Unreleased]` from CHANGELOG.md; (b) `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` (core, unchanged); (c) LINK-REF UPDATE (Python, token-free, after git cliff) — repoint `[Unreleased]` ref + insert `[VERSION]` compare-link ref |
 | ADR-063 v1.2 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
 | ADR-063 D4 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001 is the separate follow-on story) |
@@ -205,8 +205,12 @@ description before the PR can be reviewed.
      is INCORRECT and MUST NOT be used — `git cliff --prepend` with an empty header
      inserts the new `## [version]` section ABOVE the masthead, burying it and orphaning
      `## [Unreleased]`; the v1.7 `header = ""` guidance is superseded by v1.8). The body
-     template, empty `footer`, and `trim = true` are UNCHANGED. Use the exact multi-line
-     `header` block from the ADR-063 v1.8 D3 cliff.toml sketch.
+     template MUST be `{% if version %}...{% endif %}` with NO `{% else %}` arm —
+     `## [Unreleased]` comes solely from `[changelog] header`, never from the body
+     template; an `{% else %}## [Unreleased]` arm produces a duplicate heading on
+     no-`--tag` dry-runs (ADR-063 v1.9 D3). Empty `footer` and `trim = true` are
+     unchanged. Use the exact multi-line `header` and body template from the ADR-063
+     v1.9 D3 cliff.toml sketch.
    - `[git]` section: `conventional_commits = true`, `filter_unconventional = true`,
      `tag_pattern = "v[0-9].*"`, `sort_commits = "oldest"`
    - `commit_preprocessors` entry for token-free PR link injection (ADR-063 v1.7 D3
@@ -451,6 +455,7 @@ fabricate a holdout for a gate that definitionally does not apply.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.9 §D3). Task 2 body-template: "UNCHANGED" reference → explicit no-`{% else %}`-arm constraint: body MUST be `{% if version %}...{% endif %}` with NO `{% else %}` arm; `## [Unreleased]` comes solely from `[changelog] header`, never from body template (else-arm produces duplicate heading on no-`--tag` dry-runs, ADR-063 v1.9 D3). ADR-063 v1.8 D3 ref updated to v1.9 D3 in Task 2 and §Behavioral Contracts header-row. |
 | 1.6 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.8 §D3 `--prepend` mechanism). Task 2 `[changelog] header` bullet: "empty header" → "header carries full masthead+preamble+`## [Unreleased]`" (ADR-063 v1.8 D3: `header = ""` is INCORRECT — corrupts CHANGELOG.md by inserting new section ABOVE masthead). Task 4 (Step 7): single git-cliff invocation → enumerated 3-substep flow: (a) PRE-STRIP Python pre-git-cliff idempotency strip of masthead+`## [Unreleased]`, (b) `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` (unchanged core), (c) LINK-REF UPDATE Python token-free post-git-cliff repoint `[Unreleased]`+insert `[VERSION]` compare-link ref. AC-003: updated to verify all 3 substeps present (PRE-STRIP + git cliff + LINK-REF UPDATE). Behavioral Contracts table: old Step 7 invocation row → 3-substep description; new ADR-063 v1.8 D3 `header` carries masthead row added. risk_mitigations: new `header = ""` corruption + 3-substep bullet. AC-005 (`--prepend` without `--output`) UNCHANGED. AC-006 (breaking ordering/no group_order) UNCHANGED. |
 | 1.5 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.7 §D3). DEVIATION-1 (PR-link token-free): Task 2 `commit_preprocessors` bullet added — `(#NNN)` rewritten to markdown link BEFORE Tera rendering via regex preprocessor; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `commit.remote.pr_number`/`commit.remote.pr_url` NOT read. `[remote.github]` note updated (retained, body template ignores it). Behavioral Contracts PR-link row updated. Library & Framework GITHUB_TOKEN row updated (not needed). risk_mitigations GITHUB_TOKEN bullet updated. DEVIATION-2 (Breaking Changes filter-based): `{ breaking = true, group = "<!-- 0 -->Breaking Changes" }` commit_parser guidance removed — that parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon. Task 2 commit_parsers bullet updated (numbered prefix starts at `<!-- 1 -->Added`; no `<!-- 0 -->`). Task 2 Breaking Changes bullet replaced with Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST, then `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")`. Behavioral Contracts Breaking Changes row updated. risk_mitigations Breaking Changes bullet updated. AC-006 mechanism updated (filter-based; `group_order` MUST NOT and `striptags \| trim` preserved). No-group_order, striptags\|trim, numbered-prefix for non-breaking groups (`<!-- 1 -->Added` … `<!-- 5 -->Security`) preserved throughout. |
 | 1.4 | 2026-09-07 | story-writer | F-7/Dim-2 (ADR-063 v1.6 §D3 reconciliation): Task 2 [remote.github] owner corrected jmagady→drbothen (ADR-063 v1.2 D3 C3 — owner=drbothen is the single source of truth per §D3 and shipped cliff.toml). §Narrative "and author attribution" removed — ADR-063 v1.6 D3 F-4 drops per-entry @author attribution for single-author project; PR-number links retained. |

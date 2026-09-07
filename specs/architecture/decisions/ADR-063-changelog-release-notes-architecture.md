@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.8"
+version: "1.9"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,8 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.9 (2026-09-07) — §D3 cliff.toml body-template sketch corrected: `{% else %}## [Unreleased]` arm dropped. The `## [Unreleased]` placeholder comes solely from `[changelog] header` (never from the body template); the body MUST NOT re-emit it — an `{% else %}` arm produces a duplicate `## [Unreleased]` heading on no-`--tag` dry-runs. Shipped cliff.toml (S-REL-CLIFF-001, cda652e5f) verified: body template is `{% if version %}...{% endif %}` with no else arm; dry-run produces exactly one `## [Unreleased]`. Informative note added after cliff.toml sketch. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-CLIFF-001 Task 2 body-template snippet also carries the `{% else %}## [Unreleased]` arm — flag for story-writer to sweep in same burst. Dim-3 CLEAR (no new MUST).
 
 ACCEPTED v1.8 (2026-09-07) — D3 `--prepend` mechanism canonicalized: empirically-verified
 3-substep release-prep.yml Step 7 flow (git-cliff 2.14.1, verified idempotent over 3 simulated
@@ -249,7 +251,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 """
 body = """
 {% if version %}## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
-{% else %}## [Unreleased]
 {% endif %}
 {% set breaking_commits = commits | filter(attribute="breaking", value=true) %}
 {% if breaking_commits | length > 0 %}
@@ -301,6 +302,8 @@ sort_commits = "oldest"
 owner = "drbothen"
 repo = "prism"
 ```
+
+_`## [Unreleased]` comes solely from `[changelog] header`, never from the body template. The body MUST NOT re-emit it — an `{% else %}## [Unreleased]` arm produces a duplicate heading on no-`--tag` dry-runs. The shipped `cliff.toml` (S-REL-CLIFF-001) has no else arm: `{% if version %}...{% endif %}` only._
 
 **Breaking Changes section ordering — authoritative mechanism (filter-based Tera two-part body;
 `group_order` does not exist in git-cliff 2.14.1; `{ breaking = true }` parser-level grouping
@@ -611,6 +614,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.9 | 2026-09-07 | architect | §D3 cliff.toml body-template sketch corrected: `{% else %}## [Unreleased]` arm dropped — `## [Unreleased]` comes solely from `[changelog] header` (never from body template); body MUST NOT re-emit it (else arm produces duplicate heading on no-`--tag` dry-runs). Shipped cliff.toml (S-REL-CLIFF-001, cda652e5f) verified: body template is `{% if version %}...{% endif %}` with no else arm; dry-run: exactly one `## [Unreleased]`. Informative note added after cliff.toml sketch. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-CLIFF-001 Task 2 body-template snippet also carries `{% else %}## [Unreleased]` arm — flag for story-writer to sweep in same burst. Dim-3 CLEAR (no new MUST). |
 | 1.8 | 2026-09-07 | architect | D3 `--prepend` mechanism canonicalized: DEVIATION-3 — `git cliff --prepend` with empty `[changelog] header` corrupts CHANGELOG.md (buries `# Changelog` masthead; orphans `## [Unreleased]`; compare-link ref-defs not updated). Verified empirically: git-cliff 2.14.1. Canonical 3-substep release-prep.yml Step 7 flow, verified idempotent over 3 simulated release cycles: (1) cliff.toml `[changelog] header` carries masthead + preamble + `## [Unreleased]` (NOT empty) — git-cliff writes `header + new-section + existing-content` → correct keepachangelog order; (2) PRE-STRIP substep (Python, pre-git-cliff): strips prior masthead + `## [Unreleased]` from CHANGELOG.md leaving file at first versioned section — idempotency across release cycles; (3) LINK-REF UPDATE substep (Python, post-git-cliff, token-free): repoints Unreleased compare ref + inserts VERSION compare ref from existing ref + VERSION env var; no GITHUB_TOKEN. Core `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` invocation UNCHANGED. cliff.toml sketch: `header = ""` corrected to full masthead + preamble + `## [Unreleased]`. §D3: `--prepend` mechanism section added (3 substeps documented as REQUIRED). §Consequences two-layer bullet updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task 2 sweep to header-carries-masthead + pre-strip + link-ref-update substeps; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 confirmed no `header=""` or incorrect direct-prepend copy (CLEAR for both). Dim-3 CLEAR: prepend-correctness MUST anchored to S-REL-CLIFF-001 AC-003 (Step 7 replacement) + AC-005 (`--prepend` without `--output`). No change to D1/D2/D4/D5/D6. |
 | 1.7 | 2026-09-07 | architect | D3 spec-accuracy update: two empirically-verified mechanism deviations from the v1.6 §D3 cliff.toml sketch documented to match shipped cliff.toml (S-REL-CLIFF-001 implementation). DEVIATION-1 — PR-link mechanism (token-free): `commit_preprocessors` regex rewrites `(#NNN)` in squash-merge commit subjects into markdown links BEFORE Tera rendering — no `GITHUB_TOKEN` required; `commit.remote.pr_number/pr_url` NOT read by body template (empty in token-free dry-run); `[remote.github]` block retained but body template ignores it. cliff.toml sketch: `commit_preprocessors` updated with regex; `commit.remote.pr_number/pr_url` clause removed from body template; §D3 "GitHub PR link injection" prose updated; §Consequences PR-numbers bullet updated. DEVIATION-2 — Breaking Changes section ordering: `{ breaking = true }` in `commit_parsers` does NOT override message-based group assignment in git-cliff 2.14.1 (verified empirically: `feat!:` still lands in `<!-- 1 -->Added` regardless of parser position); single `group_by` loop with `{ breaking = true }` parser does not produce a separate Breaking Changes group. Shipped mechanism: Tera two-part body — manual `### Breaking Changes` section via `commits \| filter(attribute="breaking", value=true)` rendered BEFORE `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")` loop; `{ breaking = true }` commit_parser entry removed from sketch; numbered-prefix idiom + `striptags \| trim` preserved for non-breaking groups. §D3 sketch body template and breaking-section-ordering prose updated. `{ breaking = true }` parser-level grouping MUST NOT be relied upon in git-cliff 2.14.1. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task-2 describes cliff.toml template (commit_parsers + body) referencing v1.6 mechanisms — sweep to v1.7 filter-based breaking section + preprocessor PR-link in same burst. Dim-3 CLEAR: ordering MUST anchored to S-REL-CLIFF-001 AC-006 — confirmed. |
 | 1.6 | 2026-09-07 | architect | D3 internal consistency correction (F-4/F-8): (F-4) per-entry `@author` attribution DROPPED — single-author project; uniform `by @handle` on every entry is noise not signal; `by @{{ commit.remote.username }}` removed from cliff.toml sketch PR-link block; §D3 "GitHub PR/author injection" section renamed to "GitHub PR link injection"; §Consequences attribution bullet removed. (F-8) commit body inclusion policy corrected — subject-line-only for all entry types; feat commit bodies NOT rendered; BREAKING CHANGE footer value surfaced inline via `commit.breaking_description` (appended as `— {description}` when present); cliff.toml sketch updated with `breaking_description` render block; §D3 "Commit body inclusion policy" prose corrected; §Consequences updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §Narrative mentions "author attribution" — that phrase must be removed. Dim-3 CLEAR: no new MUSTs; existing CLIFF-001 AC anchors unchanged. |

@@ -184,6 +184,7 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 |------|------|----------|------|-----|-----|-----|--------|---------|
 | Pass 1 | 2026-09-07 | 9 (+ post-fix empirical corrections) | 1 | 3 | 2 | 3 | 0/3 | CLEAN(strict): NO — all 9 FIXED; streak begins at 0/3 |
 | Pass 2 | 2026-09-07 | 7 | 0 | 2 | 1 | 4 | 0/3 | CLEAN(strict): NO — all 7 FIXED; streak 0/3 |
+| Pass 3 | 2026-09-07 | 5 | 0 | 0 | 2 | 3 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — all 5 FIXED; code @cda652e5f; link-ref fail-hard + pre-strip boundary detection + else-arm removed |
 
 **Pass 1 finding summary:**
 
@@ -220,4 +221,14 @@ DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — 
 
 **TD-VSDD-097 sweep verdict (D-2478):** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 DEVIATION-3 → S-REL-CLIFF-001 Task-2/Task-4/AC-003 swept in same burst; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 verified clean; cliff.toml/release-prep.yml aligned on worktree). Dim-3 CLEAR (prepend-correctness MUST anchored to CLIFF-001 AC-003 + AC-005).
 
-**Next:** LOCAL adversary pass-3 (re-gate) on frozen code HEAD 9f09df7a2 → 3-CLEAN → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+**Pass 3 finding summary (all FIXED on code HEAD 9f09df7a2→cda652e5f; devops + architect):**
+
+- LOW-1 (devops): link-ref substep silently no-op'd when [Unreleased] link reference is absent from CHANGELOG.md (new-repo case) — now emits `::error::` + `sys.exit(1)` blocking; RELEASING.md updated.
+- LOW-2 (devops): pre-strip `start=0` default duplicated masthead when CHANGELOG.md contained no versioned `## [X.Y.Z]` section — explicit boundary detection added; idempotency proven including zero-versioned-section edge case.
+- OBS-1 (devops): cliff.toml body template `{% else %}## [Unreleased]` doubled the `## [Unreleased]` heading on a no-tag dry-run (header already carries Unreleased; body must not re-emit it) — else-arm removed; ADR-063 v1.8→v1.9 §D3 body-template sketch swept; S-REL-CLIFF-001 v1.6→v1.7 Task 2 swept.
+- OBS-2 (devops): RELEASING.md note added: Unreleased section is git-cliff-managed; pre-strip discards any manually added content before each git-cliff run.
+- OBS-3 (devops): RELEASING.md note added: masthead self-heals on first git-cliff run if missing from a fresh CHANGELOG.
+
+**TD-VSDD-097 sweep verdict (D-2479):** Dim-1 CLEAR (ADR-063 no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 else-arm removal → CLIFF-001 Task 2 swept in same fix-burst; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 verified clean; cliff.toml/release-prep.yml/RELEASING.md aligned on worktree). Dim-3 CLEAR (no new MUSTs).
+
+**Next:** LOCAL adversary re-gate on frozen code HEAD cda652e5f (D-2479; streak 0/3; CLEAN(PR-merge) reached at pass-3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
