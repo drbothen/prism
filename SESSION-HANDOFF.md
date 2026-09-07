@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.104"
+version: "8.105"
 status: current
 timestamp: 2026-09-07T23:59:59Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2488 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) PR-LEVEL pass-2 on frozen 6e695e09e: 1 LOW (in-diff, comment-only) + 1 out-of-diff advisory. CLEAN(strict): NO; CLEAN(PR-merge): YES. Functional deliverable CLEAN: 4-target matrix consistent incl. CHANGELOG.md, ADR-063 v1.11 conformant, 121 gate assertions pass, all 11 ACs pass, zero mechanism/logic/security defects. LOW (devops): test_AC-012 header "42"→"41" (Intel AC-002 dropped; comment-only). Out-of-diff advisory (devops): enrichment_pivot_002_tests.rs de-Intel'd; residual test_AC-010 "5 matrix legs"→"4". Fix-burst: comment-only @c44d2f1e7. TD-VSDD-097: N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.377/story_index v3.022 ALL UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.015→v9.016. SESSION-HANDOFF v8.104→v8.105. §RESUME SNAPSHOT D-2487 SUPERSEDED by D-2488.**
 
 > **D-2487 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) PR-LEVEL pass-1 fix-burst (1 HIGH + 1 MED + 3 LOW; CLEAN(strict): NO; PR-LEVEL 3-CLEAN(strict) streak 0/3). Code fix-burst: feature/E-REL-NOTES-changelog HEAD 29997ab7→6e695e09e (devops). HIGH [spec-drift]: CHANGELOG.md `## [1.0.0-beta.1]` advertised 5-platform including x86_64-apple-darwin → corrected to 4-platform (feeds gh release --notes-file as published GitHub Release body per ADR-065 §D1). MED: scripts/install.sh `*)` "macOS (arm64, x86_64)" → "macOS (arm64)". LOW ×3 (devops): test/build.rs/release-gate count assertions "5 platforms"/"5 legs"/"5 matrix legs" → 4. LOW [spec-drift] (architect): ADR-063 v1.10→v1.11 §D3 catch-all skip parser documented; S-REL-CLIFF-001 v1.7→v1.8 (Task 2 Dim-2). HIGH root-gap [spec-drift] (architect): ADR-065 v1.0→v1.1 §Site Inventory CHANGELOG.md added + pending-section mutability rules + --notes-file note; S-REL-DROP-INTEL-MAC-001 v1.0→v1.1 (AC-001/VF-001 CHANGELOG.md scope). ARCH-INDEX v2.376→v2.377. STORY-INDEX v3.021→v3.022. Root-gap lesson [process-gap]: literal-string grep gate missed "Full 5-platform" prose + CHANGELOG.md absent from §Site Inventory; codified by ADR-065 v1.1 + S-REL-DROP-INTEL-MAC-001 v1.1. TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.014→v9.015. SESSION-HANDOFF v8.103→v8.104. §RESUME SNAPSHOT D-2486 SUPERSEDED by D-2487.**
 
@@ -51,6 +53,43 @@ timestamp: 2026-09-07T23:59:59Z
 > **D-2466 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — OBS-2 STORY-ARTIFACT CORRECTION. S-REL-AGENT-VERSION-001 v1.0→v1.1 (story-writer: Task-1/Task-2 + RG-001/RG-002 snippets corrected to assert "0.0.0-test" default; env!("PRISM_VERSION") references removed from prism-mcp tests per ADR-064 §D4 §Surface A; ACs and RG names UNCHANGED). STORY-INDEX v3.005→v3.006. LOCAL 3-CLEAN streak RESET 0/3; re-gate pending on new local HEAD. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/arch_index/holdout_index UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.993→v8.994. SESSION-HANDOFF v8.082→v8.083. §RESUME SNAPSHOT D-2466 inserted; D-2465 SUPERSEDED.**
 
 > **D-2465 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #262 (E-REL-IDENTITY: S-REL-DEV-RESET-001 + S-REL-BVERSION-INJECT-001 + S-REL-DOCS-AGNOSTIC-001) ADMIN SQUASH-MERGED to develop @19887ebcd on explicit human authorization. Merge commit 19887ebcdbdcbd3469c3cff46153e421e9e88e88. develop_head 29b9d4fad→19887ebcd. PR-LEVEL adversary cascade CONVERGED 3-CLEAN(strict) on frozen HEAD 4c5a12d00. pr-reviewer APPROVE cycle-6; security CLEAN(PR-merge) (SEC-001/SEC-002 CLOSED); CI 51/51 green. POL-14 NO-OP (behavioral_contracts: [] on all three). story_index v3.004→v3.005. bc_index/vp_index/arch_index/holdout_index UNCHANGED. S-REL-AGENT-VERSION-001 now unblocked. NEXT: TDD S-REL-AGENT-VERSION-001 off develop 19887ebcd. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.992→v8.993. SESSION-HANDOFF v8.081→v8.082. §RESUME SNAPSHOT D-2465 inserted; D-2464 SUPERSEDED.**
+
+---
+
+## §RESUME SNAPSHOT — D-2488 (2026-09-07 — PR #264 PR-LEVEL pass-2 @c44d2f1e7; functional CLEAN; 121 assertions pass; streak 0/3) [supersedes D-2487]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. PR #264 (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) is OPEN. PR-LEVEL adversary pass-2 on frozen HEAD 6e695e09e returned 1 LOW (test_AC-012 stale count comment "42"→"41") + 1 out-of-diff advisory. CLEAN(strict): NO; CLEAN(PR-merge): YES (functional deliverable fully clean). Both fixed by devops @c44d2f1e7 (comment-only, no logic). 121 release-gate assertions pass. All 11 ACs pass. PR-LEVEL 3-CLEAN(strict) streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001: push @c44d2f1e7 resets). NEXT ACTION: re-gate PR-LEVEL adversary on frozen c44d2f1e7.
+
+**NEXT ACTIONS (in order):**
+0. **RESUME STEP 0:** CronList → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+1. **Re-gate PR-LEVEL adversary** on frozen code HEAD c44d2f1e7 (PR #264; scope: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001 diff). Streak 0/3; need 3-CLEAN(strict).
+2. **CI 4-platform green** — verify CI passes on c44d2f1e7 before merge.
+3. **Admin squash-merge PR #264** — explicit in-session human auth required (self-authored PR).
+4. **S-REL-BETA1-NOTES-001** (ready v1.4): generate CHANGELOG `## [1.0.0-beta.1]` via `git cliff --unreleased --tag v1.0.0-beta.1` (ADR-063 §D6 first-release handling; AC-006 dedup guard) + human curation of Layer-1 → demo-recorder → push → PR C → merge.
+5. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Requires explicit in-session human auth.
+6. **CLOSE obsolete PR #255** (do NOT merge; human clicks Close).
+
+**HEADS (backup boundary):**
+- `develop`: origin = `a4cd1b3fd` (PR #263 merged 2026-09-06; UNCHANGED).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- `feature/E-REL-NOTES-changelog`: worktree HEAD = `c44d2f1e7` (PR-LEVEL pass-2 fix complete; PR #264 OPEN).
+- `main`: `bdf24cec8` (stub, untouched).
+- Open PRs: #264 (E-REL-NOTES-changelog; PR-LEVEL pass-2 DONE; streak 0/3; re-gate on c44d2f1e7). #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ c44d2f1e7, PR #264 open). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**PENDING USER-APPROVED WORK:** Self-authored PRs (S-REL series) need admin override — explicit in-session human auth. Force-push to any branch requires explicit human approval. Tag v1.0.0-beta.1 requires explicit in-session human auth.
+
+**HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
+
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (k) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (l) BETA channel (not RC) for first published pre-release; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063 §versions); cargo-release 1.1.5 stable entrypoint (ADR-064 §D3); GITHUB_REF_NAME build.rs injection GATED on GITHUB_REF_TYPE=="tag" (ADR-064 §D2); prism-mcp serverInfo.version + prism-spec-engine UA → PRISM_VERSION COMPLETE (ADR-064 §D4 + ADR-050 §D6; ADR-064 v2.1); docs VERSION-AGNOSTIC. ADR-063 v1.11: catch-all skip parser `{ message = ".*", skip = true }` documented in §D3; DEVIATION-1/2/3 unchanged. (n) S-REL-DOCS-CI-WIRE-001 registered (draft stub v0.1; POST-beta.1; P2; D-2456). (o) S-REL-HOLDOUT-HARNESS-001 registered (draft v0.1; POST-beta.1; P2; D-2472).
+
+---
+
+## §RESUME SNAPSHOT — D-2487 (2026-09-07 — PR #264 PR-LEVEL pass-1 fix-burst @6e695e09e; ADR-063 v1.11; ADR-065 v1.1; streak 0/3) [supersedes D-2485] [SUPERSEDED by D-2488]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. PR #264 (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) is OPEN. PR-LEVEL adversary pass-1 on frozen HEAD 29997ab7 returned 1 HIGH + 1 MED + 3 LOW (plus 2 spec-drift findings). ALL FIXED. Code fix-burst landed @6e695e09e. Factory spec fixes: ADR-063 v1.11 (catch-all skip parser documented), ADR-065 v1.1 (CHANGELOG.md added to §Site Inventory), S-REL-CLIFF-001 v1.8 (Dim-2 sweep), S-REL-DROP-INTEL-MAC-001 v1.1 (CHANGELOG.md grep scope). PR-LEVEL 3-CLEAN(strict) streak 0/3. SUPERSEDED by D-2488.
 
 ---
 

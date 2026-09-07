@@ -706,3 +706,42 @@ All three passes on same frozen code HEAD 5ead5f1cb (frozen-HEAD rule satisfied 
 **PR-LEVEL 3-CLEAN(strict) streak:** 0/3. Code fix-burst pushed PR HEAD 29997ab7→6e695e09e (DRIFT-ORCH-PRLEVEL-PUSH-001: streak reset to 0/3 on any push).
 
 **Next:** Re-gate PR-LEVEL adversary on frozen code HEAD 6e695e09e → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution → (explicit human-auth) tag v1.0.0-beta.1.
+
+---
+
+## D-2488 — 2026-09-07 — PR #264 PR-LEVEL pass-2 (1 LOW comment-only FIXED; functional CLEAN; streak 0/3)
+
+**Burst type:** SINGLE-COMMIT BURST (TD-VSDD-053)
+
+**Trigger:** PR-LEVEL adversary pass-2 on frozen PR #264 HEAD 6e695e09e (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001). Baseline: D-2487 (STATE v9.015; SESSION-HANDOFF v8.104; code HEAD 6e695e09e).
+
+**Pass result:** CLEAN(strict): NO; CLEAN(PR-merge): YES. 1 LOW (in-diff, comment-only) + 1 out-of-diff advisory. Both fixed by devops @c44d2f1e7 (comment-only, no logic change). Functional deliverable verified fully clean: 4-target matrix consistent including CHANGELOG.md, git-cliff tooling conformant to ADR-063 v1.11, 121 release-gate assertions pass, all 11 ACs pass, zero mechanism/logic/security defects.
+
+**Findings fixed:**
+
+- **LOW (devops, in-diff, comment-only):** `test_AC-012` header count stated "42" — Intel AC-002 assertion was removed in the D-2487 fix-burst but the header comment count was not updated. Fix: corrected to "41" (reflects current AC count after AC-002 drop).
+
+- **Out-of-diff advisory (devops, comment-only):** `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` present-tense target list referenced Intel mac platform — de-Intel'd (comment-only). Residual `test_AC-010` "5 matrix legs"→"4" (comment-only occurrence remaining after D-2487 fix-burst). Both fixed by devops @c44d2f1e7. Historical annotations (parser_tests PR#132 benchmark, docs/demo-evidence/**) correctly left as-is (immutable historical records; not mutable-pending content).
+
+**Files touched (factory only — this commit):**
+
+- `.factory/cycles/wave-5-e-demo-fidelity/convergence-trajectory.md` — PR-LEVEL Pass 2 row appended + pass narrative summary
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — this entry
+- `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2487 checkpoint archived
+- `.factory/STATE.md` — v9.015→v9.016 (D-2488 decision row; current_step updated; Session Resume Checkpoint D-2487→D-2488)
+- `.factory/SESSION-HANDOFF.md` — v8.104→v8.105 (D-2488 burst header; §RESUME SNAPSHOT D-2487 SUPERSEDED by D-2488)
+- `.factory/sidecar-learning.md` — session-end timestamps included (D-2487 leftover; legitimate session content)
+
+**Code files touched (code fix-burst @c44d2f1e7 on worktree feature/E-REL-NOTES-changelog — NOT factory commits):**
+
+- `tests/release-gate/test_AC-012_...` — header count "42"→"41" (comment-only; Intel AC-002 removed)
+- `crates/prism-spec-engine/tests/enrichment_pivot_002_tests.rs` — target list de-Intel'd (comment-only)
+- `tests/release-gate/test_AC-010_linux-setup.sh` — residual "5 matrix legs"→"4" (comment-only)
+
+**TD-VSDD-097:** N/A (records + STATE only; comment-only code fixes carry no spec/BC/ADR content change; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites in any record text).
+
+**Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.377 / story_index v3.022 ALL UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS.
+
+**PR-LEVEL 3-CLEAN(strict) streak:** 0/3. Code fix-burst pushed PR HEAD 6e695e09e→c44d2f1e7 (DRIFT-ORCH-PRLEVEL-PUSH-001: streak reset to 0/3 on any push).
+
+**Next:** Re-gate PR-LEVEL adversary on frozen code HEAD c44d2f1e7 → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.

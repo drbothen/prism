@@ -703,3 +703,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2471 2026-09-06):** develop: `19887ebcd` (origin); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-AGENT-VERSION-001: local `74c11329c` (NOT pushed); main: `bdf24cec8` (stub). Open PRs: #255 (OBSOLETE rc.1 — CLOSE). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **NOTE: Superseded by D-2472 — HS-032 holdout-gate ACCEPT-ON-SUBSTANCE + S-REL-HOLDOUT-HARNESS-001 registered. Demo committed on 2b50853fb. NEXT: push → PR → PR-LEVEL 3-CLEAN → merge (explicit human auth). story_index v3.010→v3.011 (total_stories 335→336). holdout_index v1.41→v1.42. STATE v8.999→v9.000. SESSION-HANDOFF v8.088→v8.089.**
+
+---
+
+## Archived: D-2487 — 2026-09-07; STATE v9.014→v9.015 — PR #264 PR-LEVEL pass-1 fix-burst @6e695e09e; ADR-063 v1.11; ADR-065 v1.1; streak 0/3
+
+**RESUME IN ONE BREATH:** Phase 3, v1.0.0-beta.1 release engineering. PR #264 (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) is OPEN. PR-LEVEL adversary pass-1 on frozen HEAD 29997ab7 returned 1 HIGH + 1 MED + 3 LOW (plus 2 spec-drift findings). ALL FIXED. Code fix-burst landed @6e695e09e. Factory spec fixes: ADR-063 v1.11 (catch-all skip parser documented), ADR-065 v1.1 (CHANGELOG.md added to §Site Inventory), S-REL-CLIFF-001 v1.8 (Dim-2 sweep), S-REL-DROP-INTEL-MAC-001 v1.1 (CHANGELOG.md grep scope). PR-LEVEL 3-CLEAN(strict) streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001: streak reset on any push; fix-burst push resets). NEXT ACTION: re-gate PR-LEVEL adversary on frozen 6e695e09e.
+
+**HEADS (D-2487 2026-09-07):** develop: `a4cd1b3fd` (origin); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/E-REL-NOTES-changelog: `6e695e09e` (PR #264 OPEN); main: `bdf24cec8` (stub). Open PRs: #264 (E-REL-NOTES-changelog; PR-LEVEL streak 0/3; re-gate on 6e695e09e). #255 (OBSOLETE rc.1 — CLOSE, do NOT merge). WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 6e695e09e). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**NOTE: Superseded by D-2488 — PR-LEVEL pass-2 on frozen 6e695e09e: 1 LOW comment-only FIXED @c44d2f1e7; functional CLEAN; streak 0/3 (reset by push). NEXT: re-gate PR-LEVEL on frozen c44d2f1e7. STATE v9.015→v9.016. SESSION-HANDOFF v8.104→v8.105.**
