@@ -106,7 +106,7 @@ develop (release-ready HEAD)
     │
     ├─► Dispatch release-prep.yml (--field version=X.Y.Z)
     │       Creates release/vX.Y.Z branch off develop
-    │       Bumps prism-bin + scaffolds CHANGELOG
+    │       Bumps prism-bin + generates CHANGELOG
     │       Opens PR to develop — human reviews, curates, merges
     │
     ▼
@@ -261,7 +261,7 @@ The PR body contains a checklist. Before merging:
 
 1. Review the git-cliff generated CHANGELOG entry (Layer 2): entries are auto-categorized
    under Added / Fixed / Performance / Changed / Security by `cliff.toml`. PR links appear
-   inline from `(#NNN)` in commit subjects. No manual categorization or scaffold cleanup needed.
+   inline from `(#NNN)` in commit subjects. No manual categorization needed.
 2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
 3. Confirm the README reflects this release:
    - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
@@ -383,20 +383,41 @@ reviewed and merged.
 
 #### Layer 2 — git-cliff categorized body (auto-generated)
 
-`release-prep.yml` Step 7 invokes:
+`release-prep.yml` Step 7 runs three sub-steps:
 
-```bash
-git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
-```
+1. **Pre-strip:** a Python inline script removes the `# Changelog` masthead and any
+   prior `## [Unreleased]` section from `CHANGELOG.md`, leaving the file starting at
+   the first versioned `## [X.Y.Z]` section. This prevents masthead duplication on
+   repeated release cycles (the masthead is re-emitted from the `cliff.toml` header
+   on every run — see below).
 
-This prepends a `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md` and populates
-it with categorized Conventional Commit entries (Added / Fixed / Performance /
-Changed / Security). Skip types (docs, ci, test, chore, style, build, revert) are
-excluded. PR links are injected from commit message `(#NNN)` references.
+2. **git-cliff invocation:**
 
-Authority: `cliff.toml` at repo root (ADR-063 D3); `--unreleased --tag ... --prepend`
-flag set (ADR-063 D5). Do NOT use `--output` alongside `--prepend` (causes duplicate
-sections per ADR-063 D5 v1.1 fix).
+   ```bash
+   git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+   ```
+
+   `cliff.toml`'s `[changelog] header` carries the `# Changelog` masthead and the
+   empty `## [Unreleased]` placeholder. `--prepend` inserts `header + new-section`
+   before the existing file content, producing:
+   `# Changelog ... ## [Unreleased] ## [X.Y.Z] ... existing sections`.
+
+   Entries are categorized into Added / Fixed / Performance / Changed / Security.
+   Skip types (docs, ci, test, chore, style, build, revert) are excluded.
+   PR links are injected from commit message `(#NNN)` references (token-free).
+   Do NOT add `--output` alongside `--prepend` (causes duplicate sections per
+   ADR-063 §D5 v1.1 fix).
+
+3. **Link-ref update:** a Python inline script updates the reference-style compare
+   links at the bottom of `CHANGELOG.md` — the `[Unreleased]:` ref is pointed at
+   `v{VERSION}...HEAD`, and a new `[{VERSION}]: .../compare/v{PREV}...v{VERSION}`
+   entry is inserted (token-free, using the VERSION env var and the existing
+   `[Unreleased]:` link to derive the previous tag).
+
+Authority: `cliff.toml` at repo root (ADR-063 §D3); flag set `--unreleased --tag
+... --prepend` (ADR-063 §D5). Masthead-in-header + pre-strip + link-ref-update
+mechanism is canonical as of ADR-063 §D3 (empirically validated against
+git-cliff 2.14.1 behavior).
 
 #### Layer 1 — Curated top-block (human-authored, agent-assisted)
 
@@ -440,7 +461,7 @@ the final content; the technical-writer draft is an aid, not the final.
 [technical-writer draft, human-curated — omitted if not needed]
 
 ### Breaking Changes
-[git-cliff BREAKING CHANGE footers — from cliff.toml D3, <!-- 0 --> parser]
+[git-cliff breaking commits — cliff.toml body Tera filter(attribute="breaking", value=true)]
 
 ### Added
 [git-cliff feat commits — <!-- 1 --> parser]
@@ -456,11 +477,15 @@ the final content; the technical-writer draft is an aid, not the final.
 
 #### Step order in release-prep.yml
 
-1. `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md` (Step 7) — prepends
-   the `## [VERSION]` block with Layer-2 content
-2. Technical-writer agent dispatch (Step 7a) — inserts Layer-1 `###` sections INSIDE the
+1. **Step 7 sub-step A** — pre-strip: Python removes masthead + prior `[Unreleased]` section
+   from `CHANGELOG.md` (leaving file starting at first versioned `## [X.Y.Z]` section)
+2. **Step 7 sub-step B** — `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md`:
+   prepends `cliff.toml header (masthead + ## [Unreleased])` + new `## [VERSION]` block
+3. **Step 7 sub-step C** — link-ref update: Python updates `[Unreleased]:` and inserts
+   `[VERSION]: .../compare/v{PREV}...v{VERSION}` reference at bottom of `CHANGELOG.md`
+4. **Step 7a** — Technical-writer agent dispatch: inserts Layer-1 `###` sections INSIDE the
    `## [VERSION]` block, before git-cliff's first commit-derived `###` section
-3. Human reviews and curates Layer-1 sections in the release-prep PR (Step 2 in §4)
+5. **Step 2 in §4** — Human reviews and curates Layer-1 sections in the release-prep PR
 
 ### GitHub Release body
 
@@ -564,6 +589,25 @@ without deleting the tag or the release is safe.
 `publish-release` job. If it is absent or contains only some legs, re-run the
 workflow (see above). Do not manually construct or upload a `checksums.txt` — it
 must come from the CI build.
+
+### git-cliff generates an empty section (no unreleased commits)
+
+`git cliff --unreleased` exits non-zero when there are no commits since the last tag.
+Under `set -euo pipefail` in `release-prep.yml` Step 7, this causes the workflow to fail
+before the CHANGELOG.md is modified.
+
+**Cause:** every commit since the last release tag matches a skip pattern (docs, ci,
+test, chore, style, build, revert), OR there are genuinely no commits since the last
+tag (you dispatched the same version twice).
+
+**Response:**
+1. `gh run view <run-id> --log-failed` — confirm the failure is empty `--unreleased` output.
+2. If all commits since the last tag are skip types: either add at least one
+   non-skip commit to `develop` before re-dispatching, or write the CHANGELOG section
+   manually (see §2 Step 7a) and skip the `release-prep` workflow.
+3. If the version was already released: do not re-create the same tag. Increment
+   the patch version and dispatch with the correct version.
+4. Never run `--no-verify` or bypass the step — fix the underlying cause.
 
 ### A required CI check is red on the release-prep PR
 

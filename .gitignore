@@ -63,3 +63,6 @@ fuzz/Cargo.lock
 # subdir so it can be excluded here while normal DTU-based evidence (committed by the
 # demo-recorder) remains tracked in the sibling per-AC dirs.
 docs/demo-evidence/**/live/
+
+# Release-prep dry-run artifacts — evidence stored in PR description, not committed files.
+.rel-artifacts/

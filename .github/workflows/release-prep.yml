@@ -1,4 +1,4 @@
-# release-prep.yml — mechanize the version bump + CHANGELOG scaffold for a release
+# release-prep.yml — mechanize the version bump + CHANGELOG generation for a release
 #
 # PURPOSE
 # -------
@@ -6,12 +6,12 @@
 #   1. Creates a release/vX.Y.Z branch off develop
 #   2. Bumps crates/prism-bin/Cargo.toml [package].version to the requested version
 #   3. Updates both Cargo.lock files (root + non-exhaustive-violation)
-#   4. Generates a ## [X.Y.Z] CHANGELOG section via git-cliff (ADR-063 D3/D5),
+#   4. Generates a ## [X.Y.Z] CHANGELOG section via git-cliff (ADR-063 §D3/D5),
 #      categorizing Conventional Commits into Added / Fixed / Performance / Changed / Security
 #   5. Commits, pushes the branch, and opens a PR targeting develop
 #
 # The human still owns:
-#   - Reviewing and curating the CHANGELOG scaffold
+#   - Reviewing and curating the generated CHANGELOG section
 #   - Approving and merging the PR to develop
 #   - Dispatching release-promote.yml after the PR merges
 #
@@ -142,22 +142,87 @@ jobs:
           echo "tests/external/non-exhaustive-violation/Cargo.lock updated"
 
       # ------------------------------------------------------------------ #
-      # 7. Generate CHANGELOG body (git-cliff)                               #
+      # 7. Generate CHANGELOG section (git-cliff)                            #
       #    Uses git-cliff 2.14.1 to prepend a categorized ## [X.Y.Z]        #
       #    section to CHANGELOG.md from Conventional Commits history.        #
-      #    Authority: ADR-063 D3/D5 — canonical invocation flag set.        #
+      #    Authority: ADR-063 §D3/D5 — canonical invocation flag set.       #
       #    --unreleased selects commits not yet in any tag (robust for       #
       #    first release and recurring releases alike).                      #
       #    --tag sets the new section header.                                #
       #    --prepend writes to the top of CHANGELOG.md only.                #
       #    Do NOT add --output alongside --prepend (causes duplicate         #
-      #    sections per ADR-063 D5 v1.1 fix).                               #
+      #    sections per ADR-063 §D5 v1.1 fix).                              #
+      #                                                                      #
+      #    Pre-strip (ADR-063 §D3): git-cliff --prepend inserts              #
+      #    header + new-section before the existing file content.            #
+      #    The cliff.toml [changelog] header carries the "# Changelog"       #
+      #    masthead + "## [Unreleased]" section. To avoid masthead           #
+      #    duplication on repeated release cycles, we strip the masthead     #
+      #    and any prior [Unreleased] section from CHANGELOG.md before       #
+      #    running git-cliff. The committed result always has the masthead   #
+      #    (emitted by the cliff.toml header on each run).                   #
+      #                                                                      #
+      #    Link-ref update (ADR-063 §D3): after prepending the new section,  #
+      #    the compare-link reference definitions at the bottom of            #
+      #    CHANGELOG.md are updated: [Unreleased]: is pointed at the new     #
+      #    version, and a new [X.Y.Z]: compare link is inserted.             #
       # ------------------------------------------------------------------ #
-      - name: Generate CHANGELOG body (git-cliff)
+      - name: Generate CHANGELOG section (git-cliff)
         run: |
           set -euo pipefail
           cargo install git-cliff --version 2.14.1 --locked --quiet
+
+          # Pre-strip: remove masthead/preamble and any prior [Unreleased] section
+          # so git-cliff receives a file starting at the first versioned ## [X.Y.Z] section.
+          # This prevents masthead duplication across repeated release-prep cycles.
+          python3 - <<'PYEOF'
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          lines = content.split('\n')
+          start = 0
+          for i, line in enumerate(lines):
+              # Skip to first versioned section (## [X.Y.Z] — not ## [Unreleased])
+              if line.startswith('## [') and not line.startswith('## [Unreleased]'):
+                  start = i
+                  break
+          open(path, 'w').write('\n'.join(lines[start:]))
+          print(f'Pre-strip complete: CHANGELOG.md starts at versioned section (line {start})')
+          PYEOF
+
+          # Generate and prepend the new section. The cliff.toml header emits the
+          # "# Changelog" masthead + "## [Unreleased]" before the new section.
           git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+
+          # Link-ref update: update [Unreleased]: to point at the new version and
+          # insert a new [X.Y.Z]: compare link (token-free, ADR-063 §D3).
+          python3 - <<'PYEOF'
+          import re, os
+          version = os.environ['VERSION']
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          m = re.search(
+              r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v(.+?)\.\.\.HEAD',
+              content,
+          )
+          if m:
+              prev_version = m.group(1)
+              new_unreleased = (
+                  f'[Unreleased]: https://github.com/drbothen/prism/compare/v{version}...HEAD'
+              )
+              new_version_ref = (
+                  f'[{version}]: https://github.com/drbothen/prism/compare/'
+                  f'v{prev_version}...v{version}'
+              )
+              content = re.sub(
+                  r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v.+?\.\.\.HEAD',
+                  new_unreleased + '\n' + new_version_ref,
+                  content,
+              )
+              open(path, 'w').write(content)
+              print(f'Link refs updated: [Unreleased] → v{version}...HEAD, added [{version}] ref (prev: {prev_version})')
+          else:
+              print('WARNING: [Unreleased]: compare link not found — add link ref manually')
+          PYEOF
 
       # ------------------------------------------------------------------ #
       # 7a. Draft Layer-1 release notes (technical-writer)                   #
@@ -191,7 +256,7 @@ jobs:
             Cargo.lock \
             tests/external/non-exhaustive-violation/Cargo.lock \
             CHANGELOG.md
-          git commit -m "chore(release): prep v${VERSION} — bump prism-bin + CHANGELOG scaffold"
+          git commit -m "chore(release): prep v${VERSION} — bump prism-bin + CHANGELOG generation"
           echo "Committed release prep for v${VERSION}"
 
       # ------------------------------------------------------------------ #

@@ -1,33 +1,49 @@
 # cliff.toml — git-cliff 2.14.1 changelog configuration for Prism
 #
-# Authority: ADR-063 D3 (categorization convention), D1 (version pin), D5 (release-prep integration)
+# Authority: ADR-063 §D3 (categorization, breaking section, PR links, header mechanism)
+#            ADR-063 §D1 (version pin: 2.14.1)
+#            ADR-063 §D5 (release-prep integration: --unreleased --tag --prepend)
 #
-# Breaking Changes section ordering: DEVIATION from ADR-063 v1.6 §D3 sketch.
+# CHANGELOG.md masthead placement (ADR-063 §D3):
+# The [changelog] header below carries the "# Changelog" masthead and the "## [Unreleased]"
+# section. release-prep.yml Step 7 pre-strips the masthead and any prior [Unreleased] section
+# from CHANGELOG.md before running `git cliff --prepend`, so git-cliff receives a file starting
+# at the first versioned section (## [X.Y.Z]). git-cliff then writes:
+#   header (masthead + ## [Unreleased]) + new ## [X.Y.Z] section + existing sections
+# This produces a correct keepachangelog structure on every release cycle without masthead
+# duplication. The pre-strip ensures idempotency across repeated release-prep runs.
+#
+# Breaking Changes section ordering (ADR-063 §D3):
 # Intended ADR mechanism: numbered-group-name-prefix idiom — { breaking = true } parser routes
 # breaking commits to "<!-- 0 -->Breaking Changes"; single group_by loop renders all groups.
 # Actual behavior (git-cliff 2.14.1): { breaking = true } in commit_parsers does NOT override
 # message-based parsers for group assignment — a feat!: commit gets group "<!-- 1 -->Added"
 # regardless of whether the breaking parser is listed first or last. Verified empirically.
-# Token-free workaround: the body template uses Tera filter(attribute="breaking", value=true)
+# Canonical mechanism: the body template uses Tera filter(attribute="breaking", value=true)
 # to separate breaking commits into a manual "### Breaking Changes" section rendered BEFORE
 # the group_by loop. Non-breaking commits are processed by
 # commits | filter(attribute="breaking", value=false) | group_by(attribute="group"),
 # satisfying F-1 (the grouping loop for Added/Fixed/etc. uses group_by + striptags | trim).
 #
-# PR link injection: token-free via commit_preprocessors (DEVIATION from ADR-063 v1.6 §D3 sketch).
-# Prism uses squash-merge, so every merged PR subject already contains (#NNN).
-# The commit_preprocessors regex rewrites (#NNN) into a markdown link in commit.message before
-# Tera rendering — no GITHUB_TOKEN or remote API call is needed.
-# ADR-063 v1.6 §D3 sketch used commit.remote.pr_number / commit.remote.pr_url (populated via
-# GITHUB_TOKEN + remote API), but those fields are EMPTY in a token-free dry-run, so the body
-# template does NOT reference commit.remote.* fields. The [remote.github] block is retained for
-# possible future remote-API use but the body template ignores it.
-# BREAKING CHANGE footer values are surfaced inline via commit.breaking_description (ADR-063 v1.6 D3).
-# No per-entry author @-handle attribution — Prism is a single-author project; uniform handles
-# on every entry are noise, not signal (ADR-063 v1.6 D3).
+# PR link injection (ADR-063 §D3):
+# Token-free via commit_preprocessors. Prism uses squash-merge, so every merged PR subject
+# already contains (#NNN). The commit_preprocessors regex rewrites (#NNN) into a markdown link
+# in commit.message before Tera rendering — no GITHUB_TOKEN or remote API call is needed.
+# The body template does NOT reference commit.remote.* fields (those require GITHUB_TOKEN and
+# are EMPTY in a token-free run). The [remote.github] block is retained for possible future
+# remote-API use but the body template ignores it.
+# BREAKING CHANGE footer values are surfaced inline via commit.breaking_description (ADR-063 §D3).
+# No per-entry author @-handle attribution — Prism is a single-author project (ADR-063 §D3).
 
 [changelog]
-header = ""
+header = """# Changelog
+
+All notable changes to Prism are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+"""
 body = """
 {% if version %}## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}## [Unreleased]
