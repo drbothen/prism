@@ -3,6 +3,11 @@
 
 
 
+### Breaking Changes
+
+- **BREAKING** synthetic breaking change test for cliff.toml section-ordering validation ([#999](https://github.com/drbothen/prism/pull/999)) — this commit is synthetic — created only to validate that cliff.toml routes breaking commits to the Breaking Changes section (before Added/Fixed) and renders "**BREAKING** — {description}" inline. Drop this commit immediately after dry-run capture.
+
+
 
 ### Added
 

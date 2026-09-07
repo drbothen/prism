@@ -6,8 +6,8 @@
 #   1. Creates a release/vX.Y.Z branch off develop
 #   2. Bumps crates/prism-bin/Cargo.toml [package].version to the requested version
 #   3. Updates both Cargo.lock files (root + non-exhaustive-violation)
-#   4. Scaffolds a ## [X.Y.Z] CHANGELOG section seeded with commits since the
-#      previous tag so the human has a categorization starting point
+#   4. Generates a ## [X.Y.Z] CHANGELOG section via git-cliff (ADR-063 D3/D5),
+#      categorizing Conventional Commits into Added / Fixed / Performance / Changed / Security
 #   5. Commits, pushes the branch, and opens a PR targeting develop
 #
 # The human still owns:
@@ -56,7 +56,7 @@ jobs:
 
     steps:
       # ------------------------------------------------------------------ #
-      # 1. Checkout develop — full history needed for git log seed           #
+      # 1. Checkout develop — full history needed for git-cliff range          #
       # ------------------------------------------------------------------ #
       - name: Checkout develop (full history)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -173,9 +173,9 @@ jobs:
           set -euo pipefail
           echo "::notice::Dispatch vsdd-factory:technical-writer to draft Layer-1 release notes"
           echo "Technical-writer should:"
-          echo "  1. Read CHANGELOG.md to find the newly-prepended ## [v${VERSION}] block"
+          echo "  1. Read CHANGELOG.md to find the newly-prepended ## [${VERSION}] block"
           echo "  2. Insert ### Highlights, ### Breaking Changes (narrative), ### Upgrade Notes"
-          echo "     inside the ## [v${VERSION}] block, BEFORE the first git-cliff ### section"
+          echo "     inside the ## [${VERSION}] block, BEFORE the first git-cliff ### section"
           echo "  3. Content: current behavior only; 5-8 bullets for Highlights; omit empty sections"
           echo "  4. Human curates the draft in this PR before merge"
           echo "See RELEASING.md §5 for the Layer-1 contract."

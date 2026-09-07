@@ -242,8 +242,10 @@ This workflow:
 1. Creates branch `release/vX.Y.Z` off `develop`
 2. Bumps `crates/prism-bin/Cargo.toml` `[package].version` to `X.Y.Z`
 3. Updates both Cargo.lock files (root + `tests/external/non-exhaustive-violation/`)
-4. Scaffolds a `## [X.Y.Z] - YYYY-MM-DD` CHANGELOG section seeded with merged-PR
-   subjects since the previous tag
+4. Generates a `## [X.Y.Z] - YYYY-MM-DD` CHANGELOG section via git-cliff (ADR-063 D3/D5),
+   categorizing Conventional Commits into Added / Fixed / Performance / Changed / Security
+   (docs, ci, test, chore, style, build, revert are skipped); PR links injected from
+   `(#NNN)` in squash-merge commit subjects via `commit_preprocessors` (token-free)
 5. Commits, pushes the branch, and opens a PR targeting `develop`
 
 Monitor the run:
@@ -257,8 +259,9 @@ gh run watch --repo drbothen/prism
 
 The PR body contains a checklist. Before merging:
 
-1. Curate the CHANGELOG scaffold: categorize entries under Added / Fixed / Changed /
-   Security / Removed; remove the `> **SCAFFOLD**` notice when done.
+1. Review the git-cliff generated CHANGELOG entry (Layer 2): entries are auto-categorized
+   under Added / Fixed / Performance / Changed / Security by `cliff.toml`. PR links appear
+   inline from `(#NNN)` in commit subjects. No manual categorization or scaffold cleanup needed.
 2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
 3. Confirm the README reflects this release:
    - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
