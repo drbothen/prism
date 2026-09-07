@@ -63,7 +63,11 @@ Traces to: ADR-063 D3 — cliff.toml categorization convention; ADR-063 v1.7 D3 
 **Tape:** `AC-006-breaking-changes-first.tape`
 
 Procedure:
-1. A throwaway empty commit with `feat!:` subject and `BREAKING CHANGE:` footer was created in the `Hide` section of the tape.
+1. A throwaway empty commit with a `feat(api)!:` subject AND a separate `BREAKING CHANGE:` footer body was created in the `Hide` section using two `-m` flags (multi-line commit, not single-line):
+   ```
+   git commit --allow-empty -m 'feat(api)!: THROWAWAY remove legacy sensor API' -m 'BREAKING CHANGE: /v0/sensors removed, migrate to /v1/sensors'
+   ```
+   This produces `commit.message = "THROWAWAY remove legacy sensor API"` and `commit.breaking_description = "/v0/sensors removed, migrate to /v1/sensors"` — two distinct values, exercising the `commit.breaking_description != commit.message` conditional in cliff.toml.
 2. `git cliff --unreleased --tag v1.0.0-beta.1 --output /dev/stdout 2>/dev/null` was run in the `Show` (recorded) section.
 3. The throwaway commit was dropped via `git reset --soft HEAD~1 && git reset HEAD` in the `Hide` cleanup section.
 4. `git log --oneline -3` confirmed the throwaway commit is absent from history after recording.
@@ -75,20 +79,22 @@ Key evidence from output:
 
 ### Breaking Changes
 
-- **BREAKING** THROWAWAY remove legacy sensor API — BREAKING CHANGE: /v0/sensors removed,
-  migrate to /v1/sensors
+- **BREAKING** THROWAWAY remove legacy sensor API — /v0/sensors removed, migrate to /v1/sensors
 
 ### Added
 
-- version identity — ...
-- agent-facing version identity — ...
+- version identity — 1.0.0-dev reset + PRISM_VERSION injection + version-agnostic docs ([#262](https://github.com/drbothen/prism/pull/262))
+
+- agent-facing version identity — prism-mcp serverInfo + prism-spec-engine UA (S-REL-AGENT-VERSION-001) ([#263](https://github.com/drbothen/prism/pull/263))
+
+- git-cliff setup + technical-writer Layer-1 dispatch (S-REL-CLIFF-001, S-REL-WRITER-001)
 
 ### Fixed
 
-- musl rustup race — ...
+- musl rustup race + CHANGELOG beta.1 section + Release-notes wiring (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001) ([#261](https://github.com/drbothen/prism/pull/261))
 ```
 
-`### Breaking Changes` appears BEFORE `### Added`, confirming the Tera filter-based two-part body mechanism (ADR-063 v1.7 D3 Deviation-2).
+`### Breaking Changes` appears BEFORE `### Added`, confirming the Tera filter-based two-part body mechanism (ADR-063 v1.7 D3 Deviation-2). The breaking entry shows ` — /v0/sensors removed, migrate to /v1/sensors` after the subject (em dash separator from the fixed template), confirming the `commit.breaking_description != commit.message` path is exercised correctly with no duplication.
 
 Additional verification: `grep 'group_order' cliff.toml` returns no match — `[git] group_order` is not present (it does not exist in git-cliff 2.14.1).
 
@@ -113,12 +119,12 @@ $ grep -n 'git cliff' .github/workflows/release-prep.yml | grep -v output
 
 ## Synthetic Commit Disposal Confirmation
 
-The throwaway `feat!:` commit used for the AC-006 demo was created inside the `Hide` section of `AC-006-breaking-changes-first.tape` and dropped inside the `Hide` cleanup section via `git reset --soft HEAD~1 && git reset HEAD`. Post-recording `git log --oneline -3` shows:
+The throwaway `feat(api)!:` commit used for the AC-006 demo was created inside the `Hide` section of `AC-006-breaking-changes-first.tape` (using two `-m` flags: subject + `BREAKING CHANGE:` footer) and dropped inside the `Hide` cleanup section via `git reset --soft HEAD~1 && git reset HEAD`. Post-recording `git log --oneline -3` shows:
 
 ```
-5ead5f1cb docs(ci): fix misleading comment in release-prep.yml Step 7 pre-strip edge case
-1b0504b7d docs(releasing): holistic coherence audit — F-1..F-4, H-A..H-C, stale infusion term
-7809f7e66 docs(RELEASING): fix --generate-notes stale claims + align archive contents to release.yml
+7de4718a0 fix(E-REL-NOTES): template duplication guard + footer protection + breaking-changes sweep (review cycle 4)
+84de9ac66 fix(E-REL-NOTES): catch-all skip rule + tag guard + pre-strip narrative + heading consistency (review cycle 3)
+a77cc2f25 fix(E-REL-NOTES): correct awk version-anchor + .rel-artifacts comment (review cycle 2)
 ```
 
-The throwaway commit (`feat!: THROWAWAY ...`) is absent. History is clean.
+The throwaway commit (`feat(api)!: THROWAWAY remove legacy sensor API`) is absent. History is clean.

@@ -14,7 +14,7 @@ Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/E-REL-NOTES"
 Enter
 Sleep 1s
-Type "git commit --allow-empty -m 'feat!: THROWAWAY remove legacy sensor API -- BREAKING CHANGE: /v0/sensors removed, migrate to /v1/sensors' 2>/dev/null"
+Type "git commit --allow-empty -m 'feat(api)!: THROWAWAY remove legacy sensor API' -m 'BREAKING CHANGE: /v0/sensors removed, migrate to /v1/sensors' 2>/dev/null"
 Enter
 Sleep 8s
 Type "clear"
@@ -22,7 +22,7 @@ Enter
 Sleep 500ms
 Show
 
-Type "# AC-006: Breaking Changes renders BEFORE Added (Tera filter-based two-part body)"
+Type "# AC-006: Breaking Changes renders BEFORE Added (correct multi-line commit with footer)"
 Enter
 Sleep 1s
 Type "git cliff --unreleased --tag v1.0.0-beta.1 --output /dev/stdout 2>/dev/null"
@@ -33,3 +33,6 @@ Hide
 Type "git reset --soft HEAD~1 && git reset HEAD 2>/dev/null"
 Enter
 Sleep 2s
+Type "git log --oneline -3"
+Enter
+Sleep 3s
