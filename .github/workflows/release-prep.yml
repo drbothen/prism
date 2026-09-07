@@ -174,7 +174,8 @@ jobs:
 
           # Pre-strip: remove masthead/preamble and any prior [Unreleased] section
           # so git-cliff receives a file starting at the first versioned ## [X.Y.Z] section.
-          # This prevents masthead duplication across repeated release-prep cycles.
+          # This prevents masthead duplication across different-version release-prep cycles.
+          # Same-version re-dispatch is guarded by Step 3's branch-existence check, not this pre-strip.
           #
           # Zero-versioned-section edge case: if CHANGELOG.md contains only a masthead
           # and ## [Unreleased] block with no versioned ## [X.Y.Z] sections (e.g. on the

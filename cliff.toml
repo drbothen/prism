@@ -11,7 +11,8 @@
 # at the first versioned section (## [X.Y.Z]). git-cliff then writes:
 #   header (masthead + ## [Unreleased]) + new ## [X.Y.Z] section + existing sections
 # This produces a correct keepachangelog structure on every release cycle without masthead
-# duplication. The pre-strip ensures idempotency across repeated release-prep runs.
+# duplication across different-version cycles. Same-version re-dispatch is separately
+# guarded by the Step 3 branch-existence check in release-prep.yml.
 #
 # Breaking Changes section ordering (ADR-063 §D3):
 # Intended ADR mechanism: numbered-group-name-prefix idiom — { breaking = true } parser routes
