@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,40 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.8 (2026-09-07) — D3 `--prepend` mechanism canonicalized: empirically-verified
+3-substep release-prep.yml Step 7 flow (git-cliff 2.14.1, verified idempotent over 3 simulated
+release cycles on the REAL CHANGELOG.md).
+
+`git cliff --prepend` with an **empty** `[changelog] header` corrupts CHANGELOG.md: the new
+`## [version]` section is inserted ABOVE the `# Changelog` masthead (burying the masthead and
+orphaning `## [Unreleased]`), and the existing `[version]: compare-link` reference definitions
+are not updated. The v1.7 cliff.toml sketch `header = ""` is therefore INCORRECT and MUST NOT
+be used.
+
+Canonical 3-substep mechanism: (1) `[changelog] header` carries the masthead + preamble +
+`## [Unreleased]` (NOT empty) — git-cliff writes `header + new-section + existing-content`,
+placing the masthead at the top followed by the new version section (correct keepachangelog
+order); (2) release-prep.yml Step 7 PRE-STRIP substep (Python, pre-git-cliff): strips prior
+masthead and `## [Unreleased]` from CHANGELOG.md leaving the file at the first versioned
+section — idempotency across repeated release cycles; (3) release-prep.yml Step 7 LINK-REF
+UPDATE substep (Python, token-free, post-git-cliff): repoints `[Unreleased]` compare ref to
+new version and inserts a `[VERSION]: compare-link` reference definition from the existing ref
+text and the VERSION env var; no GITHUB_TOKEN required.
+
+The core `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` invocation (D5)
+is UNCHANGED — it runs between the PRE-STRIP (removes prior masthead/Unreleased) and the
+LINK-REF UPDATE (fixes compare-link refs). cliff.toml sketch: `header = ""` corrected to full
+masthead + preamble + `## [Unreleased]`. §D3: `--prepend` mechanism section added documenting
+all 3 substeps as REQUIRED. §Consequences two-layer bullet updated. No change to D1/D2/D4/D5/D6.
+
+TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer:
+S-REL-CLIFF-001 Task 2 describes cliff.toml + release-prep.yml Step 7 mechanism — sweep to
+reflect header-carries-masthead + pre-strip + link-ref-update substeps in same burst;
+S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 confirmed no `header=""` or incorrect direct-prepend
+copy (CLEAR for both). Dim-3 CLEAR: prepend-correctness MUST anchored to S-REL-CLIFF-001
+AC-003 (Step 7 replacement covers all 3 substeps) + AC-005 (`--prepend` without `--output`
+correct invocation) — confirmed.
 
 ACCEPTED v1.7 (2026-09-07) — D3 spec-accuracy update: two empirically-verified mechanism
 deviations from the v1.6 §D3 cliff.toml sketch documented to match the shipped cliff.toml
@@ -203,7 +237,16 @@ better suited to the Layer-1 curated top-block (D4); the BREAKING CHANGE footer 
 
 ```toml
 [changelog]
-header = ""
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [Unreleased]
+
+"""
 body = """
 {% if version %}## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}## [Unreleased]
@@ -285,6 +328,40 @@ consistent ordering.
 The implementing story (S-REL-CLIFF-001) owns the canonical `cliff.toml` and validates the
 filter-based breaking section against git-cliff 2.14.1; the filter-based approach is the REQUIRED
 mechanism (anchored to S-REL-CLIFF-001 AC-006).
+
+**`--prepend` mechanism — canonical 3-substep release-prep.yml Step 7 flow (empirically
+verified: git-cliff 2.14.1, idempotent over 3 simulated release cycles on the REAL
+CHANGELOG.md):**
+
+`git cliff --prepend` with an **empty** `[changelog] header` corrupts CHANGELOG.md structure:
+the new `## [version]` section is inserted ABOVE the `# Changelog` masthead (burying the
+masthead and orphaning `## [Unreleased]`), and the existing `[version]: compare-link` reference
+definitions at the bottom of the file are not updated. The `header = ""` form MUST NOT be used.
+
+The canonical mechanism is a **3-substep** release-prep.yml Step 7 flow; all substeps are
+REQUIRED for idempotent, keepachangelog-compliant CHANGELOG.md production:
+
+**Substep 1 — PRE-STRIP (Python, runs BEFORE `git cliff`):** Strip the `# Changelog` masthead
+and any prior `## [Unreleased]` section from CHANGELOG.md, leaving the file starting at the
+first `## [X.Y.Z]` section. Without this substep, each release cycle accumulates a duplicate
+masthead from the previous run's `header` injection.
+
+**Substep 2 — `git cliff` invocation (core; UNCHANGED from D5):**
+`git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md`. Because `[changelog] header`
+carries the full masthead + preamble + `## [Unreleased]`, git-cliff writes
+`header + new-section + existing-content`. After this substep the file starts with the masthead,
+followed by the new `## [VERSION]` section, followed by the existing versioned history —
+correct keepachangelog order.
+
+**Substep 3 — LINK-REF UPDATE (Python, token-free, runs AFTER `git cliff`):** Repoint
+`[Unreleased]: .../compare/vPREV...HEAD` to the new version and insert a new
+`[VERSION]: .../compare/vPREV...vVERSION` compare-link reference definition using the existing
+ref text and the VERSION env var. No GITHUB_TOKEN required. Maintains the keepachangelog
+compare-link footer block that the existing CHANGELOG.md uses to resolve version ranges.
+
+The implementing story (S-REL-CLIFF-001) owns the cliff.toml `header` field and the
+release-prep.yml Step 7 substep scripts; the 3-substep flow is the REQUIRED `--prepend`
+mechanism (anchored to S-REL-CLIFF-001 AC-003 + AC-005).
 
 ### D4 — Two-Layer CHANGELOG Model
 
@@ -457,9 +534,13 @@ git-cliff is the correct choice for Prism for five reasons, all verified in
   not signal)
 - BREAKING CHANGE footer values are surfaced inline via `commit.breaking_description`
 - The two-layer model in RELEASING.md §5 is operationalized: Layer-2 (git-cliff body) is prepended
-  first as a `## [VERSION]` block; Layer-1 (technical-writer `### Highlights / Breaking Changes /
-  Upgrade Notes` sections) is inserted inside that block afterward. The `release.yml` awk extraction
-  captures both layers without any modification to `release.yml`.
+  first as a `## [VERSION]` block via the canonical 3-substep release-prep.yml Step 7 flow (D3
+  `--prepend` mechanism: PRE-STRIP substep removes prior masthead/`## [Unreleased]` before git-cliff
+  runs; git-cliff injects the new section via the `[changelog] header`-carries-masthead mechanism;
+  LINK-REF UPDATE substep maintains keepachangelog compare-link footer refs); Layer-1
+  (technical-writer `### Highlights / Breaking Changes / Upgrade Notes` sections) is inserted inside
+  that block afterward. The `release.yml` awk extraction captures both layers without any modification
+  to `release.yml`.
 - No new runtime dependency introduced to the workspace
 - release.yml `--notes-file` mechanism unchanged; existing release publication path unaffected
 
@@ -530,6 +611,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-09-07 | architect | D3 `--prepend` mechanism canonicalized: DEVIATION-3 — `git cliff --prepend` with empty `[changelog] header` corrupts CHANGELOG.md (buries `# Changelog` masthead; orphans `## [Unreleased]`; compare-link ref-defs not updated). Verified empirically: git-cliff 2.14.1. Canonical 3-substep release-prep.yml Step 7 flow, verified idempotent over 3 simulated release cycles: (1) cliff.toml `[changelog] header` carries masthead + preamble + `## [Unreleased]` (NOT empty) — git-cliff writes `header + new-section + existing-content` → correct keepachangelog order; (2) PRE-STRIP substep (Python, pre-git-cliff): strips prior masthead + `## [Unreleased]` from CHANGELOG.md leaving file at first versioned section — idempotency across release cycles; (3) LINK-REF UPDATE substep (Python, post-git-cliff, token-free): repoints Unreleased compare ref + inserts VERSION compare ref from existing ref + VERSION env var; no GITHUB_TOKEN. Core `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` invocation UNCHANGED. cliff.toml sketch: `header = ""` corrected to full masthead + preamble + `## [Unreleased]`. §D3: `--prepend` mechanism section added (3 substeps documented as REQUIRED). §Consequences two-layer bullet updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task 2 sweep to header-carries-masthead + pre-strip + link-ref-update substeps; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 confirmed no `header=""` or incorrect direct-prepend copy (CLEAR for both). Dim-3 CLEAR: prepend-correctness MUST anchored to S-REL-CLIFF-001 AC-003 (Step 7 replacement) + AC-005 (`--prepend` without `--output`). No change to D1/D2/D4/D5/D6. |
 | 1.7 | 2026-09-07 | architect | D3 spec-accuracy update: two empirically-verified mechanism deviations from the v1.6 §D3 cliff.toml sketch documented to match shipped cliff.toml (S-REL-CLIFF-001 implementation). DEVIATION-1 — PR-link mechanism (token-free): `commit_preprocessors` regex rewrites `(#NNN)` in squash-merge commit subjects into markdown links BEFORE Tera rendering — no `GITHUB_TOKEN` required; `commit.remote.pr_number/pr_url` NOT read by body template (empty in token-free dry-run); `[remote.github]` block retained but body template ignores it. cliff.toml sketch: `commit_preprocessors` updated with regex; `commit.remote.pr_number/pr_url` clause removed from body template; §D3 "GitHub PR link injection" prose updated; §Consequences PR-numbers bullet updated. DEVIATION-2 — Breaking Changes section ordering: `{ breaking = true }` in `commit_parsers` does NOT override message-based group assignment in git-cliff 2.14.1 (verified empirically: `feat!:` still lands in `<!-- 1 -->Added` regardless of parser position); single `group_by` loop with `{ breaking = true }` parser does not produce a separate Breaking Changes group. Shipped mechanism: Tera two-part body — manual `### Breaking Changes` section via `commits \| filter(attribute="breaking", value=true)` rendered BEFORE `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")` loop; `{ breaking = true }` commit_parser entry removed from sketch; numbered-prefix idiom + `striptags \| trim` preserved for non-breaking groups. §D3 sketch body template and breaking-section-ordering prose updated. `{ breaking = true }` parser-level grouping MUST NOT be relied upon in git-cliff 2.14.1. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task-2 describes cliff.toml template (commit_parsers + body) referencing v1.6 mechanisms — sweep to v1.7 filter-based breaking section + preprocessor PR-link in same burst. Dim-3 CLEAR: ordering MUST anchored to S-REL-CLIFF-001 AC-006 — confirmed. |
 | 1.6 | 2026-09-07 | architect | D3 internal consistency correction (F-4/F-8): (F-4) per-entry `@author` attribution DROPPED — single-author project; uniform `by @handle` on every entry is noise not signal; `by @{{ commit.remote.username }}` removed from cliff.toml sketch PR-link block; §D3 "GitHub PR/author injection" section renamed to "GitHub PR link injection"; §Consequences attribution bullet removed. (F-8) commit body inclusion policy corrected — subject-line-only for all entry types; feat commit bodies NOT rendered; BREAKING CHANGE footer value surfaced inline via `commit.breaking_description` (appended as `— {description}` when present); cliff.toml sketch updated with `breaking_description` render block; §D3 "Commit body inclusion policy" prose corrected; §Consequences updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §Narrative mentions "author attribution" — that phrase must be removed. Dim-3 CLEAR: no new MUSTs; existing CLIFF-001 AC anchors unchanged. |
 | 1.5 | 2026-09-07 | architect | D3 spec-accuracy correction: git-cliff 2.14.1 has NO built-in `regex_replace` Tera filter (`Filter 'regex_replace' not found` confirmed via dry-run). `striptags \| trim` is the native marker-stripping mechanism (per `git cliff --init` default template). cliff.toml sketch body template updated from `regex_replace(pattern="<!-- \\d+ -->", replacement="")` to `striptags \| trim`. Numbered-group-name-prefix ordering intent unchanged. `[git] group_order` non-existent key statement unchanged (still correct). TD-VSDD-097: Dim-1 CLEAR (no ADR twin affected by Tera-filter-name fix). Dim-2 HANDOFF: `regex_replace` snippet copied into S-REL-CLIFF-001 (Task 2, AC-006, risk_mitigations) — story-writer must sweep those three locations to `striptags \| trim` in the same burst. Dim-3 CLEAR: marker-strip MUST anchored to S-REL-CLIFF-001 AC-006 grep + ordering gate. |

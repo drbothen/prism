@@ -183,6 +183,7 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 | Pass | Date | Findings | HIGH | MED | LOW | OBS | Streak | Verdict |
 |------|------|----------|------|-----|-----|-----|--------|---------|
 | Pass 1 | 2026-09-07 | 9 (+ post-fix empirical corrections) | 1 | 3 | 2 | 3 | 0/3 | CLEAN(strict): NO — all 9 FIXED; streak begins at 0/3 |
+| Pass 2 | 2026-09-07 | 7 | 0 | 2 | 1 | 4 | 0/3 | CLEAN(strict): NO — all 7 FIXED; streak 0/3 |
 
 **Pass 1 finding summary:**
 
@@ -203,4 +204,20 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 
 **TD-VSDD-097 sweep verdict:** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 v1.7 → S-REL-CLIFF-001 Task-2/§Narrative/BCtable swept same fix-burst; devops cliff.toml already aligned on code worktree). Dim-3 CLEAR (ordering MUST anchored to CLIFF-001 AC-006; F-9 AC-006 anchored in BETA1-NOTES).
 
-**Next:** LOCAL adversary pass-2 on frozen code HEAD 38a662224 → 3-CLEAN → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+**Pass 2 finding summary (all FIXED on code HEAD 38a662224→9f09df7a2; devops + architect):**
+
+- MED-1 (devops): RELEASING.md §5 stale `<!-- 0 -->` breaking annotation — non-operational but misleading; replaced with filter-based `just check-changelog-breaking` mechanism description.
+- MED-2 (devops + architect): empty-header `--prepend` corrupts CHANGELOG.md — blank `--header ""` causes `git-cliff --prepend` to prepend an empty line and duplicate `##` sections over iterations; resolved via 3-substep flow: (a) header carries full masthead+Unreleased section; (b) Python pre-strip idempotency script removes pre-existing masthead+Unreleased before each --prepend; (c) token-free Python link-ref update step post-prepend. ADR-063 v1.7→v1.8 §D3 DEVIATION-3 documents mechanism; S-REL-CLIFF-001 v1.5→v1.6 Task 2/Task 4/AC-003 swept.
+- LOW-1 (devops): cliff.toml comment `# DEVIATION from v1.6` → conforms to §D3 as written; comment updated to reference §D3.
+- OBS-1 (devops): `.rel-artifacts/*.txt` test artifact files `git rm`'d + `.gitignore` entry added.
+- OBS-2 (devops): RELEASING.md §6 — nothing-to-release recovery path documented (re-run without `--unreleased`, clear partial changes).
+- OBS-3 (devops): compare-link `[X.Y.Z]: https://...` ref defs added via link-ref substep in release-prep.yml.
+- OBS-4 (devops): stale "scaffold" terminology swept from release-prep.yml comments.
+
+**Post-fix spec corrections (ADR-063 v1.7→v1.8 §D3 DEVIATION-3):**
+
+DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — running git-cliff --prepend with an empty header string causes `git-cliff` to emit a blank prepend line, corrupting the CHANGELOG masthead on repeat invocations. The canonical mechanism is a 3-substep flow: (1) header carries masthead+Unreleased block; (2) Python pre-strip script removes pre-existing masthead+Unreleased before each --prepend (idempotency); (3) Python link-ref update step injects compare-link ref defs. Verified idempotent over 3 cycles. S-REL-CLIFF-001 Task 2/Task 4/AC-003 swept to the 3-substep flow; `header=""` prohibition noted.
+
+**TD-VSDD-097 sweep verdict (D-2478):** Dim-1 CLEAR (ADR-063 has no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 DEVIATION-3 → S-REL-CLIFF-001 Task-2/Task-4/AC-003 swept in same burst; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 verified clean; cliff.toml/release-prep.yml aligned on worktree). Dim-3 CLEAR (prepend-correctness MUST anchored to CLIFF-001 AC-003 + AC-005).
+
+**Next:** LOCAL adversary pass-3 (re-gate) on frozen code HEAD 9f09df7a2 → 3-CLEAN → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.

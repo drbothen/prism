@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -65,6 +65,14 @@ risk_mitigations:
     and reads NO `commit.remote.*` fields (those require GITHUB_TOKEN and are empty in
     token-free dry-runs). The `[remote.github]` section is retained for possible future
     remote-API use but the body template ignores it."
+  - "cliff.toml `[changelog] header` MUST NOT be empty (`header = \"\"`). ADR-063 v1.8 D3
+    confirmed empirically (3 simulated release cycles on REAL CHANGELOG.md): `git cliff
+    --prepend` with `header = \"\"` inserts the new `## [version]` section ABOVE the
+    `# Changelog` masthead, burying it and orphaning `## [Unreleased]`. The `header` MUST
+    carry the full masthead + keep-a-changelog preamble + `## [Unreleased]` line (use the
+    exact multi-line block from the ADR-063 v1.8 D3 cliff.toml sketch). The 3-substep
+    Step 7 in release-prep.yml — (a) PRE-STRIP, (b) git cliff, (c) LINK-REF UPDATE —
+    handles idempotency across release cycles (ADR-063 v1.8 D3)."
   - "The git cliff invocation in release-prep.yml uses `--unreleased --tag` (NOT
     `--latest`). `--unreleased` renders all commits not yet in any tag; combined with
     `--tag` it writes the new section header. Do NOT add -o/--output alongside
@@ -100,7 +108,7 @@ phase: "3"
 
 **Story ID:** S-REL-CLIFF-001
 **Status:** ready
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -152,7 +160,8 @@ This story has no subsystem behavioral contracts. Authority is ADR-063 D1/D3/D5.
 | ADR-063 D3 | Commit type → CHANGELOG section mapping (feat→Added; fix→Fixed; perf→Performance; refactor→Changed; security→Security; docs/ci/test/chore/style/build/revert→skip) |
 | ADR-063 v1.7 D3 | Breaking Changes section ordered BEFORE Added via Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST; `{ breaking = true }` parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon |
 | ADR-063 v1.7 D3 | GitHub PR link injection token-free via `commit_preprocessors` regex — `(#NNN)` rewritten to markdown link BEFORE Tera rendering; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `[remote.github]` retained but body template ignores it |
-| ADR-063 v1.2 D5 | Step 7 invocation: `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` |
+| ADR-063 v1.8 D3 | cliff.toml `[changelog] header` MUST carry full masthead + keep-a-changelog preamble + `## [Unreleased]` (NOT empty — `header = ""` corrupts CHANGELOG.md: new section inserted ABOVE masthead) |
+| ADR-063 v1.8 D3 | Step 7 is a 3-substep flow: (a) PRE-STRIP (Python, before git cliff) — strip prior masthead + `## [Unreleased]` from CHANGELOG.md; (b) `git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md` (core, unchanged); (c) LINK-REF UPDATE (Python, token-free, after git cliff) — repoint `[Unreleased]` ref + insert `[VERSION]` compare-link ref |
 | ADR-063 v1.2 D5 | Do NOT add `--output CHANGELOG.md` alongside `--prepend` — dual flag caused duplicate sections |
 | ADR-063 D4 | Technical-writer step runs AFTER git-cliff (S-REL-WRITER-001 is the separate follow-on story) |
 
@@ -191,8 +200,13 @@ description before the PR can be reviewed.
 
 2. **Create `cliff.toml` at the repo root** with the normative ADR-063 D3 configuration.
    Use the informative sketch from ADR-063 D3 as the basis, ensuring:
-   - `[changelog]` section with empty `header`, the Tera body template, empty `footer`,
-     and `trim = true`
+   - `[changelog]` section with `header` carrying the full `# Changelog` masthead +
+     keep-a-changelog preamble + `## [Unreleased]` line (ADR-063 v1.8 D3: `header = ""`
+     is INCORRECT and MUST NOT be used — `git cliff --prepend` with an empty header
+     inserts the new `## [version]` section ABOVE the masthead, burying it and orphaning
+     `## [Unreleased]`; the v1.7 `header = ""` guidance is superseded by v1.8). The body
+     template, empty `footer`, and `trim = true` are UNCHANGED. Use the exact multi-line
+     `header` block from the ADR-063 v1.8 D3 cliff.toml sketch.
    - `[git]` section: `conventional_commits = true`, `filter_unconventional = true`,
      `tag_pattern = "v[0-9].*"`, `sort_commits = "oldest"`
    - `commit_preprocessors` entry for token-free PR link injection (ADR-063 v1.7 D3
@@ -231,22 +245,36 @@ description before the PR can be reviewed.
    chore/ci/docs), add additional skip rules per ADR-063 D6. Document the output
    snippet for the PR description.
 
-4. **Patch `release-prep.yml` Step 7:**
+4. **Patch `release-prep.yml` Step 7** with the canonical 3-substep flow (ADR-063 v1.8 D3):
    Replace the existing `Scaffold CHANGELOG entry` step (uses `git log --merges
-   --oneline | head -100` + Python scaffold heredoc) with:
-   ```yaml
-   - name: Generate CHANGELOG body (git-cliff)
-     run: |
-       set -euo pipefail
-       cargo install git-cliff --version 2.14.1 --locked --quiet
-       git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md
+   --oneline | head -100` + Python scaffold heredoc) with a 3-substep
+   `Generate CHANGELOG body (git-cliff)` step. All three substeps are REQUIRED for
+   idempotent, keepachangelog-compliant CHANGELOG.md production:
+
+   **Substep (a) — PRE-STRIP (Python, runs BEFORE `git cliff`):** Strip the `# Changelog`
+   masthead and any prior `## [Unreleased]` section from CHANGELOG.md, leaving the file
+   starting at the first `## [X.Y.Z]` versioned section. Without this, each release cycle
+   accumulates a duplicate masthead from the previous run's `header` injection
+   (ADR-063 v1.8 D3 — idempotency gate).
+
+   **Substep (b) — `git cliff` invocation (core, UNCHANGED from D5):**
+   ```bash
+   git cliff --tag "${VERSION_TAG}" --unreleased --prepend CHANGELOG.md
    ```
-   Per ADR-063 v1.2 D5: `--unreleased` selects all commits not yet in any tag;
-   `--tag` sets the new section header; `--prepend` writes ONLY to the top of
-   CHANGELOG.md. Do NOT use `--latest` — that flag is for existing-tag ranges
-   and is unreliable for first-release or tag-boundary disambiguation.
-   The `VERSION_TAG` environment variable is already set in the workflow context
+   Because `[changelog] header` carries the full masthead + preamble + `## [Unreleased]`,
+   git-cliff writes `header + new-section + existing-content`. After this substep the file
+   starts with the masthead, followed by the new `## [VERSION]` section, then existing
+   history — correct keepachangelog order.
+   Do NOT use `--latest` (unreliable for first release or pre-tag disambiguation).
+   Do NOT add `-o/--output` alongside `--prepend` (dual flag causes duplicate sections,
+   ADR-063 D5 v1.1). The `VERSION_TAG` env var is already set in the workflow context
    (verify the exact var name from the surrounding steps).
+
+   **Substep (c) — LINK-REF UPDATE (Python, token-free, runs AFTER `git cliff`):** Repoint
+   `[Unreleased]: .../compare/vPREV...HEAD` to the new version and insert a new
+   `[VERSION_TAG]: .../compare/vPREV...vVERSION` compare-link reference definition using
+   the existing ref text and the `VERSION_TAG` env var. No `GITHUB_TOKEN` required.
+   Maintains the keepachangelog compare-link footer block (ADR-063 v1.8 D3).
 
 5. **Verify the replacement step in context:** Read the surrounding steps to confirm:
    - The `checkout` step has sufficient depth (`fetch-depth: 0` or full history)
@@ -280,10 +308,19 @@ Dry-run output (`git cliff --unreleased --output /dev/stdout`) contains no entri
 under these types. feat/fix/perf entries appear under their respective sections.
 (traces to ADR-063 D3 — skip rules)
 
-### AC-003: release-prep.yml Step 7 replaced with git-cliff invocation
-`grep -n 'git cliff' .github/workflows/release-prep.yml` returns at least one match.
-`grep -n 'git log --merges' .github/workflows/release-prep.yml` returns no match.
-(traces to ADR-063 D5 — release-prep.yml integration point)
+### AC-003: release-prep.yml Step 7 replaced with 3-substep git-cliff flow
+The canonical ADR-063 v1.8 D3 3-substep Step 7 is present in `release-prep.yml`:
+- `grep -n 'git cliff' .github/workflows/release-prep.yml` returns at least one match
+  (Substep b present).
+- `grep -n 'git log --merges' .github/workflows/release-prep.yml` returns no match
+  (scaffold removed).
+- Step 7 includes a PRE-STRIP substep (Python) that strips the prior masthead +
+  `## [Unreleased]` from CHANGELOG.md before `git cliff` runs (Substep a — idempotency).
+- Step 7 includes a LINK-REF UPDATE substep (Python, token-free) that repoints the
+  `[Unreleased]` compare ref and inserts a `[VERSION]` compare-link reference definition
+  after `git cliff` runs (Substep c — keepachangelog compare-link footer).
+(traces to ADR-063 v1.8 D3 — canonical 3-substep `--prepend` mechanism; and ADR-063 D5 —
+release-prep.yml integration point)
 
 ### AC-004: git-cliff version 2.14.1 pinned in release-prep.yml
 `grep 'git-cliff --version' .github/workflows/release-prep.yml` shows `--version 2.14.1`.
@@ -414,6 +451,7 @@ fabricate a holdout for a gate that definitionally does not apply.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.8 §D3 `--prepend` mechanism). Task 2 `[changelog] header` bullet: "empty header" → "header carries full masthead+preamble+`## [Unreleased]`" (ADR-063 v1.8 D3: `header = ""` is INCORRECT — corrupts CHANGELOG.md by inserting new section ABOVE masthead). Task 4 (Step 7): single git-cliff invocation → enumerated 3-substep flow: (a) PRE-STRIP Python pre-git-cliff idempotency strip of masthead+`## [Unreleased]`, (b) `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` (unchanged core), (c) LINK-REF UPDATE Python token-free post-git-cliff repoint `[Unreleased]`+insert `[VERSION]` compare-link ref. AC-003: updated to verify all 3 substeps present (PRE-STRIP + git cliff + LINK-REF UPDATE). Behavioral Contracts table: old Step 7 invocation row → 3-substep description; new ADR-063 v1.8 D3 `header` carries masthead row added. risk_mitigations: new `header = ""` corruption + 3-substep bullet. AC-005 (`--prepend` without `--output`) UNCHANGED. AC-006 (breaking ordering/no group_order) UNCHANGED. |
 | 1.5 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.7 §D3). DEVIATION-1 (PR-link token-free): Task 2 `commit_preprocessors` bullet added — `(#NNN)` rewritten to markdown link BEFORE Tera rendering via regex preprocessor; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `commit.remote.pr_number`/`commit.remote.pr_url` NOT read. `[remote.github]` note updated (retained, body template ignores it). Behavioral Contracts PR-link row updated. Library & Framework GITHUB_TOKEN row updated (not needed). risk_mitigations GITHUB_TOKEN bullet updated. DEVIATION-2 (Breaking Changes filter-based): `{ breaking = true, group = "<!-- 0 -->Breaking Changes" }` commit_parser guidance removed — that parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon. Task 2 commit_parsers bullet updated (numbered prefix starts at `<!-- 1 -->Added`; no `<!-- 0 -->`). Task 2 Breaking Changes bullet replaced with Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST, then `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")`. Behavioral Contracts Breaking Changes row updated. risk_mitigations Breaking Changes bullet updated. AC-006 mechanism updated (filter-based; `group_order` MUST NOT and `striptags \| trim` preserved). No-group_order, striptags\|trim, numbered-prefix for non-breaking groups (`<!-- 1 -->Added` … `<!-- 5 -->Security`) preserved throughout. |
 | 1.4 | 2026-09-07 | story-writer | F-7/Dim-2 (ADR-063 v1.6 §D3 reconciliation): Task 2 [remote.github] owner corrected jmagady→drbothen (ADR-063 v1.2 D3 C3 — owner=drbothen is the single source of truth per §D3 and shipped cliff.toml). §Narrative "and author attribution" removed — ADR-063 v1.6 D3 F-4 drops per-entry @author attribution for single-author project; PR-number links retained. |
 | 1.3 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.4→v1.5 §D3 spec-accuracy correction): replace `regex_replace(pattern="<!-- \\d+ -->", replacement="")` with `striptags \| trim` in Task 2 Tera body template snippet, AC-006 marker-strip criterion, and risk_mitigations Breaking Changes ordering bullet. State explicitly that `regex_replace` is NOT a built-in Tera filter in git-cliff 2.14.1 (`Filter 'regex_replace' not found` confirmed via dry-run); `striptags \| trim` is the native mechanism per `git cliff --init` default template. Numbered-group-name-prefix ordering language and `[git] group_order` MUST-NOT statement unchanged. ADR-063 version refs updated from v1.4 D3 → v1.5 D3 throughout. Status: ready unchanged. |
