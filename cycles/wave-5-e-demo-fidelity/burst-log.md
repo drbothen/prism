@@ -626,4 +626,33 @@ S-REL-BETA1-NOTES-001 (next unreleased story, not part of the reviewed CLIFF-001
 
 **TD-VSDD-097:** Dim-1 CLEAR (BETA1-NOTES-001 --unreleased fix is self-contained; no sibling twin). Dim-2 CLEAR (Task 5 not a copy-source section for downstream artifacts). Dim-3 CLEAR (no new unanchored MUSTs). TD-VSDD-091/POL-39 CLEAN.
 
+---
+
+## D-2485 — 2026-09-07 — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen 5ead5f1cb
+
+**Burst type:** SINGLE-COMMIT BURST (TD-VSDD-053)
+
+**Trigger:** LOCAL adversary passes 2/3 and 3/3 on frozen code HEAD 5ead5f1cb complete the BC-5.39.001 3-CLEAN(strict) streak. Baseline: D-2484 (STATE v9.012; SESSION-HANDOFF v8.101; streak 1/3).
+
+**Result:** CONVERGED. BC-5.39.001 3-CLEAN(strict) streak 1/3→2/3→3/3 = CONVERGED.
+
+Pass 9 (streak 2/3): CLEAN(strict): YES; CLEAN(PR-merge): YES. ZERO diff findings. Code HEAD 5ead5f1cb UNCHANGED.
+
+Pass 10 (streak 3/3): CLEAN(strict): YES; CLEAN(PR-merge): YES. ZERO diff findings. Code HEAD 5ead5f1cb UNCHANGED.
+
+All three passes on same frozen code HEAD 5ead5f1cb (frozen-HEAD rule satisfied per BC-5.39.001 / DRIFT-ORCH-PRLEVEL-PUSH-001). All 11 ACs (CLIFF-001 AC-001..006, WRITER-001 AC-001..005) satisfied. cliff.toml conformant to ADR-063 v1.10 §D3/§D4. release-prep.yml 3-substep --prepend mechanism idempotent + fail-loud. RELEASING.md §1..§6 internally consistent and consistent with workflows. Holdout gate: N/A per POL-35 (both S-REL-CLIFF-001 and S-REL-WRITER-001 have behavioral_contracts: [] / holdout_scenarios: [] / HOLDOUT-N/A facade).
+
+**Files touched (factory only):**
+
+- `.factory/cycles/wave-5-e-demo-fidelity/convergence-trajectory.md` — Pass 9 and Pass 10 rows appended + narrative summaries
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — this entry
+- `.factory/STATE.md` — v9.012→v9.013 (D-2485 decision row; current_step updated to CONVERGED 3/3; Session Resume Checkpoint D-2484→D-2485)
+- `.factory/SESSION-HANDOFF.md` — v8.101→v8.102 (D-2485 burst header; §RESUME SNAPSHOT D-2484→D-2485)
+
+**Code files touched:** NONE. Frozen code HEAD 5ead5f1cb UNCHANGED.
+
+**TD-VSDD-097:** N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN.
+
+**Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.375 / story_index v3.020 / total_stories 336 ALL UNCHANGED.
+
 **Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.375 UNCHANGED. total_stories 336 UNCHANGED.

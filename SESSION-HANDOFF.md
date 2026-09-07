@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.101"
+version: "8.102"
 status: current
-timestamp: 2026-09-07T23:30:00Z
+timestamp: 2026-09-07T23:55:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2485 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen 5ead5f1cb. Pass-9 (streak 2/3) and pass-10 (streak 3/3 = CONVERGED) both CLEAN(strict): YES; CLEAN(PR-merge): YES; ZERO diff findings. BC-5.39.001 frozen-HEAD streak rule satisfied (all 3 passes on same code HEAD 5ead5f1cb; DRIFT-ORCH-PRLEVEL-PUSH-001). All 11 ACs (CLIFF-001 AC-001..006 + WRITER-001 AC-001..005) satisfied. cliff.toml conformant to ADR-063 v1.10 §D3/§D4; release-prep.yml 3-substep --prepend mechanism idempotent + fail-loud; RELEASING.md §1..§6 internally consistent. Holdout gate: N/A per POL-35 (both S-REL-CLIFF-001 and S-REL-WRITER-001 behavioral_contracts: [] / holdout_scenarios: [] / HOLDOUT-N/A facade). RECORDS + STATE burst only (no spec/story/index changes). TD-VSDD-097: N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.375/story_index v3.020/total_stories 336 ALL UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.012→v9.013. SESSION-HANDOFF v8.101→v8.102. §RESUME SNAPSHOT D-2484 SUPERSEDED by D-2485.**
 
 > **D-2484 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL adversary CLEAN(strict) pass-8 on frozen 5ead5f1cb; ZERO diff findings. BC-5.39.001 3-CLEAN(strict) streak 0/3→1/3. Out-of-perimeter courtesy note (NOT a finding, streak NOT reset): S-REL-BETA1-NOTES-001 Task 5/Task 2/Behavioral Contracts `git cliff --tag` → `git cliff --unreleased --tag` — spec-drift corrected by story-writer (v1.3→v1.4); out-of-perimeter because BETA1-NOTES-001 is the next unreleased story, not part of the reviewed CLIFF-001+WRITER-001 diff. STORY-INDEX v3.019→v3.020. CLEAN(strict): YES; CLEAN(PR-merge): YES. TD-VSDD-097: Dim-1 CLEAR (BETA1-NOTES-001 --unreleased fix self-contained; no sibling twin) / Dim-2 CLEAR (Task 5 not a copy-source section for downstream artifacts) / Dim-3 CLEAR (no new unanchored MUSTs). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.375 UNCHANGED. total_stories 336 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.011→v9.012. SESSION-HANDOFF v8.100→v8.101. §RESUME SNAPSHOT D-2483 SUPERSEDED by D-2484.**
 
@@ -48,7 +50,47 @@ timestamp: 2026-09-07T23:30:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2484 (2026-09-07 — E-REL-NOTES LOCAL pass-8 CLEAN(strict); frozen 5ead5f1cb; BETA1-NOTES-001 v1.4; streak 1/3) [supersedes D-2483]
+## §RESUME SNAPSHOT — D-2485 (2026-09-07 — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb; ADR-063 v1.10; BETA1-NOTES-001 v1.4) [supersedes D-2484]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES (S-REL-CLIFF-001 + S-REL-WRITER-001) LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen code HEAD 5ead5f1cb (feature/E-REL-NOTES-changelog). Pass-8 (D-2484, streak 1/3), pass-9 (streak 2/3), pass-10 (streak 3/3 CONVERGED) — all CLEAN(strict): YES; CLEAN(PR-merge): YES; ZERO diff findings each. All 11 ACs satisfied; cliff.toml ADR-063 v1.10 §D3/§D4 conformant; release-prep.yml 3-substep --prepend idempotent + fail-loud; RELEASING.md §1..§6 consistent. Holdout N/A per POL-35. BC-5.39.001 frozen-HEAD streak rule satisfied. NEXT ACTION: demo-recorder (git-cliff dry-run) → push → PR B → PR-LEVEL 3-CLEAN → (explicit human-auth) admin squash-merge → BETA1-NOTES-001 execution → tag v1.0.0-beta.1.
+
+### Governing Objective
+v1.0.0-beta.1 release: E-REL-NOTES LOCAL 3-CLEAN CONVERGED 3/3 @5ead5f1cb; NEXT — demo-recorder → push → PR B → PR-LEVEL 3-CLEAN → (human-auth) merge → BETA1-NOTES-001 CHANGELOG gen + human curation → (human-auth) tag v1.0.0-beta.1.
+
+### PER-WORKSTREAM NEXT-ACTIONS (exact order)
+1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+2. **demo-recorder evidence** — git-cliff dry-run against `.worktrees/E-REL-NOTES`: `git cliff --unreleased --tag v0.0.0-preview --config cliff.toml`. Capture as terminal recording for PR B evidence.
+3. **Push** feature/E-REL-NOTES-changelog to origin (first push to this branch).
+4. **PR B** (base develop, title: `feat(E-REL-NOTES): git-cliff CHANGELOG setup + Layer-1 release notes (S-REL-CLIFF-001 + S-REL-WRITER-001)`) → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN(strict) cascade.
+5. **Admin squash-merge** PR B (explicit in-session human auth; self-authored PR).
+6. **S-REL-BETA1-NOTES-001** (ready v1.4): generate CHANGELOG §[1.0.0-beta.1] (`git cliff --unreleased --tag v1.0.0-beta.1`; ADR-063 §D6 first-release handling; AC-006 dedup guard) + human curation → demo-recorder → push → PR C → merge.
+7. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Explicit in-session human auth.
+
+### PENDING USER-APPROVED / DECISIONS
+Merges/tags: explicit in-session human auth. Force-push any branch: explicit human approval. beta channel; v1.0.0-rc.1 = never-published ghost (D-2452).
+
+### OPEN ITEMS (non-blocking)
+- S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred.
+- Human UI cleanup: close PR #255 (OBSOLETE rc.1 CHANGELOG — close, do NOT merge).
+- S-REL-VBUMP-001 remains draft (not beta.1-blocking).
+
+### DECISION DELTA
+D-2485 = E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb: pass-9 CLEAN(strict): YES (streak 2/3); pass-10 CLEAN(strict): YES (streak 3/3 CONVERGED); ZERO diff findings each. BC-5.39.001 frozen-HEAD streak rule satisfied. Holdout N/A per POL-35. Records + STATE burst only; all index versions UNCHANGED. STATE v9.012→v9.013; SESSION-HANDOFF v8.101→v8.102.
+
+### Heads
+- develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- E-REL-NOTES worktree: `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 5ead5f1cb, LOCAL 3-CLEAN CONVERGED; not yet pushed). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Changelog (this snapshot)
+- D-2485: E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb; passes 9+10 CLEAN(strict): YES; ZERO findings; BC-5.39.001 frozen-HEAD streak rule satisfied; all 11 ACs pass; holdout N/A per POL-35. STATE v9.012→v9.013; SESSION-HANDOFF v8.101→v8.102. §RESUME SNAPSHOT D-2485 inserted; D-2484 SUPERSEDED.
+
+---
+
+## §RESUME SNAPSHOT — D-2484 (2026-09-07 — E-REL-NOTES LOCAL pass-8 CLEAN(strict); frozen 5ead5f1cb; BETA1-NOTES-001 v1.4; streak 1/3) [supersedes D-2483] [SUPERSEDED by D-2485]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES LOCAL adversary pass-8 on frozen 5ead5f1cb — ZERO diff findings. BC-5.39.001 3-CLEAN(strict) streak 0/3→1/3. Out-of-perimeter courtesy note (NOT a finding, streak NOT reset): S-REL-BETA1-NOTES-001 v1.3→v1.4 (Task 5/Task 2/BCs `git cliff --tag` → `git cliff --unreleased --tag` — spec-drift corrected by story-writer). ADR-063 v1.10 / S-REL-CLIFF-001 v1.7 / S-REL-BETA1-NOTES-001 v1.4. CLEAN(strict): YES; CLEAN(PR-merge): YES. LOCAL 3-CLEAN(strict) streak 1/3. NEXT ACTION: LOCAL adversary pass 2/3 on SAME frozen 5ead5f1cb → pass 3/3 → CONVERGED → BETA1-NOTES-001 curation → demo → PR B.

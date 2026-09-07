@@ -291,4 +291,24 @@ During pass-8, the adversary noted that S-REL-BETA1-NOTES-001 (the next unreleas
 
 **TD-VSDD-097 sweep verdict (D-2484):** Dim-1 CLEAR (BETA1-NOTES-001 --unreleased fix is self-contained; no sibling twin story for BETA1-NOTES-001). Dim-2 CLEAR (Task 5 is not a copy-source section for downstream artifacts). Dim-3 CLEAR (no new unanchored MUSTs).
 
+**Next (after pass-8):** LOCAL adversary pass 2/3 on same frozen code HEAD 5ead5f1cb (D-2484; streak 1/3) → if CLEAN(strict): streak 2/3 → pass 3/3 → CONVERGED.
+| Pass 9 | 2026-09-07 | 0 | 0 | 0 | 0 | 0 | 2/3 | CLEAN(strict): YES; CLEAN(PR-merge): YES — ZERO diff findings. BC-5.39.001 streak 1/3→2/3 on frozen 5ead5f1cb. Code HEAD 5ead5f1cb UNCHANGED. NEXT: pass 3/3 |
+
+**Pass 9 finding summary (CLEAN(strict): YES; ZERO diff findings; streak 2/3):**
+
+No findings. All 11 ACs (CLIFF-001 AC-001..006, WRITER-001 AC-001..005) satisfied. cliff.toml conformant to ADR-063 v1.10 §D3/§D4. release-prep.yml 3-substep --prepend mechanism idempotent + fail-loud. RELEASING.md §1..§6 internally consistent and consistent with workflows.
+
+**TD-VSDD-097 sweep verdict (D-2485/pass-9):** N/A — records + STATE only; Dim-1/2/3 N/A. TD-VSDD-091/POL-39 CLEAN.
+
+**Next (after pass-9):** LOCAL adversary pass 3/3 on same frozen code HEAD 5ead5f1cb. If CLEAN(strict): CONVERGED 3/3.
+| Pass 10 | 2026-09-07 | 0 | 0 | 0 | 0 | 0 | 3/3 CONVERGED | CLEAN(strict): YES; CLEAN(PR-merge): YES — ZERO diff findings. BC-5.39.001 3-CLEAN(strict) CONVERGED 3/3 on frozen 5ead5f1cb. E-REL-NOTES LOCAL cascade CONVERGED. All 11 ACs pass. Holdout N/A per POL-35. NEXT: demo-recorder → push → PR B → PR-LEVEL 3-CLEAN → (human-auth) merge → BETA1-NOTES-001 → (human-auth) tag v1.0.0-beta.1 |
+
+**Pass 10 finding summary (CLEAN(strict): YES; ZERO diff findings; CONVERGED 3/3):**
+
+No findings. Third consecutive CLEAN(strict) pass on frozen code HEAD 5ead5f1cb. E-REL-NOTES LOCAL 3-CLEAN(strict) cascade CONVERGED. All 11 ACs (CLIFF-001 AC-001..006, WRITER-001 AC-001..005) satisfied across all three passes. cliff.toml conformant to ADR-063 v1.10 §D3/§D4. release-prep.yml 3-substep --prepend mechanism idempotent + fail-loud. RELEASING.md §1..§6 internally consistent.
+
+Frozen HEAD 5ead5f1cb UNCHANGED across all 3 passes (BC-5.39.001 frozen-HEAD streak rule satisfied).
+
+**TD-VSDD-097 sweep verdict (D-2485/pass-10):** N/A — records + STATE only; Dim-1/2/3 N/A. TD-VSDD-091/POL-39 CLEAN.
+
 **Next (after pass-8):** LOCAL adversary pass 2/3 on same frozen code HEAD 5ead5f1cb (D-2484; streak 1/3) → if CLEAN(strict): streak 2/3 → pass 3/3 → CONVERGED → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
