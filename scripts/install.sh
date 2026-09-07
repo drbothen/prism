@@ -8,7 +8,6 @@
 #
 # SUPPORTED PLATFORMS
 #   aarch64-apple-darwin      macOS (Apple Silicon)
-#   x86_64-apple-darwin       macOS (Intel)
 #   x86_64-unknown-linux-gnu  Linux (glibc — Debian, Ubuntu, RHEL, etc.)
 #   x86_64-unknown-linux-musl Linux (musl — Alpine and other musl-based distros)
 #   x86_64-pc-windows-msvc    Windows — NOT supported by this script; use scripts/install.ps1
@@ -132,9 +131,6 @@ case "${OS}-${ARCH}" in
   Darwin-arm64)
     TARGET="aarch64-apple-darwin"
     ;;
-  Darwin-x86_64)
-    TARGET="x86_64-apple-darwin"
-    ;;
   Linux-x86_64)
     # Musl detection (U10): three OR probes — each independently sufficient to identify musl.
     # Logic is OR (not ordered composite): target musl if ANY probe triggers.
@@ -160,7 +156,7 @@ case "${OS}-${ARCH}" in
     ;;
   *)
     printf 'ERROR: unsupported platform: %s-%s\n' "${OS}" "${ARCH}" >&2
-    printf '  Supported: macOS (arm64, x86_64), Linux x86_64 (glibc/musl)\n' >&2
+    printf '  Supported: macOS (arm64), Linux x86_64 (glibc/musl)\n' >&2
     printf '  For Windows (x86_64-pc-windows-msvc), use scripts/install.ps1\n' >&2
     exit 1
     ;;

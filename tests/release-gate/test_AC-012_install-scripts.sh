@@ -7,7 +7,7 @@
 #
 # Tests covered:
 #   AC-001: install.sh exists and shellcheck-clean (structural check — CI job asserts shellcheck)
-#   AC-002: platform detection covers all 5 targets (4 in install.sh, Windows in install.ps1)
+#   AC-002: platform detection covers all 4 targets (3 in install.sh, Windows in install.ps1)
 #   AC-003: SHA-256 checksum verification present + abort on mismatch
 #   AC-004: PATH guidance present
 #   AC-005: install.ps1 exists with PS 5.1+ compliance markers
@@ -28,7 +28,8 @@
 #   - 13 new red-gate assertions (SEC-001..006, B1, B2, B3, N2, N8): FAIL on HEAD
 #     These assert the FIXED patterns and are RED until the implementer applies fixes.
 #
-# After all fixes applied: all 42 assertions should pass.
+# After all fixes applied: all 41 assertions should pass.
+# (ADR-065 / S-REL-DROP-INTEL-MAC-001: Intel-mac (Darwin-x86_64) AC-002 assertion dropped; 42→41)
 #
 # Stories: S-REL-003 | Wave: F-A | Cycle: v1.0.0-release-engineering
 # Traces to: delta-analysis.md §2.1 + §8; research U8/U9/U10/U29/U30/U33; ADJ-002
@@ -69,9 +70,6 @@ assert_contains "$INSTALL_SH" "CHECKSUM_CMD=(shasum" "AC-003"
 
 # AC-002: aarch64-apple-darwin target present (macOS ARM)
 assert_contains "$INSTALL_SH" "aarch64-apple-darwin" "AC-002"
-
-# AC-002: x86_64-apple-darwin target present (macOS Intel)
-assert_contains "$INSTALL_SH" "x86_64-apple-darwin" "AC-002"
 
 # AC-002: x86_64-unknown-linux-gnu target present (Linux glibc)
 assert_contains "$INSTALL_SH" "x86_64-unknown-linux-gnu" "AC-002"

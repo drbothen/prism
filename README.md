@@ -29,7 +29,7 @@ the current pre-release and `CHANGELOG.md` for the full list of what shipped.
 curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
 ```
 
-Auto-detects platform (macOS Apple Silicon/Intel, Linux glibc, Linux musl), verifies
+Auto-detects platform (macOS Apple Silicon, Linux glibc, Linux musl), verifies
 the SHA-256 checksum, and installs to `/usr/local/bin` or `~/.local/bin`. To pin a
 specific version, find the tag on the
 [GitHub Releases page](https://github.com/drbothen/prism/releases)
@@ -63,7 +63,6 @@ newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre
 | Platform | Archive filename pattern |
 |----------|--------------------------|
 | macOS (Apple Silicon) | `prism-<version>-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `prism-<version>-x86_64-apple-darwin.tar.gz` |
 | Linux (glibc) | `prism-<version>-x86_64-unknown-linux-gnu.tar.gz` |
 | Linux (musl) | `prism-<version>-x86_64-unknown-linux-musl.tar.gz` |
 | Windows | `prism-<version>-x86_64-pc-windows-msvc.zip` |

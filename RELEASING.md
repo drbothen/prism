@@ -106,7 +106,7 @@ develop (release-ready HEAD)
     │
     ├─► Dispatch release-prep.yml (--field version=X.Y.Z)
     │       Creates release/vX.Y.Z branch off develop
-    │       Bumps prism-bin + scaffolds CHANGELOG
+    │       Bumps prism-bin + generates CHANGELOG
     │       Opens PR to develop — human reviews, curates, merges
     │
     ▼
@@ -128,7 +128,7 @@ main + vX.Y.Z tag
     │
     ▼
 GitHub Release (automated by release.yml)
-    5-platform binaries + checksums.txt + attestations
+    4-platform binaries + checksums.txt + attestations
 ```
 
 ### Why develop → main goes through release-promote
@@ -196,7 +196,6 @@ gh api repos/drbothen/prism/branches/develop/protection \
 - Shellcheck demo scripts (S-DEMO-003 HIGH-2 / AC-014)
 - Test (aarch64-apple-darwin)
 - Test (no-default-features)
-- Test (x86_64-apple-darwin)
 - Test (x86_64-pc-windows-msvc)
 - Test (x86_64-unknown-linux-gnu)
 - Test (x86_64-unknown-linux-musl)
@@ -242,8 +241,10 @@ This workflow:
 1. Creates branch `release/vX.Y.Z` off `develop`
 2. Bumps `crates/prism-bin/Cargo.toml` `[package].version` to `X.Y.Z`
 3. Updates both Cargo.lock files (root + `tests/external/non-exhaustive-violation/`)
-4. Scaffolds a `## [X.Y.Z] - YYYY-MM-DD` CHANGELOG section seeded with merged-PR
-   subjects since the previous tag
+4. Generates a `## [X.Y.Z] - YYYY-MM-DD` CHANGELOG section via git-cliff (ADR-063 D3/D5),
+   categorizing Conventional Commits into Added / Fixed / Performance / Changed / Security
+   (docs, ci, test, chore, style, build, revert are skipped); PR links injected from
+   `(#NNN)` in squash-merge commit subjects via `commit_preprocessors` (token-free)
 5. Commits, pushes the branch, and opens a PR targeting `develop`
 
 Monitor the run:
@@ -257,10 +258,17 @@ gh run watch --repo drbothen/prism
 
 The PR body contains a checklist. Before merging:
 
-1. Curate the CHANGELOG scaffold: categorize entries under Added / Fixed / Changed /
-   Security / Removed; remove the `> **SCAFFOLD**` notice when done.
-2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
-3. Confirm the README reflects this release:
+1. Review the git-cliff generated CHANGELOG entry (Layer 2): entries are auto-categorized
+   under Added / Fixed / Performance / Changed / Security by `cliff.toml`. PR links appear
+   inline from `(#NNN)` in commit subjects. No manual categorization needed.
+2. Dispatch `vsdd-factory:technical-writer` to draft the Layer-1 top-block
+   (`### Highlights` + `### Breaking Changes (narrative)` / `### Upgrade Notes` if
+   applicable) inside the `## [VERSION]` block — this block is NOT present at PR open
+   time and must be created before merge (ADR-063 D4). See §5 for the Layer-1 contract.
+3. Review and curate the drafted Layer-1 block: current behavior only; remove
+   aspirational bullets; omit `### Breaking Changes (narrative)` if there are no breaking changes.
+4. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
+5. Confirm the README reflects this release:
    - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
      badge driven by the GitHub Releases API — it updates automatically when the release
      is published. No manual badge URL edit is required.
@@ -269,8 +277,8 @@ The PR body contains a checklist. Before merging:
    - Review the `## Status` section text for any new or removed sensor support that
      should be noted in this release.
    Push any README changes to the release branch before merging.
-4. Wait for all 24 required CI checks to pass.
-5. Merge the PR to `develop` (squash or merge commit per project convention).
+6. Wait for all 24 required CI checks to pass.
+7. Merge the PR to `develop` (squash or merge commit per project convention).
 
 ### Step 3 — Dry-run release-promote (validate without writing)
 
@@ -322,12 +330,11 @@ After approval the `promote` job:
 gh run watch --repo drbothen/prism
 ```
 
-`release.yml` runs the 5-platform build matrix in parallel:
+`release.yml` runs the 4-platform build matrix in parallel:
 
 | Target | Runner | Archive |
 |--------|--------|---------|
 | `aarch64-apple-darwin` | `macos-latest` | `.tar.gz` |
-| `x86_64-apple-darwin` | `macos-15-intel` | `.tar.gz` |
 | `x86_64-unknown-linux-gnu` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-unknown-linux-musl` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-pc-windows-msvc` | `windows-latest` | `.zip` |
@@ -337,7 +344,7 @@ The musl leg uses `cargo-zigbuild` to avoid glibc symbol contamination
 `prism-dtu-demo-server`.
 
 Expected total wall-clock time: approximately 30–45 minutes (60-minute per-job
-timeout). The `publish-release` job runs after all 5 build legs succeed.
+timeout). The `publish-release` job runs after all 4 build legs succeed.
 
 ### Step 6 — Verify the GitHub Release
 
@@ -347,72 +354,195 @@ gh release view vX.Y.Z --repo drbothen/prism
 
 Verify all of the following before declaring the release complete:
 
-1. **5 platform archives** are attached (`prism-vX.Y.Z-<target>.tar.gz` x4 +
+1. **4 platform archives** are attached (`prism-vX.Y.Z-<target>.tar.gz` x3 +
    `prism-vX.Y.Z-x86_64-pc-windows-msvc.zip`).
-2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 5 legs).
-3. **Build-provenance attestations** are present for each archive (created by
+2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 4 legs).
+3. **`install.sh` and `install.ps1`** are attached (install scripts, uploaded per ADJ-002 / S-REL-003).
+4. **Build-provenance attestations** are present for each archive (created by
    `actions/attest-build-provenance` during the build step, visible in the
    workflow run's artifact attestations, verifiable via `gh attestation verify`).
-4. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
-5. Generated release notes (from `--generate-notes`) are present.
-6. **Bundled specs** are present in each archive. Spot-check a tar.gz:
+5. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
+6. **Release body** is present and contains the curated `## [VERSION]` CHANGELOG content
+   (Layer-1 Highlights + Layer-2 git-cliff entries) extracted via `--notes-file` by
+   the `publish-release` job. (`--generate-notes` is intentionally NOT used — the curated
+   CHANGELOG section is the authoritative and complete release body.)
+7. **Bundled specs** are present in each archive. Spot-check a tar.gz:
    ```bash
    curl -sL https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
-     | tar tzf - | grep -E 'specs/|infusions/|prism\.toml\.example'
+     | tar tzf - | grep -E 'specs/|prism\.toml\.example'
    ```
-   Expected: four `specs/*.sensor.toml` entries, two `infusions/*.infusion.toml`
-   entries, and `prism.toml.example` — all at archive root level.
+   Expected: `specs/claroty.sensor.toml` and `prism.toml.example` — both at archive
+   root level.
 
-### Step 7 — Update the GitHub Release body
+### Step 7 — Verify the GitHub Release body
 
-The workflow creates the release with `--generate-notes` but without the curated
-install/verify narrative. Edit the body as described in §5 Release Notes Convention.
+The `publish-release` job sets the release body from the curated `## [VERSION]`
+CHANGELOG section (Layer-1 Highlights + Layer-2 git-cliff entries) via `--notes-file`.
+No routine body editing is required. If install or upgrade narrative that belongs in
+the release body was not captured inside the `## [VERSION]` CHANGELOG block, add it
+to the release body via the GitHub UI (Edit on the Releases page). Refer to §5 for
+the canonical install and verification text.
 
 ---
 
 ## 5. Release Notes Convention
 
-### Structure
+### Two-Layer CHANGELOG Model (ADR-063 D4)
 
-The GitHub Release body combines two layers:
+Every release uses a two-layer CHANGELOG model. Layer 2 (git-cliff categorized body)
+is auto-generated during the `release-prep.yml` workflow run. Layer 1 (Highlights /
+Breaking Changes narrative / Upgrade Notes top-block) is MANUALLY drafted by
+dispatching `vsdd-factory:technical-writer` and curated on the release-prep branch
+BEFORE merge.
 
-**Layer 1 — Curated human narrative (prepend manually after release creation):**
+#### Layer 2 — git-cliff categorized body (auto-generated)
 
-```markdown
-## Prism vX.Y.Z
+`release-prep.yml` Step 7 runs three sub-steps:
 
-[One-paragraph summary of what this release delivers — value, not just a feature list.]
+1. **Pre-strip:** a Python inline script removes the `# Changelog` masthead and any
+   prior `## [Unreleased]` section from `CHANGELOG.md`, leaving the file starting at
+   the first versioned `## [X.Y.Z]` section. This prevents masthead duplication on
+   repeated release cycles (the masthead is re-emitted from the `cliff.toml` header
+   on every run — see below).
 
-### Install
+   **First-release note (OBS-3):** The pre-strip removes the existing `# Changelog`
+   masthead and any `## [Unreleased]` section before `--prepend`; git-cliff's
+   `[changelog] header` re-emits them. The net result is idempotent across release
+   cycles — not a no-op. The pre-strip mechanism is correct and expected on every
+   release cycle.
 
-Each release archive contains the `prism` binary plus bundled sensor and infusion
-specs needed for a bootable installation — no source repository clone required.
+   **Maintainer note (OBS-2):** `## [Unreleased]` is a git-cliff-managed placeholder.
+   Do NOT accumulate hand-authored entries under it — the pre-strip step discards all
+   content under `## [Unreleased]` on every release cycle. Pending release notes belong
+   in the Layer-1 curation top-block inside the released `## [VERSION]` section, added
+   after git-cliff runs in this step.
+
+2. **git-cliff invocation:**
+
+   ```bash
+   git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+   ```
+
+   `cliff.toml`'s `[changelog] header` carries the `# Changelog` masthead and the
+   empty `## [Unreleased]` placeholder. `--prepend` inserts `header + new-section`
+   before the existing file content, producing:
+   `# Changelog ... ## [Unreleased] ## [X.Y.Z] ... existing sections`.
+
+   Entries are categorized into Added / Fixed / Performance / Changed / Security.
+   Skip types (docs, ci, test, chore, style, build, revert) are excluded.
+   PR links are injected from commit message `(#NNN)` references (token-free).
+   Do NOT add `--output` alongside `--prepend` (causes duplicate sections per
+   ADR-063 §D5 v1.1 fix).
+
+3. **Link-ref update:** a Python inline script updates the reference-style compare
+   links at the bottom of `CHANGELOG.md` — the `[Unreleased]:` ref is pointed at
+   `v{VERSION}...HEAD`, and a new `[{VERSION}]: .../compare/v{PREV}...v{VERSION}`
+   entry is inserted (token-free, using the VERSION env var and the existing
+   `[Unreleased]:` link to derive the previous tag).
+
+Authority: `cliff.toml` at repo root (ADR-063 §D3); flag set `--unreleased --tag
+... --prepend` (ADR-063 §D5). Masthead-in-header + pre-strip + link-ref-update
+mechanism is canonical as of ADR-063 §D3 (empirically validated against
+git-cliff 2.14.1 behavior).
+
+#### Layer 1 — Curated top-block (human-authored, agent-assisted)
+
+After git-cliff prepends the `## [VERSION]` block, the `vsdd-factory:technical-writer`
+agent drafts a human-readable top-block consisting of:
+
+- `### Highlights` — 5–8 bullets summarizing the platform-level value of the release
+- `### Breaking Changes (narrative)` — prose description of any breaking changes;
+  **omitted** if the release has no breaking changes
+- `### Upgrade Notes` — migration steps for operators; omitted if not needed
+
+**Placement invariant:** Layer-1 sections are placed INSIDE the `## [VERSION]` block,
+AFTER git-cliff prepends the block, and BEFORE the first git-cliff commit-derived
+`###` section. This placement ensures that `release.yml`'s awk extraction (from
+`## [VERSION]` until the next `## [`) captures both layers without any modification
+to `release.yml`.
+
+**Authorship:** The `vsdd-factory:technical-writer` agent drafts this block from the
+tag range, documenting **current behavior only** — not aspirational features. The
+draft is a PR file edit in the release-prep branch.
+
+**Human curation gate:** The draft is reviewed and curated in the release-prep PR
+before merge. Empty sections (e.g., `### Breaking Changes (narrative)` when there are no breaking
+changes) are removed. Aspirational bullets are removed. The human-curated text is
+the final content; the technical-writer draft is an aid, not the final.
+
+#### CHANGELOG.md structure (normative)
+
+```
+# Changelog
+
+## [1.0.0-beta.1] - 2026-09-XX
+
+### Highlights
+[technical-writer draft, human-curated — inserted AFTER git-cliff prepends the block]
+
+### Breaking Changes (narrative)
+[technical-writer draft, human-curated — omitted if no breaking changes]
+
+### Upgrade Notes
+[technical-writer draft, human-curated — omitted if not needed]
+
+### Breaking Changes
+[git-cliff breaking commits — cliff.toml body Tera filter(attribute="breaking", value=true)]
+
+### Added
+[git-cliff feat commits — <!-- 1 --> parser]
+
+### Fixed
+[git-cliff fix commits — <!-- 2 --> parser]
+
+...
+
+## [previous-version] - YYYY-MM-DD
+...
+```
+
+#### Step order in release-prep.yml
+
+1. **Step 7 sub-step A** — pre-strip: Python removes masthead + prior `[Unreleased]` section
+   from `CHANGELOG.md` (leaving file starting at first versioned `## [X.Y.Z]` section)
+2. **Step 7 sub-step B** — `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md`:
+   prepends `cliff.toml header (masthead + ## [Unreleased])` + new `## [VERSION]` block
+3. **Step 7 sub-step C** — link-ref update: Python updates `[Unreleased]:` and inserts
+   `[VERSION]: .../compare/v{PREV}...v{VERSION}` reference at bottom of `CHANGELOG.md`
+4. **Step 7a** — Workflow emits a `::notice::` reminder; release engineer MANUALLY
+   dispatches `vsdd-factory:technical-writer`, which inserts Layer-1 `###` sections
+   INSIDE the `## [VERSION]` block, before git-cliff's first commit-derived `###` section
+5. **Step 2 in §4** — Human reviews and curates Layer-1 sections in the release-prep PR
+
+### GitHub Release body
+
+The `release.yml` `--notes-file` extraction captures the full `## [VERSION]` block from
+`CHANGELOG.md` (both Layer-1 and Layer-2 content) via awk and passes it to
+`gh release create --notes-file`. No modification to `release.yml` is required.
+
+### Installing from a release
+
+Each release archive contains the `prism` binary plus bundled sensor specs needed
+for a bootable installation — no source repository clone required.
 
 **Archive contents:**
 - `prism` (or `prism.exe` on Windows) — the compiled binary
 - `prism.toml.example` — configuration template with inline instructions
-- `specs/` — the four built-in sensor TOML specs (`armis`, `claroty`, `crowdstrike`, `cyberint`)
-- `infusions/` — the two built-in infusion TOML specs (`threatintel`, `nvd`)
+- `specs/claroty.sensor.toml` — the bundled Claroty xDome sensor TOML spec
 
 **Install steps (all platforms):**
 1. Extract the archive (see platform commands below).
 2. Copy `prism.toml.example` to `prism.toml` in your chosen config directory.
 3. Copy `specs/` to the path you set as `spec_dir` in `prism.toml` (or leave it
    adjacent and set `spec_dir = "./specs"`).
-4. Copy `infusions/` alongside `prism.toml` — it is auto-scanned from the config
-   directory at boot (`{config_dir}/infusions/`).
-5. Edit `prism.toml`: set `state_dir`, add `[[orgs]]` entries, configure credentials.
-6. Run `prism start`.
+4. Edit `prism.toml`: set `state_dir`, add `[[orgs]]` entries, configure credentials.
+5. Run `prism start`.
 
 **macOS (Apple Silicon):**
 curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 tar xzf prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 chmod +x prism
 ./prism --version
-
-**macOS (Intel):**
-curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-apple-darwin.tar.gz
-tar xzf prism-vX.Y.Z-x86_64-apple-darwin.tar.gz
 
 **Linux (glibc — most distros):**
 curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
@@ -435,21 +565,6 @@ sha256sum -c checksums.txt
 gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
   --repo drbothen/prism \
   --signer-workflow drbothen/prism/.github/workflows/release.yml
-```
-
-**Layer 2 — Auto-generated notes** from `--generate-notes` (appended automatically
-by the workflow): lists PRs merged since the previous tag, grouped by label.
-
-### Editing the release body after workflow completes
-
-The workflow creates the release with `--generate-notes` but without the curated
-narrative above. Edit the body in the GitHub UI to prepend the install/verify block:
-
-```bash
-gh release edit vX.Y.Z --repo drbothen/prism --notes-file /tmp/release-notes-vX.Y.Z.md
-```
-
-Or use the GitHub UI release editor.
 
 ---
 
@@ -457,7 +572,7 @@ Or use the GitHub UI release editor.
 
 ### A build-release matrix leg failed
 
-If one or more of the 5 build legs fails and the `publish-release` job never ran
+If one or more of the 4 build legs fails and the `publish-release` job never ran
 (it `needs: build-release` — a partial matrix failure means no release was created):
 
 1. Diagnose the failure: `gh run view <run-id> --repo drbothen/prism --log-failed`
@@ -494,6 +609,32 @@ without deleting the tag or the release is safe.
 `publish-release` job. If it is absent or contains only some legs, re-run the
 workflow (see above). Do not manually construct or upload a `checksums.txt` — it
 must come from the CI build.
+
+### git-cliff generates an empty section (no unreleased commits)
+
+`git cliff --unreleased` exits 0 even when no qualifying commits exist — it produces
+a `## [VERSION]` header with an empty body. Without a guard this would commit a
+content-free CHANGELOG section. To prevent this, `release-prep.yml` Step 7 includes
+an empty-output guard immediately after the git-cliff invocation: it checks whether
+the newly-prepended section contains at least one `- ` bullet entry. If the section is
+empty, the guard exits 1 with an explicit error message and the workflow fails at Step 7
+before Step 8 (commit) or Step 9 (push) can run. The ephemeral runner checkout is
+discarded with the modification.
+
+**Cause:** every commit since the last release tag matches a skip pattern (docs, ci,
+test, chore, style, build, revert), OR there are genuinely no commits since the last
+tag (you dispatched the same version twice).
+
+**Response:**
+1. `gh run view <run-id> --log-failed` — inspect the Step 7 error message, which
+   will state: "git-cliff produced an empty CHANGELOG section for vX.Y.Z — no
+   qualifying commits found".
+2. If all commits since the last tag are skip types: either add at least one
+   non-skip commit to `develop` before re-dispatching, or write the CHANGELOG section
+   manually (see §5 Release Notes Convention) and skip the `release-prep` workflow.
+3. If the version was already released: do not re-create the same tag. Increment
+   the patch version and dispatch with the correct version.
+4. Never run `--no-verify` or bypass the step — fix the underlying cause.
 
 ### A required CI check is red on the release-prep PR
 

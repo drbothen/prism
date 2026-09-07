@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# AC-3: All 5 platform matrix jobs run in parallel and all must pass.
-# Asserts ci.yml matrix includes exactly 5 required targets, each with its correct runner.
+# AC-3: All 4 platform matrix jobs run in parallel and all must pass.
+# Asserts ci.yml matrix includes exactly 4 required targets, each with its correct runner.
 # requires: bash 3.2+
 
 set -euo pipefail
@@ -12,10 +12,9 @@ CI_YML="${WORKTREE}/.github/workflows/ci.yml"
 
 assert_file_exists "$CI_YML" "AC-3"
 
-# Required targets from story task 1.
+# Required targets (ADR-065 D1 — 4-target matrix).
 TARGETS=(
   "aarch64-apple-darwin"
-  "x86_64-apple-darwin"
   "x86_64-unknown-linux-gnu"
   "x86_64-unknown-linux-musl"
   "x86_64-pc-windows-msvc"
@@ -31,13 +30,13 @@ for target in "${TARGETS[@]}"; do
 done
 
 # Required runners.
-RUNNERS=("macos-latest" "macos-15-intel" "ubuntu-latest" "windows-latest")
+RUNNERS=("macos-latest" "ubuntu-latest" "windows-latest")
 for runner in "${RUNNERS[@]}"; do
   if grep -qF "runner: ${runner}" "$CI_YML" 2>/dev/null; then
     tap_pass "AC-3: runner '${runner}' listed under matrix.include"
   else
     tap_fail "AC-3: runner '${runner}' NOT listed under matrix.include" \
-      "AC-3 FAIL: runner '${runner}' missing from ci.yml matrix — all 5 platforms must run in parallel"
+      "AC-3 FAIL: runner '${runner}' missing from ci.yml matrix — all 4 platforms must run in parallel"
   fi
 done
 
@@ -54,7 +53,7 @@ if grep -qF "fail-fast: false" "$CI_YML" 2>/dev/null; then
   tap_pass "AC-3: fail-fast: false is set (all matrix legs run independently)"
 else
   tap_fail "AC-3: fail-fast: false missing" \
-    "AC-3 FAIL: matrix must have fail-fast: false so all 5 jobs report independently"
+    "AC-3 FAIL: matrix must have fail-fast: false so all 4 jobs report independently"
 fi
 
 tap_done
