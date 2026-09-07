@@ -1364,9 +1364,12 @@ fn build_paged_url_impl(
 /// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
 pub(crate) fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        // ADR-050 §D6: all outbound clients MUST set User-Agent for WAF-fingerprint coherence.
-        // concat! produces a &'static str with zero allocation at runtime.
-        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
+        // ADR-050 §D6 normative form: PRISM_VERSION (not CARGO_PKG_VERSION).
+        // env!("PRISM_VERSION") resolves at compile time from crates/prism-spec-engine/build.rs
+        // (D2-conformant fallback chain: PRISM_BUILD_VERSION → GITHUB_REF_NAME tag-gated →
+        // CARGO_PKG_VERSION). concat! produces a &'static str with zero allocation at runtime.
+        // S-REL-AGENT-VERSION-001 AC-007; ADR-064 D4 §Surface B pipeline.rs row.
+        .user_agent(concat!("prism/", env!("PRISM_VERSION")))
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|e| {
@@ -5030,13 +5033,27 @@ mod infusion_http_client_user_agent_tests {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
 
-        assert!(
-            ua.starts_with("prism/"),
-            "OBS-4 (AC-UA-001): build_http_client_with_timeout (prism-spec-engine) MUST send \
-             'User-Agent: prism/{{version}}' for WAF-fingerprint coherence (ADR-050 §D6). \
-             Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\"))) \
-             to the builder in build_http_client_with_timeout (BC-2.16.002 AC-UA-001).",
-            ua
+        // OBS-1: Assert exact UA equality, not just starts_with, so that removing or
+        // altering the .user_agent(concat!("prism/", env!("PRISM_VERSION"))) call in
+        // build_http_client_with_timeout causes this test to fail.
+        //
+        // Note on PRISM_VERSION-vs-CARGO_PKG_VERSION value regression on local dev:
+        // On local dev, PRISM_VERSION == CARGO_PKG_VERSION (both resolve to the crate's
+        // version, e.g. "0.9.0", when neither PRISM_BUILD_VERSION nor a tag-gated
+        // GITHUB_REF_NAME are present at build time), so value-based distinction between
+        // the two env vars is not possible locally. The AC-007 source grep
+        // (`grep CARGO_PKG_VERSION pipeline.rs` returns no match at the user-agent call
+        // site) is the value-migration guard for that distinction.
+        // RG-005 in tests/version_identity.rs is effectively a compile-gate duplicate of
+        // RG-003 — both gate on env!("PRISM_VERSION") compiling; see doc comment on RG-005.
+        let expected_ua = concat!("prism/", env!("PRISM_VERSION"));
+        assert_eq!(
+            ua, expected_ua,
+            "OBS-1/OBS-4 (AC-UA-001): build_http_client_with_timeout (prism-spec-engine) MUST \
+             send 'User-Agent: prism/{{PRISM_VERSION}}' — exact match required to guard against \
+             removal or alteration of the .user_agent() call (ADR-050 §D6, OBS-1). \
+             Expected: {:?}, Got: {:?}.",
+            expected_ua, ua
         );
     }
 

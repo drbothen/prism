@@ -438,20 +438,36 @@ fn test_prism_version_equals_cargo_pkg_version_on_non_tag_build() {
     // allowing this assertion to be conditional on the actual build context.
     // ci.yml has an unfiltered `on: push:` that fires on tag refs, so a literal
     // "1.0.0-dev" assertion would fail on the beta.1 tag push (6 CI legs).
-    if env!("PRISM_VERSION_IS_TAG_BUILD") == "false" {
+    //
+    // OBS-C: Gate the equality branch on BOTH is_tag_build==false AND no build-time override.
+    // Setting PRISM_BUILD_VERSION=1.2.3 on a non-tag checkout makes PRISM_VERSION="1.2.3"
+    // while PRISM_VERSION_IS_TAG_BUILD remains "false" → the old guard took the equality branch
+    // and asserted "1.2.3" == "1.0.0-dev", producing a spurious failure (OBS-C, S-REL-AGENT-VERSION-001).
+    //
+    // option_env! is a compile-time macro that returns None when the env var is not set
+    // at build time, or Some(val) when it is. Treating None/empty/whitespace as "no override"
+    // matches the resolve_prism_version fallback-chain semantics (F-VID-P1-MED-001).
+    let is_non_tag_build = env!("PRISM_VERSION_IS_TAG_BUILD") == "false";
+    let has_build_version_override = option_env!("PRISM_BUILD_VERSION")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+    if is_non_tag_build && !has_build_version_override {
         assert_eq!(
             env!("PRISM_VERSION"),
             env!("CARGO_PKG_VERSION"),
-            "On non-tag builds, PRISM_VERSION must equal CARGO_PKG_VERSION \
-             (fallback chain step 3, AC-005, ADR-064 D2)"
+            "On non-tag builds without PRISM_BUILD_VERSION override, PRISM_VERSION must equal \
+             CARGO_PKG_VERSION (fallback chain step 3, AC-005, ADR-064 D2). \
+             Got PRISM_VERSION={:?}, CARGO_PKG_VERSION={:?}",
+            env!("PRISM_VERSION"),
+            env!("CARGO_PKG_VERSION"),
         );
     } else {
-        // Tag build: PRISM_VERSION is the stripped tag, not CARGO_PKG_VERSION.
-        // Assert it is valid semver and not a leaked branch ref.
+        // Override (PRISM_BUILD_VERSION set) or tag build: PRISM_VERSION is a specific version,
+        // not CARGO_PKG_VERSION. Assert it is valid semver and not a leaked branch ref.
         let v = env!("PRISM_VERSION");
         assert!(
             semver::Version::parse(v).is_ok(),
-            "On tag builds, PRISM_VERSION must be valid semver; got: {v}"
+            "On tag or override builds, PRISM_VERSION must be valid semver; got: {v}"
         );
         assert!(!v.contains('/'), "leaked branch ref in PRISM_VERSION: {v}");
     }
