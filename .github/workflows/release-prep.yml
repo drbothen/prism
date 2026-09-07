@@ -215,7 +215,13 @@ jobs:
           # means all commits since the last tag matched skip categories
           # (docs/ci/test/chore/style/build/revert) or there are no unreleased commits.
           # Committing an empty section silently corrupts the CHANGELOG release history.
-          SECTION_CONTENT="$(awk '/^## \[/{if(found)exit; found=1; next} found{print}' CHANGELOG.md)"
+          SECTION_CONTENT="$(awk -v hdr="## [${VERSION}]" \
+            'substr($0,1,length(hdr))==hdr{found=1;next} found&&/^## \[/{exit} found{print}' \
+            CHANGELOG.md)"
+          if ! grep -qF "## [${VERSION}]" CHANGELOG.md; then
+            echo "::error::git-cliff did not write a section for v${VERSION} — check the CHANGELOG.md pre-strip."
+            exit 1
+          fi
           if ! echo "${SECTION_CONTENT}" | grep -q '^- '; then
             echo "::error::git-cliff produced an empty CHANGELOG section for v${VERSION} — no qualifying commits found (all commits may be in skip categories: docs/ci/test/chore/style/build/revert). Add at least one feat:/fix:/perf:/refactor:/security: commit or review the skip rules in cliff.toml."
             exit 1

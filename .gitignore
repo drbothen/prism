@@ -64,7 +64,5 @@ fuzz/Cargo.lock
 # demo-recorder) remains tracked in the sibling per-AC dirs.
 docs/demo-evidence/**/live/
 
-# .rel-artifacts/ — created by release-prep.yml during release artifact staging (notes
-# extraction, checksum assembly, dry-run outputs). Evidence is captured in the workflow
-# run summary and PR description; these ephemeral files must not be committed.
+# .rel-artifacts/ — local staging directory for release artifacts during manual release prep (not created by CI workflows)
 .rel-artifacts/
