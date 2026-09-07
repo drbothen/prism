@@ -64,5 +64,7 @@ fuzz/Cargo.lock
 # demo-recorder) remains tracked in the sibling per-AC dirs.
 docs/demo-evidence/**/live/
 
-# Release-prep dry-run artifacts — evidence stored in PR description, not committed files.
+# .rel-artifacts/ — created by release-prep.yml during release artifact staging (notes
+# extraction, checksum assembly, dry-run outputs). Evidence is captured in the workflow
+# run summary and PR description; these ephemeral files must not be committed.
 .rel-artifacts/

@@ -1,3 +1,10 @@
+# Changelog
+
+All notable changes to Prism are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
 ## [1.0.0-beta.1] - 2026-09-05
 
 Prism v1.0.0-beta.1 is the first **published** pre-release of an ephemeral federated

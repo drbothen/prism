@@ -618,18 +618,23 @@ must come from the CI build.
 
 ### git-cliff generates an empty section (no unreleased commits)
 
-`git cliff --unreleased` exits non-zero when there are no commits since the last tag.
-Under `set -euo pipefail` in `release-prep.yml` Step 7, the pre-strip sub-step modifies
-`CHANGELOG.md` before the git-cliff invocation; the workflow fails during that invocation.
-The modification is never committed or pushed (the job aborts before Step 8 and Step 9)
-and is discarded with the ephemeral runner checkout.
+`git cliff --unreleased` exits 0 even when no qualifying commits exist — it produces
+a `## [VERSION]` header with an empty body. Without a guard this would commit a
+content-free CHANGELOG section. To prevent this, `release-prep.yml` Step 7 includes
+an empty-output guard immediately after the git-cliff invocation: it checks whether
+the newly-prepended section contains at least one `- ` bullet entry. If the section is
+empty, the guard exits 1 with an explicit error message and the workflow fails at Step 7
+before Step 8 (commit) or Step 9 (push) can run. The ephemeral runner checkout is
+discarded with the modification.
 
 **Cause:** every commit since the last release tag matches a skip pattern (docs, ci,
 test, chore, style, build, revert), OR there are genuinely no commits since the last
 tag (you dispatched the same version twice).
 
 **Response:**
-1. `gh run view <run-id> --log-failed` — confirm the failure is empty `--unreleased` output.
+1. `gh run view <run-id> --log-failed` — inspect the Step 7 error message, which
+   will state: "git-cliff produced an empty CHANGELOG section for vX.Y.Z — no
+   qualifying commits found".
 2. If all commits since the last tag are skip types: either add at least one
    non-skip commit to `develop` before re-dispatching, or write the CHANGELOG section
    manually (see §5 Release Notes Convention) and skip the `release-prep` workflow.

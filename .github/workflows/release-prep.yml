@@ -210,6 +210,17 @@ jobs:
           # "# Changelog" masthead + "## [Unreleased]" before the new section.
           git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
 
+          # Empty-output guard: verify git-cliff wrote at least one bullet entry to the
+          # new ## [VERSION] section.  An empty section (header-only, no "- " entries)
+          # means all commits since the last tag matched skip categories
+          # (docs/ci/test/chore/style/build/revert) or there are no unreleased commits.
+          # Committing an empty section silently corrupts the CHANGELOG release history.
+          SECTION_CONTENT="$(awk '/^## \[/{if(found)exit; found=1; next} found{print}' CHANGELOG.md)"
+          if ! echo "${SECTION_CONTENT}" | grep -q '^- '; then
+            echo "::error::git-cliff produced an empty CHANGELOG section for v${VERSION} — no qualifying commits found (all commits may be in skip categories: docs/ci/test/chore/style/build/revert). Add at least one feat:/fix:/perf:/refactor:/security: commit or review the skip rules in cliff.toml."
+            exit 1
+          fi
+
           # Link-ref update: update [Unreleased]: to point at the new version and
           # insert a new [X.Y.Z]: compare link (token-free, ADR-063 §D3).
           python3 - <<'PYEOF'
@@ -230,9 +241,10 @@ jobs:
                   f'[{version}]: https://github.com/drbothen/prism/compare/'
                   f'v{prev_version}...v{version}'
               )
+              replacement = new_unreleased + '\n' + new_version_ref
               content = re.sub(
                   r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v.+?\.\.\.HEAD',
-                  new_unreleased + '\n' + new_version_ref,
+                  lambda m: replacement,
                   content,
               )
               open(path, 'w').write(content)

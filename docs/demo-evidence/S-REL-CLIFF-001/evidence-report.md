@@ -100,14 +100,13 @@ Traces to: ADR-063 v1.7 D3 — filter-based two-part body; `commits | filter(att
 
 ```
 $ grep -n 'git cliff' .github/workflows/release-prep.yml
-173:  cargo install git-cliff --version 2.14.1 --locked --quiet
-211:  git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+211:          git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
 
 $ grep -n 'git log --merges' .github/workflows/release-prep.yml
 (no output — scaffold removed)
 
 $ grep -n 'git cliff' .github/workflows/release-prep.yml | grep -v output
-(--output not present alongside --prepend — AC-005 pass)
+211:          git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
 ```
 
 ---
