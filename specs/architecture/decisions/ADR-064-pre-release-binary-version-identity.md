@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "2.1"
+version: "2.2"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -16,7 +16,8 @@ anchor_stories:
   - S-REL-DOCS-AGNOSTIC-001     # D1/D2 — cites ADR-064 D1/D2 in §Authority
   - S-REL-VBUMP-001             # D3 — cites ADR-064 D3 in §Authority
   - S-REL-AGENT-VERSION-001     # D4 — authored (draft, v1.3-pending); cites ADR-064 D4 in §Authority
-related_adrs: [ADR-050, ADR-062, ADR-063]
+  - S-REL-DROP-INTEL-MAC-001    # Dim-1 sweep — will update "5-platform" stale counts per ADR-065 D3
+related_adrs: [ADR-050, ADR-062, ADR-063, ADR-065]
 related_bcs: []
 locked_decisions: []
 wiring_deferred_to: null
@@ -40,6 +41,16 @@ input-hash: "2734e6e"
 # ADR-064: Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release
 
 ## Status
+
+ACCEPTED v2.2 (2026-09-07) — TD-VSDD-097 Dim-1 sibling sweep: ADR-065 (Release Build Target
+Matrix) established the 4-target release matrix and named this ADR as the sibling containing
+stale "5-platform" / "5 build targets" / "5 legs" informational counts. Eight such references
+exist in this document's body (§Rationale §Why GITHUB_REF_NAME lines 595/600/608/613; §Consequences
+positive bullets lines 670/677; §Source line 775; anchor_stories table line 784). These are
+informational counts that correctly described the pipeline at time of writing; they are now
+stale. S-REL-DROP-INTEL-MAC-001 AC-003 sweeps all eight to "4-platform" / "4 build targets" /
+"4 legs" when the Intel mac drop is implemented. `related_adrs` extended with ADR-065.
+`anchor_stories` extended with S-REL-DROP-INTEL-MAC-001. No decision content changed.
 
 ACCEPTED v2.1 (2026-09-06) — D3 corrected: `[package] publish = false` at the manifest level
 causes cargo-release >= 1.0.0 to disable the entire release process for the crate, not just the
@@ -791,6 +802,7 @@ ACCEPTED. All four decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.2 | 2026-09-07 | architect | TD-VSDD-097 Dim-1 sibling sweep (ADR-065): ADR-065 (Release Build Target Matrix) established as the governing ADR for the release build matrix, dropping x86_64-apple-darwin. This ADR's eight informational "5-platform" / "5 build targets" / "5 legs" references (§Rationale, §Consequences) are now stale; they will be updated to "4-platform" / "4 build targets" / "4 legs" by S-REL-DROP-INTEL-MAC-001 AC-003. `related_adrs` extended with ADR-065. `anchor_stories` extended with S-REL-DROP-INTEL-MAC-001. No decision content changed — traceability and cross-reference only. |
 | 2.1 | 2026-09-06 | architect | D3 corrected: `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0 to disable the entire release process for prism-bin, not just the crates.io publish step. Added `release = true` to `[package.metadata.release]` to override the manifest-level release-disable inference. Note: the existing `publish = false` inside `[package.metadata.release]` only skips the cargo publish step and does NOT counteract the manifest-level disable. Added mandatory dry-run gate (`cargo release -p prism-bin <ver>` without `--execute`) as a blocking contract before `--execute`; gate confirms crate is selected for release; residual uncertainty discharged by gate. Anchored to S-REL-VBUMP-001 ACs. Reference: cargo-release reference.md §release (github.com/crate-ci/cargo-release §docs/reference.md). |
 | 2.0 | 2026-09-06 | architect | SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001 updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on disk with status:draft and cites ADR-064 §D4 in §Authority. Frontmatter/traceability only — no decision content changed. |
 | 1.9 | 2026-09-05 | architect | MED-1 PR #262 PR-LEVEL spec-drift closure: D2 §PRISM_BUILD_VERSION arm hardened against CWE-93 (embedded-newline injection of second cargo directive) + CWE-20 (unvalidated version string). `resolve_prism_version` step 1 takes FIRST LINE ONLY via `s.lines().next().unwrap_or("").trim()` before accepting override. New `is_semver_shaped` structural validator: ACCEPT `MAJOR.MINOR.PATCH[-pre][+build]` (non-empty dot-separated identifiers, chars `[0-9A-Za-z-]`); REJECT empty prerelease/build/identifier, 4th dotted core component, non-numeric core; lightweight structural check, NOT `semver` crate (build.rs remains dep-free); must-pass: `1.0.0`, `1.0.0-dev`, `1.0.0-beta.1`, `1.0.0-rc.2`, `1.0.0+build.5`, `1.0.0-beta.1+exp.sha.5114f85`; must-reject: `1.0.0-`, `1.0.0+`, `develop`, `1.0`, `1.0.0.0`, `a.b.c`. D2 fallback chain step 1 updated: shape check fail → FALL THROUGH to `GITHUB_REF_NAME` arm. D4 §Surface B swept in-burst: injection sites table row for `crates/prism-spec-engine/build.rs` updated to explicitly include CWE-93/CWE-20 hardening; narrative updated to state both implementations inherit the hardening per D2 normative contract. TD-VSDD-097 Dim-1 CLEAR (sole ADR carrying build.rs contract). Dim-2 CLEAR (§D4 §Surface B swept in-burst). Dim-3: hardening MUSTs anchor to S-REL-AGENT-VERSION-001 (Surface B) and S-REL-BVERSION-INJECT-001 (prism-bin, already merged). |

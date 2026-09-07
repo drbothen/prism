@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.102"
+version: "8.103"
 status: current
-timestamp: 2026-09-07T23:55:00Z
+timestamp: 2026-09-07T23:59:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2486 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — DROP-INTEL-MAC SPEC CRYSTALLIZATION. Human directive 2026-09-07: drop x86_64-apple-darwin (Intel mac); release matrix 5→4 targets; FOLD INTO v1.0.0-beta.1; CLAUDE.md toolchain-header AUTHORIZED. ADR-065 v1.0 NEW ACCEPTED (4-target matrix; SS-22; D1/D2/D3; §Site Inventory). ADR-064 v2.1→v2.2 (Dim-1 sibling sweep: related_adrs+ADR-065, anchor_stories+S-REL-DROP-INTEL-MAC-001, §Status stale-count note). ARCH-INDEX v2.375→v2.376. S-REL-DROP-INTEL-MAC-001 ready v1.0 (P0; 5 ACs; facade; beta.1-BLOCKING; holdout N/A per POL-35). STORY-INDEX v3.020→v3.021 (total_stories 336→337). S-REL-003/004/005 + W3-FIX-CI-001 swept per ADR-065 §Site Inventory. delta-analysis.md input-hash refreshed cbbe6db. Scope EXPANDS PR B; E-REL-NOTES CLIFF+WRITER-001 LOCAL convergence @5ead5f1cb RE-OPENED; expanded diff must re-converge. Code impl (workstream B) IN PROGRESS on feature/E-REL-NOTES-changelog worktree. TD-VSDD-097: Dim-1 DISCHARGED (ADR-064 sibling swept by architect); Dim-2 DISCHARGED (ADR-065 §Site Inventory .factory rows swept; devops workstream B rows tracked via S-REL-DROP-INTEL-MAC-001 ACs); Dim-3 DISCHARGED (ADR-065 D1/D2/D3 MUSTs anchored to S-REL-DROP-INTEL-MAC-001 AC-001/002/003). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.013→v9.014. SESSION-HANDOFF v8.102→v8.103. §RESUME SNAPSHOT D-2485 SUPERSEDED by D-2486.**
 
 > **D-2485 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen 5ead5f1cb. Pass-9 (streak 2/3) and pass-10 (streak 3/3 = CONVERGED) both CLEAN(strict): YES; CLEAN(PR-merge): YES; ZERO diff findings. BC-5.39.001 frozen-HEAD streak rule satisfied (all 3 passes on same code HEAD 5ead5f1cb; DRIFT-ORCH-PRLEVEL-PUSH-001). All 11 ACs (CLIFF-001 AC-001..006 + WRITER-001 AC-001..005) satisfied. cliff.toml conformant to ADR-063 v1.10 §D3/§D4; release-prep.yml 3-substep --prepend mechanism idempotent + fail-loud; RELEASING.md §1..§6 internally consistent. Holdout gate: N/A per POL-35 (both S-REL-CLIFF-001 and S-REL-WRITER-001 behavioral_contracts: [] / holdout_scenarios: [] / HOLDOUT-N/A facade). RECORDS + STATE burst only (no spec/story/index changes). TD-VSDD-097: N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.375/story_index v3.020/total_stories 336 ALL UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.012→v9.013. SESSION-HANDOFF v8.101→v8.102. §RESUME SNAPSHOT D-2484 SUPERSEDED by D-2485.**
 
@@ -50,25 +52,28 @@ timestamp: 2026-09-07T23:55:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2485 (2026-09-07 — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb; ADR-063 v1.10; BETA1-NOTES-001 v1.4) [supersedes D-2484]
+## §RESUME SNAPSHOT — D-2486 (2026-09-07 — DROP-INTEL-MAC SPEC CRYSTALLIZATION; ADR-065 v1.0 ACCEPTED; S-REL-DROP-INTEL-MAC-001 ready v1.0; PR B SCOPE EXPANDED) [supersedes D-2485]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES (S-REL-CLIFF-001 + S-REL-WRITER-001) LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen code HEAD 5ead5f1cb (feature/E-REL-NOTES-changelog). Pass-8 (D-2484, streak 1/3), pass-9 (streak 2/3), pass-10 (streak 3/3 CONVERGED) — all CLEAN(strict): YES; CLEAN(PR-merge): YES; ZERO diff findings each. All 11 ACs satisfied; cliff.toml ADR-063 v1.10 §D3/§D4 conformant; release-prep.yml 3-substep --prepend idempotent + fail-loud; RELEASING.md §1..§6 consistent. Holdout N/A per POL-35. BC-5.39.001 frozen-HEAD streak rule satisfied. NEXT ACTION: demo-recorder (git-cliff dry-run) → push → PR B → PR-LEVEL 3-CLEAN → (explicit human-auth) admin squash-merge → BETA1-NOTES-001 execution → tag v1.0.0-beta.1.
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. Human directive 2026-09-07: drop x86_64-apple-darwin (Intel mac); release matrix 5→4 targets; fold into v1.0.0-beta.1; CLAUDE.md toolchain-header AUTHORIZED. Spec crystallized: ADR-065 v1.0 NEW ACCEPTED (4-target matrix; D1/D2/D3 MANDATORY) + ADR-064 v2.1→v2.2 (Dim-1 sibling) + S-REL-DROP-INTEL-MAC-001 ready v1.0 (P0; 5 ACs; beta.1-BLOCKING; facade; holdout N/A per POL-35). ARCH-INDEX v2.376; STORY-INDEX v3.021 (total_stories 337). Scope EXPANDS PR B — E-REL-NOTES CLIFF+WRITER-001 LOCAL convergence @5ead5f1cb RE-OPENED (BC-5.39.001 frozen-HEAD rule: expanded diff must re-converge before merge; streak 0/3). Code impl (workstream B: CI target removal) IN PROGRESS on feature/E-REL-NOTES-changelog worktree. NEXT: devops completes workstream B → re-run LOCAL 3-CLEAN (streak 0/3) over expanded diff → demo-recorder → push → PR B → PR-LEVEL 3-CLEAN → (explicit human-auth) admin squash-merge → BETA1-NOTES-001 → tag v1.0.0-beta.1.
 
 ### Governing Objective
-v1.0.0-beta.1 release: E-REL-NOTES LOCAL 3-CLEAN CONVERGED 3/3 @5ead5f1cb; NEXT — demo-recorder → push → PR B → PR-LEVEL 3-CLEAN → (human-auth) merge → BETA1-NOTES-001 CHANGELOG gen + human curation → (human-auth) tag v1.0.0-beta.1.
+v1.0.0-beta.1 release: ADR-065 x86_64-apple-darwin removal FOLDED INTO PR B; workstream B (CI/Cargo) IN PROGRESS on worktree; re-converge LOCAL 3-CLEAN over expanded diff → PR B → (human-auth) merge → BETA1-NOTES-001 CHANGELOG gen + human curation → (human-auth) tag v1.0.0-beta.1.
 
 ### PER-WORKSTREAM NEXT-ACTIONS (exact order)
 1. RESUME STEP 0: `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
-2. **demo-recorder evidence** — git-cliff dry-run against `.worktrees/E-REL-NOTES`: `git cliff --unreleased --tag v0.0.0-preview --config cliff.toml`. Capture as terminal recording for PR B evidence.
-3. **Push** feature/E-REL-NOTES-changelog to origin (first push to this branch).
-4. **PR B** (base develop, title: `feat(E-REL-NOTES): git-cliff CHANGELOG setup + Layer-1 release notes (S-REL-CLIFF-001 + S-REL-WRITER-001)`) → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN(strict) cascade.
-5. **Admin squash-merge** PR B (explicit in-session human auth; self-authored PR).
-6. **S-REL-BETA1-NOTES-001** (ready v1.4): generate CHANGELOG §[1.0.0-beta.1] (`git cliff --unreleased --tag v1.0.0-beta.1`; ADR-063 §D6 first-release handling; AC-006 dedup guard) + human curation → demo-recorder → push → PR C → merge.
-7. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Explicit in-session human auth.
+2. **Workstream B completion (devops)** — on `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog): remove x86_64-apple-darwin from Cargo workspace cross-compile targets + CI matrix (S-REL-DROP-INTEL-MAC-001 AC-001/AC-002/AC-003). CLAUDE.md toolchain-header cross-compile target list AUTHORIZED to remove Intel mac entry. Commit code changes. Feature HEAD advances; LOCAL streak RESETS to 0/3 (BC-5.39.001 frozen-HEAD rule).
+3. **LOCAL adversary pass 1/3** on new frozen code HEAD (expanded PR B diff; includes both CLIFF+WRITER-001 + DROP-INTEL-MAC-001 changes). BC-5.39.001 3-CLEAN(strict) streak 0/3.
+4. **LOCAL adversary passes 2/3 + 3/3** on same frozen HEAD. Fix any findings. When CLEAN(strict) streak 3/3 = CONVERGED.
+5. **demo-recorder evidence** — git-cliff dry-run against `.worktrees/E-REL-NOTES`. Capture terminal recording for PR B evidence.
+6. **Push** feature/E-REL-NOTES-changelog to origin.
+7. **PR B** (base develop; S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN(strict) cascade.
+8. **Admin squash-merge** PR B (explicit in-session human auth; self-authored PR).
+9. **S-REL-BETA1-NOTES-001** (ready v1.4): generate CHANGELOG §[1.0.0-beta.1] + human curation → demo-recorder → push → PR C → merge.
+10. **Tag v1.0.0-beta.1:** `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1` (BASE-MATCH lane). Explicit in-session human auth.
 
 ### PENDING USER-APPROVED / DECISIONS
-Merges/tags: explicit in-session human auth. Force-push any branch: explicit human approval. beta channel; v1.0.0-rc.1 = never-published ghost (D-2452).
+Merges/tags: explicit in-session human auth. Force-push any branch: explicit human approval. CLAUDE.md toolchain-header Intel mac entry removal: AUTHORIZED (D-2486). beta channel; v1.0.0-rc.1 = never-published ghost (D-2452).
 
 ### OPEN ITEMS (non-blocking)
 - S-REL-HOLDOUT-HARNESS-001 (draft, POST-beta.1): Surface-B enrichment end-to-end holdout deferred.
@@ -76,17 +81,27 @@ Merges/tags: explicit in-session human auth. Force-push any branch: explicit hum
 - S-REL-VBUMP-001 remains draft (not beta.1-blocking).
 
 ### DECISION DELTA
-D-2485 = E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb: pass-9 CLEAN(strict): YES (streak 2/3); pass-10 CLEAN(strict): YES (streak 3/3 CONVERGED); ZERO diff findings each. BC-5.39.001 frozen-HEAD streak rule satisfied. Holdout N/A per POL-35. Records + STATE burst only; all index versions UNCHANGED. STATE v9.012→v9.013; SESSION-HANDOFF v8.101→v8.102.
+D-2486 = DROP-INTEL-MAC SPEC CRYSTALLIZATION: human directive 2026-09-07; ADR-065 v1.0 NEW ACCEPTED (4-target matrix); ADR-064 v2.1→v2.2; ARCH-INDEX v2.375→v2.376; S-REL-DROP-INTEL-MAC-001 ready v1.0 (P0; 5 ACs; beta.1-BLOCKING); STORY-INDEX v3.020→v3.021 (337 stories); scope EXPANDS PR B; LOCAL convergence @5ead5f1cb RE-OPENED; BC-5.39.001 streak RESET 0/3. STATE v9.013→v9.014; SESSION-HANDOFF v8.102→v8.103.
 
 ### Heads
 - develop: `a4cd1b3fd` (PR #263 squash-merged 2026-09-06; UNCHANGED)
 - factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
 - main: `bdf24cec8` (stub, untouched)
-- E-REL-NOTES worktree: `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ 5ead5f1cb, LOCAL 3-CLEAN CONVERGED; not yet pushed). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- E-REL-NOTES worktree: `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog; workstream B IN PROGRESS — HEAD advancing with CI target removal). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 - Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
 
 ### Changelog (this snapshot)
-- D-2485: E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb; passes 9+10 CLEAN(strict): YES; ZERO findings; BC-5.39.001 frozen-HEAD streak rule satisfied; all 11 ACs pass; holdout N/A per POL-35. STATE v9.012→v9.013; SESSION-HANDOFF v8.101→v8.102. §RESUME SNAPSHOT D-2485 inserted; D-2484 SUPERSEDED.
+- D-2486: DROP-INTEL-MAC SPEC CRYSTALLIZATION; ADR-065 v1.0 NEW ACCEPTED; ADR-064 v2.1→v2.2; ARCH-INDEX v2.375→v2.376; S-REL-DROP-INTEL-MAC-001 ready v1.0 (P0; beta.1-BLOCKING); STORY-INDEX v3.020→v3.021 (337 stories); scope EXPANDS PR B; LOCAL convergence RE-OPENED. STATE v9.013→v9.014; SESSION-HANDOFF v8.102→v8.103. §RESUME SNAPSHOT D-2486 inserted; D-2485 SUPERSEDED.
+
+---
+
+## §RESUME SNAPSHOT — D-2485 (2026-09-07 — E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb; ADR-063 v1.10; BETA1-NOTES-001 v1.4) [supersedes D-2484] [SUPERSEDED by D-2486]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. E-REL-IDENTITY COMPLETE. E-REL-NOTES (S-REL-CLIFF-001 + S-REL-WRITER-001) LOCAL 3-CLEAN(strict) CONVERGED 3/3 on frozen code HEAD 5ead5f1cb (feature/E-REL-NOTES-changelog). Pass-8 (D-2484, streak 1/3), pass-9 (streak 2/3), pass-10 (streak 3/3 CONVERGED) — all CLEAN(strict): YES; CLEAN(PR-merge): YES; ZERO diff findings each. All 11 ACs satisfied; cliff.toml ADR-063 v1.10 §D3/§D4 conformant; release-prep.yml 3-substep --prepend idempotent + fail-loud; RELEASING.md §1..§6 consistent. Holdout N/A per POL-35. BC-5.39.001 frozen-HEAD streak rule satisfied. SUPERSEDED by D-2486 (scope expanded; streak RE-OPENED).
+
+### DECISION DELTA
+D-2485 = E-REL-NOTES LOCAL 3-CLEAN(strict) CONVERGED 3/3 @5ead5f1cb: pass-9 CLEAN(strict): YES (streak 2/3); pass-10 CLEAN(strict): YES (streak 3/3 CONVERGED); ZERO diff findings each. BC-5.39.001 frozen-HEAD streak rule satisfied. Holdout N/A per POL-35. Records + STATE burst only; all index versions UNCHANGED. STATE v9.012→v9.013; SESSION-HANDOFF v8.101→v8.102.
 
 ---
 

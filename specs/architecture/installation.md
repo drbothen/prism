@@ -2,13 +2,13 @@
 document_type: architecture-section
 level: L3
 section: "installation"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T23:30:00
 phase: 1b
 inputs: [system-overview.md, product-brief.md]
-input-hash: "914c2dd"
+input-hash: "048a7a5"
 traces_to: ARCH-INDEX.md
 ---
 
@@ -63,8 +63,7 @@ graph TB
 
 | Target | Binary | Notes |
 |--------|--------|-------|
-| `aarch64-apple-darwin` | `prism-aarch64-apple-darwin` | Apple Silicon (M1/M2/M3/M4) |
-| `x86_64-apple-darwin` | `prism-x86_64-apple-darwin` | Intel Mac |
+| `aarch64-apple-darwin` | `prism-aarch64-apple-darwin` | Apple Silicon (M1/M2/M3/M4) — macOS support (ADR-065) |
 | `x86_64-unknown-linux-gnu` | `prism-x86_64-unknown-linux-gnu` | Linux (glibc) |
 | `x86_64-unknown-linux-musl` | `prism-x86_64-unknown-linux-musl` | Linux (static, Alpine/containers) |
 | `x86_64-pc-windows-msvc` | `prism-x86_64-pc-windows-msvc.exe` | Windows |

@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.5"
+version: "0.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -101,7 +101,7 @@ inputs:
   - "scripts/demo-run.sh"
   - "scripts/demo-teardown.sh"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "71df370"
+input-hash: "1a853d9"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -111,7 +111,7 @@ phase: "F3"
 
 **Story ID:** S-REL-004
 **Status:** draft
-**Version:** v0.4
+**Version:** v0.6
 **Wave:** F-A
 **Priority:** P0
 **Points:** 8
@@ -296,9 +296,7 @@ then the current release.yml (post S-REL-001), then the demo scripts.
            - target: aarch64-apple-darwin
              runner: macos-latest
              bundle_ext: tar.gz
-           - target: x86_64-apple-darwin
-             runner: macos-latest
-             bundle_ext: tar.gz
+           # x86_64-apple-darwin removed — Intel mac retired per ADR-065 §D1/D2
            - target: x86_64-unknown-linux-gnu
              runner: ubuntu-latest
              bundle_ext: tar.gz
@@ -594,6 +592,7 @@ S-ADR054-WAVE-A-001; Cyberint/Armis deferred per D-2440. Code remains in workspa
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.6 | 2026-09-07 | ADR-065 §D1: removed x86_64-apple-darwin matrix leg from build-demo-bundle job target table (forward-looking; story not yet merged). 4-target matrix now authoritative. ADR-065 §D2: x86_64-apple-darwin MUST NOT appear in demo-bundle packaging job. S-REL-DROP-INTEL-MAC-001 owns the corresponding CI workflow changes at implementation time. |
 | 0.5 | 2026-09-04 | S-REL-004 DEFERRED out of v1.0.0-rc.1 per human decision 2026-09-04. Demo bundle requires all 14 Claroty DTU tables; prism-dtu-claroty currently serves 7. Added S-CLAROTY-DTU-PARITY-001 (5 missing G2-G6 DTU routes + demo seeding) to depends_on. S-REL-004 gated behind Claroty DTU parity completion. rc.1 ships without the demo bundle, validated on the live xDome/monroe RC gate. |
 | 0.4 | 2026-09-03 | D-2440 sensor-scope: v1.0.0-rc.1 Claroty-only — crowdstrike-oauth2.prx build step removed from build-plugins job; crowdstrike/armis/cyberint sensor TOMLs removed from bundle; Windows bundle sensor glob narrowed to claroty.sensor.toml; AC-001/002/003/004 updated; deferral note added in Origin and Previous Story Intelligence; Forbidden Dependencies updated |
 | 0.3 | 2026-07-20 | Forward-note (F-REL001-PR2-OBS-2): attestation + checksum coverage for demo bundle public release assets must be explicitly decided at implementation time — risk_mitigations entry added; Task 9 attestation decision gate inserted; shellcheck task renumbered to Task 10 |

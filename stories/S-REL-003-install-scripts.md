@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.3"
+version: "0.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -77,7 +77,7 @@ inputs:
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".github/workflows/release.yml"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "e11dfc9"
+input-hash: "ced7df5"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -86,8 +86,26 @@ phase: "F3"
 # S-REL-003 — devops: install.sh + install.ps1
 
 **Story ID:** S-REL-003
-**Status:** draft
-**Version:** v0.3
+**Status:** merged (PR #254 @725cf413d)
+**Version:** v0.4
+
+---
+
+## Supersession Note — ADR-065 / S-REL-DROP-INTEL-MAC-001
+
+**Effective 2026-09-07 (ADR-065 v1.0):** `x86_64-apple-darwin` (Intel mac) has been retired
+from the release build matrix per human directive. The authoritative 4-target matrix is now:
+`aarch64-apple-darwin`, `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`,
+`x86_64-pc-windows-msvc`.
+
+**ACs in this story are historical.** They described the as-built 5-target state at merge time
+(PR #254, 2026-09-04). The following references are superseded by ADR-065 + S-REL-DROP-INTEL-MAC-001:
+- AC-002: platform detection covering "all 5 targets" including `x86_64-apple-darwin`
+- EC-002: `macOS x86_64 (Intel)` → `x86_64-apple-darwin` detection arm
+- Task 3: `Darwin-x86_64) TARGET="x86_64-apple-darwin"` arm in the case statement
+
+**S-REL-DROP-INTEL-MAC-001** owns the coordinated sweep to remove these references from the
+live files. The task list in this story is historical and preserved for audit traceability.
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -459,6 +477,7 @@ Key lessons from fix-burst U8/U9/U10 research:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.4 | 2026-09-07 | ADR-065 supersession note added. x86_64-apple-darwin (Intel mac) retired from release matrix per ADR-065 §D1/D2 (human directive 2026-09-07). ACs in this story described the 5-target state at merge time (PR #254) and are preserved as historical record. The `Darwin-x86_64` detection arm in install.sh and the `x86_64-apple-darwin` target references in AC-002/EC-002 are superseded by ADR-065 + S-REL-DROP-INTEL-MAC-001 (the implementing story). |
 | 0.3 | 2026-07-19 | ADJ-002 per delta-analysis.md §13: added task to amend publish-release job in release.yml to upload install.sh/install.ps1; added AC-010 for upload verification; acceptance_criteria_count 9→10 |
 | 0.2 | 2026-07-19 | Fix-burst: U8 version resolution via /releases?per_page=1 (no gh CLI dep); U9 SHA-256 dual-path (sha256sum/shasum); U10 composite musl detection (getconf→ld-musl path→ldd); U29/U30/U31/U33 PS 5.1 constraints (#Requires + PSObject.Properties + PSScriptAnalyzer explicit install); research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

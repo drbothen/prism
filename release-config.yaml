@@ -45,9 +45,10 @@ changelog:
   # See RELEASING.md §4 Step 3 for the required section format and content sourcing.
   format: keep-a-changelog
 
-# The tag-triggered GitHub Actions workflow that builds the 5-platform binary
-# matrix (aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu,
-# x86_64-unknown-linux-musl, x86_64-pc-windows-msvc), runs
+# The tag-triggered GitHub Actions workflow that builds the 4-platform binary
+# matrix (aarch64-apple-darwin, x86_64-unknown-linux-gnu,
+# x86_64-unknown-linux-musl, x86_64-pc-windows-msvc — ADR-065; x86_64-apple-darwin
+# retired per human directive 2026-09-07), runs
 # attest-build-provenance on each archive, merges checksums.txt across legs,
 # and creates the GitHub Release via gh release create / upload --clobber.
 # Triggered by a vX.Y.Z tag push on main (RELEASING.md §4 Step 9).

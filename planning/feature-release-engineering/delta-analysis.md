@@ -16,7 +16,7 @@ inputs:
   - scripts/demo-teardown.sh
   - docs/DEMO-RUNBOOK.md
   - crates/prism-bin/src/main.rs
-input-hash: b48be6f
+input-hash: cbbe6db
 ---
 
 # F1 Delta Analysis: Release Engineering + Demo Bundle + Consumer Contract
@@ -24,7 +24,7 @@ input-hash: b48be6f
 ## 1. Scope Summary
 
 This feature cycle delivers:
-1. A working GitHub Releases release workflow for `prism` (5-platform binary + install scripts)
+1. A working GitHub Releases release workflow for `prism` (4-platform binary + install scripts)
 2. A separate per-platform DTU demo bundle artifact (not consumed by secops-factory)
 3. A versioned cross-repo consumption contract for secops-factory
 4. A version-alignment ADR (ADR-053) for product version vs crate version relationship
@@ -183,7 +183,7 @@ This is correct for CI. The release workflow must also build `prism-dtu-demo-ser
 - `prism-${TAG}-${target}.tar.gz` — contains ONLY `prism` binary (main release)
 - `prism-demo-bundle-${TAG}.tar.gz` — contains `prism-dtu-demo-server` + demo scripts (separate asset, NOT per-platform compiled archive — see §7 for bundle structure)
 
-The demo bundle is assembled on a single platform (Linux musl for maximum portability) OR as a per-platform bundle. The decision: **per-platform demo bundle** matching the same 5-platform matrix, because `prism-dtu-demo-server` is a native binary.
+The demo bundle is assembled on a single platform (Linux musl for maximum portability) OR as a per-platform bundle. The decision: **per-platform demo bundle** matching the same 4-platform matrix, because `prism-dtu-demo-server` is a native binary.
 
 ---
 
@@ -244,7 +244,7 @@ S-REL-004 is scoped to the two confirmed demo plugins. If `ocsf-complex-transfor
 
 ### Plugin build requirements for release.yml
 
-The WASM `.prx` files are architecture-independent bytecode and must be built in a single dedicated `build-plugins` job (not inside the 5-platform matrix). The `build-plugins` job:
+The WASM `.prx` files are architecture-independent bytecode and must be built in a single dedicated `build-plugins` job (not inside the 4-platform matrix). The `build-plugins` job:
 1. Installs the `wasm32-wasip1` target: `rustup target add wasm32-wasip1`
 2. Installs `wasm-tools` at the pinned version (1.248.0): `cargo install wasm-tools --version 1.248.0`
 3. Runs `just build-plugin-crowdstrike-oauth2`
@@ -276,7 +276,7 @@ The main `prism-${TARGET}.tar.gz` release archive continues to contain ONLY the 
 ```
 check ─────┬──→ build-plugins (WASM only, single job) ────────────────────┐
            │                                                                │
-           └──→ build-release (5-platform matrix) ──→ publish-release ────┤
+           └──→ build-release (4-platform matrix) ──→ publish-release ────┤
                   (builds prism + dtu-server per-platform)                 │
                                                                            ↓
                                                                   build-demo-bundle
@@ -299,7 +299,6 @@ Demo bundle archives use the same format convention as the main binary release �
 | Linux (glibc) | x86_64-unknown-linux-gnu | `.tar.gz` | `prism-demo-bundle-v1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz` |
 | Linux (musl) | x86_64-unknown-linux-musl | `.tar.gz` | `prism-demo-bundle-v1.0.0-rc.1-x86_64-unknown-linux-musl.tar.gz` |
 | macOS (ARM) | aarch64-apple-darwin | `.tar.gz` | `prism-demo-bundle-v1.0.0-rc.1-aarch64-apple-darwin.tar.gz` |
-| macOS (x86_64) | x86_64-apple-darwin | `.tar.gz` | `prism-demo-bundle-v1.0.0-rc.1-x86_64-apple-darwin.tar.gz` |
 | Windows | x86_64-pc-windows-msvc | `.zip` | `prism-demo-bundle-v1.0.0-rc.1-x86_64-pc-windows-msvc.zip` |
 
 S-REL-007 AC-011/012 must assert `.zip` (not `.tar.gz`) for the Windows bundle. `demo-setup.ps1` must use `Expand-Archive` for extraction, not `tar`. The archive includes `demo-setup.ps1`, `demo-run.ps1`, and `demo-teardown.ps1` (no `.sh` files in the Windows `.zip`).
@@ -310,10 +309,10 @@ S-REL-007 AC-011/012 must assert `.zip` (not `.tar.gz`) for the Windows bundle. 
 
 | Area | Risk | Mitigation |
 |------|------|-----------|
-| **Linux release.yml build legs (never executed — U2)** | **HIGH** — `musl-tools`, `libdbus-1-dev`, `pkg-config` are present in ci.yml but absent from release.yml; `wasm32-wasip1` target add is also missing; first real tag push silently fails both Linux matrix legs | S-REL-001 scope expanded: add `sudo apt-get install -y musl-tools libdbus-1-dev pkg-config` step (Linux-conditional on `runner.os == 'Linux'`); add `rustup target add x86_64-unknown-linux-musl`; add fork-tag dry-run AC (`v0.0.0-dry-run`) to verify all 5 platform builds succeed before cutting v1.0.0-rc.1 |
+| **Linux release.yml build legs (never executed — U2)** | **HIGH** — `musl-tools`, `libdbus-1-dev`, `pkg-config` are present in ci.yml but absent from release.yml; `wasm32-wasip1` target add is also missing; first real tag push silently fails both Linux matrix legs | S-REL-001 scope expanded: add `sudo apt-get install -y musl-tools libdbus-1-dev pkg-config` step (Linux-conditional on `runner.os == 'Linux'`); add `rustup target add x86_64-unknown-linux-musl`; add fork-tag dry-run AC (`v0.0.0-dry-run`) to verify all 4 platform builds succeed before cutting v1.0.0-rc.1 |
 | release.yml changes (removing dead jobs) | LOW — dead jobs already fail; removing them can only improve CI | Gate: fork-tag dry-run (added to S-REL-001 ACs) validates the repaired workflow before v1.0.0-rc.1 |
 | prism-bin version bump (0.1.0 → 1.0.0-rc.1) | LOW — only affects `prism version` output; no semver-checks baseline for pre-release | Verify `just check` passes; verify `prism version` prints new string |
-| install.sh / install.ps1 (new files) | MEDIUM — new complexity; checksum verification must be correct; uploaded as release assets (not raw.githubusercontent.com) per U26 adjudication | Test on all 5 platforms; include in RC acceptance gate; upload step in publish-release job |
+| install.sh / install.ps1 (new files) | MEDIUM — new complexity; checksum verification must be correct; uploaded as release assets (not raw.githubusercontent.com) per U26 adjudication | Test on all 4 platforms; include in RC acceptance gate; upload step in publish-release job |
 | demo-bundle packaging with .prx prebuilds | MEDIUM — wasm-tools install on CI runner; WASM Component build is deterministic but build toolchain pin matters | Pin wasm-tools 1.248.0 per existing Justfile comment; run plugin build in dedicated `build-plugins` job parallel with build-release matrix |
 | demo-bundle CI job dependency chain | MEDIUM — `build-demo-bundle` races `publish-release` if dependency is wrong | U15 fix: `build-demo-bundle` declares `needs: [build-release, build-plugins, publish-release]`; enforced in S-REL-004 ACs |
 | PowerShell demo scripts (Windows) | MEDIUM — Windows subprocess mgmt, stdin piping, keyring behavior, and `.zip` extraction (not `.tar.gz`) need validation | See §10 Windows keyring analysis; Windows demo bundle uses `.zip` (U22); test under Windows runner in release.yml |
@@ -397,7 +396,7 @@ Stories are listed in dependency order. RC-1 blocking status is explicit.
 |----------|-------|------|---------------|-------------|
 | S-REL-001 | release.yml repair — remove dead jobs (DEF-REL-001 through DEF-REL-004), fix binary_exists guard; add Linux apt setup (musl-tools/libdbus-1-dev/pkg-config, Linux-conditional); add dual-binary build (-p prism-bin -p prism-dtu-demo-server); add tar-wrap + upload-artifact step for demo-server binary per-platform; add install.sh/install.ps1 upload step to publish-release; fork-tag dry-run AC | M | YES | None |
 | S-REL-002 | Version alignment — bump prism-bin to 1.0.0-rc.1; ADR-053 | S | YES | None (parallel with S-REL-001) |
-| S-REL-003 | install.sh + install.ps1 — checksum-verified install scripts (5-platform) | M | YES | S-REL-001 (needs release URL pattern) |
+| S-REL-003 | install.sh + install.ps1 — checksum-verified install scripts (4-platform) | M | YES | S-REL-001 (needs release URL pattern) |
 | S-REL-004 | demo-bundle packaging — build-plugins CI job + per-platform demo bundle archive (with .prx prebuilds, all scripts, t13-preflight-audit.py); release.yml integration | L | YES | S-REL-001, S-REL-002 |
 | S-REL-007 | Windows PowerShell demo script parity — demo-setup.ps1, demo-run.ps1, demo-teardown.ps1; ConvertFrom-Json sidecar parsing; Windows Credential Manager fallback handling | L | YES (promoted from F-C) | S-REL-004 (demo bundle structure) |
 | S-REL-005 | RELEASING.md — operator runbook for cutting v1.0.0-rc.1 and v1.0.0 | S | YES | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
@@ -451,7 +450,7 @@ Adjudication outcomes U13/U15/U19 result in this job topology:
 check ─────┬──→ build-plugins  (WASM only, single job, parallel) ──────────────┐
            │    needs: [check]                                                   │
            │                                                                     │
-           └──→ build-release  (5-platform matrix, parallel) ───→ publish-release ──→ build-demo-bundle
+           └──→ build-release  (4-platform matrix, parallel) ───→ publish-release ──→ build-demo-bundle
                 needs: [check]     builds prism + dtu-server          needs:              needs:
                                    tar-wraps dtu-server per-platform  [build-release]     [build-release,
                                    uploads artifact per-platform                           build-plugins,
@@ -571,7 +570,7 @@ Add the following to S-REL-003 (in addition to its existing scope of authoring t
 
 ---
 
-### ADJ-003 (Medium): Windows demo-server wrap requires .exe + 7z; all 5 targets
+### ADJ-003 (Medium): Windows demo-server wrap requires .exe + 7z; all 4 targets
 
 **Finding severity:** Medium  
 **Finding source:** Pre-TDD scan detecting platform-specific binary naming gap.
@@ -582,7 +581,7 @@ Add the following to S-REL-003 (in addition to its existing scope of authoring t
 
 Strip handling: the existing story strips only `prism`. Both binaries should be stripped on Unix legs under the production-grade default.
 
-Target coverage: all 5 matrix targets build the demo-server (delta-analysis §7: demo bundle is per-platform for all 5 targets).
+Target coverage: all 4 matrix targets build the demo-server (delta-analysis §7: demo bundle is per-platform for all 4 targets).
 
 #### Ruling
 
@@ -624,7 +623,7 @@ Task 7 must use per-OS conditional logic for the demo-server wrap, keyed on the 
    > `prism-dtu-demo-server binary is tar-wrapped before upload (to preserve +x bit).`
 
    with:
-   > `prism-dtu-demo-server binary is wrapped before upload-artifact using per-OS conditional logic: `.tar.gz` (tar, preserves +x bit) on Unix legs; `.zip` (7z, `.exe` suffix) on Windows. Uploaded as artifact `prism-dtu-demo-server-${{ matrix.target }}` with path `prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}`. All 5 matrix targets produce this artifact. prism-dtu-demo-server is stripped on Unix legs (alongside `prism`).`
+   > `prism-dtu-demo-server binary is wrapped before upload-artifact using per-OS conditional logic: `.tar.gz` (tar, preserves +x bit) on Unix legs; `.zip` (7z, `.exe` suffix) on Windows. Uploaded as artifact `prism-dtu-demo-server-${{ matrix.target }}` with path `prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}`. All 4 matrix targets produce this artifact. prism-dtu-demo-server is stripped on Unix legs (alongside `prism`).`
 
 3. **`risk_mitigations`** entry for "build-release builds prism-bin + prism-dtu-demo-server together (U13)" — append:
    > The demo-server wrap step uses per-OS conditional logic matching the `archive_ext` matrix variable (same pattern as the main `prism` archive step): `tar czf` on Unix (preserves +x); `7z a ... .exe` on Windows. Strip applies to both `prism` and `prism-dtu-demo-server` on Unix legs.
@@ -703,9 +702,9 @@ Compiling libdbus from source against musl libc introduces a vendored C dependen
 
 **Verdict: REJECTED.**
 
-#### Option D — Drop musl target from 5-platform matrix
+#### Option D — Drop musl target from 4-platform matrix
 
-Contradicts the locked 5-platform matrix (story Architecture Compliance: "5-platform matrix is non-negotiable, ADR-022"). Included for completeness only.
+Contradicts the locked 4-platform matrix (story Architecture Compliance: "4-platform matrix is non-negotiable, ADR-022/ADR-065"). Included for completeness only.
 
 **Verdict: REJECTED per constraint.**
 

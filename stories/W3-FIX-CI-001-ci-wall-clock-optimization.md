@@ -12,7 +12,7 @@ estimated_days: 1
 points: 5
 status: merged
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-04-30T22:00:00Z"
 input-hash: "[live-state]"
@@ -163,8 +163,10 @@ because the 5-platform matrix structure is preserved.
     - `x86_64-unknown-linux-gnu`: `proptest_cases: 1000`, `run_doctests: true`
     - `x86_64-unknown-linux-musl`: `proptest_cases: 256`
     - `aarch64-apple-darwin`: `proptest_cases: 256`
-    - `x86_64-apple-darwin`: `proptest_cases: 256`
     - `x86_64-pc-windows-msvc`: `proptest_cases: 256`
+    - (x86_64-apple-darwin removed — Intel mac retired per ADR-065 §D1; was
+      `proptest_cases: 256` when this story was merged; superseded by
+      S-REL-DROP-INTEL-MAC-001 which removes this matrix entry from ci.yml)
   - Add job-level `env:` block:
     ```yaml
     env:
@@ -424,3 +426,12 @@ Add a comment block to the ci.yml env section explaining the tier rationale.
 | EC-006 | rocksdb-sys fails to link under mold | Extremely unlikely (mold supports all major C++ static linking patterns). If it occurs, add `if: matrix.target == 'x86_64-unknown-linux-gnu'` to the mold step as a temporary escape hatch while investigating |
 | EC-007 | JUnit XML not found at expected path on test failure | nextest writes to `target/nextest/ci/junit.xml` only when tests run; if tests fail before generating any output, the artifact upload step may fail silently. `if: always()` on the upload step handles partial runs |
 | EC-008 | Developer runs `just check` and nextest is not installed | `just check` (modified by W3-FIX-LEFTHOOK-001) uses plain `cargo test`. The optional Task 4 nextest fallback in `just check` is a nice-to-have; the AC does not require it |
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| 1.1 | 2026-09-07 | ADR-065 §D1: removed x86_64-apple-darwin from Task 2 proptest_cases matrix list (Intel mac retired per human directive 2026-09-07; as-built the matrix leg existed at merge time; S-REL-DROP-INTEL-MAC-001 removes it from the live ci.yml). Note added inline explaining supersession. |
+| 1.0 | 2026-04-30 | Initial creation (story-writer Wave 3 burst) |

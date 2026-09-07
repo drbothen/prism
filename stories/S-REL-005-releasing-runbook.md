@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.4"
+version: "0.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -75,7 +75,7 @@ inputs:
   - ".github/workflows/release.yml"
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "92db479"
+input-hash: "60ab565"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -84,11 +84,30 @@ phase: "F3"
 # S-REL-005 — devops: RELEASING.md operator runbook + .factory/release-config.yaml
 
 **Story ID:** S-REL-005
-**Status:** draft
-**Version:** v0.4
+**Status:** merged (PR #253 @18646aa44)
+**Version:** v0.5
 **Wave:** F-A (terminal story — depends on all other F-A stories)
 **Priority:** P0
 **Points:** 2
+
+---
+
+## Supersession Note — ADR-065 / S-REL-DROP-INTEL-MAC-001
+
+**Effective 2026-09-07 (ADR-065 v1.0):** `x86_64-apple-darwin` (Intel mac) has been retired
+from the release build matrix per human directive. The authoritative 4-target matrix is now:
+`aarch64-apple-darwin`, `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`,
+`x86_64-pc-windows-msvc`.
+
+**ACs in this story are historical.** They described the as-built 5-platform state at merge
+time (PR #253 @18646aa44, 2026-09-03). The following references are superseded by ADR-065 +
+S-REL-DROP-INTEL-MAC-001:
+- RELEASING.md "5 platforms" list in §What the release workflow does (platform enumeration)
+- .factory/release-config.yaml `platforms:` comment list (updated by architect in ADR-065 burst)
+- Any runbook instruction specific to macOS Intel is historical and no longer applicable
+
+**S-REL-DROP-INTEL-MAC-001** owns the coordinated sweep to update RELEASING.md and related
+documentation. The ACs in this story are preserved for audit traceability.
 
 ---
 
@@ -503,6 +522,7 @@ The boot.rs path-resolution fix uses only existing `std::path::Path::join()` —
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.5 | 2026-09-07 | ADR-065 supersession note added. x86_64-apple-darwin (Intel mac) retired from release matrix per ADR-065 §D1/D2 (human directive 2026-09-07). ACs in this story described the 5-platform state as merged (PR #253 @18646aa44). Platform-list references at Tasks ~186 and ~249 ("5 platforms: aarch64-apple-darwin, x86_64-apple-darwin, ...") are historical and superseded by ADR-065 + S-REL-DROP-INTEL-MAC-001 (the implementing story). |
 | 0.4 | 2026-09-03 | D-2440 amendments: all docs/RELEASING.md refs → repo-root RELEASING.md; quality_gates vsdd-full→vsdd-partial (doc error corrected); ADR-053→ADR-062 in AC-002/Task-3/Behavioral-Contracts/Arch-Rules; boot.rs CWD bug fix added as Task-6 + AC-009 (RG-002); prism.toml.example Tasks-7 + ACs-010/011/012/013 (UUID-v7 stdlib, keyring+encrypted_file only, Claroty-only sensors, spec_dir relative guidance); crates_touched [prism-bin]; acceptance_criteria_count 8→13; red_gate_tests 1→2 |
 | 0.3 | 2026-07-20 | F-REL001-PR6-003 (OBS): scope extended — RELEASING.md tag-naming discipline section added (only vMAJOR.MINOR.PATCH[-rc.N] tags to origin; non-release v* tags forbidden); Task 5 added to evaluate and record workflow trigger-scope decision (decision must be present in runbook, not deferred-TBD); AC-008 added; EC-004 non-release v* tag edge case; acceptance_criteria_count 7→8 |
 | 0.2 | 2026-07-19 | Fix-burst: U24/U25 release-config.yaml quality_gates rewritten as MAP (mode+individual gate keys); packages/version_sources added; invented top-level keys (release_series/platforms/artifacts) moved to comments only; AC-005/007 updated to verify MAP structure; U27 EC-003 and RELEASING.md Hotfix section use S-REL-hotfix-001 story anchor instead of bare TODO; research file added to inputs |
