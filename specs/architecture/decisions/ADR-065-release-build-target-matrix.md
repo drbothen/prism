@@ -4,7 +4,7 @@ adr_id: "ADR-065"
 title: "Release Build Target Matrix — 4-Platform, Apple-Silicon-only macOS"
 status: ACCEPTED
 date: "2026-09-07"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -24,6 +24,19 @@ wiring_deferred_to: null
 # ADR-065: Release Build Target Matrix — 4-Platform, Apple-Silicon-only macOS
 
 ## Status
+
+ACCEPTED v1.1 (2026-09-07) — §Site Inventory backfill: `CHANGELOG.md` added to the Documentation
+section. The `## [1.0.0-beta.1]` CHANGELOG section advertised "5-platform … x86_64-apple-darwin"
+release artifacts and is fed to `gh release create --notes-file` as the PUBLISHED GitHub Release
+body; this pending-section non-historical file was omitted from the v1.0 inventory, causing the
+Dim-2 sweep gate to miss it. Required change: the pending `## [VERSION]` section MUST reflect
+the 4-target matrix (no `x86_64-apple-darwin`); historical released `## [X.Y.Z]` sections are
+IMMUTABLE. Strengthens D1/D2 coverage. TD-VSDD-097: Dim-1 CLEAR (ADR-063 checked — no
+target-list references, CLEAR; ADR-064 Dim-1 sweep completed in v1.0, CLEAR). Dim-2 HANDOFF
+to story-writer: S-REL-DROP-INTEL-MAC-001 AC-001/VF-001 grep scope MUST include `CHANGELOG.md`.
+Dim-3: `CHANGELOG.md` pending section MUST reflect the 4-target matrix → S-REL-DROP-INTEL-MAC-001
+AC-001 (covered by D1's "all downstream artifacts" mandate; explicitly noted for inventory
+completeness).
 
 ACCEPTED v1.0 (2026-09-07) — human-directed. Origin: human directive 2026-09-07 "only support
 latest macOS, drop Intel macs." Architecture-only drop: `x86_64-apple-darwin` (Intel macOS)
@@ -193,6 +206,7 @@ must not be retroactively changed.
 
 | File | Reference | Required Change |
 |------|-----------|-----------------|
+| `CHANGELOG.md` | Pending `## [VERSION]` section describes release artifacts including platform targets; fed to `gh release create --notes-file` as the PUBLISHED GitHub Release body | Pending `## [VERSION]` section MUST reflect the 4-target matrix (remove `x86_64-apple-darwin` from any target listing); historical released `## [X.Y.Z]` sections (e.g., `## [1.0.0-beta.1]`) are IMMUTABLE — MUST NOT be retroactively changed |
 | `RELEASING.md` | Test matrix list section; build matrix table section; "5 platform archives"/"5 legs" count mentions; macOS Intel install instructions snippet | Remove Intel row from table; update "5" counts to "4"; remove Intel install snippet |
 | `README.md` | "macOS Apple Silicon/Intel" badge/text; macOS Intel table row in download table | Remove Intel references |
 | `docs/SETUP.md` | "macOS Intel" text; macOS Intel table row | Remove Intel references |
@@ -284,11 +298,14 @@ and are updated by S-REL-DROP-INTEL-MAC-001 AC-003. ADR-062 and ADR-063 checked 
 target-list references (CLEAR).
 
 **Dim-2 (downstream copy targets):** The Site Inventory above IS the Dim-2 map. Every file
-that carries the target list or a derivative "5-platform" count is enumerated. No silent copies
-remain outside the inventory.
+that carries the target list or a derivative "5-platform" count is enumerated. v1.1 backfill:
+`CHANGELOG.md` added to the Documentation section — its pending `## [VERSION]` section feeds
+the published GitHub Release body via `release.yml` `--notes-file` and was omitted from the v1.0
+inventory. Dim-2 HANDOFF to story-writer: S-REL-DROP-INTEL-MAC-001 AC-001/VF-001 grep scope MUST
+include `CHANGELOG.md`.
 
 **Dim-3 (mandate anchors):** Every MUST in this ADR is anchored:
-- D1 MUST → S-REL-DROP-INTEL-MAC-001 AC-001
+- D1 MUST → S-REL-DROP-INTEL-MAC-001 AC-001 (covers all downstream artifacts including `CHANGELOG.md` pending section per "all downstream artifacts... MUST reflect this exact set")
 - D2 MUST → S-REL-DROP-INTEL-MAC-001 AC-002
 - D3 MUST → S-REL-DROP-INTEL-MAC-001 AC-003
 
@@ -298,4 +315,5 @@ remain outside the inventory.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-07 | architect | §Site Inventory backfill: `CHANGELOG.md` added to Documentation section. Pending `## [VERSION]` CHANGELOG section feeds `gh release create --notes-file` as the PUBLISHED GitHub Release body (e.g., `## [1.0.0-beta.1]` section described "5-platform … x86_64-apple-darwin" release artifacts) — non-historical file omitted from v1.0 inventory; Dim-2 sweep gate missed it. Required change: pending `## [VERSION]` section MUST reflect the 4-target matrix (no `x86_64-apple-darwin`); historical released `## [X.Y.Z]` sections are IMMUTABLE. Strengthens D1/D2 coverage. §TD-VSDD-097 Discharge: Dim-2 updated with CHANGELOG.md + Dim-2 HANDOFF to story-writer; Dim-3 CHANGELOG.md note added. TD-VSDD-097: Dim-1 CLEAR (ADR-063 checked — no target-list references, CLEAR; ADR-064 Dim-1 swept in v1.0, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-DROP-INTEL-MAC-001 AC-001/VF-001 grep scope MUST include `CHANGELOG.md`. Dim-3: `CHANGELOG.md` pending section MUST reflect 4-target matrix → S-REL-DROP-INTEL-MAC-001 AC-001 (covered by D1 "all downstream artifacts" mandate; explicitly noted for inventory completeness). ARCH-INDEX v2.376→v2.377. |
 | 1.0 | 2026-09-07 | architect | Initial. Human-directed 2026-09-07: drop x86_64-apple-darwin (Intel mac); 4-target matrix established; D1 authoritative matrix; D2 x86_64-apple-darwin MUST NOT be reintroduced; D3 ADR-064 "5-platform" stale-count sweep anchored to S-REL-DROP-INTEL-MAC-001 AC-003. Site inventory (Dim-2 map) documents all 40+ affected sites across workflows/toolchain/docs/tests/.factory/. TD-VSDD-097: Dim-1 ADR-064 sibling swept (v2.1→v2.2); Dim-2 inventory is the map; Dim-3 all MUSTs anchored to S-REL-DROP-INTEL-MAC-001 AC-001/AC-002/AC-003. ARCH-INDEX v2.375→v2.376. |

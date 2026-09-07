@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.10"
+version: "1.11"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -31,6 +31,8 @@ input-hash: "360fc13"
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.11 (2026-09-07) — §D3 cliff.toml `commit_parsers` catch-all skip parser documented: the shipped `cliff.toml` ends with `{ message = ".*", skip = true }` as the FINAL `commit_parsers` entry. Unlisted conventional types (e.g., `evidence:`, `factory:`, `ci:` prefixes not explicitly enumerated in D3's mapping table) are silently skipped rather than rendered as raw headings. Combined with `protect_breaking_commits = true`, breaking commits are still surfaced via the Tera two-part body filter regardless of the catch-all. This operationalizes D3's "only enumerated types render" intent; the v1.10 sketch was incomplete, not incorrect. §D3 cliff.toml sketch updated with catch-all as final `commit_parsers` entry with inline rationale comment. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed; ADR-064 checked, no cliff.toml `commit_parsers` reference, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §D3/cliff.toml description must include the catch-all skip parser entry if it enumerates `commit_parsers` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST; catch-all operationalizes the already-anchored D3 "only enumerated types render" intent, S-REL-CLIFF-001 AC-006).
 
 ACCEPTED v1.10 (2026-09-07) — §D4 CHANGELOG.md structure block corrected: `### Breaking Changes (from commits)` → plain `### Breaking Changes`. §D3 cliff.toml body template is the source of truth for the emitted heading; the shipped cliff.toml and RELEASING.md §5 both use the plain form. The `(from commits)` suffix appeared outside any brackets and read as a literal heading rather than a descriptor. Option (a) applied. No change to D1/D2/D3/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-BETA1-NOTES-001 §Tasks (Task 7 structure block) and §Edge Cases (EC-003) carry `### Breaking Changes (from commits)` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST).
 
@@ -291,6 +293,11 @@ commit_parsers = [
   { message = "^style", skip = true },
   { message = "^build", skip = true },
   { message = "^revert", skip = true },
+  # Catch-all: any unlisted conventional type (e.g., evidence:, factory:, ci: variants not
+  # enumerated above) is skipped rather than rendered as a raw heading.
+  # protect_breaking_commits = true below ensures breaking commits (BREAKING CHANGE footer or
+  # ! suffix) surface via the Tera two-part body filter regardless of this catch-all.
+  { message = ".*", skip = true },
 ]
 protect_breaking_commits = true
 filter_commits = false
@@ -616,6 +623,7 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.11 | 2026-09-07 | architect | §D3 catch-all skip parser documented: shipped cliff.toml `commit_parsers` ends with `{ message = ".*", skip = true }` as the FINAL entry — unlisted conventional types (e.g., `evidence:`, `factory:`, `ci:` prefixes not in D3 mapping table) are skipped rather than rendered as raw headings; `protect_breaking_commits = true` ensures breaking commits surface via Tera two-part body filter regardless of the catch-all; operationalizes D3 "only enumerated types render" intent; v1.10 sketch was incomplete, not incorrect. §D3 cliff.toml sketch updated with catch-all as final `commit_parsers` entry. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR twin — confirmed; ADR-064 checked, no cliff.toml `commit_parsers` reference, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §D3/cliff.toml description must include catch-all skip parser if `commit_parsers` is enumerated — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST; catch-all operationalizes already-anchored D3 "only enumerated types render" intent, S-REL-CLIFF-001 AC-006). |
 | 1.10 | 2026-09-07 | architect | §D4 CHANGELOG.md structure block corrected: `### Breaking Changes (from commits)` → plain `### Breaking Changes`. §D3 cliff.toml body template and shipped cliff.toml are authoritative for the emitted heading (plain form); `(from commits)` suffix appeared outside brackets and read as a literal heading. Option (a) applied — block reads as showing literal headings. No change to D1/D2/D3/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-BETA1-NOTES-001 §Tasks (Task 7 structure block) and §Edge Cases (EC-003) carry `### Breaking Changes (from commits)` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST). |
 | 1.9 | 2026-09-07 | architect | §D3 cliff.toml body-template sketch corrected: `{% else %}## [Unreleased]` arm dropped — `## [Unreleased]` comes solely from `[changelog] header` (never from body template); body MUST NOT re-emit it (else arm produces duplicate heading on no-`--tag` dry-runs). Shipped cliff.toml (S-REL-CLIFF-001, cda652e5f) verified: body template is `{% if version %}...{% endif %}` with no else arm; dry-run: exactly one `## [Unreleased]`. Informative note added after cliff.toml sketch. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-CLIFF-001 Task 2 body-template snippet also carries `{% else %}## [Unreleased]` arm — flag for story-writer to sweep in same burst. Dim-3 CLEAR (no new MUST). |
 | 1.8 | 2026-09-07 | architect | D3 `--prepend` mechanism canonicalized: DEVIATION-3 — `git cliff --prepend` with empty `[changelog] header` corrupts CHANGELOG.md (buries `# Changelog` masthead; orphans `## [Unreleased]`; compare-link ref-defs not updated). Verified empirically: git-cliff 2.14.1. Canonical 3-substep release-prep.yml Step 7 flow, verified idempotent over 3 simulated release cycles: (1) cliff.toml `[changelog] header` carries masthead + preamble + `## [Unreleased]` (NOT empty) — git-cliff writes `header + new-section + existing-content` → correct keepachangelog order; (2) PRE-STRIP substep (Python, pre-git-cliff): strips prior masthead + `## [Unreleased]` from CHANGELOG.md leaving file at first versioned section — idempotency across release cycles; (3) LINK-REF UPDATE substep (Python, post-git-cliff, token-free): repoints Unreleased compare ref + inserts VERSION compare ref from existing ref + VERSION env var; no GITHUB_TOKEN. Core `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` invocation UNCHANGED. cliff.toml sketch: `header = ""` corrected to full masthead + preamble + `## [Unreleased]`. §D3: `--prepend` mechanism section added (3 substeps documented as REQUIRED). §Consequences two-layer bullet updated. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 Task 2 sweep to header-carries-masthead + pre-strip + link-ref-update substeps; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 confirmed no `header=""` or incorrect direct-prepend copy (CLEAR for both). Dim-3 CLEAR: prepend-correctness MUST anchored to S-REL-CLIFF-001 AC-003 (Step 7 replacement) + AC-005 (`--prepend` without `--output`). No change to D1/D2/D4/D5/D6. |

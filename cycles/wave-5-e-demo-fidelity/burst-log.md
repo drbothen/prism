@@ -656,3 +656,53 @@ All three passes on same frozen code HEAD 5ead5f1cb (frozen-HEAD rule satisfied 
 **Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.375 / story_index v3.020 / total_stories 336 ALL UNCHANGED.
 
 **Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.375 UNCHANGED. total_stories 336 UNCHANGED.
+
+---
+
+## D-2487 — 2026-09-07 — PR #264 PR-LEVEL pass-1 fix-burst (1 HIGH + 1 MED + 3 LOW ALL FIXED; root-gap codified)
+
+**Burst type:** SINGLE-COMMIT BURST (TD-VSDD-053)
+
+**Trigger:** PR-LEVEL adversary pass-1 on frozen PR #264 HEAD 29997ab7 (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001). Baseline: D-2486 (STATE v9.014; SESSION-HANDOFF v8.103; ARCH-INDEX v2.376; STORY-INDEX v3.021).
+
+**Pass result:** CLEAN(strict): NO; CLEAN(PR-merge): NO. 1 HIGH + 1 MED + 3 LOW. All 5 findings FIXED in code fix-burst @6e695e09e (devops). Plus 2 spec-drift findings (ADR-063 catch-all undocumented + ADR-065 §Site Inventory omitting CHANGELOG.md) fixed in this factory burst.
+
+**Findings fixed:**
+
+- **HIGH [spec-drift] (devops):** `CHANGELOG.md` `## [1.0.0-beta.1]` section advertised 5-platform release including x86_64-apple-darwin. Section feeds `gh release create --notes-file` as the published GitHub Release body per ADR-065 §D1. Fix: corrected to 4-platform, x86_64-apple-darwin removed.
+- **MED (devops):** `scripts/install.sh` `*)` error branch "macOS (arm64, x86_64)" → "macOS (arm64)" — x86_64 macOS dropped per ADR-065 §D1.
+- **LOW ×3 (devops):** Test/build assertion counts updated: `test_AC-3_matrix-4-platforms.sh` TAP "5 platforms" → "4"; `crates/prism-bin/build.rs` "5 legs" → "4" (three occurrences); `tests/release-gate/test_AC-010_linux-setup.sh` "5 matrix legs" → "4".
+- **LOW [spec-drift] (architect):** `cliff.toml` catch-all skip parser undocumented → ADR-063 v1.10→v1.11 §D3 documents it. S-REL-CLIFF-001 v1.7→v1.8 (Task 2 Dim-2 sweep).
+- **HIGH root-gap [spec-drift] (architect):** ADR-065 §Site Inventory v1.0 omitted `CHANGELOG.md` → ADR-065 v1.0→v1.1 adds it. S-REL-DROP-INTEL-MAC-001 v1.0→v1.1 (AC-001/VF-001 grep scope extended to CHANGELOG.md).
+
+**Root-gap lesson [process-gap]:** Literal-string grep gate missed `CHANGELOG.md` because the pending section used "Full 5-platform" narrative prose and `CHANGELOG.md` was absent from the v1.0 §Site Inventory. Codified via ADR-065 v1.1 + S-REL-DROP-INTEL-MAC-001 v1.1 VF-001 CHANGELOG.md scope annotation (pending-section mutable; historical sections IMMUTABLE).
+
+**Files touched (factory burst — this commit):**
+
+- `.factory/specs/architecture/decisions/ADR-063-changelog-release-notes-architecture.md` — v1.10→v1.11 (architect; §D3 catch-all skip parser documented)
+- `.factory/specs/architecture/decisions/ADR-065-release-build-target-matrix.md` — v1.0→v1.1 (architect; §Site Inventory CHANGELOG.md added + pending-section mutability rules + --notes-file feed note)
+- `.factory/specs/architecture/ARCH-INDEX.md` — v2.376→v2.377 (ADR-063 pin v1.10→v1.11; ADR-065 pin v1.0→v1.1)
+- `.factory/stories/S-REL-CLIFF-001-git-cliff-setup.md` — v1.7→v1.8 (story-writer; Task 2 catch-all skip parser entry added; Dim-2 DISCHARGED per ADR-063 v1.11 §D3)
+- `.factory/stories/S-REL-DROP-INTEL-MAC-001-drop-intel-mac-build-target.md` — v1.0→v1.1 (story-writer; AC-001 + VF-001 grep scope extended to CHANGELOG.md per ADR-065 v1.1 §Site Inventory)
+- `.factory/stories/STORY-INDEX.md` — v3.021→v3.022 (S-REL-DROP-INTEL-MAC-001 v1.1 + S-REL-CLIFF-001 v1.8 rows updated)
+- `.factory/cycles/wave-5-e-demo-fidelity/convergence-trajectory.md` — E-REL-NOTES PR-LEVEL cascade section + pass-1 row added
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — this entry
+- `.factory/STATE.md` — v9.014→v9.015 (D-2487 decision row; arch_index_version 2.376→2.377; story_index_version 3.021→3.022; current_step updated; Session Resume Checkpoint D-2485→D-2487)
+- `.factory/SESSION-HANDOFF.md` — v8.103→v8.104 (D-2487 burst header; §RESUME SNAPSHOT D-2486 SUPERSEDED by D-2487)
+- `.factory/sidecar-learning.md` — session-end timestamps appended
+
+**Code files touched (code fix-burst @6e695e09e on worktree feature/E-REL-NOTES-changelog — NOT factory commits):**
+
+- `CHANGELOG.md` — `## [1.0.0-beta.1]` section: 5-platform → 4-platform (x86_64-apple-darwin removed from artifact listing)
+- `scripts/install.sh` — `*)` error branch: "macOS (arm64, x86_64)" → "macOS (arm64)"
+- `tests/release-gate/test_AC-3_matrix-4-platforms.sh` — TAP assertion "5 platforms" → "4"
+- `crates/prism-bin/build.rs` — "5 legs" → "4" (three occurrences)
+- `tests/release-gate/test_AC-010_linux-setup.sh` — "5 matrix legs" → "4"
+
+**TD-VSDD-097:** Dim-1 CLEAR (ADR-063/ADR-065 distinct; ADR-064 confirmed CLEAR — no cliff.toml commit_parsers reference). Dim-2 DISCHARGED (ADR-065 v1.1 §Site Inventory CHANGELOG.md → S-REL-DROP-INTEL-MAC-001 AC-001/VF-001 swept same burst; ADR-063 v1.11 §D3 → S-REL-CLIFF-001 Task 2 swept same burst; devops swept CHANGELOG.md/install.sh/tests/build.rs in-scope on worktree). Dim-3 CLEAR (CHANGELOG.md pending-section MUST → S-REL-DROP-INTEL-MAC-001 AC-001; no new unanchored MUSTs).
+
+**Counts:** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED (S-REL-DROP-INTEL-MAC-001 v1.1 is a story update, not a new story). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites in any record text). records-lint L1/L7/L9/L10 PASS.
+
+**PR-LEVEL 3-CLEAN(strict) streak:** 0/3. Code fix-burst pushed PR HEAD 29997ab7→6e695e09e (DRIFT-ORCH-PRLEVEL-PUSH-001: streak reset to 0/3 on any push).
+
+**Next:** Re-gate PR-LEVEL adversary on frozen code HEAD 6e695e09e → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution → (explicit human-auth) tag v1.0.0-beta.1.

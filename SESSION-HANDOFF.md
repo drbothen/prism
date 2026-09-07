@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.103"
+version: "8.104"
 status: current
-timestamp: 2026-09-07T23:59:00Z
+timestamp: 2026-09-07T23:59:59Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2487 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) PR-LEVEL pass-1 fix-burst (1 HIGH + 1 MED + 3 LOW; CLEAN(strict): NO; PR-LEVEL 3-CLEAN(strict) streak 0/3). Code fix-burst: feature/E-REL-NOTES-changelog HEAD 29997ab7→6e695e09e (devops). HIGH [spec-drift]: CHANGELOG.md `## [1.0.0-beta.1]` advertised 5-platform including x86_64-apple-darwin → corrected to 4-platform (feeds gh release --notes-file as published GitHub Release body per ADR-065 §D1). MED: scripts/install.sh `*)` "macOS (arm64, x86_64)" → "macOS (arm64)". LOW ×3 (devops): test/build.rs/release-gate count assertions "5 platforms"/"5 legs"/"5 matrix legs" → 4. LOW [spec-drift] (architect): ADR-063 v1.10→v1.11 §D3 catch-all skip parser documented; S-REL-CLIFF-001 v1.7→v1.8 (Task 2 Dim-2). HIGH root-gap [spec-drift] (architect): ADR-065 v1.0→v1.1 §Site Inventory CHANGELOG.md added + pending-section mutability rules + --notes-file note; S-REL-DROP-INTEL-MAC-001 v1.0→v1.1 (AC-001/VF-001 CHANGELOG.md scope). ARCH-INDEX v2.376→v2.377. STORY-INDEX v3.021→v3.022. Root-gap lesson [process-gap]: literal-string grep gate missed "Full 5-platform" prose + CHANGELOG.md absent from §Site Inventory; codified by ADR-065 v1.1 + S-REL-DROP-INTEL-MAC-001 v1.1. TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.014→v9.015. SESSION-HANDOFF v8.103→v8.104. §RESUME SNAPSHOT D-2486 SUPERSEDED by D-2487.**
 
 > **D-2486 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — DROP-INTEL-MAC SPEC CRYSTALLIZATION. Human directive 2026-09-07: drop x86_64-apple-darwin (Intel mac); release matrix 5→4 targets; FOLD INTO v1.0.0-beta.1; CLAUDE.md toolchain-header AUTHORIZED. ADR-065 v1.0 NEW ACCEPTED (4-target matrix; SS-22; D1/D2/D3; §Site Inventory). ADR-064 v2.1→v2.2 (Dim-1 sibling sweep: related_adrs+ADR-065, anchor_stories+S-REL-DROP-INTEL-MAC-001, §Status stale-count note). ARCH-INDEX v2.375→v2.376. S-REL-DROP-INTEL-MAC-001 ready v1.0 (P0; 5 ACs; facade; beta.1-BLOCKING; holdout N/A per POL-35). STORY-INDEX v3.020→v3.021 (total_stories 336→337). S-REL-003/004/005 + W3-FIX-CI-001 swept per ADR-065 §Site Inventory. delta-analysis.md input-hash refreshed cbbe6db. Scope EXPANDS PR B; E-REL-NOTES CLIFF+WRITER-001 LOCAL convergence @5ead5f1cb RE-OPENED; expanded diff must re-converge. Code impl (workstream B) IN PROGRESS on feature/E-REL-NOTES-changelog worktree. TD-VSDD-097: Dim-1 DISCHARGED (ADR-064 sibling swept by architect); Dim-2 DISCHARGED (ADR-065 §Site Inventory .factory rows swept; devops workstream B rows tracked via S-REL-DROP-INTEL-MAC-001 ACs); Dim-3 DISCHARGED (ADR-065 D1/D2/D3 MUSTs anchored to S-REL-DROP-INTEL-MAC-001 AC-001/002/003). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.013→v9.014. SESSION-HANDOFF v8.102→v8.103. §RESUME SNAPSHOT D-2485 SUPERSEDED by D-2486.**
 

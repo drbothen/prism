@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: ready
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-07T00:00:00Z"
@@ -100,7 +100,7 @@ phase: "F3"
 
 **Story ID:** S-REL-DROP-INTEL-MAC-001
 **Status:** ready
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -179,7 +179,7 @@ constitute the facade readiness bar. All must pass before this story is merged.
 
 | VF-ID | Command | Expected Result |
 |-------|---------|----------------|
-| VF-001 | `grep -r 'x86_64-apple-darwin\|macos-15-intel' .github/ scripts/ tests/ci-gate/ tests/release-gate/ docs/ rust-toolchain.toml README.md RELEASING.md CLAUDE.md` | Zero matches |
+| VF-001 | `grep -r 'x86_64-apple-darwin\|macos-15-intel' .github/ scripts/ tests/ci-gate/ tests/release-gate/ docs/ rust-toolchain.toml README.md RELEASING.md CLAUDE.md CHANGELOG.md` | Zero matches (CHANGELOG.md scope: pending `## [VERSION]` section only; historical `## [X.Y.Z]` released sections are immutable and excluded) |
 | VF-002 | `grep -r '5-platform\|5 build targets\|5 legs\|5 archive\|5 targets\|5 platform' .github/ docs/ RELEASING.md` | Zero matches |
 | VF-003 | `bash tests/ci-gate/test_AC-3_matrix-4-platforms.sh` | Exit 0 (PASS) |
 | VF-004 | `bash tests/release-gate/test_AC-006_matrix-targets.sh` | Exit 0 (PASS) |
@@ -191,6 +191,7 @@ constitute the facade readiness bar. All must pass before this story is merged.
 - `.factory/phase-0-ingestion/` — IMMUTABLE brownfield analysis
 - `.factory/research/` — IMMUTABLE research cache
 - `.factory/stories/` — merged story files (S-REL-003, W3-FIX-CI-001, etc.) are historical
+- `CHANGELOG.md` historical sections — `## [X.Y.Z]` released sections are IMMUTABLE; only the pending `## [VERSION]` section (not yet tagged) is in scope for the grep gate
 
 ---
 
@@ -292,10 +293,13 @@ When: The following grep is run:
 ```bash
 grep -r 'x86_64-apple-darwin\|macos-15-intel' \
   .github/ scripts/install.sh rust-toolchain.toml \
-  README.md RELEASING.md CLAUDE.md docs/ tests/ci-gate/ tests/release-gate/
+  README.md RELEASING.md CLAUDE.md docs/ tests/ci-gate/ tests/release-gate/ \
+  CHANGELOG.md
 ```
 Then: Zero matches (excluding `.factory/stories/`, `docs/demo-evidence/`, `.factory/cycles/`,
-`.factory/phase-0-ingestion/`, `.factory/research/`).
+`.factory/phase-0-ingestion/`, `.factory/research/`; for `CHANGELOG.md`: historical
+`## [X.Y.Z]` released sections are immutable — only the pending `## [VERSION]` section
+must be free of x86_64-apple-darwin/macos-15-intel references).
 Additionally: `.github/workflows/release.yml` contains exactly 4 `include:` target entries;
 `rust-toolchain.toml` lists exactly 4 targets; `scripts/install.sh` has no `Darwin-x86_64`
 detection arm.
@@ -520,4 +524,5 @@ All MUSTs anchored to this story + specific ACs. COMPLETE.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.1 | 2026-09-07 | TD-VSDD-097 Dim-2 downstream sweep (ADR-065 v1.1 §Site Inventory). AC-001 + VF-001: added CHANGELOG.md to grep scope — pending `## [VERSION]` section must not reference x86_64-apple-darwin or macos-15-intel; historical `## [X.Y.Z]` released sections are immutable/excluded from the gate. VF-001 scope exclusions: CHANGELOG.md historical section immutability noted. |
 | 1.0 | 2026-09-07 | Initial story. Human-directed ADR-065 v1.0: drop x86_64-apple-darwin (Intel mac); 4-target matrix; 5 ACs anchoring D1/D2/D3; facade mode (CI/docs/shell-test-only); holdout_scenarios: [] HOLDOUT-N/A (infra-only); subsystems: [SS-22]; crates_touched: []; depends_on: []; blocks: []. TD-VSDD-097: Dim-1 CLEAR (no sibling twin); Dim-2 COMPLETE (.factory/ rows swept — S-REL-003/004/005 supersession notes + W3-FIX-CI-001 Intel entry removed + STORY-INDEX S-MAINT-EDITION-SYNC-001 row updated; delta-analysis.md deferred to spec-steward); Dim-3 COMPLETE (all ADR-065 MUSTs anchored to AC-001/AC-002/AC-003). |

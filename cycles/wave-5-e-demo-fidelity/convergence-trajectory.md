@@ -312,3 +312,39 @@ Frozen HEAD 5ead5f1cb UNCHANGED across all 3 passes (BC-5.39.001 frozen-HEAD str
 **TD-VSDD-097 sweep verdict (D-2485/pass-10):** N/A — records + STATE only; Dim-1/2/3 N/A. TD-VSDD-091/POL-39 CLEAN.
 
 **Next (after pass-8):** LOCAL adversary pass 2/3 on same frozen code HEAD 5ead5f1cb (D-2484; streak 1/3) → if CLEAN(strict): streak 2/3 → pass 3/3 → CONVERGED → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+
+---
+
+## E-REL-NOTES PR-LEVEL Cascade (PR #264 — S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001)
+
+Frozen PR HEAD at pass-1 start: 29997ab7. Code fix-burst HEAD: 29997ab7→6e695e09e.
+
+| Pass | Date | Findings | HIGH | MED | LOW | OBS | Streak | Verdict |
+|------|------|----------|------|-----|-----|-----|--------|---------|
+| PR-LEVEL Pass 1 | 2026-09-07 | 5 | 1 | 1 | 3 | 0 | 0/3 | CLEAN(strict): NO — 1 HIGH + 1 MED + 3 LOW ALL FIXED @6e695e09e; root-gap [process-gap] CHANGELOG.md omitted from ADR-065 §Site Inventory (ADR-065 v1.1 fixes); S-REL-DROP-INTEL-MAC-001 v1.1 + S-REL-CLIFF-001 v1.8 Dim-2 swept. PR-LEVEL 3-CLEAN(strict) streak 0/3. NEXT: re-gate PR-LEVEL on frozen 6e695e09e |
+
+**PR-LEVEL Pass 1 finding summary (CLEAN(strict): NO; 1 HIGH + 1 MED + 3 LOW ALL FIXED; streak 0/3):**
+
+Frozen PR HEAD: 29997ab7. Code fix-burst HEAD: 29997ab7→6e695e09e. PR #264 covers 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001.
+
+**HIGH [spec-drift] (devops, fix in-scope):** `CHANGELOG.md` `## [1.0.0-beta.1]` section advertised "Full 5-platform … x86_64-apple-darwin" release artifacts. This section feeds `gh release create --notes-file` as the published GitHub Release body (ADR-065 §D1). The pending section reflected the retired 5-platform matrix rather than the current 4-platform matrix. Fix: corrected to 4-platform (x86_64-apple-darwin removed).
+
+**MED [install.sh] (devops, fix in-scope):** `scripts/install.sh` `*)` error branch stated "macOS (arm64, x86_64)" — x86_64 support was dropped per ADR-065 §D1. Fix: corrected to "macOS (arm64)" (arm64-only macOS).
+
+**LOW ×3 (devops, fix in-scope):**
+- `test_AC-3_matrix-4-platforms.sh` TAP assertion stated "5 platforms" → corrected to "4".
+- `crates/prism-bin/build.rs` stated "5 legs" → corrected to "4" (three occurrences in the same file).
+- `tests/release-gate/test_AC-010_linux-setup.sh` stated "5 matrix legs" → corrected to "4".
+
+**LOW [spec-drift] (architect, fix in-scope):** `cliff.toml` catch-all skip parser `{ message = ".*", skip = true }` was undocumented in ADR-063. Fix: ADR-063 v1.10→v1.11 §D3 documents the catch-all entry's role (silences unlisted conventional types such as `evidence:`, `factory:`, `ci:` prefixes not enumerated in D3's mapping table; breaking commits still surface via `protect_breaking_commits = true`; operationalizes D3 "only enumerated types render" intent). S-REL-CLIFF-001 v1.7→v1.8 (Task 2 swept; Dim-2 DISCHARGED). STORY-INDEX v3.021→v3.022 (S-REL-DROP-INTEL-MAC-001 v1.1 + S-REL-CLIFF-001 v1.8 rows swept). ARCH-INDEX v2.376→v2.377 (ADR-063 pin v1.10→v1.11; ADR-065 pin v1.0→v1.1).
+
+**HIGH root-gap [spec-drift] (architect, fix in-scope):** ADR-065 §Site Inventory v1.0 omitted `CHANGELOG.md`. Root cause: the pending `## [1.0.0-beta.1]` section used the phrasing "Full 5-platform" rather than a literal "x86_64-apple-darwin" string, and `CHANGELOG.md` was not in the v1.0 inventory, so the Dim-2 sweep gate missed it. Fix: ADR-065 v1.0→v1.1 adds `CHANGELOG.md` to the Documentation section with pending-section mutability rules and the `--notes-file` feed note. S-REL-DROP-INTEL-MAC-001 v1.0→v1.1: AC-001 + VF-001 grep scope extended to `CHANGELOG.md` (pending `## [VERSION]` section only; historical `## [X.Y.Z]` released sections are IMMUTABLE per ADR-065 v1.1).
+
+**Root-gap lesson [process-gap] (codified):** Literal-string grep gates that target only `x86_64-apple-darwin` or `5-platform` missed the `CHANGELOG.md` pending section because it used the prose form "Full 5-platform … x86_64-apple-darwin" in a human-authored summary narrative rather than a machine-generated artifact. Closed by: (a) ADR-065 v1.1 §Site Inventory CHANGELOG.md entry with pending-section mutability rules; (b) S-REL-DROP-INTEL-MAC-001 v1.1 VF-001 grep scope explicitly including CHANGELOG.md with historical-immutability annotation. Tag: [process-gap].
+
+**TD-VSDD-097 sweep verdict (D-2487):**
+- Dim-1: CLEAR (ADR-063/ADR-065 are distinct ADRs covering distinct surfaces; ADR-064 confirmed no cliff.toml commit_parsers reference, CLEAR; no sibling-pair contamination).
+- Dim-2: DISCHARGED (ADR-065 v1.1 §Site Inventory CHANGELOG.md → S-REL-DROP-INTEL-MAC-001 AC-001/VF-001 swept same burst; ADR-063 v1.11 §D3 catch-all → S-REL-CLIFF-001 Task 2 swept same burst; devops swept CHANGELOG.md/install.sh/test scripts/build.rs in-scope on worktree).
+- Dim-3: CLEAR (CHANGELOG.md pending-section MUST reflect 4-target matrix → S-REL-DROP-INTEL-MAC-001 AC-001 is the anchor; no new unanchored MUSTs).
+
+**Next (after PR-LEVEL pass-1):** Re-gate PR-LEVEL adversary on frozen code HEAD 6e695e09e → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.

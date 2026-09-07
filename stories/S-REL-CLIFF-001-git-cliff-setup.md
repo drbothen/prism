@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -108,7 +108,7 @@ phase: "3"
 
 **Story ID:** S-REL-CLIFF-001
 **Status:** ready
-**Version:** v1.7
+**Version:** v1.8
 **Wave:** F-A
 **Priority:** P0
 **Points:** 5
@@ -223,9 +223,13 @@ description before the PR can be reviewed.
    - `commit_parsers` table using numbered-group-name-prefix idiom for non-breaking groups:
      feat→`<!-- 1 -->Added`, fix→`<!-- 2 -->Fixed`, perf→`<!-- 3 -->Performance`,
      refactor→`<!-- 4 -->Changed`, security→`<!-- 5 -->Security`,
-     docs/ci/test/chore/style/build/revert each with `skip = true`. No
-     `{ breaking = true }` entry — breaking commits are handled entirely by the Tera body
-     filter (ADR-063 v1.7 D3 Deviation-2), not parser-level grouping.
+     docs/ci/test/chore/style/build/revert each with `skip = true`. Final catch-all entry
+     (MUST be last): `{ message = ".*", skip = true }` — silently skips any unlisted
+     conventional type (evidence:/factory:/ci: etc.) that would otherwise produce an
+     uncategorized section; breaking commits still surface via `protect_breaking_commits = true`
+     regardless of this catch-all (ADR-063 v1.11 §D3). No `{ breaking = true }` entry —
+     breaking commits are handled entirely by the Tera body filter (ADR-063 v1.7 D3
+     Deviation-2), not parser-level grouping.
    - `protect_breaking_commits = true`
    - `[remote.github]` section: `owner = "drbothen"`, `repo = "prism"` (retained for
      possible future remote-API use; the body template ignores it — `commit.remote.*`
@@ -455,6 +459,7 @@ fabricate a holdout for a gate that definitionally does not apply.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.11 §D3). Task 2 commit_parsers: added catch-all FINAL entry `{ message = ".*", skip = true }` — unlisted conventional types (evidence:/factory:/ci: etc.) are silently skipped; breaking commits still surface via protect_breaking_commits = true (ADR-063 v1.11 §D3). |
 | 1.7 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.9 §D3). Task 2 body-template: "UNCHANGED" reference → explicit no-`{% else %}`-arm constraint: body MUST be `{% if version %}...{% endif %}` with NO `{% else %}` arm; `## [Unreleased]` comes solely from `[changelog] header`, never from body template (else-arm produces duplicate heading on no-`--tag` dry-runs, ADR-063 v1.9 D3). ADR-063 v1.8 D3 ref updated to v1.9 D3 in Task 2 and §Behavioral Contracts header-row. |
 | 1.6 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.8 §D3 `--prepend` mechanism). Task 2 `[changelog] header` bullet: "empty header" → "header carries full masthead+preamble+`## [Unreleased]`" (ADR-063 v1.8 D3: `header = ""` is INCORRECT — corrupts CHANGELOG.md by inserting new section ABOVE masthead). Task 4 (Step 7): single git-cliff invocation → enumerated 3-substep flow: (a) PRE-STRIP Python pre-git-cliff idempotency strip of masthead+`## [Unreleased]`, (b) `git cliff --unreleased --tag ${VERSION_TAG} --prepend CHANGELOG.md` (unchanged core), (c) LINK-REF UPDATE Python token-free post-git-cliff repoint `[Unreleased]`+insert `[VERSION]` compare-link ref. AC-003: updated to verify all 3 substeps present (PRE-STRIP + git cliff + LINK-REF UPDATE). Behavioral Contracts table: old Step 7 invocation row → 3-substep description; new ADR-063 v1.8 D3 `header` carries masthead row added. risk_mitigations: new `header = ""` corruption + 3-substep bullet. AC-005 (`--prepend` without `--output`) UNCHANGED. AC-006 (breaking ordering/no group_order) UNCHANGED. |
 | 1.5 | 2026-09-07 | story-writer | TD-VSDD-097 Dim-2 downstream sweep (ADR-063 v1.7 §D3). DEVIATION-1 (PR-link token-free): Task 2 `commit_preprocessors` bullet added — `(#NNN)` rewritten to markdown link BEFORE Tera rendering via regex preprocessor; no GITHUB_TOKEN needed; body template reads `{{ commit.message }}` only; `commit.remote.pr_number`/`commit.remote.pr_url` NOT read. `[remote.github]` note updated (retained, body template ignores it). Behavioral Contracts PR-link row updated. Library & Framework GITHUB_TOKEN row updated (not needed). risk_mitigations GITHUB_TOKEN bullet updated. DEVIATION-2 (Breaking Changes filter-based): `{ breaking = true, group = "<!-- 0 -->Breaking Changes" }` commit_parser guidance removed — that parser-level grouping NOT effective in git-cliff 2.14.1 and MUST NOT be relied upon. Task 2 commit_parsers bullet updated (numbered prefix starts at `<!-- 1 -->Added`; no `<!-- 0 -->`). Task 2 Breaking Changes bullet replaced with Tera filter-based two-part body: `commits \| filter(attribute="breaking", value=true)` FIRST, then `commits \| filter(attribute="breaking", value=false) \| group_by(attribute="group")`. Behavioral Contracts Breaking Changes row updated. risk_mitigations Breaking Changes bullet updated. AC-006 mechanism updated (filter-based; `group_order` MUST NOT and `striptags \| trim` preserved). No-group_order, striptags\|trim, numbered-prefix for non-breaking groups (`<!-- 1 -->Added` … `<!-- 5 -->Security`) preserved throughout. |
