@@ -80,9 +80,9 @@ jobs:
     needs: clippy
     runs-on: ${{ matrix.runner }}
     # F-MAINT-P14-LOW-003: bound the job so a hung reclaimer cannot stall 360 min.
-    # Observed worst-case green duration: 35m39s (x86_64-apple-darwin, push run 29615360280 at HEAD
-    # 9c315608; human re-validated 2026-07-17). Reclaimer is Linux-only — macOS and Windows legs
-    # have no reclaimer but share this per-leg ceiling. 75 min ≈ 2× observed worst-case.
+    # Observed worst-case green duration: ~35 min (aarch64-apple-darwin). Reclaimer is
+    # Linux-only — macOS and Windows legs have no reclaimer but share this per-leg ceiling.
+    # 75 min ≈ 2× observed worst-case.
     timeout-minutes: 75
     permissions:
       contents: read
@@ -92,9 +92,6 @@ jobs:
         include:
           - runner: macos-latest
             target: aarch64-apple-darwin
-            proptest_cases: 256
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
             proptest_cases: 256
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -853,18 +850,18 @@ jobs:
         # We check only crates that exist in origin/develop; new crates are excluded.
         run: |
           BASELINE_MEMBERS=$(git show origin/develop:Cargo.toml | grep -oP '(?<="crates/)[\w-]+(?=")' || true)
-          EXCLUDE_ARGS=""
+          EXCLUDE_ARGS=()
           for crate in $(cargo metadata --no-deps --format-version 1 | \
               jq -r '.packages[].name'); do
             if ! echo "$BASELINE_MEMBERS" | grep -qF "$crate"; then
-              EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude $crate"
+              EXCLUDE_ARGS+=("--exclude" "$crate")
             fi
           done
-          if [ -z "$EXCLUDE_ARGS" ]; then
+          if [ "${#EXCLUDE_ARGS[@]}" -eq 0 ]; then
             cargo semver-checks check-release --baseline-rev origin/develop
           else
-            echo "Excluding new crates from semver check: $EXCLUDE_ARGS"
-            cargo semver-checks check-release --baseline-rev origin/develop $EXCLUDE_ARGS
+            echo "Excluding new crates from semver check: ${EXCLUDE_ARGS[*]}"
+            cargo semver-checks check-release --baseline-rev origin/develop "${EXCLUDE_ARGS[@]}"
           fi
 
   fuzz-smoke-vp021:
@@ -1970,10 +1967,10 @@ jobs:
             python3 -c "import yaml; yaml.safe_load(open('$wf'))"
           done
           # AC-5..AC-8 reachability assertions (replace YAML-grep-only evidence)
-          # AC-5: multi-platform matrix in ci.yml (include-style matrix with 5 targets)
+          # AC-5: multi-platform matrix in ci.yml (include-style matrix with 4 targets)
           # Match only 12-space-indented matrix object keys; excludes this assertion line.
           TARGET_COUNT=$(grep -cE '^            target:' .github/workflows/ci.yml || true)
-          [ "$TARGET_COUNT" -ge 5 ] || { echo "AC-5 FAIL: expected >=5 target entries, got $TARGET_COUNT"; exit 1; }
+          [ "$TARGET_COUNT" -ge 4 ] || { echo "AC-5 FAIL: expected >=4 target entries, got $TARGET_COUNT"; exit 1; }
           # AC-6: cargo-deny + cargo-audit jobs exist
           grep -qE '(cargo.?deny|cargo.?audit)' .github/workflows/ci.yml || { echo 'AC-6 FAIL'; exit 1; }
           # AC-7: semver check job exists (job-name anchor; 2-space indent; F-CIDISK-P4-HIGH-002)

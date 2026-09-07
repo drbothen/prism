@@ -53,7 +53,7 @@ The install scripts have no Rust toolchain dependency — they download a pre-bu
 curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
 ```
 
-The script auto-detects the platform (macOS Apple Silicon, macOS Intel, Linux glibc, Linux musl)
+The script auto-detects the platform (macOS Apple Silicon, Linux glibc, Linux musl)
 and installs to `/usr/local/bin` (or `~/.local/bin` if `/usr/local/bin` is not writable).
 It verifies the SHA-256 checksum before installing and, if `gh` is available, verifies
 build provenance via Sigstore.
@@ -107,7 +107,6 @@ newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre
 | Platform | Archive filename pattern |
 |----------|--------------------------|
 | macOS (Apple Silicon) | `prism-<version>-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `prism-<version>-x86_64-apple-darwin.tar.gz` |
 | Linux (glibc — Debian, Ubuntu, RHEL) | `prism-<version>-x86_64-unknown-linux-gnu.tar.gz` |
 | Linux (musl — Alpine, static) | `prism-<version>-x86_64-unknown-linux-musl.tar.gz` |
 | Windows (x86_64) | `prism-<version>-x86_64-pc-windows-msvc.zip` |

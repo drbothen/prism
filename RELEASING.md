@@ -128,7 +128,7 @@ main + vX.Y.Z tag
     │
     ▼
 GitHub Release (automated by release.yml)
-    5-platform binaries + checksums.txt + attestations
+    4-platform binaries + checksums.txt + attestations
 ```
 
 ### Why develop → main goes through release-promote
@@ -196,7 +196,6 @@ gh api repos/drbothen/prism/branches/develop/protection \
 - Shellcheck demo scripts (S-DEMO-003 HIGH-2 / AC-014)
 - Test (aarch64-apple-darwin)
 - Test (no-default-features)
-- Test (x86_64-apple-darwin)
 - Test (x86_64-pc-windows-msvc)
 - Test (x86_64-unknown-linux-gnu)
 - Test (x86_64-unknown-linux-musl)
@@ -331,12 +330,11 @@ After approval the `promote` job:
 gh run watch --repo drbothen/prism
 ```
 
-`release.yml` runs the 5-platform build matrix in parallel:
+`release.yml` runs the 4-platform build matrix in parallel:
 
 | Target | Runner | Archive |
 |--------|--------|---------|
 | `aarch64-apple-darwin` | `macos-latest` | `.tar.gz` |
-| `x86_64-apple-darwin` | `macos-15-intel` | `.tar.gz` |
 | `x86_64-unknown-linux-gnu` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-unknown-linux-musl` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-pc-windows-msvc` | `windows-latest` | `.zip` |
@@ -346,7 +344,7 @@ The musl leg uses `cargo-zigbuild` to avoid glibc symbol contamination
 `prism-dtu-demo-server`.
 
 Expected total wall-clock time: approximately 30–45 minutes (60-minute per-job
-timeout). The `publish-release` job runs after all 5 build legs succeed.
+timeout). The `publish-release` job runs after all 4 build legs succeed.
 
 ### Step 6 — Verify the GitHub Release
 
@@ -356,9 +354,9 @@ gh release view vX.Y.Z --repo drbothen/prism
 
 Verify all of the following before declaring the release complete:
 
-1. **5 platform archives** are attached (`prism-vX.Y.Z-<target>.tar.gz` x4 +
+1. **4 platform archives** are attached (`prism-vX.Y.Z-<target>.tar.gz` x3 +
    `prism-vX.Y.Z-x86_64-pc-windows-msvc.zip`).
-2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 5 legs).
+2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 4 legs).
 3. **`install.sh` and `install.ps1`** are attached (install scripts, uploaded per ADJ-002 / S-REL-003).
 4. **Build-provenance attestations** are present for each archive (created by
    `actions/attest-build-provenance` during the build step, visible in the
@@ -546,10 +544,6 @@ tar xzf prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 chmod +x prism
 ./prism --version
 
-**macOS (Intel):**
-curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-apple-darwin.tar.gz
-tar xzf prism-vX.Y.Z-x86_64-apple-darwin.tar.gz
-
 **Linux (glibc — most distros):**
 curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
 tar xzf prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
@@ -578,7 +572,7 @@ gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
 
 ### A build-release matrix leg failed
 
-If one or more of the 5 build legs fails and the `publish-release` job never ran
+If one or more of the 4 build legs fails and the `publish-release` job never ran
 (it `needs: build-release` — a partial matrix failure means no release was created):
 
 1. Diagnose the failure: `gh run view <run-id> --repo drbothen/prism --log-failed`

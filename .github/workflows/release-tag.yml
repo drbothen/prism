@@ -4,7 +4,7 @@
 # -------
 # Creates and pushes an annotated pre-release tag (e.g. v1.0.0-rc.1) pointing at
 # develop's HEAD, then triggers release.yml (on: push tags v*) which handles the
-# full 5-platform build + GitHub Release creation with --prerelease.
+# full 4-platform build + GitHub Release creation with --prerelease.
 #
 # PRE-RELEASE ONLY
 # ----------------
@@ -119,9 +119,9 @@ jobs:
           PRISM_BIN_CORE="${PRISM_BIN_VERSION%%-*}"
           # Export for the summary step (set before the comparison so the summary
           # can report the actual values even when the guard fails).
-          echo "PRISM_BIN_VERSION=${PRISM_BIN_VERSION}" >> "${GITHUB_ENV}"
-          echo "PRISM_BIN_CORE=${PRISM_BIN_CORE}" >> "${GITHUB_ENV}"
-          echo "TAG_CORE=${TAG_CORE}" >> "${GITHUB_ENV}"
+          { echo "PRISM_BIN_VERSION=${PRISM_BIN_VERSION}"; \
+            echo "PRISM_BIN_CORE=${PRISM_BIN_CORE}"; \
+            echo "TAG_CORE=${TAG_CORE}"; } >> "${GITHUB_ENV}"
           if [[ "${TAG_CORE}" != "${PRISM_BIN_CORE}" ]]; then
             echo "::error::BASE-MATCH failed — tag core '${TAG_CORE}' does not match prism-bin core '${PRISM_BIN_CORE}' (prism-bin version: ${PRISM_BIN_VERSION})"
             echo ""
@@ -169,7 +169,7 @@ jobs:
           git push origin "${TAG}"
           echo ""
           echo "Tag '${TAG}' pushed to origin."
-          echo "release.yml will now build the 5-platform binaries and publish the pre-release GitHub Release."
+          echo "release.yml will now build the 4-platform binaries and publish the pre-release GitHub Release."
 
       # ------------------------------------------------------------------ #
       # 8. Job summary — written even on failure for observability           #
@@ -190,7 +190,7 @@ jobs:
             echo ""
             if [[ -n "${DEVELOP_SHA:-}" ]]; then
               echo "> **Tag pushed.** \`release.yml\` has been triggered by the tag push"
-              echo "> and will build the full 5-platform matrix and publish the GitHub"
+              echo "> and will build the full 4-platform matrix and publish the GitHub"
               echo "> Pre-release for \`${TAG}\`."
               echo ">"
               echo "> This workflow tagged \`develop\` only. \`main\` was NOT touched."

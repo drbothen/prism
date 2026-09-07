@@ -118,7 +118,6 @@ their case count via the `PROPTEST_CASES` environment variable:
 | `x86_64-unknown-linux-gnu` (CI) | 1000 | Full-strength; fastest runner |
 | `x86_64-unknown-linux-musl` (CI) | 256 | Reduced; musl builds are slower |
 | `aarch64-apple-darwin` (CI) | 256 | Reduced; macOS runners are slower |
-| `x86_64-apple-darwin` (CI) | 256 | Reduced; macOS runners are slower |
 | `x86_64-pc-windows-msvc` (CI) | 256 | Reduced; Windows runners are slower |
 | Local `just check` | 100 | Fast local feedback loop |
 | Local `just check-ci` | (unset = proptest default) | Full-strength local CI simulation |

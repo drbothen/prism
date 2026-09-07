@@ -9,7 +9,7 @@
 #
 # develop already passes full CI before this workflow runs.  This workflow
 # does NOT build or test; it only merges and tags.  The tag push triggers
-# release.yml which handles the full 5-platform build + GitHub Release.
+# release.yml which handles the full 4-platform build + GitHub Release.
 #
 # REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
 # ---------------------------------------

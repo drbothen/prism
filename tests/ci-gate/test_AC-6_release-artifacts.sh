@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AC-6: Release workflow builds 5 platform binaries, computes SHA-256, creates GitHub Release.
+# AC-6: Release workflow builds 4 platform binaries, computes SHA-256, creates GitHub Release.
 # requires: bash 3.2+
 
 set -euo pipefail
@@ -27,10 +27,9 @@ else
   tap_pass "AC-6: release.yml does not trigger on pull_request"
 fi
 
-# 5 platform targets must be in matrix.
+# 4 platform targets must be in matrix (ADR-065 D1).
 TARGETS=(
   "aarch64-apple-darwin"
-  "x86_64-apple-darwin"
   "x86_64-unknown-linux-gnu"
   "x86_64-unknown-linux-musl"
   "x86_64-pc-windows-msvc"
@@ -40,7 +39,7 @@ for target in "${TARGETS[@]}"; do
     tap_pass "AC-6: release matrix target '${target}' present"
   else
     tap_fail "AC-6: release matrix target '${target}' missing" \
-      "AC-6 FAIL: all 5 platform targets required in release.yml matrix"
+      "AC-6 FAIL: all 4 platform targets required in release.yml matrix"
   fi
 done
 

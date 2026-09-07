@@ -61,14 +61,14 @@ _release authority_ (strictly controlled — only stable writes `main`).
 **STABLE (IMPLEMENTED):** The stable channel is fully operational via
 `release-prep.yml` (creates the release-prep PR) and `release-promote.yml` (merges
 `develop` → `main` and pushes the semver tag behind the `release-main` environment
-gate). `release.yml` (tag-triggered) handles the 5-platform build and GitHub Release
+gate). `release.yml` (tag-triggered) handles the 4-platform build and GitHub Release
 creation. See `RELEASING.md` §4 for the complete operational runbook.
 
 **Ad-hoc pre-release tagging (IMPLEMENTED — dev / alpha / beta / rc):** The
 `release-tag.yml` workflow (`workflow_dispatch`) implements ad-hoc pre-release tagging
 for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
 (e.g. `v1.0.0-beta.1`) to create an annotated tag on `develop` HEAD and trigger
-`release.yml` for the full 5-platform build + pre-release GitHub Release.
+`release.yml` for the full 4-platform build + pre-release GitHub Release.
 The workflow enforces a pre-release-only guard (stable tags are rejected) and a
 BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
 
@@ -176,7 +176,7 @@ contains a hyphen (`v1.0.0-beta.1` has a hyphen; `v1.0.0` does not). Hyphenated 
 automatically receive `--prerelease` when creating the GitHub Release. Tags without a
 hyphen are marked **Latest**.
 
-**Full 5-platform matrix for every channel:** All five build targets are built for
+**Full 4-platform matrix for every channel:** All four build targets are built for
 every channel, including nightly. No reduced matrix for pre-release builds. This is
 an operator decision — operators need pre-release builds on the same platforms they
 deploy to.
@@ -184,7 +184,6 @@ deploy to.
 | Target | Runner | Archive |
 |--------|--------|---------|
 | `aarch64-apple-darwin` | `macos-latest` | `.tar.gz` |
-| `x86_64-apple-darwin` | `macos-15-intel` | `.tar.gz` |
 | `x86_64-unknown-linux-gnu` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-unknown-linux-musl` | `ubuntu-latest` | `.tar.gz` |
 | `x86_64-pc-windows-msvc` | `windows-latest` | `.zip` |

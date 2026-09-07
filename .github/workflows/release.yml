@@ -1,4 +1,4 @@
-# Release workflow — triggered by v* tags; 5-platform builds, GitHub Release
+# Release workflow — triggered by v* tags; 4-platform builds, GitHub Release
 name: Release
 
 on:
@@ -34,10 +34,6 @@ jobs:
           - runner: macos-latest
             target: aarch64-apple-darwin
             archive_ext: tar.gz
-          - runner: macos-15-intel
-            # macos-15-intel: Intel macOS last runner; EOL Aug 2027.
-            target: x86_64-apple-darwin
-            archive_ext: tar.gz
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             archive_ext: tar.gz
@@ -65,7 +61,7 @@ jobs:
       # and rustup does not attempt a conflicting in-flight component install during cargo install.
       # Cross-leg safety: macOS and Windows never execute the cargo install branch; the
       # linux-gnu leg's apt-get steps are toolchain-independent. Moving this step is safe for
-      # all 5 matrix legs — the only behavioral change is that the musl leg's cargo install
+      # all 4 matrix legs — the only behavioral change is that the musl leg's cargo install
       # now runs under the pinned stable toolchain rather than the runner's ambient toolchain.
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
@@ -127,7 +123,7 @@ jobs:
             cargo-zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }
           fi
       # DEFECT-REL001-PROTOC-MISSING-001: prism-ocsf build.rs invokes prost-build which
-      # requires protoc at compile time. All 5 matrix legs failed without this step.
+      # requires protoc at compile time. All 4 matrix legs failed without this step.
       # Dry-run evidence: https://github.com/drbothen/prism/actions/runs/29709483646
       - name: Install protoc (required by prost-build for prism-ocsf)
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -312,8 +308,8 @@ jobs:
             PRERELEASE_ARGS+=(--prerelease)
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
-            # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            # Asset globs guaranteed non-empty: needs: build-release admits only all-4-legs-success
+            # (3 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
             # ADJ-002 (S-REL-003): install.sh + install.ps1 uploaded as release assets so consumers
             # can use them directly from the release page without a repo clone.
             gh release upload "$TAG" --clobber \
@@ -324,8 +320,8 @@ jobs:
               scripts/install.ps1
           else
             # empty-array-safe under set -u on any bash; F-REL001-PR1-002
-            # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
-            # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            # Asset globs guaranteed non-empty: needs: build-release admits only all-4-legs-success
+            # (3 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
             # ADJ-002 (S-REL-003): install.sh + install.ps1 uploaded as release assets so consumers
             # can use them directly from the release page without a repo clone.
             # --notes-file sets the release body from the curated CHANGELOG section
