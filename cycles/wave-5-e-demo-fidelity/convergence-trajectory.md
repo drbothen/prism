@@ -187,6 +187,7 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 | Pass 3 | 2026-09-07 | 5 | 0 | 0 | 2 | 3 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — all 5 FIXED; code @cda652e5f; link-ref fail-hard + pre-strip boundary detection + else-arm removed |
 | Pass 4 | 2026-09-07 | 1 | 0 | 0 | 0 | 1 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — OBS-1 FIXED by devops workflow-prose @d457ab745; no spec change; actionlint clean; WRITER-001 AC-004 STILL SATISFIED |
 | Pass 5 | 2026-09-07 | 1 | 0 | 1 | 0 | 0 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): NO — MED-1 FIXED by devops pure-doc fix @7809f7e66; no spec/story/index change; actionlint clean; WRITER-001 AC-002/AC-003 intact |
+| Pass 6 | 2026-09-07 | 4 | 0 | 2 | 2 | 0 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): NO — 2 MED + 2 LOW; all 4 FIXED @1b0504b7d + 4 proactive holistic-audit fixes (H-A §4 Step 2 Layer-1 dispatch + H-B §5 step-order + H-C §4 Step 6 install scripts + infusion-term sweep) |
 
 **Pass 1 finding summary:**
 
@@ -249,4 +250,22 @@ DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — 
 
 **TD-VSDD-097 sweep verdict (D-2481):** N/A — records + STATE update only; no spec/BC/ADR content changed this burst. Dim-1/2/3 N/A (no spec/BC/ADR authored or amended). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites).
 
-**Next:** LOCAL adversary re-gate on frozen code HEAD 7809f7e66 (D-2481; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+**Next (after pass-5):** LOCAL adversary re-gate on frozen code HEAD 7809f7e66 (D-2481; streak 0/3) → pass-6 below.
+
+**Pass 6 finding summary (4 findings: 2 MED + 2 LOW; CLEAN(strict): NO, CLEAN(PR-merge): NO; FIXED by devops holistic-coherence fix-burst @1b0504b7d; no spec/story/index changes):**
+
+- F-1 MED (devops): RELEASING.md §5 stated "both layers assembled in CI" — overstated; Layer-2 (CHANGELOG prep via git-cliff) is auto, but Layer-1 top-block is a manual technical-writer dispatch per S-REL-WRITER-001 (ADR-063 D4). Fixed: §5 reworded to distinguish Layer-2 auto vs Layer-1 manual.
+- F-2 LOW (devops): RELEASING.md §6 recovery instructions cross-referenced §2 Step 7a, which is a sub-step under §2 (story readiness), not the correct §5 recovery anchor. Fixed: §6 cross-ref corrected to §5.
+- F-3 LOW (devops): RELEASING.md §6 stated "before CHANGELOG modified" as the rollback condition, but CHANGELOG is committed in a separate step after git-cliff runs; the accurate condition is "modified-but-never-committed". Fixed: §6 rollback condition updated.
+- F-4 MED (devops): RELEASING.md Step 7 + cliff.toml idempotency comment implied unconditional idempotency; it applies only when re-running for a different version. Fixed: idempotency scoped to "different-version cycles"; Step-3 branch guard note added.
+
+**Holistic-audit proactive fixes (not adversary-flagged; D-2482):**
+
+- H-A (devops): RELEASING.md §4 Step 2 was missing the Layer-1 technical-writer dispatch step (WRITER-001) — the Step 2 checklist had CLIFF-001 steps only. Added explicit Layer-1 technical-writer dispatch to §4 Step 2.
+- H-B (devops): RELEASING.md §5 misclassified Step 7a (manual technical-writer top-block authoring) as automatic. Corrected to manual per S-REL-WRITER-001 (ADR-063 D4).
+- H-C (devops): RELEASING.md §4 Step 6 checklist was missing install.sh/install.ps1 from the release archive contents listing. Added.
+- Stale "infusion" archive term removed (all references confirmed eliminated by D-2481 pass-5 grep-clean; full-sweep confirmed clean post-fix).
+
+**TD-VSDD-097 sweep verdict (D-2482):** N/A — records + STATE update only; no spec/BC/ADR content changed this burst. Dim-1/2/3 N/A (no spec/BC/ADR authored or amended). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites).
+
+**Next:** LOCAL adversary re-gate on frozen code HEAD 1b0504b7d (D-2482; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
