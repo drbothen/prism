@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.107"
+version: "8.108"
 status: current
 timestamp: 2026-09-07T23:59:59Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2491 (2026-09-07): SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — CONVERGENCE-BAR accepted (human-directed 2026-09-07): PR #264 CLEAN(PR-merge) convergence accepted; strict cosmetic loop STOPPED analogous to D-2259/D-2396. MERGE-READY: push feature/E-REL-NOTES-changelog (@c09d63593 LOCAL-ONLY, 4 commits ahead of origin) → CI 4-platform matrix → explicit human auth admin-squash-merge PR #264 → post-merge burst → S-REL-BETA1-NOTES-001 git-cliff pipeline → explicit human auth tag v1.0.0-beta.1. DROP-INTEL crystallized: ADR-065 v1.1 / ADR-064 v2.3 / S-REL-DROP-INTEL-MAC-001 v1.2 ALL FINAL. OPEN: 10 dependabot PRs #265–#274 UNTRIAGED (non-blocking). develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.024 UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. TD-VSDD-097: N/A (records+STATE+SESSION-HANDOFF only). TD-VSDD-091/POL-39 CLEAN. records-lint L1/L7/L9/L10 PASS. STATE v9.018→v9.019. SESSION-HANDOFF v8.107→v8.108. §RESUME SNAPSHOT D-2490 SUPERSEDED by D-2491.**
 
 > **D-2490 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) frozen code @c09d63593 PR-LEVEL passes 4+5 CLEAN(strict) (streak reached 2/3), pass-6 F-1 LOW + OBS-1 (both SPEC-SIDE, code UNCHANGED) RESOLVED. F-1 LOW [spec-drift] (story-writer): S-REL-DROP-INTEL-MAC-001 VF-001/VF-002/AC-001/AC-003 grep commands lacked historical-docs exclusion filter `| grep -v 'demo-evidence\|cycles\|...'` — verbatim run spuriously matched historical content; filter added consistent with AC-002; story v1.1→v1.2. OBS-1 [spec-drift] (architect): ADR-063 §D3 cliff.toml breaking block guard (`breaking_description != commit.message`) undocumented vs §D3 informative sketch; guard documented v1.11→v1.12; no code change. ARCH-INDEX v2.378→v2.379. STORY-INDEX v3.023→v3.024. [process-gap]: verification-command grep scopes recursing into docs/ must carry historical-exclusion filter to match "zero matches" expected result. CLEAN(strict): NO; CLEAN(PR-merge): YES. PR-LEVEL 3-CLEAN(strict) streak RESET 0/3 (BC-5.39.001: any finding resets streak; code HEAD c09d63593 UNCHANGED — no DRIFT-ORCH-PRLEVEL-PUSH-001 event). TD-VSDD-097: Dim-1 CLEAR / Dim-2 CLEAR / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.017→v9.018. SESSION-HANDOFF v8.106→v8.107. §RESUME SNAPSHOT D-2489 SUPERSEDED by D-2490.**
 
@@ -60,7 +62,40 @@ timestamp: 2026-09-07T23:59:59Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2490 (2026-09-07 — PR #264 passes 4+5 CLEAN(strict) streak 2/3, pass-6 F-1 LOW + OBS-1 RESOLVED; code @c09d63593 UNCHANGED; streak RESET 0/3) [supersedes D-2489]
+## §RESUME SNAPSHOT — D-2491 (2026-09-07 — SESSION WRAP; PR #264 MERGE-READY CLEAN(PR-merge) accepted; code @c09d63593 LOCAL-ONLY; DROP-INTEL crystallized) [supersedes D-2490]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. PR #264 (E-REL-NOTES: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) is functionally CONVERGED and human-accepted at CLEAN(PR-merge); its converged code (worktree @c09d63593) is LOCAL-ONLY. NEXT ACTION: push feature/E-REL-NOTES-changelog to origin, get CI green on the 4-platform matrix, then obtain explicit human auth to admin-squash-merge PR #264.
+
+**NEXT ACTIONS (in order):**
+0. **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
+1. **PUSH feature/E-REL-NOTES-changelog** (@c09d63593) to origin (normal fast-forward over 31a2d2f05; NOT force) — backs up LOCAL-ONLY DROP-INTEL work + syncs PR #264 to 4-target converged deliverable.
+2. **pr-manager: update PR #264 body** to reflect all 3 stories (CLIFF+WRITER+DROP-INTEL, 4-target matrix). Scope: body update + CI confirm on new HEAD ONLY; do NOT re-run 6-cycle review lifecycle (human accepted CLEAN(PR-merge)).
+3. **CI green** on the 4-platform matrix — push triggers CI; release-gate job enforces 121-assertion floor + 4-target gate tests.
+4. **EXPLICIT HUMAN AUTH: admin squash-merge PR #264** → develop (self-authored PR needs --admin bypass).
+5. **Post-merge state-manager burst:** POL-14 NO-OP (behavioral_contracts: [] on all 3); STORY-INDEX CLIFF-001/WRITER-001/DROP-INTEL-MAC-001 → merged; develop_head bump.
+6. **S-REL-BETA1-NOTES-001 execution:** git-cliff release-prep 3-substep pipeline; HUMAN-IN-THE-LOOP Layer-1 curation; reconcile pre-existing beta.1 section; demo-recorder → push → PR C → merge.
+7. **EXPLICIT HUMAN AUTH: tag v1.0.0-beta.1** via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
+
+**HEADS (backup boundary):**
+- `develop`: origin = `a4cd1b3fd` (unchanged this session).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
+- `feature/E-REL-NOTES-changelog` (`.worktrees/E-REL-NOTES`): local HEAD = `c09d63593` (CLEAN tree); origin HEAD = `31a2d2f05` (STALE — 4 LOCAL-ONLY commits: 29997ab7f→6e695e09e→c44d2f1e7→c09d63593 NOT pushed). **RESUME STEP 1 MUST push.**
+- `main`: `bdf24cec8` (stub, untouched).
+- Open PRs: #264 (base develop; remote HEAD 31a2d2f05 STALE; local converged = c09d63593; MERGE-READY after push+CI+human-auth). #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge).
+- WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ c09d63593, local-only ahead of origin). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**PENDING USER-APPROVED WORK:** EXPLICIT HUMAN AUTH needed for: (a) admin squash-merge PR #264; (b) tag v1.0.0-beta.1. CONVERGENCE-BAR accepted for PR #264 (D-2491). Force-push to any branch requires explicit human approval.
+
+**OPEN ITEMS (non-blocking to beta.1):** 10 NEW dependabot PRs #265–#274 (2026-09-07; cargo+github-actions bumps) — UNTRIAGED; NOT beta.1-blocking; triage post-beta.1. PR #255 obsolete rc.1 CHANGELOG — CLOSE (human UI; do NOT merge).
+
+**HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
+
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): PR→develop AND develop→main merges + tag pushes AUTONOMOUS on green objective gates; force-push to any branch STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1 FOLLOW-UPS (non-blocking): TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (k) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (l) BETA channel (not RC) for first published pre-release; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063 §versions); cargo-release 1.1.5 stable entrypoint (ADR-064 §D3); GITHUB_REF_NAME build.rs injection GATED on GITHUB_REF_TYPE=="tag" (ADR-064 §D2); prism-mcp serverInfo.version + prism-spec-engine UA → PRISM_VERSION COMPLETE (ADR-064 §D4 + ADR-050 §D6; ADR-064 v2.1); docs VERSION-AGNOSTIC. ADR-063 v1.12: DEVIATION-1/2/3 unchanged; §D3 catch-all skip parser documented; §D3 breaking block guard documented (v1.12). (n) S-REL-DOCS-CI-WIRE-001 registered (draft stub v0.1; POST-beta.1; P2; D-2456). (o) S-REL-HOLDOUT-HARNESS-001 registered (draft v0.1; POST-beta.1; P2; D-2472). (p) CONVERGENCE-BAR D-2491: PR #264 CLEAN(PR-merge) accepted; analogous to D-2259/D-2396.
+
+---
+
+## §RESUME SNAPSHOT — D-2490 (2026-09-07 — PR #264 passes 4+5 CLEAN(strict) streak 2/3, pass-6 F-1 LOW + OBS-1 RESOLVED; code @c09d63593 UNCHANGED; streak RESET 0/3) [supersedes D-2489] [SUPERSEDED by D-2491]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. PR #264 (feature/E-REL-NOTES-changelog; 3 stories: S-REL-CLIFF-001 + S-REL-WRITER-001 + S-REL-DROP-INTEL-MAC-001) is OPEN. PR-LEVEL adversary passes 4+5 on frozen c09d63593 were CLEAN(strict) (streak reached 2/3). Pass-6 surfaced F-1 LOW + OBS-1 (both SPEC-SIDE, code HEAD c09d63593 UNCHANGED). BOTH RESOLVED: S-REL-DROP-INTEL-MAC-001 v1.2 (VF-001/VF-002/AC-001/AC-003 grep-exclusion filter added); ADR-063 v1.12 (§D3 breaking block guard documented). CLEAN(strict): NO; CLEAN(PR-merge): YES. PR-LEVEL 3-CLEAN(strict) streak RESET 0/3 (BC-5.39.001: any finding resets streak; code HEAD UNCHANGED). NEXT ACTION: restart PR-LEVEL adversary 3-pass sequence on frozen c09d63593.
