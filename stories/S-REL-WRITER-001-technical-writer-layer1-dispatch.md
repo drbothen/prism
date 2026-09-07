@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL-NOTES
 priority: P0
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-05T00:00:00Z"
@@ -54,7 +54,8 @@ risk_mitigations:
   - "Layer-1 content (### Highlights etc.) is placed INSIDE the ## [VERSION] block,
     AFTER git-cliff prepends it, and BEFORE the first git-cliff commit-derived ###
     section. This placement ensures the existing release.yml awk extraction captures
-    both layers without modification to release.yml (ADR-063 D4 v1.1)."
+    both layers without modification to release.yml's --notes-file publishing
+    mechanism (ADR-063 D4 v1.1)."
   - "The technical-writer dispatch in release-prep.yml is a NEW step ordered AFTER
     the git-cliff step. The git-cliff step creates the ## [VERSION] block; the
     technical-writer step then edits CHANGELOG.md to insert Layer-1 sections inside
@@ -76,7 +77,7 @@ phase: "3"
 
 **Story ID:** S-REL-WRITER-001
 **Status:** ready
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -156,7 +157,7 @@ Verification is via structural grep/text checks the implementer explicitly perfo
 - AC-002: `grep -n 'Layer 1\|Layer-1\|Highlights' RELEASING.md` → matches in §5 section
 - AC-003: Read RELEASING.md §5 text → confirms placement language is INSIDE (not above) `## [VERSION]` block
 - AC-004: `grep -n 'Layer-1\|Highlights.*reviewed' .github/workflows/release-prep.yml` → ≥1 PR checklist item
-- AC-005: `git diff HEAD -- .github/workflows/release.yml` → no changes
+- AC-005: `grep -n 'notes-file' .github/workflows/release.yml` → at least one match (the `--notes-file` invocation is present; S-REL-WRITER-001 deliverables do not modify this mechanism)
 
 ---
 
@@ -224,10 +225,17 @@ placement moved inside so release.yml awk extraction captures Layer-1)
 at least one checklist item. (traces to ADR-063 D4 — "human reviews and curates the
 draft in the release-prep PR")
 
-### AC-005: release.yml is NOT modified
-`git diff HEAD -- .github/workflows/release.yml` returns no changes. The `--notes-file`
-awk extraction mechanism remains unchanged. (traces to ADR-063 D5 — "release.yml
---notes-file mechanism unchanged")
+### AC-005: S-REL-WRITER-001 does NOT modify release.yml's release-body publishing mechanism
+`grep -n 'notes-file' .github/workflows/release.yml` returns at least one match,
+confirming the `--notes-file` invocation is present and intact. The `## [VERSION]` awk
+extraction step and the `gh release create --notes-file` invocation are not modified by
+the deliverables of this story (the new `release-prep.yml` step and `RELEASING.md §5`
+update).
+
+Note: `.github/workflows/release.yml`'s build matrix IS modified by the co-bundled
+S-REL-DROP-INTEL-MAC-001 (5→4 matrix legs); that is outside S-REL-WRITER-001's scope
+and does not affect the `--notes-file` mechanism this AC covers.
+(traces to ADR-063 D5 — "release.yml --notes-file mechanism unchanged")
 
 ---
 
@@ -248,7 +256,7 @@ release-prep.yml post-CLIFF-001 state before inserting the new step.
 |------|--------|-------------|
 | Layer-1 step ordered AFTER git-cliff step | ADR-063 D5 | Verify step order in release-prep.yml |
 | Layer-1 sections placed INSIDE ## [VERSION] block | ADR-063 D4 v1.1 | AC-003 RELEASING.md §5 text |
-| release.yml NOT modified | ADR-063 D5 | AC-005 git diff check |
+| release.yml --notes-file publishing mechanism not modified by S-REL-WRITER-001 | ADR-063 D5 | AC-005 grep for --notes-file invocation |
 | Empty Layer-1 sections omitted | ADR-063 D4 | RELEASING.md §5 prose |
 | Technical-writer documents CURRENT behavior only | ADR-063 D4 | RELEASING.md §5 authoring guidance |
 
@@ -269,7 +277,7 @@ release-prep.yml post-CLIFF-001 state before inserting the new step.
 |------|--------|-------|
 | `.github/workflows/release-prep.yml` | Modify | Add Layer-1 dispatch step after git-cliff step; add checklist item |
 | `RELEASING.md` | Modify | §5 updated to document two-layer model per ADR-063 D4 v1.1 |
-| `.github/workflows/release.yml` | DO NOT modify | --notes-file mechanism explicitly unchanged |
+| `.github/workflows/release.yml` | DO NOT modify (mechanism scope) | S-REL-WRITER-001 does not modify the `--notes-file` publishing mechanism; build matrix is modified by co-bundled S-REL-DROP-INTEL-MAC-001 (outside WRITER-001 scope) |
 
 ---
 
@@ -330,5 +338,6 @@ fabricate a holdout for a gate that definitionally does not apply.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-07 | story-writer | AC-005 scope clarification: rewording from "release.yml NOT modified" (file-level check; breaks under co-bundled S-REL-DROP-INTEL-MAC-001 build-matrix change) to mechanism-scoped assertion. S-REL-WRITER-001 does NOT modify release.yml's `--notes-file` publishing mechanism; the build matrix change from S-REL-DROP-INTEL-MAC-001 is outside this story's scope. Verification changed from `git diff HEAD` (file-level) to `grep -n 'notes-file'` (mechanism-present check). Red Gate Test List AC-005 entry, Architecture Compliance Rules row, File Structure Requirements row, and frontmatter risk_mitigations first bullet updated to match. |
 | 1.1 | 2026-09-06 | story-writer | Sweep #13: Previous-Story-Intelligence `--latest --prepend` → `--unreleased --tag "${VERSION_TAG}" --prepend` per ADR-063 D5/D6; Red Gate N/A (facade) note made explicit with enumerated verification steps; status draft→ready |
 | 1.0 | 2026-09-05 | story-writer | Initial — ADR-063 D4/D5 materialization |

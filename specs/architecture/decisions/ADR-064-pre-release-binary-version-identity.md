@@ -4,7 +4,7 @@ adr_id: "ADR-064"
 title: "Pre-Release Binary Version Identity — build.rs Tag Injection; Develop Carries 1.0.0-dev; Single-Command Version Bump via cargo-release"
 status: ACCEPTED
 date: "2026-09-05"
-version: "2.2"
+version: "2.3"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -16,7 +16,7 @@ anchor_stories:
   - S-REL-DOCS-AGNOSTIC-001     # D1/D2 — cites ADR-064 D1/D2 in §Authority
   - S-REL-VBUMP-001             # D3 — cites ADR-064 D3 in §Authority
   - S-REL-AGENT-VERSION-001     # D4 — authored (draft, v1.3-pending); cites ADR-064 D4 in §Authority
-  - S-REL-DROP-INTEL-MAC-001    # Dim-1 sweep — will update "5-platform" stale counts per ADR-065 D3
+  - S-REL-DROP-INTEL-MAC-001    # Dim-1 sweep — body sweep DISCHARGED in v2.3 (PR #264)
 related_adrs: [ADR-050, ADR-062, ADR-063, ADR-065]
 related_bcs: []
 locked_decisions: []
@@ -42,6 +42,18 @@ input-hash: "2734e6e"
 
 ## Status
 
+ACCEPTED v2.3 (2026-09-07) — TD-VSDD-097 Dim-1 body sweep DISCHARGED (v2.2 deferral resolved):
+PR #264 (S-REL-DROP-INTEL-MAC-001) implemented the Intel-mac drop. All stale informational
+platform-count body references swept from "5" to "4": §D2 build.rs code comment ("all 5 legs
+would report"), §Rationale §GITHUB_REF_TYPE-gating paragraph ("all 5 required legs" + "all 5
+ci.yml legs"), §Rationale §Why-GITHUB_REF_NAME (two "5-platform build matrix" instances + "all
+5 runner types"), §Consequences positive bullets ("all 5 legs" + "all 5 build targets"),
+§Alternatives §dist ("5-platform builds"), §Source build-matrix entry ("5-platform build
+matrix"), §Source story-table ("all 5 build targets verified in CI") — eleven references total
+(v2.2 §Status counted eight; three additional instances in §Rationale §GITHUB_REF_TYPE-gating
+and §D2 code comment were not captured in that figure). anchor_stories comment updated. No
+decision content changed; informational counts only.
+
 ACCEPTED v2.2 (2026-09-07) — TD-VSDD-097 Dim-1 sibling sweep: ADR-065 (Release Build Target
 Matrix) established the 4-target release matrix and named this ADR as the sibling containing
 stale "5-platform" / "5 build targets" / "5 legs" informational counts. Eight such references
@@ -51,6 +63,7 @@ informational counts that correctly described the pipeline at time of writing; t
 stale. S-REL-DROP-INTEL-MAC-001 AC-003 sweeps all eight to "4-platform" / "4 build targets" /
 "4 legs" when the Intel mac drop is implemented. `related_adrs` extended with ADR-065.
 `anchor_stories` extended with S-REL-DROP-INTEL-MAC-001. No decision content changed.
+(Deferral discharged in v2.3: PR #264 / S-REL-DROP-INTEL-MAC-001 implemented; all body counts swept.)
 
 ACCEPTED v2.1 (2026-09-06) — D3 corrected: `[package] publish = false` at the manifest level
 causes cargo-release >= 1.0.0 to disable the entire release process for the crate, not just the
@@ -301,7 +314,7 @@ fn main() {
     // GITHUB_REF_NAME is set on ALL GitHub Actions runs — branch name on push/pull_request
     // events, tag name only on tag-push events. Gate on GITHUB_REF_TYPE == "tag" (or GITHUB_REF
     // prefix) to avoid baking "develop" / "feature/..." into the binary on non-release CI runs.
-    // F-VID-P1-CRIT-001: unconditional use breaks ci.yml test matrix (all 5 legs would report
+    // F-VID-P1-CRIT-001: unconditional use breaks ci.yml test matrix (all 4 legs would report
     // PRISM_VERSION="develop", failing test_cli_version_output_contains_semver).
     let is_tag_build = std::env::var("GITHUB_REF_TYPE")
         .ok()
@@ -603,12 +616,12 @@ compile time; the binary carries its own version identity without external confi
 ### Why GITHUB_REF_NAME (not a separate CI env var)
 
 `GITHUB_REF_NAME` is set by GitHub Actions on tag-triggered `release.yml` runs — the workflow
-that performs the 5-platform binary build matrix. On tag-push triggers (`on: push: tags: ['v*']`),
+that performs the 4-platform binary build matrix. On tag-push triggers (`on: push: tags: ['v*']`),
 `GITHUB_REF_NAME` is the tag name (e.g., `v1.0.0-beta.1`), which is exactly what `build.rs` needs.
 
 **NIT-2 disambiguation:** `release-tag.yml` and `release-promote.yml` run as `workflow_dispatch`
 (branch context); `GITHUB_REF_NAME` on those runs resolves to the branch name (e.g., `develop`),
-not a tag. However, those workflows do NOT run the 5-platform build matrix — they only create the
+not a tag. However, those workflows do NOT run the 4-platform build matrix — they only create the
 tag and promote the release respectively. The binary compilation happens exclusively in
 `release.yml` (tag-triggered), where `GITHUB_REF_NAME` is the tag. Local builds never have
 `GITHUB_REF_NAME` set by GitHub Actions, so `build.rs` falls through to `CARGO_PKG_VERSION`
@@ -616,12 +629,12 @@ tag and promote the release respectively. The binary compilation happens exclusi
 
 **GITHUB_REF_TYPE gating is mandatory (F-VID-P1-CRIT-001):** `GITHUB_REF_NAME` is NOT limited to
 tag-triggered runs — GitHub Actions sets it on ALL workflow triggers. On `push` and
-`pull_request` events (the ci.yml `test` job matrix, all 5 required legs), `GITHUB_REF_NAME`
+`pull_request` events (the ci.yml `test` job matrix, all 4 required legs), `GITHUB_REF_NAME`
 is the branch name (`develop`, `feature/S-3.01`, `260/merge`, etc.). The original D2 build.rs
 sketch honored `GITHUB_REF_NAME` unconditionally as fallback step 2. This would bake
 `PRISM_VERSION="develop"` (or `PRISM_VERSION="feature/..."`) into every non-release CI binary,
 causing `crates/prism-bin/tests/cli_subcommands.rs::test_cli_version_output_contains_semver`
-(which asserts the version output contains the semver string `1.0.0-dev`) to FAIL on all 5 ci.yml
+(which asserts the version output contains the semver string `1.0.0-dev`) to FAIL on all 4 ci.yml
 legs — a merge-blocking failure on every non-release PR. The fix is to gate `GITHUB_REF_NAME` on
 `GITHUB_REF_TYPE == "tag"` (GitHub sets this to `"branch"` or `"tag"`), with `GITHUB_REF`
 starts-with `refs/tags/` as a fallback. Non-tag CI builds intentionally fall through to
@@ -653,7 +666,7 @@ clone, `git describe` either fails or returns a fallback like `v1.0.0-dev-0-g<sh
 the tag. The workflow would need an explicit `fetch-depth: 0` to work reliably.
 
 `GITHUB_REF_NAME` has no such dependency — it is set by the GitHub Actions runtime from the
-event payload, with no git operations required. It is available identically on all 5 runner types
+event payload, with no git operations required. It is available identically on all 4 runner types
 regardless of checkout depth. This makes it strictly simpler and more reliable for Prism's
 CI-build use case. `vergen` would be the correct choice if accurate version strings in local
 builds from tagged commits were a requirement; they are not currently.
@@ -678,14 +691,14 @@ misleading for a development build.
 - Local builds consistently report `1.0.0-dev` — accurate, distinguishable from any release
 - Non-tag CI builds (ci.yml test matrix, pull_request runs) intentionally report `1.0.0-dev`
   (the `CARGO_PKG_VERSION` fallback), keeping
-  `cli_subcommands::test_cli_version_output_contains_semver` green on all 5 legs (F-VID-P1-CRIT-001
+  `cli_subcommands::test_cli_version_output_contains_semver` green on all 4 legs (F-VID-P1-CRIT-001
   fix — branch names are never baked into the binary)
 - BASE-MATCH continues to work: `1.0.0-dev` core = `1.0.0`; all future `1.0.0-X.Y` pre-release
   tags pass the guard
 - No per-pre-release `Cargo.toml` bump required; develop stays at `1.0.0-dev` throughout the
   1.0.0 channel ladder
 - build.rs approach is zero-runtime, zero-extra-tooling (standard `cargo build` infrastructure)
-- Cross-platform: works identically on all 5 build targets
+- Cross-platform: works identically on all 4 build targets
 
 ### Negative / Trade-offs
 
@@ -769,7 +782,7 @@ ACCEPTED. All four decisions are finalized:
 
 - **dist / cargo-dist (0.32.0, reduced-maint):** Not a version bumper. Builds and hosts artifacts
   triggered by a pushed tag. Its own README recommends cargo-release for the bump step. Prism
-  already has `release.yml` for 5-platform builds. Out of scope; flagged for reduced maintenance.
+  already has `release.yml` for 4-platform builds. Out of scope; flagged for reduced maintenance.
 
 ---
 
@@ -783,7 +796,7 @@ ACCEPTED. All four decisions are finalized:
 - `crates/prism-spec-engine/src/pipeline.rs` — out-of-scope; acknowledged in D2
 - `docs/RELEASE-CHANNELS.md §3` — develop must carry `X.Y.Z-dev`; BASE-MATCH semantics
 - `.github/workflows/release-tag.yml` — BASE-MATCH guard; `GITHUB_REF_NAME` availability
-- `.github/workflows/release.yml` — 5-platform build matrix; GITHUB_REF_NAME availability per runner
+- `.github/workflows/release.yml` — 4-platform build matrix; GITHUB_REF_NAME availability per runner
 - ADR-062 — D2 (prism-bin tracks tag); Option B/C rejections (their scope was stable, clarified here)
 - `.factory/research/version-management-2026.md` — 7-criteria tool matrix; cargo-release configuration surface; docs anti-drift strategy; ownership map
 
@@ -792,7 +805,7 @@ ACCEPTED. All four decisions are finalized:
 | Story ID (proposed) | Title | ADR decisions | Priority | Notes |
 |---------------------|-------|---------------|----------|-------|
 | S-REL-DEV-RESET-001 | Reset prism-bin to 1.0.0-dev on develop | D1 | BLOCKING (must land before beta.1) | One-line Cargo.toml change + Cargo.lock update + SETUP.md stop-gap |
-| S-REL-BVERSION-INJECT-001 | Build-time version injection via build.rs | D2 | BLOCKING (must land before beta.1) | New crates/prism-bin/build.rs; all 6 prism-bin version-report sites updated (main.rs 2 sites, cli.rs `#[command(version)]`, boot.rs boot-log + audit-record + user-agent 2 sites, spec_driven_adapter.rs user-agent); all 5 build targets verified in CI |
+| S-REL-BVERSION-INJECT-001 | Build-time version injection via build.rs | D2 | BLOCKING (must land before beta.1) | New crates/prism-bin/build.rs; all 6 prism-bin version-report sites updated (main.rs 2 sites, cli.rs `#[command(version)]`, boot.rs boot-log + audit-record + user-agent 2 sites, spec_driven_adapter.rs user-agent); all 4 build targets verified in CI |
 | S-REL-VBUMP-001 | cargo-release setup: single-command stable version bump | D3 | High (must land before stable v1.0.0) | Add [package.metadata.release] to prism-bin/Cargo.toml; rewrite release-prep.yml steps 4/6/7 as one cargo release invocation; verify dry-run with --no-execute; release-tag.yml and release-promote.yml unchanged |
 | S-REL-DOCS-AGNOSTIC-001 | Make docs version-agnostic and align RELEASING.md with pre-release exception | D3 Docs Anti-Drift | High (must land before stable v1.0.0) | Convert SETUP.md asset-filename table + download URLs to /releases/latest/download/<triple-asset>; convert --version line to format-example; genericize install script examples; removes pre-release-replacements entry if format-example approach adopted. Also update RELEASING.md §1 to document the pre-release exception: develop carries 1.0.0-dev; no Cargo.toml bump is needed between pre-releases on the same X.Y.Z cycle; binary version is injected via PRISM_VERSION (D2). Without this update RELEASING.md §1 contradicts D2 by implying every release requires a Cargo.toml bump. |
 
@@ -802,6 +815,7 @@ ACCEPTED. All four decisions are finalized:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.3 | 2026-09-07 | architect | TD-VSDD-097 Dim-1 body sweep DISCHARGED: PR #264 (S-REL-DROP-INTEL-MAC-001) implemented Intel-mac drop; v2.2 deferral condition met. All stale informational platform-count body references swept — "5-platform" → "4-platform", "5 build targets" → "4 build targets", "5 legs" → "4 legs", "5 runner types" → "4 runner types", "5 required legs" → "4 required legs", "5 ci.yml legs" → "4 ci.yml legs" (eleven references total: §D2 build.rs code comment ×1, §Rationale §GITHUB_REF_TYPE-gating ×2, §Rationale §Why-GITHUB_REF_NAME ×3, §Consequences ×2, §Alternatives ×1, §Source ×2; v2.2 §Status counted eight — three additional instances in §Rationale + §D2 code comment not captured in that figure). anchor_stories comment updated to reflect DISCHARGED status. No decision content changed; informational counts only. |
 | 2.2 | 2026-09-07 | architect | TD-VSDD-097 Dim-1 sibling sweep (ADR-065): ADR-065 (Release Build Target Matrix) established as the governing ADR for the release build matrix, dropping x86_64-apple-darwin. This ADR's eight informational "5-platform" / "5 build targets" / "5 legs" references (§Rationale, §Consequences) are now stale; they will be updated to "4-platform" / "4 build targets" / "4 legs" by S-REL-DROP-INTEL-MAC-001 AC-003. `related_adrs` extended with ADR-065. `anchor_stories` extended with S-REL-DROP-INTEL-MAC-001. No decision content changed — traceability and cross-reference only. |
 | 2.1 | 2026-09-06 | architect | D3 corrected: `[package] publish = false` at the manifest level causes cargo-release >= 1.0.0 to disable the entire release process for prism-bin, not just the crates.io publish step. Added `release = true` to `[package.metadata.release]` to override the manifest-level release-disable inference. Note: the existing `publish = false` inside `[package.metadata.release]` only skips the cargo publish step and does NOT counteract the manifest-level disable. Added mandatory dry-run gate (`cargo release -p prism-bin <ver>` without `--execute`) as a blocking contract before `--execute`; gate confirms crate is selected for release; residual uncertainty discharged by gate. Anchored to S-REL-VBUMP-001 ACs. Reference: cargo-release reference.md §release (github.com/crate-ci/cargo-release §docs/reference.md). |
 | 2.0 | 2026-09-06 | architect | SAC-2 anchor_stories annotation corrected: S-REL-AGENT-VERSION-001 updated from "PROPOSED; story to be authored" to "authored (draft, v1.3-pending)"; story exists on disk with status:draft and cites ADR-064 §D4 in §Authority. Frontmatter/traceability only — no decision content changed. |

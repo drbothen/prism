@@ -363,3 +363,27 @@ Frozen PR HEAD at pass-2 start: 6e695e09e. Code fix-burst HEAD: 6e695e09e→c44d
 **TD-VSDD-097 sweep verdict (D-2488):** N/A (records + STATE only; comment-only code fixes carry no spec/BC/ADR content change; Dim-1/2/3 N/A).
 
 **Next (after PR-LEVEL pass-2):** Re-gate PR-LEVEL adversary on frozen code HEAD c44d2f1e7 → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution → (explicit human-auth) tag v1.0.0-beta.1.
+| PR-LEVEL Pass 3 | 2026-09-07 | 4 | 0 | 1 | 1 | 2 | 0/3 | CLEAN(strict): NO; CLEAN(PR-merge): YES — F1 MED + F2 LOW (literal-in-comment: prior fix-comment for test_AC-012 + enrichment_pivot named the banned literal x86_64-apple-darwin verbatim, re-arming AC-002/AC-005/VF-001 zero-match greps; FIXED @c09d63593 comment-only); O2 OBS [spec-drift]: ADR-064 v2.2→v2.3 (11 stale 5-platform/5-legs/5-build-targets body refs corrected to 4; AC-003 discharged); O1 OBS: S-REL-WRITER-001 v1.1→v1.2 (AC-005 scoped to --notes-file publishing mechanism; release.yml build-matrix rows are DROP-INTEL scope). Streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001: push @c09d63593 resets). NEXT: re-gate PR-LEVEL on frozen c09d63593 |
+
+**PR-LEVEL Pass 3 finding summary (CLEAN(strict): NO; 1 MED + 1 LOW + 2 OBS ALL RESOLVED; streak 0/3):**
+
+Frozen PR HEAD at pass-3 start: c44d2f1e7. Code fix-burst HEAD: c44d2f1e7→c09d63593 (comment-only). Spec fix-burst: ADR-064 v2.2→v2.3 (architect) + S-REL-WRITER-001 v1.1→v1.2 (story-writer).
+
+**F1 MED [spec-drift] (devops, fix in-scope):** `test_AC-012` header comment and `enrichment_pivot_002_tests.rs` target list had been reworded in earlier bursts to remove x86_64-apple-darwin references, but the explanatory fix-comment itself named the banned literal verbatim (e.g., "removed x86_64-apple-darwin"). This re-armed S-REL-DROP-INTEL-MAC-001 AC-002/AC-005/VF-001 zero-match greps, causing them to match the comment text. Fix: devops reworded both comments to paraphrase "Intel-mac (Darwin-x86_64)" instead of stating the literal string; `git grep -r 'x86_64-apple-darwin' tests/ crates/prism-spec-engine/tests/` now returns 0 matches. Code @c09d63593 (comment-only; no logic change).
+
+**F2 LOW [spec-drift] (devops, fix in-scope):** Same root cause as F1 — a different occurrence of the banned literal buried inside a comment string. Fixed in same commit @c09d63593.
+
+**O2 OBS [spec-drift] (architect, fix in-scope):** ADR-064 body contained 11 stale count references ("5-platform", "5 legs", "5 build targets") left over from the pre-DROP-INTEL 5-target matrix. These were non-normative body prose (not §D-decision text). The AC-003 deferral (recorded in the status stale-count note in ADR-064 v2.2) is hereby discharged: ADR-064 v2.2→v2.3 corrects all 11 occurrences to 4-target (4-platform, 4 legs, 4 build targets). ARCH-INDEX v2.377→v2.378 (ADR-064 pin updated).
+
+**O1 OBS [spec-drift] (story-writer, fix in-scope):** S-REL-WRITER-001 AC-005 stated that the technical-writer verifies "release.yml build-matrix rows" do not reference x86_64-apple-darwin. However, release.yml build-matrix is part of DROP-INTEL scope (S-REL-DROP-INTEL-MAC-001 AC-001/AC-003/AC-004/VF-001), not WRITER scope. AC-005 for WRITER should only cover the `--notes-file` publishing mechanism (release notes content, CHANGELOG.md structure). Fix: S-REL-WRITER-001 v1.1→v1.2 — AC-005 rescoped to `--notes-file` feed (CHANGELOG.md `## [1.0.0-beta.1]` section content only). STORY-INDEX v3.022→v3.023.
+
+**Process-gap lesson [process-gap] (codified):** An explanatory fix-comment that NAMES a banned literal re-arms the very grep gate it documents. Fix-comments for string-removal sweeps MUST paraphrase the removed content (e.g., "Intel-mac (Darwin-x86_64)") rather than restate the literal (e.g., "removed x86_64-apple-darwin"). This is analogous to the rule against volatile line-number cites (TD-VSDD-091) — the comment becomes the defect it documents.
+
+**TD-VSDD-097 sweep verdict (D-2489):**
+- Dim-1: CLEAR (ADR-064/ADR-065 are distinct ADRs; ADR-063 unaffected; no sibling-pair contamination from this burst).
+- Dim-2: CLEAR (architect confirmed no story files carry verbatim copies of the corrected ADR-064 body count sections; S-REL-WRITER-001 AC-005 is self-contained — no downstream story copies the WRITER-001 AC-005 text).
+- Dim-3: CLEAR (AC-003 discharged in ADR-064 v2.3; no new unanchored MUSTs introduced).
+
+**TD-VSDD-091/POL-39 CLEAN.** develop_head a4cd1b3fd UNCHANGED. bc_index v10.06 / vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. arch_index v2.377→v2.378. story_index v3.022→v3.023. trajectory-tail UNCHANGED →8→0→1→2.
+
+**Next (after PR-LEVEL pass-3):** Re-gate PR-LEVEL adversary on frozen code HEAD c09d63593 → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.

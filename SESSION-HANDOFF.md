@@ -1,12 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.105"
+version: "8.106"
 status: current
 timestamp: 2026-09-07T23:59:59Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
+
+> **D-2489 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) PR-LEVEL pass-3 fix-burst: F1 MED + F2 LOW + O1 OBS + O2 OBS ALL RESOLVED. F1 MED + F2 LOW [spec-drift] (devops): prior D-2488 fix-comment restated the banned literal `x86_64-apple-darwin` verbatim in explanatory text — tripped S-REL-DROP-INTEL-MAC-001 AC-002/AC-005/VF-001 zero-match greps; corrected to paraphrase "Intel-mac (Darwin-x86_64)". Code fix-burst: comment-only c44d2f1e7→c09d63593. O2 OBS [spec-drift] (architect): ADR-064 body v2.2→v2.3 — 11 stale count-body refs ("5-platform"/"5 legs"/"5 build targets") corrected to 4; AC-003 deferral discharged; ARCH-INDEX v2.377→v2.378. O1 OBS [spec-drift] (story-writer): S-REL-WRITER-001 AC-005 v1.1→v1.2 scoped to --notes-file publishing mechanism only (release.yml build-matrix rows are DROP-INTEL scope); STORY-INDEX v3.022→v3.023. Process-gap lesson: fix-comments for string-removal sweeps must paraphrase (e.g. "Intel-mac (Darwin-x86_64)"), not restate the banned literal — codified in sidecar-learning.md. CLEAN(strict): NO; CLEAN(PR-merge): YES. PR-LEVEL 3-CLEAN(strict) streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001: push @c09d63593 resets). TD-VSDD-097: Dim-1 CLEAR / Dim-2 DISCHARGED / Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22 UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.016→v9.017. SESSION-HANDOFF v8.105→v8.106. §RESUME SNAPSHOT D-2488 SUPERSEDED by D-2489.**
 
 > **D-2488 (2026-09-07): SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) PR-LEVEL pass-2 on frozen 6e695e09e: 1 LOW (in-diff, comment-only) + 1 out-of-diff advisory. CLEAN(strict): NO; CLEAN(PR-merge): YES. Functional deliverable CLEAN: 4-target matrix consistent incl. CHANGELOG.md, ADR-063 v1.11 conformant, 121 gate assertions pass, all 11 ACs pass, zero mechanism/logic/security defects. LOW (devops): test_AC-012 header "42"→"41" (Intel AC-002 dropped; comment-only). Out-of-diff advisory (devops): enrichment_pivot_002_tests.rs de-Intel'd; residual test_AC-010 "5 matrix legs"→"4". Fix-burst: comment-only @c44d2f1e7. TD-VSDD-097: N/A (records + STATE only; Dim-1/2/3 N/A). TD-VSDD-091/POL-39 CLEAN. develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.377/story_index v3.022 ALL UNCHANGED. total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.015→v9.016. SESSION-HANDOFF v8.104→v8.105. §RESUME SNAPSHOT D-2487 SUPERSEDED by D-2488.**
 
