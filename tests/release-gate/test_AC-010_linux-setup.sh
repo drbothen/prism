@@ -69,7 +69,7 @@ assert_contains "$REL_YML" \
   "arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0" \
   "AC-010"
 
-# 7. setup-protoc must run on ALL 5 matrix legs — no if: gate allowed.
+# 7. setup-protoc must run on ALL 4 matrix legs — no if: gate allowed.
 # Extract the step block from '- name: Install protoc' through the next step boundary
 # (a line starting with '      - ') and verify no 'if:' condition appears in the block.
 # At Red: step absent → block is empty → first branch fires → FAILS.

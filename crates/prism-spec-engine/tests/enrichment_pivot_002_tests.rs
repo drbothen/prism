@@ -2892,8 +2892,8 @@ output_type = "string"
 /// # Platform gating
 ///
 /// Unix symlinks (`std::os::unix::fs::symlink`) are the mechanism used here.  This project's
-/// cross-compile targets are aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu,
-/// x86_64-unknown-linux-musl (all Unix).  The test is `#[cfg(unix)]`-gated so Windows builds
+/// cross-compile targets are aarch64-apple-darwin, x86_64-unknown-linux-gnu,
+/// x86_64-unknown-linux-musl (all Unix; x86_64-apple-darwin dropped per ADR-065).  The test is `#[cfg(unix)]`-gated so Windows builds
 /// (x86_64-pc-windows-msvc) skip it without error.
 ///
 /// # Step-by-step reasoning
