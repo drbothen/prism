@@ -8,10 +8,10 @@ must_pass: true
 priority: P1
 epic_id: "E-REL-IDENTITY"
 story_source: "S-REL-AGENT-VERSION-001"
-version: "1.2"
+version: "1.3"
 status: active
 used: false
-last_evaluated: null
+last_evaluated: "2026-09-06"
 last_eval_satisfaction: null
 single_use: true
 producer: product-owner
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-064-pre-release-binary-version-identity.md"
   - ".factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md"
   - ".factory/stories/S-REL-AGENT-VERSION-001-agent-version-surfaces.md"
-input-hash: "dad7dce"
+input-hash: "6b2e911"
 traces_to: "ADR-050-D6"
 behavioral_contracts: []
 verification_properties: []
@@ -49,6 +49,18 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-0
 `build_http_client_with_timeout` in `pipeline.rs`: `CARGO_PKG_VERSION` → `PRISM_VERSION`.
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
 before demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
+
+---
+
+## Evaluation Disposition — 2026-09-06 (HARNESS-BLOCKED / NOT CONSUMED)
+
+**Adjudication:** HARNESS-BLOCKED — UNEVALUABLE. This is NOT a behavioral FAIL; no wrong value was observed.
+
+**Observed reason:** Sensor adapters did not register at boot in the holdout config. "0 adapters registered" despite org loaded + specs/creds validated. Result: the claroty query returned 0 rows → the `enrich` pipe stage never executed → `prism-spec-engine::pipeline::build_http_client_with_timeout` was never constructed → the enrichment observation endpoint (:19090) was never hit. No `ENRICHMENT-UA:` line appeared.
+
+**Surface-B substance guarantee (basis for human acceptance):** The inline wiremock test `test_infusion_http_client_sends_prism_user_agent` builds the REAL `build_http_client_with_timeout` client and asserts the exact `prism/{PRISM_VERSION}` User-Agent on a live HTTP request (an end-to-end wire assertion), plus the AC-007 source grep. Every LOCAL adversary pass independently verified the Surface-B migration.
+
+**Status:** NOT consumed — `used` stays `false`. Deferred to follow-up story S-REL-HOLDOUT-HARNESS-001 (Canonical Principle Rule 3 concrete anchor). NOT reusable in current form — harness requires a sensor adapter that produces ≥1 row so the `enrich` stage fires.
 
 ---
 
@@ -100,7 +112,7 @@ header on each GET request
 **And** prism MCP stdio is started pointing the sensor at port 19089, infusion at
 port 19090, with `PRISM_DTU_MODE=true` (bypasses SSRF for localhost enrichment endpoint)
 **When** the PrismQL enrichment query
-`SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)`
+`SELECT device_uid FROM claroty_devices LIMIT 1 | enrich ua_result(device_uid)`
 is issued via the MCP `query` tool (triggering `prism-spec-engine`'s
 `build_http_client_with_timeout` to make an HTTP GET to the enrichment echo server)
 **Then** the GET request received by the enrichment echo server (port 19090) carries
@@ -228,7 +240,7 @@ is issued via the MCP `query` tool (triggering `prism-spec-engine`'s
    PRISM_DTU_MODE=true \
    CLAROTY_INSTANCE_URL=http://127.0.0.1:19089 \
    PRISM_CLIENTS_HOLDOUT_EVAL_SENSORS_CLAROTY_BEARER_TOKEN=dummy-holdout-token \
-   ./target/debug/prism start --mcp-stdio --config-dir /tmp/prism-holdout
+   ./target/debug/prism start --config-dir /tmp/prism-holdout
    ```
    - `PRISM_DTU_MODE=true`: bypasses the SSRF localhost-rejection in
      `HttpLookupSource::new()` so the enrichment endpoint at `127.0.0.1:19090` is reachable.
@@ -252,11 +264,12 @@ is issued via the MCP `query` tool (triggering `prism-spec-engine`'s
      "params": {
        "name": "query",
        "arguments": {
-         "sql": "SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)"
+         "query": "SELECT device_uid FROM claroty_devices LIMIT 1 | enrich ua_result(device_uid)"
        }
      }
    }
    ```
+   Note: query arg key is `query` (not `sql`); table name is `claroty_devices` (not `claroty.devices`); enrichment function is `ua_result` (the `name` field from the infusion spec, not the `infusion_id`).
 
 10. Observe the enrichment echo server stdout (port 19090) for the `ENRICHMENT-UA:` line.
     - PASS (Surface B correctly migrated): `ENRICHMENT-UA: prism/1.0.0-beta.1`
@@ -414,6 +427,7 @@ migrated) — this confirms why the enrichment path is the correct observation p
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | hs-032-gate-disposition-2026-09-06 | 2026-09-06 | product-owner | HARNESS-BLOCKED / UNEVALUABLE (not a behavioral FAIL). Human-adjudicated ACCEPT-ON-SUBSTANCE 2026-09-06. Observed reason: sensor adapters did not register at boot in holdout config ("0 adapters registered" despite org loaded + specs/creds validated) — claroty query returned 0 rows; `enrich` pipe stage never executed; `prism-spec-engine::pipeline::build_http_client_with_timeout` never constructed; enrichment observation endpoint (:19090) never hit. NOT consumed (used stays false). Surface-B substance guaranteed by inline wiremock test `test_infusion_http_client_sends_prism_user_agent` (builds REAL `build_http_client_with_timeout` + asserts exact `prism/{PRISM_VERSION}` UA on live HTTP wire) + AC-007 source grep + every LOCAL adversary pass. Deferred to S-REL-HOLDOUT-HARNESS-001 (Canonical Principle Rule 3 anchor). Fixed 4 §Setup interface errors: (1) `prism start --mcp-stdio` → `prism start`; (2) query arg key `sql` → `query`; (3) table `claroty.devices` → `claroty_devices`; (4) enrich function `holdout_ua` → `ua_result` (field name from infusion spec, not infusion_id). Added §Evaluation Disposition block. |
 | 1.2 | f-srav-high-001-enrichment-path-redesign | 2026-09-06 | product-owner | F-SRAV-HIGH-001 fix (observation-path correction). Redesigned to use HttpLookup enrichment path, which exercises `prism-spec-engine::pipeline::build_http_client_with_timeout` — the actual Surface B migration target. Root cause of 002/003 v1.1 defect: plain sensor query (`SELECT * FROM claroty.devices`) routes through `prism-bin::spec_driven_adapter::build_http_client_with_timeout` (already migrated to PRISM_VERSION), not through the spec-engine pipeline client — observation was non-discriminating regardless of whether Surface B was migrated. Redesigned §Setup: (1) sensor data server on port 19089 (returns one minimal Claroty device row); (2) enrichment echo server on port 19090 (observation point — logs User-Agent on GET requests); (3) infusion TOML `holdout-ua.infusion.toml` with HttpLookup type pointing at port 19090; (4) PRISM_DTU_MODE=true bypasses SSRF for localhost enrichment endpoint; (5) triggering query `SELECT device_uid FROM claroty.devices LIMIT 1 \| enrich holdout_ua(device_uid)`. Updated §Scenario (observation mechanism + BDD), §Verification, §Rubric, §Edge Conditions, §real-world-corpus, notes. |
 | 1.1 | hs-032-override-build-model-fix | 2026-09-06 | product-owner | HIGH defect fix (F-SRAV-HIGH-001 root cause). Rewrote to override-build model: evaluator builds with PRISM_BUILD_VERSION=1.0.0-beta.1. Expected UA changed from "prism/1.0.0-dev" (impossible on local dev — prism-spec-engine CARGO_PKG_VERSION=0.9.0) to "prism/1.0.0-beta.1". Gate is now discriminating: non-migrated Surface B (CARGO_PKG_VERSION) emits "prism/0.9.0" ≠ "prism/1.0.0-beta.1"; both pre-migration and post-migration emitted "prism/0.9.0" on plain local dev (non-discriminating). Corrected §Scenario "After this story ships" local-dev claim. Updated §Setup (build command), §BDD, §Verification, §Rubric, §Edge Conditions, §real-world-corpus, notes. |
 | 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. Spec-engine outbound HTTP User-Agent wire-level test: UA must be prism/1.0.0-dev on local dev, NOT prism/{library-version}. Catches pipeline.rs CARGO_PKG_VERSION → PRISM_VERSION migration gap. ADR-050 §D6 + ADR-064 D4 §Surface B authority. Claroty DTU as primary observation target; echo server as fallback. SINGLE-USE. |

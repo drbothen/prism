@@ -1,14 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.088"
+version: "8.089"
 status: current
 timestamp: 2026-09-06T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2471 (2026-09-06): RECORDS-ONLY MICRO-BURST (TD-VSDD-096, TD-VSDD-053) — S-REL-AGENT-VERSION-001 story body version-marker synced v1.4→v1.5. Sole residual from LOCAL 3-pass re-gate (all 3 passes CLEAN(PR-merge); code + holdout redesign converged). Fix: story body Version: marker at line 115 synced from stale v1.4 to current v1.5 (matches frontmatter version: "1.5" and changelog top row; decorative marker, not a version bump). Comprehensive self-version-marker sweep: one body self-version marker found (line 115); all other version refs in body are spec-content (product/Cargo/ADR versions); changelog rows untouched (historical/immutable). LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c. develop_head UNCHANGED 19887ebcd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.010/total_stories 335 ALL UNCHANGED. Code HEAD 74c11329c UNCHANGED (frozen). TD-VSDD-097: Dim-1 CLEAR (S-REL-AGENT-VERSION-001 has no BC sibling twin; standalone in E-REL-IDENTITY). Dim-2 CLEAR (no verbatim copy-source section changed; changelog rows untouched). Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.998→v8.999. SESSION-HANDOFF v8.087→v8.088. §RESUME SNAPSHOT D-2471 inserted; D-2470 SUPERSEDED.**
+> **D-2472 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — HS-032 holdout-gate disposition + S-REL-HOLDOUT-HARNESS-001 registered. HS-032 HUMAN-ADJUDICATED ACCEPT-ON-SUBSTANCE: HS-032-001 PASS/CONSUMED (sat 1.00; serverInfo.version = "1.0.0-beta.1" on wire); HS-032-002/003 HARNESS-BLOCKED/NOT-CONSUMED (0 adapters registered → 0 enrich → :19090 unreachable; Surface-B substance guaranteed by wiremock test_infusion_http_client_sends_prism_user_agent + AC-007; deferred to S-REL-HOLDOUT-HARNESS-001 draft v0.1 POST-beta.1). §Setup interface errors corrected (HS-032-003). S-REL-AGENT-VERSION-001 LOCAL+holdout ACCEPTED + demo committed on feature HEAD 2b50853fb. NEXT: push → PR → PR-LEVEL 3-CLEAN → merge (explicit human auth) → PR B → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd. bc_index v10.06/vp_index v2.22/arch_index v2.368 UNCHANGED. story_index v3.010→v3.011 (total_stories 335→336). holdout_index v1.41→v1.42. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.999→v9.000. SESSION-HANDOFF v8.088→v8.089. §RESUME SNAPSHOT D-2472 inserted; D-2471 SUPERSEDED.**
+
+> **D-2471 (2026-09-06): RECORDS-ONLY MICRO-BURST (TD-VSDD-096, TD-VSDD-053) — S-REL-AGENT-VERSION-001 story body version-marker synced v1.4→v1.5. Sole residual from LOCAL 3-pass re-gate (all 3 passes CLEAN(PR-merge); code + holdout redesign converged). Fix: story body Version: marker at line 115 synced from stale v1.4 to current v1.5 (matches frontmatter version: "1.5" and changelog top row; decorative marker, not a version bump). Comprehensive self-version-marker sweep: one body self-version marker found (line 115); all other version refs in body are spec-content (product/Cargo/ADR versions); changelog rows untouched (historical/immutable). LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c. develop_head UNCHANGED 19887ebcd. bc_index v10.06/vp_index v2.22/arch_index v2.368/story_index v3.010/total_stories 335 ALL UNCHANGED. Code HEAD 74c11329c UNCHANGED (frozen). TD-VSDD-097: Dim-1 CLEAR (S-REL-AGENT-VERSION-001 has no BC sibling twin; standalone in E-REL-IDENTITY). Dim-2 CLEAR (no verbatim copy-source section changed; changelog rows untouched). Dim-3 CLEAR (no new MUSTs). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.998→v8.999. SESSION-HANDOFF v8.087→v8.088. §RESUME SNAPSHOT D-2471 inserted; D-2470 SUPERSEDED. [SUPERSEDED by D-2472]**
 
 > **D-2470 (2026-09-06): SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-AGENT-VERSION-001 Surface-B holdout ENRICHMENT-PATH redesign. LOCAL adversary pass-B HIGH F-SRAV-HIGH-001 (distinct 2nd root cause from D-2469): HS-032-002/003 v1.1 observed User-Agent on a plain sensor fetch routing through prism-bin's spec_driven_adapter client (already product-versioned) — NOT the Surface-B migration target prism-spec-engine::pipeline::build_http_client_with_timeout (reachable only via infusion/HttpLookup enrichment lookup) — gate was NON-DISCRIMINATING (a real Surface-B regression would PASS). FIX (human-directed most-rigorous option): HS-032-002/003 v1.1→v1.2 redesigned to two-echo-server setup (sensor :19089 + enrichment :19090) with http_lookup infusion TOML and enrich triggering query, observing ENRICHMENT-endpoint UA = "prism/1.0.0-beta.1" (discriminating; FAIL = "prism/0.9.0"). F-SRAV-MED-001: HOLDOUT-INDEX HS-032 rows v1.40→v1.41 synced (grep-clean of stale 1.0.0-dev). F-SRAV-OBS-001: pipeline.rs comment version-free (code branch local commit 74c11329c, NOT pushed). Story v1.4→v1.5. HOLDOUT-INDEX v1.40→v1.41. STORY-INDEX v3.009→v3.010. Input-hashes: story 66bda37 (current); HS-032-001 4070bbb (unchanged); HS-032-002/003 dad7dce (recomputed by product-owner). Code re-verified converged — defects were holdout-artifact-only. LOCAL 3-CLEAN streak RESET 0/3; re-gate on code HEAD 74c11329c → HS-032 holdout gate (enrichment-path, discriminating) → demo → push → PR → PR-LEVEL 3-CLEAN → merge → PR B (git-cliff) → tag v1.0.0-beta.1. develop_head UNCHANGED 19887ebcd. bc_index/vp_index/arch_index/total_stories UNCHANGED. TD-VSDD-097: Dim-1/Dim-2/Dim-3 CLEAR. TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v8.997→v8.998. SESSION-HANDOFF v8.086→v8.087. §RESUME SNAPSHOT D-2470 inserted; D-2469 SUPERSEDED.**
 
@@ -24,7 +26,36 @@ timestamp: 2026-09-06T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2471 (2026-09-06 — S-REL-AGENT-VERSION-001 story body v1.4→v1.5 synced; LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c) [supersedes D-2470]
+## §RESUME SNAPSHOT — D-2472 (2026-09-06 — HS-032 ACCEPT-ON-SUBSTANCE; demo committed on 2b50853fb; push → PR next) [supersedes D-2471]
+
+### RESUME IN ONE BREATH
+Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 LOCAL cascade converged-on-substance (human-accepted) + holdout gate HS-032 ACCEPT-ON-SUBSTANCE (D-2472): HS-032-001 PASS/CONSUMED (sat 1.00; serverInfo.version = "1.0.0-beta.1" on wire); HS-032-002/003 HARNESS-BLOCKED/NOT-CONSUMED (0 adapters registered → 0 enrich → :19090 unreachable; Surface-B substance guaranteed by wiremock test_infusion_http_client_sends_prism_user_agent + AC-007; deferred to S-REL-HOLDOUT-HARNESS-001). Demo evidence committed on feature HEAD 2b50853fb. STORY-INDEX v3.011 (total_stories 336). HOLDOUT-INDEX v1.42. develop_head UNCHANGED 19887ebcd.
+
+### Governing Objective
+v1.0.0-beta.1 release: deliver all 4 beta.1-blocking stories (S-REL-DEV-RESET-001 MERGED; S-REL-BVERSION-INJECT-001 MERGED; S-REL-DOCS-AGNOSTIC-001 MERGED; S-REL-AGENT-VERSION-001 IN-FLIGHT at v1.5 — demo committed 2b50853fb; holdout ACCEPTED). Then PR B (git-cliff notes) → tag v1.0.0-beta.1.
+
+### Critical Path — Next 6 Steps
+1. Push feature/S-REL-AGENT-VERSION-001 (HEAD 2b50853fb) + create PR (story v1.5; ADR-064 §D4; 5 RGTs/8 ACs; own PR).
+2. PR-LEVEL 3-CLEAN adversary cascade (BC-5.39.001 strict; frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001).
+3. Merge on explicit human authorization (S-1 human decision; NOT covered by D-2445 autonomous grant).
+4. PR B (E-REL-NOTES): S-REL-CLIFF-001 → S-REL-WRITER-001 → S-REL-BETA1-NOTES-001 off updated develop.
+5. CLOSE obsolete PR #255 (do NOT merge; human clicks Close).
+6. Full git-cliff generation + beta.1 CHANGELOG curation → tag v1.0.0-beta.1 via `gh workflow run release-tag.yml --ref develop -f tag=v1.0.0-beta.1`.
+
+### Heads
+- develop: `19887ebcd` (PR #262 squash-merged 2026-09-06)
+- factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053)
+- main: `bdf24cec8` (stub, untouched)
+- feature/S-REL-AGENT-VERSION-001: local `2b50853fb` (demo committed; NOT pushed)
+- WORKTREES: ACTIVE — feature/S-REL-AGENT-VERSION-001. PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge)
+
+### Decisions / State
+D-2472 (2026-09-06 holdout-gate disposition burst): HS-032 ACCEPT-ON-SUBSTANCE. HS-032-001 PASS/CONSUMED (sat 1.00). HS-032-002/003 HARNESS-BLOCKED/NOT-CONSUMED — Surface-B end-to-end deferred to S-REL-HOLDOUT-HARNESS-001 (draft v0.1; POST-beta.1; Canonical Principle Rule 3 anchor). §Setup interface errors corrected (HS-032-003). S-REL-AGENT-VERSION-001 demo committed on 2b50853fb. HOLDOUT-INDEX v1.41→v1.42. STORY-INDEX v3.010→v3.011 (total_stories 335→336).
+
+---
+
+## §RESUME SNAPSHOT — D-2471 (2026-09-06 — S-REL-AGENT-VERSION-001 story body v1.4→v1.5 synced; LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c) [supersedes D-2470] [SUPERSEDED by D-2472]
 
 ### RESUME IN ONE BREATH
 Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 story-of-record at v1.5 (story body version-marker v1.4→v1.5 synced D-2471; records-only micro-burst closes sole LOCAL residual from 3-pass re-gate. Code + holdout redesign converged: HS-032-002/003 v1.2 enrichment-path discriminating; HS-032-001 v1.1 override-build; HOLDOUT-INDEX v1.41; STORY-INDEX v3.010). ADR-064 v2.0 (SAC-2 anchor_stories annotation). Code branch feature/S-REL-AGENT-VERSION-001 at local commit 74c11329c (not yet pushed). LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c. develop_head UNCHANGED 19887ebcd.

@@ -8,11 +8,11 @@ must_pass: true
 priority: P1
 epic_id: "E-REL-IDENTITY"
 story_source: "S-REL-AGENT-VERSION-001"
-version: "1.1"
+version: "1.2"
 status: active
-used: false
-last_evaluated: null
-last_eval_satisfaction: null
+used: true
+last_evaluated: "2026-09-06"
+last_eval_satisfaction: 1.00
 single_use: true
 producer: product-owner
 timestamp: "2026-09-05T00:00:00Z"
@@ -21,11 +21,11 @@ phase: 3
 inputs:
   - ".factory/specs/architecture/decisions/ADR-064-pre-release-binary-version-identity.md"
   - ".factory/stories/S-REL-AGENT-VERSION-001-agent-version-surfaces.md"
-input-hash: "4070bbb"
+input-hash: "d2b80cf"
 traces_to: "ADR-064-D4"
 behavioral_contracts: []
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: "S-REL-AGENT-VERSION-001"
 staleness_check: null
 stale_reason: null
@@ -48,6 +48,24 @@ notes: "HIDDEN, SINGLE-USE story-level holdout for S-REL-AGENT-VERSION-001 (HS-0
 `env!("PRISM_VERSION")` value threaded from boot step 9.
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
 before demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
+
+---
+
+## Evaluation Disposition — 2026-09-06 (PASS / CONSUMED)
+
+**Adjudication:** HUMAN-ACCEPTED on substance (gate: ACCEPT-ON-SUBSTANCE 2026-09-06).
+
+**Result:** PASS — satisfaction: 1.00
+
+**Observed wire bytes:** `serverInfo.version = "1.0.0-beta.1"` (override build PRISM_BUILD_VERSION=1.0.0-beta.1). Raw JSON fragment from initialize response: `"serverInfo":{"name":"prism","version":"1.0.0-beta.1"}`.
+
+**Rubric dimensions:**
+- Handshake succeeds (no error) — weight 0.15: PASS 1.0 (valid initialize result received)
+- Stale "0.1.0" absent from serverInfo.version — weight 0.50: PASS 1.0 (version is "1.0.0-beta.1", not "0.1.0")
+- Correct product version present — weight 0.35: PASS 1.0 (`serverInfo.version == "1.0.0-beta.1"`)
+- **Weighted total: 1.00** (threshold ≥ 0.75)
+
+**Status:** CONSUMED — single-use; must NOT be reused. Consumed 2026-09-06.
 
 ---
 
@@ -100,8 +118,9 @@ to `"1.0.0-beta.1"` (the injected PRISM_BUILD_VERSION override used in this scen
 
 2. Start prism in MCP stdio mode using the binary built in step 1:
    ```
-   PRISM_ORG_ID=<org-uuid> prism start --mcp-stdio
+   PRISM_ORG_ID=<org-uuid> prism start
    ```
+   (`prism start` runs the MCP stdio server; `--mcp-stdio` is not a valid flag.)
    Use a minimal valid `prism.toml` (no sensor configuration required; this scenario
    only tests the MCP handshake, not sensor query execution).
 
@@ -245,5 +264,6 @@ by the override — making this the discriminating test.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | hs-032-gate-disposition-2026-09-06 | 2026-09-06 | product-owner | PASS / CONSUMED. Human-adjudicated ACCEPT-ON-SUBSTANCE 2026-09-06. Observed `serverInfo.version = "1.0.0-beta.1"` on wire (override build PRISM_BUILD_VERSION=1.0.0-beta.1). Satisfaction 1.00 (all three rubric dimensions full credit). Marked used=true, lifecycle_status=consumed, single-use consumed 2026-09-06. §Setup step 2: removed `--mcp-stdio` flag (`prism start` is the stdio MCP server command; `--mcp-stdio` is not a valid flag). Added §Evaluation Disposition block. |
 | 1.1 | hs-032-override-build-model-fix | 2026-09-06 | product-owner | HIGH defect fix (F-SRAV-HIGH-001 root cause). Rewrote to override-build model: evaluator builds with PRISM_BUILD_VERSION=1.0.0-beta.1. Expected serverInfo.version changed from "1.0.0-dev" to "1.0.0-beta.1". Gate is now discriminating: non-migrated get_info still returns "0.1.0" ≠ "1.0.0-beta.1"; plain local-dev assertion was non-discriminating (un-migrated Surface B also emits "prism/0.9.0" on local dev — HS-032-002/003 were the failing scenarios; 001 was incidentally also wrong about expected value). Updated §Setup, §Verification, §Rubric, §real-world-corpus, notes. |
 | 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. MCP initialize handshake wire-shape test: serverInfo.version must not be stale "0.1.0" and must be "1.0.0-dev" on local dev build. Catches get_info hardcoded value + boot step 9 with_deps wiring gap. ADR-064 D4 §Surface A authority. SINGLE-USE. |

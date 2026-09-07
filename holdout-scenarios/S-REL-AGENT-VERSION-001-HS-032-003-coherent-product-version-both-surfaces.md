@@ -8,10 +8,10 @@ must_pass: true
 priority: P1
 epic_id: "E-REL-IDENTITY"
 story_source: "S-REL-AGENT-VERSION-001"
-version: "1.2"
+version: "1.3"
 status: active
 used: false
-last_evaluated: null
+last_evaluated: "2026-09-06"
 last_eval_satisfaction: null
 single_use: true
 producer: product-owner
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-064-pre-release-binary-version-identity.md"
   - ".factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md"
   - ".factory/stories/S-REL-AGENT-VERSION-001-agent-version-surfaces.md"
-input-hash: "dad7dce"
+input-hash: "6b2e911"
 traces_to: "ADR-064-D4"
 behavioral_contracts: []
 verification_properties: []
@@ -50,6 +50,20 @@ surfaces MUST emit the same PRISM_VERSION after D4 ships." AND ADR-064 §D4 §Pu
 to sensor tenants (HTTP user-agent)."
 **Gate:** Story-level holdout gate (HS-032) — runs after LOCAL 3-CLEAN convergence,
 before demo recording and PR push. SINGLE-USE. HIDDEN from test-writer and implementer.
+
+---
+
+## Evaluation Disposition — 2026-09-06 (HARNESS-BLOCKED / NOT CONSUMED)
+
+**Adjudication:** HARNESS-BLOCKED — UNEVALUABLE. This is NOT a behavioral FAIL; no wrong value was observed.
+
+**Observed reason (same root cause as HS-032-002):** Sensor adapters did not register at boot in the holdout config. "0 adapters registered" despite org loaded + specs/creds validated. Result: claroty query returned 0 rows → `enrich` pipe stage never executed → enrichment echo server (:19090) never hit → V_UA never captured. Without V_UA, the coherence assertion V_MCP == V_UA cannot be evaluated.
+
+**V_MCP observation:** `serverInfo.version = "1.0.0-beta.1"` (captured as part of HS-032-001 PASS). V_MCP is correct.
+
+**Surface-B substance guarantee (basis for human acceptance):** Same as HS-032-002 — inline wiremock test `test_infusion_http_client_sends_prism_user_agent` + AC-007 source grep + every LOCAL adversary pass. Surface B is verified correct on substance; only the harness observation path was blocked.
+
+**Status:** NOT consumed — `used` stays `false`. Deferred to follow-up story S-REL-HOLDOUT-HARNESS-001 (Canonical Principle Rule 3 concrete anchor). NOT reusable in current form.
 
 ---
 
@@ -84,7 +98,7 @@ running (same two-server setup as HS-032-002)
 **And** prism MCP stdio is started with `PRISM_DTU_MODE=true` and the holdout config
 pointing the sensor at port 19089 and the infusion at port 19090
 **When** an MCP `initialize` handshake is performed AND THEN the enrichment query
-`SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)` is
+`SELECT device_uid FROM claroty_devices LIMIT 1 | enrich ua_result(device_uid)` is
 executed (triggering an HTTP GET to the enrichment echo server)
 **Then** `serverInfo.version` from the initialize response equals `V` (some version string)
 **And** the `User-Agent` header on the enrichment HTTP GET also equals `prism/V` (same `V`)
@@ -134,11 +148,12 @@ the coherence assertion discriminating.
      "params": {
        "name": "query",
        "arguments": {
-         "sql": "SELECT device_uid FROM claroty.devices LIMIT 1 | enrich holdout_ua(device_uid)"
+         "query": "SELECT device_uid FROM claroty_devices LIMIT 1 | enrich ua_result(device_uid)"
        }
      }
    }
    ```
+   Note: query arg key is `query` (not `sql`); table name is `claroty_devices` (not `claroty.devices`); enrichment function is `ua_result` (the `name` field from the infusion spec, not the `infusion_id`).
    Capture the `ENRICHMENT-UA:` output line from the echo server stdout. Strip the
    `"prism/"` prefix to get `V_UA`.
 
@@ -280,6 +295,7 @@ the enrichment path is essential for discriminating Surface B.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | hs-032-gate-disposition-2026-09-06 | 2026-09-06 | product-owner | HARNESS-BLOCKED / UNEVALUABLE (not a behavioral FAIL). Human-adjudicated ACCEPT-ON-SUBSTANCE 2026-09-06. Same observed root cause as HS-032-002: sensor adapters did not register at boot in holdout config; claroty query returned 0 rows; enrich stage never fired; enrichment echo server (:19090) never hit; V_UA never captured. NOT consumed (used stays false). Coherence assertion is untestable without V_UA. Surface-B substance guaranteed by inline wiremock test `test_infusion_http_client_sends_prism_user_agent` + AC-007 + adversary passes (same basis as HS-032-002). Deferred to S-REL-HOLDOUT-HARNESS-001 (Canonical Principle Rule 3 anchor). Fixed 4 §Setup interface errors: (1) `prism start --mcp-stdio` → `prism start` (via HS-032-002 §Setup step 8 reference); (2) query arg key `sql` → `query`; (3) table `claroty.devices` → `claroty_devices`; (4) enrich function `holdout_ua` → `ua_result`. Added §Evaluation Disposition block. |
 | 1.2 | f-srav-high-001-enrichment-path-redesign | 2026-09-06 | product-owner | F-SRAV-HIGH-001 fix (Surface B observation path correction for coherence scenario). Updated §Setup Step B to use enrichment echo server (port 19090) instead of Claroty DTU access log for V_UA observation — aligns with HS-032-002 v1.2 enrichment-path redesign. Root cause: Claroty DTU has no standalone server binary (HOLDOUT-INDEX process-gap note); DTU is only instantiable inside test harnesses. V_UA now observed via `ENRICHMENT-UA:` line from the enrichment echo server on port 19090. §Setup steps 2–3 updated (replace DTU start command with HS-032-002 two-server setup reference). §Verification step 2 updated (V_UA from enrichment echo stdout not DTU access log). §Edge Conditions FAIL case updated (V_UA="prism/0.9.0" from enrichment endpoint). §real-world-corpus corpus_source updated. Notes updated. |
 | 1.1 | hs-032-override-build-model-fix | 2026-09-06 | product-owner | HIGH defect fix (F-SRAV-HIGH-001 root cause). Rewrote to override-build model: evaluator builds with PRISM_BUILD_VERSION=1.0.0-beta.1. Coherence now asserted at "1.0.0-beta.1" (V_MCP == V_UA == "1.0.0-beta.1"). Local-dev plain build was non-discriminating: both surfaces legitimately diverge (Surface A = 1.0.0-dev, Surface B = 0.9.0) — asserted "1.0.0-dev" equality would false-fail correct implementation. §Edge Conditions rewritten: FAIL case is genuine mismatch V_UA="prism/0.9.0" (not the ratified local-dev state). Updated §Scenario split-wiring descriptions, §BDD, §Setup, §Verification, §Rubric, §Edge Conditions, §real-world-corpus, notes. |
 | 1.0 | s-rel-agent-version-001-holdout-authoring | 2026-09-05 | product-owner | Initial authoring. HS-032 group for S-REL-AGENT-VERSION-001. Coherence test: V_MCP (serverInfo.version) must equal V_UA (User-Agent version suffix) and both must equal "1.0.0-dev" on local dev build. Catches split-wiring defect where one surface is migrated but the other is not. ADR-064 D4 §Purpose ("all surfaces emit same PRISM_VERSION") authority. SINGLE-USE. |

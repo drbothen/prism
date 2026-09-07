@@ -693,3 +693,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2443 2026-09-04):** develop: origin = `18646aa44` (PR #253 squash-merge 2026-09-04); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-003 LOCAL-ONLY, NOT pushed; ACTIVE: feature/S-REL-003; PARKED: S-3.09 (KEEP-PARKED), W3-FIX-S307-001 (DIRTY do-NOT-touch); REMOVABLE: S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **NOTE: Superseded by D-2444 — S-REL-003 MERGED @725cf413d PR #254 (admin squash-merge, human-directed). develop_head 18646aa44→725cf413d. STATE v8.971→v8.972. SESSION-HANDOFF v8.064→v8.065. Further superseded by D-2445 — FULL AUTONOMOUS MERGE + TAG AUTHORITY GRANTED. STATE v8.972→v8.973.**
+
+---
+
+## Archived: D-2471 — 2026-09-06; STATE v8.998→v8.999 — S-REL-AGENT-VERSION-001 story body v1.4→v1.5 synced; LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c
+
+**RESUME IN ONE BREATH:** Phase 3, v1.0.0-beta.1 release engineering. S-REL-AGENT-VERSION-001 story-of-record at v1.5 (story body version-marker v1.4→v1.5 synced D-2471; sole LOCAL residual from 3-pass re-gate closed). Code + holdout redesign converged: HS-032-002/003 v1.2 enrichment-path discriminating; HS-032-001 v1.1 override-build; HOLDOUT-INDEX v1.41; STORY-INDEX v3.010. ADR-064 v2.0 (SAC-2 anchor_stories annotation). LOCAL 3-CLEAN ACHIEVED on code HEAD 74c11329c.
+
+**HEADS (D-2471 2026-09-06):** develop: `19887ebcd` (origin); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-AGENT-VERSION-001: local `74c11329c` (NOT pushed); main: `bdf24cec8` (stub). Open PRs: #255 (OBSOLETE rc.1 — CLOSE). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**NOTE: Superseded by D-2472 — HS-032 holdout-gate ACCEPT-ON-SUBSTANCE + S-REL-HOLDOUT-HARNESS-001 registered. Demo committed on 2b50853fb. NEXT: push → PR → PR-LEVEL 3-CLEAN → merge (explicit human auth). story_index v3.010→v3.011 (total_stories 335→336). holdout_index v1.41→v1.42. STATE v8.999→v9.000. SESSION-HANDOFF v8.088→v8.089.**
