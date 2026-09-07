@@ -29,7 +29,7 @@
 #     These assert the FIXED patterns and are RED until the implementer applies fixes.
 #
 # After all fixes applied: all 41 assertions should pass.
-# (ADR-065 / S-REL-DROP-INTEL-MAC-001: x86_64-apple-darwin AC-002 assertion dropped; 42→41)
+# (ADR-065 / S-REL-DROP-INTEL-MAC-001: Intel-mac (Darwin-x86_64) AC-002 assertion dropped; 42→41)
 #
 # Stories: S-REL-003 | Wave: F-A | Cycle: v1.0.0-release-engineering
 # Traces to: delta-analysis.md §2.1 + §8; research U8/U9/U10/U29/U30/U33; ADJ-002
