@@ -185,6 +185,7 @@ _Created by state-manager compact-state burst (D-2244+1). Data source: STATE.md 
 | Pass 1 | 2026-09-07 | 9 (+ post-fix empirical corrections) | 1 | 3 | 2 | 3 | 0/3 | CLEAN(strict): NO — all 9 FIXED; streak begins at 0/3 |
 | Pass 2 | 2026-09-07 | 7 | 0 | 2 | 1 | 4 | 0/3 | CLEAN(strict): NO — all 7 FIXED; streak 0/3 |
 | Pass 3 | 2026-09-07 | 5 | 0 | 0 | 2 | 3 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — all 5 FIXED; code @cda652e5f; link-ref fail-hard + pre-strip boundary detection + else-arm removed |
+| Pass 4 | 2026-09-07 | 1 | 0 | 0 | 0 | 1 | 0/3 | CLEAN(strict): NO, CLEAN(PR-merge): YES — OBS-1 FIXED by devops workflow-prose @d457ab745; no spec change; actionlint clean; WRITER-001 AC-004 STILL SATISFIED |
 
 **Pass 1 finding summary:**
 
@@ -231,4 +232,12 @@ DEVIATION-3: `git-cliff --prepend --header ""` (empty header) is PROHIBITED — 
 
 **TD-VSDD-097 sweep verdict (D-2479):** Dim-1 CLEAR (ADR-063 no sibling twin). Dim-2 DISCHARGED (ADR-063 §D3 else-arm removal → CLIFF-001 Task 2 swept in same fix-burst; S-REL-WRITER-001 and S-REL-BETA1-NOTES-001 verified clean; cliff.toml/release-prep.yml/RELEASING.md aligned on worktree). Dim-3 CLEAR (no new MUSTs).
 
-**Next:** LOCAL adversary re-gate on frozen code HEAD cda652e5f (D-2479; streak 0/3; CLEAN(PR-merge) reached at pass-3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+**Next (after pass-3):** LOCAL adversary re-gate on frozen code HEAD cda652e5f (D-2479; streak 0/3; CLEAN(PR-merge) reached at pass-3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
+
+**Pass 4 finding summary (1 OBS; CLEAN(PR-merge): YES; FIXED by devops workflow-prose edit @d457ab745; no spec/story/index changes):**
+
+- OBS-1 (devops): release-prep.yml PR-body prose + checklist overstated the Layer-1 top-block as auto-generated when it is a manual human-in-the-loop technical-writer dispatch per S-REL-WRITER-001 (ADR-063 D4). Fixed: Step 7a notice reworded to "MANUAL STEP REQUIRED"; PR intro Layer-1 block labeled "not auto-generated, must be drafted + curated before merge (ADR-063 D4)"; before-merge steps reworded to imperative DRAFT-then-curate; checklist single "reviewed and curated" item split into two explicit DRAFT + curate action items; Breaking-Changes checklist item kept unchanged. actionlint CLEAN post-fix. WRITER-001 AC-004 STILL SATISFIED (change is more explicit, not less). CLIFF/WRITER ACs all pass.
+
+**TD-VSDD-097 sweep verdict (D-2480):** N/A — records + STATE update only; no spec/BC/ADR content changed this burst. Dim-1/2/3 N/A (no spec/BC/ADR authored or amended). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites).
+
+**Next:** LOCAL adversary re-gate on frozen code HEAD d457ab745 (D-2480; streak 0/3) → 3-CLEAN(strict) → BETA1-NOTES-001 CHANGELOG generation + human curation → demo → PR B → (human-auth) merge → (human-auth) tag v1.0.0-beta.1.
