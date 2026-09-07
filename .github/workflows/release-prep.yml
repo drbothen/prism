@@ -189,6 +189,12 @@ jobs:
           content = open(path).read()
           lines = content.split('\n')
           n = len(lines)
+          # Preserve footer link-ref lines (reference-style compare links at bottom of file)
+          # so sub-step C (link-ref update) can find and update [Unreleased]: even in the
+          # zero-versioned-section edge case (fresh repo or first-ever release cycle).
+          import re as _re
+          _link_ref_pat = _re.compile(r'^\[.+\]:\s+https://')
+          footer_lines = [ln for ln in lines if _link_ref_pat.match(ln)]
           # Explicitly strip the leading masthead/preamble and any [Unreleased] section,
           # regardless of whether a versioned section follows.
           i = 0
@@ -202,7 +208,20 @@ jobs:
                   i += 1
           # i now points to the first versioned ## [X.Y.Z] line (or n if none exist)
           start = i
-          open(path, 'w').write('\n'.join(lines[start:]))
+          if start >= n and footer_lines:
+              # Zero-versioned-section edge case: no versioned ## [X.Y.Z] sections found
+              # (fresh repo or CHANGELOG.md was manually reset). Writing an empty file would
+              # delete the [Unreleased]: compare link needed by sub-step C (link-ref update).
+              # Preserve just the footer link-ref block so sub-step C can still run.
+              import sys as _sys
+              print(
+                  'Warning: CHANGELOG.md has no versioned ## [X.Y.Z] sections; '
+                  'preserving footer link-ref block for sub-step C (link-ref update).',
+                  file=_sys.stderr,
+              )
+              open(path, 'w').write('\n'.join(footer_lines) + '\n')
+          else:
+              open(path, 'w').write('\n'.join(lines[start:]))
           print(f'Pre-strip complete: CHANGELOG.md starts at versioned section (line {start})')
           PYEOF
 
@@ -341,7 +360,7 @@ jobs:
               '',
               f'This PR was created by the `release-prep` workflow. It bumps `prism-bin`',
               f'to `{version}` and generates a categorized Layer-2 CHANGELOG section via',
-              f'git-cliff (ADR-063 D5). The Layer-1 `### Highlights` / `### Breaking Changes`',
+              f'git-cliff (ADR-063 D5). The Layer-1 `### Highlights` / `### Breaking Changes (narrative)`',
               f'/ `### Upgrade Notes` top-block is **not auto-generated** — it must be drafted',
               f'by dispatching `vsdd-factory:technical-writer` and curated before merge (ADR-063 D4).',
               '',
@@ -353,7 +372,7 @@ jobs:
               '   applicable) inside `## [VERSION]` — this block is NOT present at PR',
               '   open time and must be created before merge (ADR-063 D4).',
               '3. Review and curate the drafted Layer-1 block — current behavior only;',
-              '   remove aspirational bullets; omit `### Breaking Changes` if none.',
+              '   remove aspirational bullets; omit `### Breaking Changes (narrative)` if none.',
               f'4. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`v{version}`).',
               '5. Wait for all required CI checks to pass.',
               '6. Merge this PR to `develop` (squash or merge commit per project convention).',
@@ -369,7 +388,7 @@ jobs:
               '',
               '## Checklist',
               '- [ ] CHANGELOG Layer-2 (git-cliff) entries reviewed',
-              '- [ ] Dispatch `vsdd-factory:technical-writer` to DRAFT the Layer-1 `### Highlights` (+ Breaking Changes / Upgrade Notes if applicable) top-block inside `## [VERSION]` (ADR-063 D4)',
+              '- [ ] Dispatch `vsdd-factory:technical-writer` to DRAFT the Layer-1 `### Highlights` (+ Breaking Changes (narrative) / Upgrade Notes if applicable) top-block inside `## [VERSION]` (ADR-063 D4)',
               '- [ ] Review and curate the drafted Layer-1 block; confirm it is present and accurate',
               '- [ ] Layer-1 Breaking Changes (narrative) section reviewed (or confirmed empty)',
               f'- [ ] `prism-bin` version in `Cargo.toml` matches intended tag `v{version}`',

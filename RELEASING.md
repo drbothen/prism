@@ -267,7 +267,7 @@ The PR body contains a checklist. Before merging:
    applicable) inside the `## [VERSION]` block — this block is NOT present at PR open
    time and must be created before merge (ADR-063 D4). See §5 for the Layer-1 contract.
 3. Review and curate the drafted Layer-1 block: current behavior only; remove
-   aspirational bullets; omit `### Breaking Changes` if there are no breaking changes.
+   aspirational bullets; omit `### Breaking Changes (narrative)` if there are no breaking changes.
 4. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`vX.Y.Z`).
 5. Confirm the README reflects this release:
    - The `[![Latest Release](...)]` badge in the README header is a dynamic shields.io
@@ -468,7 +468,7 @@ tag range, documenting **current behavior only** — not aspirational features. 
 draft is a PR file edit in the release-prep branch.
 
 **Human curation gate:** The draft is reviewed and curated in the release-prep PR
-before merge. Empty sections (e.g., `### Breaking Changes` when there are no breaking
+before merge. Empty sections (e.g., `### Breaking Changes (narrative)` when there are no breaking
 changes) are removed. Aspirational bullets are removed. The human-curated text is
 the final content; the technical-writer draft is an aid, not the final.
 

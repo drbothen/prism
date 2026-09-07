@@ -52,7 +52,7 @@ body = """
 {% if breaking_commits | length > 0 %}
 ### Breaking Changes
 {% for commit in breaking_commits %}
-- **BREAKING** {{ commit.message }}{% if commit.breaking_description %} — {{ commit.breaking_description }}{% endif %}
+- **BREAKING** {{ commit.message }}{% if commit.breaking_description and commit.breaking_description != commit.message %} — {{ commit.breaking_description }}{% endif %}
 {% endfor %}
 {% endif %}
 {% for group, group_commits in commits | filter(attribute="breaking", value=false) | group_by(attribute="group") %}
