@@ -372,18 +372,100 @@ install/verify narrative. Edit the body as described in §5 Release Notes Conven
 
 ## 5. Release Notes Convention
 
-### Structure
+### Two-Layer CHANGELOG Model (ADR-063 D4)
 
-The GitHub Release body combines two layers:
+Every release uses a two-layer CHANGELOG model. Both layers are assembled in
+`CHANGELOG.md` during the `release-prep.yml` workflow run, BEFORE the PR is
+reviewed and merged.
 
-**Layer 1 — Curated human narrative (prepend manually after release creation):**
+#### Layer 2 — git-cliff categorized body (auto-generated)
 
-```markdown
-## Prism vX.Y.Z
+`release-prep.yml` Step 7 invokes:
 
-[One-paragraph summary of what this release delivers — value, not just a feature list.]
+```bash
+git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+```
 
-### Install
+This prepends a `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md` and populates
+it with categorized Conventional Commit entries (Added / Fixed / Performance /
+Changed / Security). Skip types (docs, ci, test, chore, style, build, revert) are
+excluded. PR links are injected from commit message `(#NNN)` references.
+
+Authority: `cliff.toml` at repo root (ADR-063 D3); `--unreleased --tag ... --prepend`
+flag set (ADR-063 D5). Do NOT use `--output` alongside `--prepend` (causes duplicate
+sections per ADR-063 D5 v1.1 fix).
+
+#### Layer 1 — Curated top-block (human-authored, agent-assisted)
+
+After git-cliff prepends the `## [VERSION]` block, the `vsdd-factory:technical-writer`
+agent drafts a human-readable top-block consisting of:
+
+- `### Highlights` — 5–8 bullets summarizing the platform-level value of the release
+- `### Breaking Changes (narrative)` — prose description of any breaking changes;
+  **omitted** if the release has no breaking changes
+- `### Upgrade Notes` — migration steps for operators; omitted if not needed
+
+**Placement invariant:** Layer-1 sections are placed INSIDE the `## [VERSION]` block,
+AFTER git-cliff prepends the block, and BEFORE the first git-cliff commit-derived
+`###` section. This placement ensures that `release.yml`'s awk extraction (from
+`## [VERSION]` until the next `## [`) captures both layers without any modification
+to `release.yml`.
+
+**Authorship:** The `vsdd-factory:technical-writer` agent drafts this block from the
+tag range, documenting **current behavior only** — not aspirational features. The
+draft is a PR file edit in the release-prep branch.
+
+**Human curation gate:** The draft is reviewed and curated in the release-prep PR
+before merge. Empty sections (e.g., `### Breaking Changes` when there are no breaking
+changes) are removed. Aspirational bullets are removed. The human-curated text is
+the final content; the technical-writer draft is an aid, not the final.
+
+#### CHANGELOG.md structure (normative)
+
+```
+# Changelog
+
+## [1.0.0-beta.1] - 2026-09-XX
+
+### Highlights
+[technical-writer draft, human-curated — inserted AFTER git-cliff prepends the block]
+
+### Breaking Changes (narrative)
+[technical-writer draft, human-curated — omitted if no breaking changes]
+
+### Upgrade Notes
+[technical-writer draft, human-curated — omitted if not needed]
+
+### Breaking Changes
+[git-cliff BREAKING CHANGE footers — from cliff.toml D3, <!-- 0 --> parser]
+
+### Added
+[git-cliff feat commits — <!-- 1 --> parser]
+
+### Fixed
+[git-cliff fix commits — <!-- 2 --> parser]
+
+...
+
+## [previous-version] - YYYY-MM-DD
+...
+```
+
+#### Step order in release-prep.yml
+
+1. `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md` (Step 7) — prepends
+   the `## [VERSION]` block with Layer-2 content
+2. Technical-writer agent dispatch (Step 7a) — inserts Layer-1 `###` sections INSIDE the
+   `## [VERSION]` block, before git-cliff's first commit-derived `###` section
+3. Human reviews and curates Layer-1 sections in the release-prep PR (Step 2 in §4)
+
+### GitHub Release body
+
+The `release.yml` `--notes-file` extraction captures the full `## [VERSION]` block from
+`CHANGELOG.md` (both Layer-1 and Layer-2 content) via awk and passes it to
+`gh release create --notes-file`. No modification to `release.yml` is required.
+
+### Installing from a release
 
 Each release archive contains the `prism` binary plus bundled sensor and infusion
 specs needed for a bootable installation — no source repository clone required.
@@ -435,21 +517,6 @@ sha256sum -c checksums.txt
 gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
   --repo drbothen/prism \
   --signer-workflow drbothen/prism/.github/workflows/release.yml
-```
-
-**Layer 2 — Auto-generated notes** from `--generate-notes` (appended automatically
-by the workflow): lists PRs merged since the previous tag, grouped by label.
-
-### Editing the release body after workflow completes
-
-The workflow creates the release with `--generate-notes` but without the curated
-narrative above. Edit the body in the GitHub UI to prepend the install/verify block:
-
-```bash
-gh release edit vX.Y.Z --repo drbothen/prism --notes-file /tmp/release-notes-vX.Y.Z.md
-```
-
-Or use the GitHub UI release editor.
 
 ---
 

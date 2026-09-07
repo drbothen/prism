@@ -142,67 +142,43 @@ jobs:
           echo "tests/external/non-exhaustive-violation/Cargo.lock updated"
 
       # ------------------------------------------------------------------ #
-      # 7. Scaffold CHANGELOG entry                                          #
-      #    Inserts a ## [X.Y.Z] section after ## [Unreleased], seeded with  #
-      #    merged-PR/commit subjects since the previous tag.  The human     #
-      #    curates the scaffold before merging the PR.                       #
+      # 7. Generate CHANGELOG body (git-cliff)                               #
+      #    Uses git-cliff 2.14.1 to prepend a categorized ## [X.Y.Z]        #
+      #    section to CHANGELOG.md from Conventional Commits history.        #
+      #    Authority: ADR-063 D3/D5 — canonical invocation flag set.        #
+      #    --unreleased selects commits not yet in any tag (robust for       #
+      #    first release and recurring releases alike).                      #
+      #    --tag sets the new section header.                                #
+      #    --prepend writes to the top of CHANGELOG.md only.                #
+      #    Do NOT add --output alongside --prepend (causes duplicate         #
+      #    sections per ADR-063 D5 v1.1 fix).                               #
       # ------------------------------------------------------------------ #
-      - name: Scaffold CHANGELOG entry
+      - name: Generate CHANGELOG body (git-cliff)
         run: |
           set -euo pipefail
-          TODAY="$(date -u +%Y-%m-%d)"
-          PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-          echo "PREV_TAG=${PREV_TAG:-'(first release)'}" >> "${GITHUB_ENV}"
-          if [[ -n "${PREV_TAG}" ]]; then
-            GIT_RANGE="${PREV_TAG}..HEAD"
-          else
-            GIT_RANGE="$(git rev-list --max-parents=0 HEAD)..HEAD"
-          fi
-          # Prefer merge commits (PR subjects) as the seed list; fall back to
-          # all commits when there are none (e.g., first release).
-          COMMITS="$(git log "${GIT_RANGE}" --merges --oneline | head -100 || true)"
-          if [[ -z "${COMMITS}" ]]; then
-            COMMITS="$(git log "${GIT_RANGE}" --oneline | head -60 || true)"
-          fi
-          printf '%s\n' "${COMMITS}" > /tmp/changelog-commits.txt
-          export PREP_VERSION="${VERSION}"
-          export PREP_TODAY="${TODAY}"
-          python3 - <<'PYEOF'
-          import os
-          from pathlib import Path
+          cargo install git-cliff --version 2.14.1 --locked --quiet
+          git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
 
-          version = os.environ['PREP_VERSION']
-          today   = os.environ['PREP_TODAY']
-
-          commits_path = Path('/tmp/changelog-commits.txt')
-          raw = commits_path.read_text().strip() if commits_path.exists() else ''
-          lines = [l.strip() for l in raw.splitlines() if l.strip()]
-          formatted = '\n'.join(f'- {l}' for l in lines) if lines else '- (no commits found — fill in manually)'
-
-          scaffold = (
-              f'## [{version}] - {today}\n\n'
-              '> **SCAFFOLD** — review and categorize before merging this release-prep PR.\n'
-              '> Group entries under Added / Fixed / Changed / Security / Removed.\n'
-              '> Remove this notice when done.\n\n'
-              '### Changed/Added/Fixed (seed list — review + categorize)\n\n'
-              + formatted
-              + '\n\n'
-          )
-
-          changelog = Path('CHANGELOG.md')
-          content = changelog.read_text()
-
-          marker = '## [Unreleased]\n'
-          idx = content.find(marker)
-          if idx != -1:
-              insert_at = idx + len(marker)
-              new_content = content[:insert_at] + '\n' + scaffold + content[insert_at:]
-          else:
-              new_content = content + '\n' + scaffold
-
-          changelog.write_text(new_content)
-          print(f'Scaffolded CHANGELOG entry for v{version}')
-          PYEOF
+      # ------------------------------------------------------------------ #
+      # 7a. Draft Layer-1 release notes (technical-writer)                   #
+      #     Dispatch notice: vsdd-factory:technical-writer should insert     #
+      #     ### Highlights / ### Breaking Changes (narrative) /             #
+      #     ### Upgrade Notes inside the ## [VERSION] block, BEFORE the     #
+      #     first git-cliff ### section.                                     #
+      #     Authority: ADR-063 D4 — two-layer CHANGELOG model.              #
+      #     See RELEASING.md §5 for the Layer-1 contract.                   #
+      # ------------------------------------------------------------------ #
+      - name: Draft Layer-1 release notes (technical-writer)
+        run: |
+          set -euo pipefail
+          echo "::notice::Dispatch vsdd-factory:technical-writer to draft Layer-1 release notes"
+          echo "Technical-writer should:"
+          echo "  1. Read CHANGELOG.md to find the newly-prepended ## [v${VERSION}] block"
+          echo "  2. Insert ### Highlights, ### Breaking Changes (narrative), ### Upgrade Notes"
+          echo "     inside the ## [v${VERSION}] block, BEFORE the first git-cliff ### section"
+          echo "  3. Content: current behavior only; 5-8 bullets for Highlights; omit empty sections"
+          echo "  4. Human curates the draft in this PR before merge"
+          echo "See RELEASING.md §5 for the Layer-1 contract."
 
       # ------------------------------------------------------------------ #
       # 8. Commit the release-prep changes                                   #
@@ -238,20 +214,25 @@ jobs:
           python3 - <<'PYEOF'
           import os
           version  = os.environ['VERSION']
-          prev_tag = os.environ.get('PREV_TAG', '(first release)')
           lines = [
               f'## Release prep: v{version}',
               '',
               f'This PR was created by the `release-prep` workflow. It bumps `prism-bin`',
-              f'to `{version}` and scaffolds a CHANGELOG entry seeded from commits since',
-              f'the previous tag (`{prev_tag}`).',
+              f'to `{version}`, generates a categorized CHANGELOG section via git-cliff',
+              f'(ADR-063 D5), and includes Layer-1 release notes drafted by the',
+              f'technical-writer agent (ADR-063 D4). See RELEASING.md §5 for the',
+              f'two-layer CHANGELOG model.',
               '',
               '**Before merging:**',
-              '1. Review and curate the CHANGELOG entry — categorize entries under',
-              '   Added / Fixed / Changed / Security / Removed; remove the scaffold notice.',
-              f'2. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`v{version}`).',
-              '3. Wait for all required CI checks to pass.',
-              '4. Merge this PR to `develop` (squash or merge commit per project convention).',
+              '1. Review the git-cliff generated CHANGELOG entry (Layer 2) — entries are',
+              '   auto-categorized under Added / Fixed / Performance / Changed / Security.',
+              '2. Review and curate the Layer-1 ### Highlights section — confirm it',
+              '   describes current behavior only; remove any aspirational bullets.',
+              '3. Review the Layer-1 ### Breaking Changes (narrative) section — confirm',
+              '   it is accurate, or remove the section if there are no breaking changes.',
+              f'4. Confirm `prism-bin` version in `Cargo.toml` matches the intended tag (`v{version}`).',
+              '5. Wait for all required CI checks to pass.',
+              '6. Merge this PR to `develop` (squash or merge commit per project convention).',
               '',
               '**After merge — to promote (see RELEASING.md §4):**',
               '```bash',
@@ -263,7 +244,9 @@ jobs:
               '```',
               '',
               '## Checklist',
-              '- [ ] CHANGELOG entry reviewed and categorized',
+              '- [ ] CHANGELOG Layer-2 (git-cliff) entries reviewed',
+              '- [ ] Layer-1 Highlights section reviewed and curated',
+              '- [ ] Layer-1 Breaking Changes (narrative) section reviewed (or confirmed empty)',
               f'- [ ] `prism-bin` version in `Cargo.toml` matches intended tag `v{version}`',
               '- [ ] All required CI checks pass',
               '- [ ] PR merged to `develop` before dispatching `release-promote`',
@@ -295,7 +278,6 @@ jobs:
             echo "|---|---|"
             echo "| Version | \`${VERSION}\` |"
             echo "| Branch | \`${BRANCH:-not reached}\` |"
-            echo "| Previous tag | \`${PREV_TAG:-not reached}\` |"
             if [[ -n "${PR_URL:-}" ]]; then
               echo "| Pull request | ${PR_URL} |"
               echo ""
