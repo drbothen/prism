@@ -44,7 +44,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             archive_ext: zip
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001: pin the Rust toolchain BEFORE any
       # cargo install step. On ubuntu-24.04 images >= 20260831.293 the runner's pre-installed
       # stable toolchain already has rust-std-x86_64-unknown-linux-gnu partially present;
@@ -230,7 +230,7 @@ jobs:
     permissions:
       contents: write  # SEC-002: least-privilege — gh release create/upload only
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
