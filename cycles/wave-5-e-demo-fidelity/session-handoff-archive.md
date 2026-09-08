@@ -200,5 +200,50 @@ Full content of all entries is available in git history on `factory-artifacts` a
 | §RESUME SNAPSHOT D-2092 through D-1284 | 2026-07..08 | Multiple snapshots from DEFECT-ADAPTER-TLS work and Wave-A spec evolution |
 | §ACTIVE OBJECTIVE — Multi-Client SOC-Analyst Live Demo | Inserted D-1242 area | North Star; `.factory/objectives/DEMO-SCOPE.md` is authoritative; STILL IN FORCE |
 | §RESUME SNAPSHOT D-1282 through D-1236 | 2026-06-19..22 | Wave-A spec evolution; S-5.03/S-5.04; PIVOT-002/003 stories |
+| §RESUME SNAPSHOT D-2321 through D-2373 | 2026-08-26..30 | Post-D-2305 compaction through LIMIT/VULNS spec-convergence work; full content in git history on factory-artifacts at pre-D-2494-compaction commit |
+| §RESUME SNAPSHOT D-2374 | 2026-08-30 | SESSION WRAP — LIMIT PR #243 spec-converged; VULNS-001 merge held; Wave-5-E deadline 2026-08-31 G2–G6 scope. STATE v8.906→v8.907 [SUPERSEDED by D-2384] |
+| §RESUME SNAPSHOT D-2375 through D-2383 | 2026-08-30..31 | G1 VULNS-001 final convergence passes; force-push + PR created; full content in git history |
+| §RESUME SNAPSHOT D-2384 | 2026-08-31 | SESSION WRAP — VULNS-001 gate PASSED (human-directed); G2 LOCAL-ONLY OPEN MED-1; G3–G6 drafted; worktrees G1+G2 active. STATE v8.915→v8.916 [SUPERSEDED by D-2400] |
+| §RESUME SNAPSHOT D-2385 through D-2399 | 2026-08-31..2026-09-01 | G2-G6 story-readiness + holdout + merge work (G2 merged; G3 merging in progress); full content in git history |
+| §RESUME SNAPSHOT D-2400 | 2026-09-01 | BLANKET MERGE AUTHORITY granted (G2-G6 + supporting fixes); G3 PR #247 ready; SESSION-HANDOFF D-2384 SUPERSEDED. [SUPERSEDED by D-2401] |
+| §RESUME SNAPSHOT D-2401 | 2026-08-31 | G2 (S-CLAROTY-OT-EVENTS-001) MERGED PR #246 @3d724a069; BC-2.16.016 active; develop 6972ac2e→3d724a069. STATE v8.930→v8.931 [SUPERSEDED by D-2407] |
+| §RESUME SNAPSHOT D-2402 through D-2406 | 2026-08-31..09-01 | G3 consistency-gate+holdout; G4 rebase+review+holdout passes; full content in git history |
+| §RESUME SNAPSHOT D-2407 | 2026-09-01 | G4 (S-CLAROTY-SERVERS-001) MERGED PR #248 @157596490; BC-2.16.018+019 active; develop 12cecb12→157596490. STATE v8.936→v8.937 [SUPERSEDED by D-2412] |
+| §RESUME SNAPSHOT D-2408 through D-2411 | 2026-09-01 | G5 rebase+review; G6 rebase+review starts; full content in git history |
+| §RESUME SNAPSHOT D-2412 | 2026-09-01 | G5 (S-CLAROTY-ORGPOLICY-001) MERGED PR #249 @07e64f4e; BC-2.16.020+021 active; develop 157596490→07e64f4e. STATE v8.940→v8.941 [SUPERSEDED by D-2415] |
+| §RESUME SNAPSHOT D-2413 through D-2414 | 2026-09-01 | G6 holdout SETUP-FAILURE adjudication; full content in git history |
+| §RESUME SNAPSHOT D-2415 | 2026-09-01 | G6 (S-CLAROTY-ACLPOLICY-001) MERGED PR #250 @672b10b6; BC-2.16.022 active; G1–G6 ALL MERGED; v1 14-table sensor COMPLETE. STATE v8.943→v8.944 [SUPERSEDED by D-2420] |
+| §RESUME SNAPSHOT D-2416 through D-2419 | 2026-09-01..02 | git-history purge + live release-validation + OBS-1/OBS-2 fix cascade; full content in git history |
+| §RESUME SNAPSHOT D-2420 | 2026-09-02 | SESSION WRAP — retracts prior wrong diagnoses; v1 BLOCKED pending sort_by root-cause investigation. STATE v8.949→v8.950 [SUPERSEDED by D-2437] |
+| §RESUME SNAPSHOT D-2421 through D-2436 | 2026-09-02..03 | sort_by defect root cause confirmed + DEFECT-CLAROTY-SORTBY-DETERMINISM-001 spec+TDD+merge; full content in git history |
+| §RESUME SNAPSHOT D-2437 | 2026-09-03 | CONFIRMATORY LIVE RE-VALIDATION PASSED; v1 Claroty xDome RELEASE-READY DECLARED. STATE v8.965→v8.966 [SUPERSEDED by D-2445] |
+| §RESUME SNAPSHOT D-2438 through D-2444 | 2026-09-03..04 | Release process started; RELEASING.md; release-config.yaml; rc.1 CI/CD; channel strategy; full content in git history |
+| §RESUME SNAPSHOT D-2445 | 2026-09-04 | D-2445 FULL AUTONOMOUS MERGE+TAG AUTHORITY (operator's explicit selection); supersedes D-2400 harness restriction. STATE v8.978 area [SUPERSEDED by D-2450] |
+| §RESUME SNAPSHOT D-2446 through D-2449 | 2026-09-04 | VULN-PAGESIZE defect closed; S-REL-011 docs merged; release CI/CD established; channel strategy locked; full content in git history |
+| §RESUME SNAPSHOT D-2450 | 2026-09-04 | S-REL-CHANNELS-001 registered; SESSION-HANDOFF D-2445 SUPERSEDED. story_index v2.996→v2.997. STATE v8.977→v8.978 [SUPERSEDED by D-2451] |
+| §RESUME SNAPSHOT D-2451 | 2026-09-05 | SESSION WRAP — PR #258+#259+#260 merged; v1.0.0-rc.1 TAGGED on develop@cf92ab535; release.yml run 33945993946 building (5-platform). STATE v8.978→v8.979 [SUPERSEDED by D-2452] |
+| §RESUME SNAPSHOT D-2452 | 2026-09-05 | RELEASE-IDENTITY ARCHITECTURE MILESTONE + rc→beta RELABEL — ADR-063+064 accepted; 7 stories registered (total 333). STATE v8.979→v8.980 [SUPERSEDED by D-2462] |
+| §RESUME SNAPSHOT D-2453 through D-2461 | 2026-09-05 | remove-uncertainty + S-REL-VERSION-IDENTITY LOCAL cascade (10 passes; human-adjudicated CLEAN(PR-merge)); full content in git history |
+| §RESUME SNAPSHOT D-2462 | 2026-09-05 | SESSION WRAP — PR A (S-REL-VERSION-IDENTITY) NOT mergeable; B-1 tag-build CI breakage found; S-1 human decision pending. STATE v8.989→v8.990 [SUPERSEDED by D-2463] |
+| §RESUME SNAPSHOT D-2463 | 2026-09-05 | S-1 ARCHITECTURE MILESTONE — ADR-064 v1.7→v1.8 §D4; S-REL-AGENT-VERSION-001 registered; PR #262 merge pending human auth. STATE v8.990→v8.991 [SUPERSEDED by D-2464] |
+| §RESUME SNAPSHOT D-2464 | 2026-09-05 | PR #262 PR-LEVEL 3-CLEAN cascade; MED-1 (CWE-93/CWE-20 hardening) FIXED; ARCH-INDEX v2.366→v2.367. STATE v8.991→v8.992 [SUPERSEDED by D-2465] |
+| §RESUME SNAPSHOT D-2465 | 2026-09-06 | PR #262 ADMIN SQUASH-MERGED @19887ebcd; E-REL-IDENTITY COMPLETE. story_index v3.004→v3.005. STATE v8.992→v8.993 [SUPERSEDED by D-2466] |
+| §RESUME SNAPSHOT D-2466 | 2026-09-06 | OBS-2 story-artifact correction: S-REL-AGENT-VERSION-001 v1.0→v1.1. story_index v3.005→v3.006. STATE v8.993→v8.994 [SUPERSEDED by D-2467] |
+| §RESUME SNAPSHOT D-2467 | 2026-09-06 | TD-VSDD-097 Dim-2 drift-sweep; S-REL-AGENT-VERSION-001 v1.1→v1.2. story_index v3.006→v3.007. STATE v8.994→v8.995 [SUPERSEDED by D-2468] |
+| §RESUME SNAPSHOT D-2468 | 2026-09-06 | LOCAL-cascade artifact fixes (POL-39 volatile-pin removal; holdout rename; ADR-064 v1.9→v2.0). STATE v8.995→v8.996 [SUPERSEDED by D-2473] |
+| §RESUME SNAPSHOT D-2469 through D-2471 | 2026-09-06 | S-REL-AGENT-VERSION-001 LOCAL cascade continuing + holdout gate; full content in git history |
+| §RESUME SNAPSHOT D-2472 | 2026-09-06 | HS-032 holdout HUMAN-ADJUDICATED ACCEPT-ON-SUBSTANCE; S-REL-HOLDOUT-HARNESS-001 registered. STATE v8.999→v9.000 [SUPERSEDED by D-2473] |
+| §RESUME SNAPSHOT D-2473 | 2026-09-06 | PR #263 (S-REL-AGENT-VERSION-001) ADMIN SQUASH-MERGED @a4cd1b3fd; E-REL-IDENTITY+AGENT COMPLETE. story_index v3.011→v3.012. STATE v9.000→v9.001 [SUPERSEDED by D-2475] |
+| §RESUME SNAPSHOT D-2474 | 2026-09-06..07 | SESSION WRAP after D-2473 merge; E-REL-NOTES stories readying; full content in git history |
+| §RESUME SNAPSHOT D-2475 | 2026-09-07 | E-REL-NOTES story-readiness + ADR-correction burst (3 stories readied; ADR-063 v1.3→v1.4; ADR-064 v2.0→v2.1). STATE v9.002→v9.003 [SUPERSEDED by D-2476] |
+| §RESUME SNAPSHOT D-2476 | 2026-09-07 | SPEC-ACCURACY CORRECTION (ADR-063 v1.4→v1.5; regex_replace→striptags filter). STATE v9.003→v9.004 [SUPERSEDED by D-2477] |
+| §RESUME SNAPSHOT D-2477 | 2026-09-07 | E-REL-NOTES LOCAL pass-1 fix-burst (9 findings; ADR-063 v1.5→v1.7; DEVIATION-1+2). STATE v9.004→v9.005 [SUPERSEDED by D-2486] |
+| §RESUME SNAPSHOT D-2478 through D-2485 | 2026-09-07 | E-REL-NOTES LOCAL passes 2-7 fix-bursts; ADR-063 v1.8→v1.10; full content in git history |
+| §RESUME SNAPSHOT D-2486 | 2026-09-07 | DROP-INTEL-MAC SPEC CRYSTALLIZATION (ADR-065 v1.0 NEW); scope expands PR B; E-REL-NOTES re-opened. STATE v9.013→v9.014 [SUPERSEDED by D-2487] |
+| §RESUME SNAPSHOT D-2487 | 2026-09-07 | PR #264 PR-LEVEL pass-1 fix-burst (HIGH: CHANGELOG 5→4-platform; MED: install.sh; LOW: test/build.rs counts; ADR-063 v1.10→v1.11; ADR-065 v1.0→v1.1). STATE v9.014→v9.015 [SUPERSEDED by D-2488] |
+| §RESUME SNAPSHOT D-2488 | 2026-09-07 | PR #264 PR-LEVEL pass-2 (LOW comment-only; advisory de-Intel'd). CLEAN(PR-merge): YES. STATE v9.015→v9.016 [SUPERSEDED by D-2489] |
+| §RESUME SNAPSHOT D-2489 | 2026-09-07 | PR #264 PR-LEVEL pass-3 fix-burst (F1 MED+F2 LOW fix-comment paraphrase; O2 ADR-064 v2.2→v2.3; O1 WRITER-001 v1.1→v1.2). STATE v9.016→v9.017 [SUPERSEDED by D-2490] |
+| §RESUME SNAPSHOT D-2490 | 2026-09-07 | PR #264 passes 4+5 CLEAN(strict) streak 2/3; pass-6 F-1 LOW+OBS-1 RESOLVED; streak RESET 0/3; ADR-063 v1.12; arch_index v2.379. STATE v9.017→v9.018 [SUPERSEDED by D-2491] |
+| §RESUME SNAPSHOT D-2491 | 2026-09-07 | SESSION WRAP — CONVERGENCE-BAR accepted CLEAN(PR-merge); DROP-INTEL crystallized; PR #264 MERGE-READY. STATE v9.018→v9.019 [SUPERSEDED by D-2494] |
 
 _Full snapshot content for all entries above available in git history on factory-artifacts at commit `23df3430c`._

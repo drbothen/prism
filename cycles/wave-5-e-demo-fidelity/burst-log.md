@@ -840,4 +840,59 @@ All three passes on same frozen code HEAD 5ead5f1cb (frozen-HEAD rule satisfied 
 
 **PR-LEVEL 3-CLEAN(strict) streak:** 0/3. BC-5.39.001: pass-6 had findings (F-1 LOW + OBS-1) → CLEAN(strict) = NO → streak RESET 0/3. code HEAD c09d63593 UNCHANGED (no DRIFT-ORCH-PRLEVEL-PUSH-001 event; streak resets due to findings, not push). After D-2490 factory-artifacts commit, NEXT: restart PR-LEVEL 3-pass sequence on frozen c09d63593.
 
+---
+
+### D-2491 — SESSION WRAP SINGLE-COMMIT BURST — 2026-09-07
+
+**Agent:** state-manager | **Decision:** D-2491 | **Cycle:** wave-5-e-demo-fidelity
+
+SESSION WRAP (TD-VSDD-053). CONVERGENCE-BAR (human-directed 2026-09-07): PR #264 CLEAN(PR-merge) convergence accepted; strict 3-CLEAN(strict) cosmetic loop STOPPED for PR #264 (analogous to D-2259/D-2396). Rationale: PR #264's functional deliverable verified CLEAN(PR-merge) across many fresh PR-LEVEL passes; remaining loop was minting one spec-artifact cosmetic per fresh pass with no code-correctness impact. PR #264 MERGE-READY: push feature/E-REL-NOTES-changelog @c09d63593 (LOCAL-ONLY, 4 commits ahead of origin) → CI 4-platform matrix → explicit human auth admin-squash-merge. DROP-INTEL crystallized: ADR-065 v1.1 / ADR-064 v2.3 / S-REL-DROP-INTEL-MAC-001 ready v1.2 ALL FINAL. OPEN: 10 dependabot PRs #265–#274 UNTRIAGED (non-blocking). SESSION-HANDOFF §RESUME SNAPSHOT D-2490 SUPERSEDED by D-2491.
+
+develop_head UNCHANGED a4cd1b3fd. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.024/total_stories 337 UNCHANGED. TD-VSDD-097: N/A (wrap-only; no spec/code changes). TD-VSDD-091/POL-39 CLEAN. records-lint L1/L7/L9/L10 PASS. STATE v9.018→v9.019. SESSION-HANDOFF v8.107→v8.108.
+
+**Files touched (factory):** `.factory/STATE.md` — v9.018→v9.019. `.factory/SESSION-HANDOFF.md` — v8.107→v8.108.
+
+---
+
+### D-2492 — POST-MERGE SINGLE-COMMIT BURST — 2026-09-07
+
+**Agent:** state-manager | **Decision:** D-2492 | **Cycle:** wave-5-e-demo-fidelity
+
+PR #264 (CLIFF+WRITER+DROP-INTEL) ADMIN SQUASH-MERGED to develop @be5b5c6fc (explicit in-session human auth; D-2491 merge gate satisfied). CI 49/49 green on c09d63593 (4-platform matrix; no Intel-mac jobs). Stale-verdict guard BC-5.42.001 admin-bypassed under explicit human authorization (covered_sha 31a2d2f0 stale vs c09d63593; delta = 4 DROP-INTEL infra-only commits already accepted at CLEAN(PR-merge) per D-2491). Three stories delivered: S-REL-CLIFF-001 v1.8, S-REL-WRITER-001 v1.2, S-REL-DROP-INTEL-MAC-001 v1.2 (all PR #264 @be5b5c6fc). POL-14 NO-OP: behavioral_contracts: [] on all three. Remote branch feature/E-REL-NOTES-changelog deleted. Local worktree .worktrees/E-REL-NOTES + local branch feature/E-REL-NOTES-changelog flagged REMOVABLE. NEXT: S-REL-BETA1-NOTES-001 execution → PAUSE → explicit-human-auth tag v1.0.0-beta.1.
+
+develop_head a4cd1b3fd→be5b5c6fc. story_index v3.024→v3.025. bc_index v10.06/vp_index v2.22/arch_index v2.379/total_stories 337 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin; all three stories standalone). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs; all three behavioral_contracts: []). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.019→v9.020. SESSION-HANDOFF v8.108→v8.109.
+
+**Files touched (factory):** `.factory/STATE.md` — v9.019→v9.020. `.factory/SESSION-HANDOFF.md` — v8.108→v8.109. `.factory/stories/STORY-INDEX.md` — v3.024→v3.025 (three stories merged).
+
+---
+
+### D-2493 — POST-MERGE + RELEASE-TAG SINGLE-COMMIT BURST — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2493 | **Cycle:** wave-5-e-demo-fidelity
+
+PR #275 (S-REL-BETA1-NOTES-001) ADMIN SQUASH-MERGED to develop @1724e727f 2026-09-08T01:44:50Z (explicit in-session human auth; dedicated question naming admin/review-required override; CI 49/49 green). CHANGELOG deliverable: v1.0.0-beta.1 section curated Claroty-xDome-only scope; git-cliff Layer-2 trimmed 243→86 entries (Added 62/Fixed 14/Security 8/Performance 1/Changed 1); 4 PR-review blockers fixed (HIGH-1 explicit Claroty-only scope note; MED-2 link-refs restored; MED-3 Security subsection restored; MED-4 honest Performance). Fresh re-review verdict: APPROVE_WITH_SUGGESTIONS, CLEAN(PR-merge)=YES. v1.0.0-rc.1 tag DELETED (local+remote per human directive; rc.1 NEVER published; reversibility SHA 82cee1bbf86b606b867aa175ee4cd3217f17074f pointed at cf92ab535). beta.1 CHANGELOG regenerated over full history (rc.1 boundary removed) then curated. v1.0.0-beta.1 tag CUT on develop@1724e727f (annotated tag object 31b0f075d609fdb310de41c3654204baee428191); pushed to origin; prism's FIRST published pre-release. release.yml run 34178070190 triggered — 4-target matrix (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc; NO Intel-mac per ADR-065) + prerelease GitHub Release publication; build IN PROGRESS at burst time. POL-14 NO-OP. .worktrees/S-REL-BETA1-NOTES-001 + branch feature/S-REL-BETA1-NOTES-001 flagged REMOVABLE.
+
+develop_head be5b5c6fc→1724e727f. story_index v3.025→v3.026. bc_index v10.06/vp_index v2.22/arch_index v2.379/total_stories 337 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new MUSTs; behavioral_contracts: []). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.020→v9.021.
+
+**Files touched (factory):** `.factory/STATE.md` — v9.020→v9.021. `.factory/stories/STORY-INDEX.md` — v3.025→v3.026.
+
+---
+
+### D-2494 — RELEASE-PUBLISHED MILESTONE + COMPACT-STATE BURST — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2494 | **Cycle:** wave-5-e-demo-fidelity
+
+v1.0.0-beta.1 GitHub prerelease PUBLISHED 2026-09-08T02:40:33Z. release.yml run 34178070190 completed success: 4 build legs (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc) + Create GitHub Release all green. prerelease=true, draft=false. URL: https://github.com/drbothen/prism/releases/tag/v1.0.0-beta.1. 7 assets: 4 platform archives + checksums.txt + install.sh + install.ps1. Curated Layer-1 CHANGELOG verified live (Claroty-xDome-only scope note + Highlights + Intel-mac Upgrade Note). First published prism pre-release; develop pre-release lane per RELEASE-CHANNELS.md (no main promotion). tag object 31b0f075 on develop@1724e727f. Worktree S-REL-BETA1-NOTES-001 TORN DOWN (separate devops burst).
+
+COMPACT-STATE BURST (D-2494): STATE.md D-2300..D-2489 (exhaustive) archived to decisions-archive-D2300-D2489.md; Current Phase Steps D-2368..D-2489 archived to burst-log.md; D-2490..D-2494 remain inline. SESSION-HANDOFF.md D-2321..D-2491 snapshots archived to session-handoff-archive.md; D-2494 snapshot is sole inline.
+
+develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 ALL UNCHANGED. TD-VSDD-097: N/A (release-recording + compaction; no spec/BC/code changes). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v9.021→v10.000. SESSION-HANDOFF v8.108→v9.000.
+
+**Files touched (factory, this commit):**
+- `.factory/STATE.md` — v9.021→v10.000 (D-2494 decision; compact-state burst applied)
+- `.factory/SESSION-HANDOFF.md` — v8.108→v9.000 (D-2494 snapshot; compact-state burst applied)
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2491..D-2494 burst summaries appended
+- `.factory/cycles/wave-5-e-demo-fidelity/session-handoff-archive.md` — D-2321..D-2491 index rows appended
+- `.factory/cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md` — NEW (D-2300..D-2489 condensed)
+
 **Next:** Restart PR-LEVEL adversary 3-pass sequence on frozen code HEAD c09d63593 (code UNCHANGED; spec fixes committed to factory-artifacts as D-2490) → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.
