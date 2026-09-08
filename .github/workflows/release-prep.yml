@@ -81,7 +81,8 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="release/v${VERSION}"
-          if git ls-remote --heads origin "${BRANCH}" | grep -q "${BRANCH}"; then
+          _branch_refs="$(git ls-remote --heads origin "${BRANCH}")"
+          if [[ "${_branch_refs}" == *"${BRANCH}"* ]]; then
             echo "::error::branch ${BRANCH} already exists on origin — delete it or choose a different version"
             exit 1
           fi
