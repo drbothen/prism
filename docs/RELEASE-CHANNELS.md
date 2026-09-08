@@ -10,7 +10,7 @@ flow through the ladder, and what criteria gate advancement.
 > stable-release runbook — step-by-step procedures for cutting a stable release using
 > the implemented `release-prep.yml` and `release-promote.yml` workflows. This file is
 > the channel strategy and reference. Nightly builds and ad-hoc pre-release tagging
-> (`-alpha.N`, `-beta.N`, `-rc.N`) are already implemented. The remaining pre-release
+> (`-dev.<shortsha>`, `-alpha.N`, `-beta.N`, `-rc.N`) are already implemented. The remaining pre-release
 > lane features (automatic dev tagging, alpha/beta/rc retention enforcement, `edge-dev`
 > pointer) will be built as a dedicated epic — see §2 for per-channel status.
 
@@ -127,8 +127,7 @@ validates the tag against the `prism-bin` version:
 ```
 develop carries: prism-bin = "1.0.0-dev"
 
-  → Dispatch: release-prepare-prerelease --channel nightly
-      Tag: v1.0.0-nightly.20260905
+  → Scheduled: nightly.yml (cron 07:17 UTC, change-guard) → Tag: v1.0.0-nightly.YYYYMMDD
       Guard: BASE-MATCH — "1.0.0" core matches prism-bin "1.0.0-dev"
       No version bump needed
 
@@ -149,8 +148,7 @@ After stable ships, develop bumps to next cycle:
   prism-bin "1.0.0" → "1.1.0-dev"   (MINOR bump for next feature cycle)
 ```
 
-Note: `release-prepare-prerelease` is the planned pre-release dispatch workflow
-(PLANNED). Only `release-prep.yml` is currently IMPLEMENTED.
+Note: `release-prepare-prerelease` is a planned unified pre-release dispatch workflow (PLANNED). Nightly tagging is currently implemented in `nightly.yml`; ad-hoc dev/alpha/beta/rc tagging is implemented in `release-tag.yml`; stable release-prep is implemented in `release-prep.yml`.
 
 ### Post-stable version bump
 
@@ -291,5 +289,5 @@ build is marked Latest.
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.2 | 2026-09-08 | §2/§6/§7: nightly channel status PLANNED → IMPLEMENTED (`nightly.yml`); retention and edge-nightly implemented; §5 already corrected to 4-target matrix (ADR-065 DROP-INTEL, PR #264) |
+| 0.2 | 2026-09-08 | §2/§6/§7: nightly channel status PLANNED → IMPLEMENTED (`nightly.yml`); retention and edge-nightly implemented; §5 already corrected to 4-target matrix (ADR-065 DROP-INTEL, PR #264); preamble status corrected; §6 retention regex quoted in fully-anchored `.N`-aware form; §3 worked-example nightly arm corrected to actual cron mechanism |
 | 0.1 | 2026-09-04 | Initial approval |

@@ -177,7 +177,15 @@ jobs:
           # LOW-8: avoid SIGPIPE exit-141 under set -o pipefail (same pattern as LOW-5
           # change-guard fix) — capture ls-remote output first, then check via parameter
           # expansion (no pipe truncation, no grep-closes-pipe race).
-          while _ls_out=$(git ls-remote --tags origin "${TAG}" 2>&1) && [[ "$_ls_out" == *"refs/tags/${TAG}"* ]]; do
+          while :; do
+            if ! _ls_out=$(git ls-remote --tags origin "${TAG}" 2>&1); then
+              echo "::error::git ls-remote failed while checking tag collision on ${TAG}: ${_ls_out}" >&2
+              exit 1
+            fi
+            # Soundness: the "${TAG}" pattern arg restricts ls-remote to exact tail-component
+            # matches — a .N sibling does NOT appear in a base-tag query, so this substring
+            # test cannot falsely report a collision. Do not drop the pattern arg.
+            [[ "$_ls_out" == *"refs/tags/${TAG}"* ]] || break
             echo "Tag ${TAG} already exists on origin — appending suffix .${N}"
             TAG="${BASE_TAG}.${N}"
             N=$((N + 1))
@@ -253,7 +261,7 @@ jobs:
             while IFS= read -r old_tag; do
               [[ -z "$old_tag" ]] && continue
               # Defensive double-check: only delete tags that match the nightly pattern.
-              # Anchored regex: vX.Y.Z-nightly.YYYYMMDD (8 digits minimum after the dot).
+              # Anchored regex: exactly 8 digits (YYYYMMDD), optional same-day .N suffix, start- and end-anchored.
               # SEC-001: end-anchored regex — rejects hybrid/foreign tags while accepting
               # the two allowed forms: vX.Y.Z-nightly.YYYYMMDD and vX.Y.Z-nightly.YYYYMMDD.N
               if [[ ! "$old_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
