@@ -896,3 +896,27 @@ develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.3
 - `.factory/cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md` — NEW (D-2300..D-2489 condensed)
 
 **Next:** Restart PR-LEVEL adversary 3-pass sequence on frozen code HEAD c09d63593 (code UNCHANGED; spec fixes committed to factory-artifacts as D-2490) → 3-CLEAN(strict) → CI 4-platform green → (explicit human-auth) admin squash-merge PR #264 → BETA1-NOTES-001 execution (generate `## [1.0.0-beta.1]` section via `git cliff --unreleased --tag v1.0.0-beta.1` + human curation) → (explicit human-auth) tag v1.0.0-beta.1.
+
+---
+
+### D-2495 — DEMO LIVE-ENV PIVOT + DEMO-SCOPE.md v2.0→v2.1 SINGLE-COMMIT BURST — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2495 | **Cycle:** wave-5-e-demo-fidelity
+
+Human-directed 2026-09-08: DEMO LIVE-ENVIRONMENT PIVOT. Live demo runs against LIVE Claroty xDome tenant (monroe; live API; AD-017 opaque creds), NOT DTU clone fleet. DTU fleet STALE/non-functional; S-CLAROTY-DTU-PARITY-001 + S-REL-004 remain DEFERRED post-rc.1. SUPERSEDES D-1163 (DTU-EVERYTHING). DEMO-SCOPE.md v2.0→v2.1 (product-owner): D-1163 marked superseded (historical text preserved); stale SCOPED-NOT-BUILT section (falsely claimed S-5.02/5.03/5.04/3.13 + enrich PIVOT chain unbuilt — all MERGED) corrected to merged-status truth + 4 real packaging gaps documented (a: no 14-table live Q&A run record; b: no live capstone narrative; c: no recorded live walkthrough; d: enrich threat_intel DTU-bound/not-live-safe); T13 DTU runbook flagged stale. Demo readiness: live Claroty xDome READY-WITH-GAPS; multi-client DTU demo NOT-READY. Human authorized full live-demo packaging (rewrite live-validation matrix + 27-Q&A catalog → 14 tables → live monroe run → capstone narrative → recording).
+
+develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.000→v10.001.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.000→v10.001. `.factory/objectives/DEMO-SCOPE.md` — v2.0→v2.1.
+
+---
+
+### D-2496 — VALIDATION-MATRIX + Q&A-CATALOG 14-TABLE EXPANSION SINGLE-COMMIT BURST — 2026-09-07
+
+**Agent:** state-manager | **Decision:** D-2496 | **Cycle:** wave-5-e-demo-fidelity
+
+Product-owner authored live-validation-matrix.md v0.2→v0.3 + soc-analyst-qa-catalog.md v0.2→v0.3 covering all 14 Claroty xDome tables (original 4 + G1-G6 expansion 10). live-validation-matrix.md v0.3: 106 validation items + 64 Q&A (170 total rows). soc-analyst-qa-catalog.md v0.3: 27→64 questions spanning all 14 tables. Scoped to LIVE monroe tenant; customer-data-free (AD-017 opaque creds). enrich_nvd live-safe; enrich_threat_intel DTU-bound (not live-safe — omit from live scripts). Supersedes 4-table versions. Demo Phase-1 progress toward 14-table live Q&A run (Phase-2, human-in-loop). Factual deployment note: v1.0.0-beta.1 binary deployed to live SOC env (/Users/jmagady/Dev/test-soc/bin/prism; was rc.1@3f1e66179; checksum-verified; config/creds untouched per AD-017). D-2491 rotated from STATE.md Current Phase Steps to burst-log archive (normal 5-row rotation). D-2495 burst narrative appended to burst-log (not previously recorded).
+
+develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin — planning artifacts only). Dim-2 CLEAR (no spec copy-source section changed). Dim-3 CLEAR (no new MUSTs; no BC changes). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.001→v10.002.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.001→v10.002. `.factory/objectives/xdome-v1-validation/live-validation-matrix.md` — v0.2→v0.3 (4 tables → 14 tables; 106 items + 64 Q&A). `.factory/objectives/xdome-v1-validation/soc-analyst-qa-catalog.md` — v0.2→v0.3 (27→64 questions). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2495+D-2496 burst summaries appended. `.factory/sidecar-learning.md` — session-end entry appended.
