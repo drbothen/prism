@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "3.028"
+version: "3.029"
 status: draft
 producer: state-manager
-timestamp: 2026-09-08T18:55:00Z
+timestamp: 2026-09-08T23:00:00Z
 phase: 3
-total_stories: 338
+total_stories: 339
+# D-2501 — STORY-INDEX v3.028→v3.029: S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; Wave F-A; facade; behavioral_contracts [] POL-14 NO-OP; depends_on S-REL-NIGHTLY-001, S-REL-CLIFF-001; OWN INDEPENDENT TRACK human-directed 2026-09-08 follow-up; NOT beta.2-blocking). total_stories 338→339. D-2499 NOTE archived.
 # D-2499 — STORY-INDEX v3.027→v3.028: S-REL-NIGHTLY-001 [ready v1.0]→[merged v1.0; PR #276 @d5d5fe7c]. POL-14 NO-OP (behavioral_contracts: []). total_stories 338 UNCHANGED. D-2498 NOTE archived.
 # D-2498 — STORY-INDEX v3.026→v3.027: S-REL-NIGHTLY-001 REGISTERED (ready v1.0; E-REL; P2; Wave F-A; facade; behavioral_contracts [] POL-14 NO-OP; depends_on S-REL-001; OWN INDEPENDENT TRACK human-directed 2026-09-08; NOT beta.2-blocking). total_stories 337→338. D-2493 NOTE archived. story_index_version 3.026→3.027.
 # D-2493 — STORY-INDEX v3.025→v3.026: PR #275 (S-REL-BETA1-NOTES-001) ADMIN SQUASH-MERGED to develop @1724e727f under explicit in-session human authorization. S-REL-BETA1-NOTES-001 [ready v1.4]→[merged v1.4; PR #275 @1724e727f]. POL-14 NO-OP (behavioral_contracts: []). v1.0.0-beta.1 tag CUT on develop@1724e727f; release.yml run 34178070190 triggered (4-target matrix build + prerelease publish). total_stories 337 UNCHANGED. D-2492 NOTE archived. story_index_version 3.025→3.026.
@@ -1190,6 +1191,7 @@ RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst)
 | S-REL-DROP-INTEL-MAC-001 | Drop x86_64-apple-darwin (Intel mac) from release matrix — 4-target sweep (ADR-065 §D1/D2/D3): CI workflows (release.yml, ci.yml, release-promote.yml, release-tag.yml), rust-toolchain.toml, CLAUDE.md (human-authorized), RELEASING.md, README.md, docs/SETUP.md, docs/RELEASE-CHANNELS.md, docs/dev-setup.md, scripts/install.sh, CI gate tests (ci-gate + release-gate); beta.1-BLOCKING [merged v1.2; PR #264 @be5b5c6fc; F-1 fix: VF-001/VF-002/AC-001/AC-003 docs-grep historical-path exclusion filter added; ADR-065 anchor story; P0; facade] | devops | 0 (N/A infra) | -- | 3 | -- |
 | S-REL-006 | Graduate prism-consumer-contract.md to docs/consumer-contract.md + DEMO-RUNBOOK.md Windows cross-reference; DEFERRED post-rc.1 — downstream of S-REL-007/S-REL-004 deferral chain (D-2443 2026-09-04) [draft v0.2] | devops | 0 (N/A infra) | -- | 2 | S-REL-002, S-REL-007 |
 | S-REL-NIGHTLY-001 | Scheduled nightly release lane — nightly.yml cron 07:17 UTC + change-guard (latest v*-nightly tag vs develop HEAD); vX.Y.Z-nightly.YYYYMMDD tag via RELEASE_PROMOTE_TOKEN → release.yml 4-target build + prerelease publish; keep-14 retention (two-layer nightly-only safety filter); edge-nightly mutable pointer (delete+recreate; non-v* tag; does not fire release.yml); RELEASE-CHANNELS.md §2/§6/§7 status updates; actionlint CLEAN; 10 ACs (AC-010 = live workflow_dispatch human-in-loop verify); OWN INDEPENDENT TRACK (human-directed 2026-09-08; NOT beta.2-blocking); P2 [merged v1.0; PR #276 @d5d5fe7c] | devops | 0 (behavioral_contracts: []) | -- | 5 | S-REL-001 |
+| S-REL-NIGHTLY-NOTES-001 | Nightly release notes: git-cliff categorized changelog — install git-cliff@2.14.1 (SHA-pinned taiki-e/install-action) + conditional `git fetch --unshallow --tags` (nightly path only) + `git cliff --latest` → release body (categorized between two most recent v* tags); canned '## Nightly build' fallback on empty/error output; stable/beta/rc curated-CHANGELOG hard-fail + exact-form nightly regex bypass-guard PRESERVED; ADR-063 §D1/§D3 + RELEASE-CHANNELS.md §2/§5; actionlint CLEAN (AC-007); live-verify next nightly (AC-008 human-in-loop); OWN INDEPENDENT TRACK (NOT beta.2-blocking; D-2499 follow-up; human-directed 2026-09-08 Q1 preference); P2 [draft v1.0; D-2501] | devops | 0 (behavioral_contracts: []) | -- | 3 | S-REL-NIGHTLY-001, S-REL-CLIFF-001 |
 
 ## Feature-Mode Release Identity — E-REL-IDENTITY (Wave F-A / F-B)
 
