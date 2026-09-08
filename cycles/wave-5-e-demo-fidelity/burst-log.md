@@ -944,3 +944,25 @@ PLANNING NOTES recorded in STATE.md D-2497: (1) nightly release lane kept as its
 D-2492 rotated from STATE.md Current Phase Steps and Decisions Log to burst-log archive (normal 5-row rotation). TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin — planning/objectives files only). Dim-2 CLEAR (no spec copy-source section changed). Dim-3 CLEAR (no new MUSTs; no BC changes). TD-VSDD-091/POL-39 CLEAN. records-lint L1/L7/L9/L10 PASS. develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.002→v10.003.
 
 **Files touched (factory):** `.factory/STATE.md` — v10.002→v10.003. `.factory/objectives/live-monroe-capstone-runbook.md` — NEW v1.0 (10 acts / 24 beats; all 14 Claroty tables; enrich_nvd only; DTU-zero). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2492 archive + D-2497 burst summary appended. `.factory/sidecar-learning.md` — session-end entries appended.
+
+---
+
+### D-2493 — POST-MERGE + RELEASE-TAG SINGLE-COMMIT BURST (archived from STATE.md decisions log at D-2498 rotation) — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2493 | **Cycle:** wave-5-e-demo-fidelity
+
+PR #275 (S-REL-BETA1-NOTES-001) ADMIN SQUASH-MERGED @1724e727f 2026-09-08T01:44:50Z (explicit human auth; CI 49/49 green). v1.0.0-beta.1 CHANGELOG curated (git-cliff Layer-2 trimmed 243→86 entries). v1.0.0-rc.1 tag DELETED (never published; reversibility SHA 82cee1bbf). v1.0.0-beta.1 tag CUT (annotated object 31b0f075 on develop@1724e727f). release.yml run 34178070190 triggered (4-target matrix: aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc; no Intel-mac per ADR-065). develop_head be5b5c6fc→1724e727f. story_index v3.025→v3.026. STATE v9.020→v9.021.
+
+**Files touched (factory):** `.factory/STATE.md` — v9.020→v9.021. `.factory/stories/STORY-INDEX.md` — v3.025→v3.026 (S-REL-BETA1-NOTES-001 merged row pin updated).
+
+---
+
+### D-2498 — S-REL-NIGHTLY-001 REGISTERED SINGLE-COMMIT BURST — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2498 | **Cycle:** wave-5-e-demo-fidelity
+
+S-REL-NIGHTLY-001 committed to STORY-INDEX.md as a new story registration. Story: scheduled nightly release lane (nightly.yml cron 07:17 UTC + change-guard + vX.Y.Z-nightly.YYYYMMDD tag via RELEASE_PROMOTE_TOKEN → release.yml 4-target build + prerelease publish; keep-14 retention two-layer safety filter; edge-nightly mutable pointer). Epic: E-REL. Wave: F-A. Priority: P2. tdd_mode: facade. subsystems: [SS-22]. crates_touched: []. behavioral_contracts: [] (POL-14 NO-OP). depends_on: S-REL-001. blocks: []. points: 5. estimated_days: 1. risk: LOW. acceptance_criteria_count: 10. OWN INDEPENDENT TRACK (human-directed 2026-09-08; NOT beta.2-blocking). Implementation AS-BUILT on feature/S-REL-NIGHTLY-001 @a2c7a8bce (2 commits: c799847d5 nightly.yml + a2c7a8bce RELEASE-CHANNELS §2/§6/§7 status). actionlint CLEAN. RELEASE-CHANNELS §5 4-target already correct per D-2497. release.yml UNCHANGED.
+
+D-2493 rotated from STATE.md Decisions Log to burst-log archive (normal 5-row rotation). TD-VSDD-097: Dim-1 CLEAR (S-REL-NIGHTLY-001 has no story twin). Dim-2 CLEAR (no copy-source section changed). Dim-3 CLEAR (no new unanchored MUSTs; behavioral_contracts: []). TD-VSDD-091/POL-39 CLEAN (no volatile line/version cites). records-lint L1/L7/L9/L10 PASS. develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379 UNCHANGED. story_index v3.026→v3.027; total_stories 337→338. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.003→v10.004.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.003→v10.004. `.factory/stories/STORY-INDEX.md` — v3.026→v3.027 (S-REL-NIGHTLY-001 row added; total_stories 337→338). `.factory/stories/S-REL-NIGHTLY-001-scheduled-nightly-release-lane.md` — NEW v1.0 (committed). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2493 archive + D-2498 burst summary appended.
