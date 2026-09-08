@@ -920,3 +920,27 @@ Product-owner authored live-validation-matrix.md v0.2→v0.3 + soc-analyst-qa-ca
 develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin — planning artifacts only). Dim-2 CLEAR (no spec copy-source section changed). Dim-3 CLEAR (no new MUSTs; no BC changes). TD-VSDD-091/POL-39 CLEAN. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.001→v10.002.
 
 **Files touched (factory):** `.factory/STATE.md` — v10.001→v10.002. `.factory/objectives/xdome-v1-validation/live-validation-matrix.md` — v0.2→v0.3 (4 tables → 14 tables; 106 items + 64 Q&A). `.factory/objectives/xdome-v1-validation/soc-analyst-qa-catalog.md` — v0.2→v0.3 (27→64 questions). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2495+D-2496 burst summaries appended. `.factory/sidecar-learning.md` — session-end entry appended.
+
+---
+
+### D-2492 — POST-MERGE SINGLE-COMMIT BURST (archived from STATE.md phase-steps at D-2497 rotation) — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2492 | **Cycle:** wave-5-e-demo-fidelity
+
+PR #264 (CLIFF+WRITER+DROP-INTEL) ADMIN SQUASH-MERGED to develop @be5b5c6fc (explicit in-session human auth; CI 49/49 green on c09d63593). S-REL-CLIFF-001 [ready v1.8]→[merged]; S-REL-WRITER-001 [ready v1.2]→[merged]; S-REL-DROP-INTEL-MAC-001 [ready v1.2]→[merged]. POL-14 NO-OP (no behavioral_contracts frontmatter in merged stories). story_index v3.024→v3.025. develop_head a4cd1b3fd→be5b5c6fc. STATE v9.019→v9.020.
+
+**Files touched (factory):** `.factory/STATE.md` — v9.019→v9.020. `.factory/stories/STORY-INDEX.md` — v3.024→v3.025.
+
+---
+
+### D-2497 — CAPSTONE-RUNBOOK + DEMO-PHASE-1-COMPLETE SINGLE-COMMIT BURST — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2497 | **Cycle:** wave-5-e-demo-fidelity
+
+Product-owner authored live-monroe-capstone-runbook.md v1.0: 10 acts / 24 beats covering all 14 Claroty xDome tables. Runbook scope: live monroe tenant (HTTPS to api.claroty.com); enrich_nvd ONLY (enrich_threat_intel is DTU-bound, not live-safe); DTU-zero; read-only surface; customer-data-free (AD-017 opaque creds); launcher test-soc/prism-live-mcp-wrapper.sh. SUPERSEDES stale T13-capstone-demo-runbook.md (DTU-based, v1.12). Demo Phase-1 prep now COMPLETE: all three artefacts done (live-validation-matrix.md v0.3 per D-2496 + soc-analyst-qa-catalog.md v0.3 per D-2496 + this capstone narrative). Remaining demo work = Phase-2: live monroe Q&A run + recorded walkthrough (HUMAN-IN-LOOP; MCP trust-gate operator-approved).
+
+PLANNING NOTES recorded in STATE.md D-2497: (1) nightly release lane kept as its OWN INDEPENDENT TRACK (human-directed 2026-09-08), implementation in progress on feature/S-REL-NIGHTLY-001 (nightly.yml cron 07:17 UTC + change-guard + vX.Y.Z-nightly.YYYYMMDD via RELEASE_PROMOTE_TOKEN → release.yml; keep-14 retention; edge-nightly pointer; RELEASE-CHANNELS §5 4-target doc fix). (2) S-REL-SPECS-TARBALL-001 (standalone specs tarball + install/docs guidance) TARGETED for v1.0.0-beta.2. (3) v1.0.0-beta.1 PUBLISHED (D-2494) and DEPLOYED to live SOC env (binary + matching 14-table Claroty spec). (4) SECURITY: plaintext API keys observed in test-soc/.mcp.json (Perplexity + Tavily) — operator advised to rotate + move to secret refs (values NOT recorded here per AD-017).
+
+D-2492 rotated from STATE.md Current Phase Steps and Decisions Log to burst-log archive (normal 5-row rotation). TD-VSDD-097: Dim-1 CLEAR (no BC sibling twin — planning/objectives files only). Dim-2 CLEAR (no spec copy-source section changed). Dim-3 CLEAR (no new MUSTs; no BC changes). TD-VSDD-091/POL-39 CLEAN. records-lint L1/L7/L9/L10 PASS. develop_head UNCHANGED 1724e727f. bc_index v10.06/vp_index v2.22/arch_index v2.379/story_index v3.026/total_stories 337 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.002→v10.003.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.002→v10.003. `.factory/objectives/live-monroe-capstone-runbook.md` — NEW v1.0 (10 acts / 24 beats; all 14 Claroty tables; enrich_nvd only; DTU-zero). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2492 archive + D-2497 burst summary appended. `.factory/sidecar-learning.md` — session-end entries appended.
