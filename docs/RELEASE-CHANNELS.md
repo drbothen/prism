@@ -9,8 +9,10 @@ flow through the ladder, and what criteria gate advancement.
 > **Relationship to RELEASING.md:** `RELEASING.md` (repo root) is the operational
 > stable-release runbook — step-by-step procedures for cutting a stable release using
 > the implemented `release-prep.yml` and `release-promote.yml` workflows. This file is
-> the channel strategy and reference. The pre-release lanes described here will be built
-> as a dedicated epic after the v1.0.0 stable release ships.
+> the channel strategy and reference. Nightly builds and ad-hoc pre-release tagging
+> (`-alpha.N`, `-beta.N`, `-rc.N`) are already implemented. The remaining pre-release
+> lane features (automatic dev tagging, alpha/beta/rc retention enforcement, `edge-dev`
+> pointer) will be built as a dedicated epic — see §2 for per-channel status.
 
 ---
 
@@ -49,7 +51,7 @@ _release authority_ (strictly controlled — only stable writes `main`).
 
 | Channel | Promise | Trigger | Source branch | Human gate | Tag form | GitHub marking | Status |
 |---------|---------|---------|---------------|------------|----------|----------------|--------|
-| **nightly** | Current `develop` state — scheduled; only runs if `develop` changed since last nightly | Scheduled cron (nightly) | `develop` | None | `X.Y.Z-nightly.YYYYMMDD` | Pre-release | IMPLEMENTED (`nightly.yml`) |
+| **nightly** | Current `develop` state — scheduled; only runs if `develop` changed since last nightly | Scheduled cron (nightly) | `develop` | None | `X.Y.Z-nightly.YYYYMMDD` (or `X.Y.Z-nightly.YYYYMMDD.N` for same-day collisions) | Pre-release | IMPLEMENTED (`nightly.yml`) |
 | **dev** | Current `develop` state — ad-hoc snapshot for spot testing | `workflow_dispatch` | `develop` | None | `X.Y.Z-dev.<shortsha>` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
 | **alpha** | First intentional pre-release of a new `X.Y.Z` line; may be feature-incomplete; API may move | `workflow_dispatch` | `develop` | None | `X.Y.Z-alpha.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
 | **beta** | Feature-complete; feature freeze in effect; stabilization only | `workflow_dispatch` | `develop` | None | `X.Y.Z-beta.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
@@ -75,8 +77,9 @@ BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
 **Nightly (IMPLEMENTED — `nightly.yml`):** The nightly channel is fully operational
 via `.github/workflows/nightly.yml` (scheduled cron 07:17 UTC, plus `workflow_dispatch`
 for manual verification). The workflow: checks out `develop`, guards for changes since
-the last nightly tag (no-op if HEAD unchanged), computes a `X.Y.Z-nightly.YYYYMMDD` tag
-from the `crates/prism-bin/Cargo.toml` X.Y.Z core (BASE-MATCH, no version-bump churn),
+the last nightly tag (no-op if HEAD unchanged), computes a `X.Y.Z-nightly.YYYYMMDD`
+tag (or `X.Y.Z-nightly.YYYYMMDD.N` for same-day collisions) from the
+`crates/prism-bin/Cargo.toml` X.Y.Z core (BASE-MATCH, no version-bump churn),
 pushes the annotated tag via PAT (triggering `release.yml`), enforces the 14-build
 retention window, and force-updates the `edge-nightly` convenience pointer.
 
@@ -219,9 +222,16 @@ Dev/alpha/beta/rc retention remains PLANNED.
 | **stable** | Keep forever. | n/a |
 
 Nightly retention is enforced inside `nightly.yml` after each tag push.  The deletion
-filter is a regex anchored to `v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}` — it cannot
-match alpha/beta/rc/stable/edge tags.  Dev retention will be enforced in a future
-workflow.
+filter uses the fully-anchored regex:
+
+```
+^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$
+```
+
+The `^` start-anchor, `$` end-anchor, and optional `(\.[0-9]+)?` group (same-day
+collision suffix `.N`) ensure the pattern matches both `vX.Y.Z-nightly.YYYYMMDD` and
+`vX.Y.Z-nightly.YYYYMMDD.N` while excluding alpha/beta/rc/stable/edge tags.  Dev
+retention will be enforced in a future workflow.
 
 ---
 

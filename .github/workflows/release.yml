@@ -259,35 +259,34 @@ jobs:
           # ------------------------------------------------------------------ #
           # CHANNEL-AWARE NOTES EXTRACTION                                      #
           #                                                                      #
-          # NIGHTLY (-nightly.* suffix): machine-generated dated tags cannot    #
-          # have pre-authored CHANGELOG sections — use git-cliff to summarise   #
-          # unreleased commits. Falls back to a concise generated body if       #
-          # git-cliff produces empty output (e.g. no conventional commits).     #
+          # NIGHTLY (exact form: vX.Y.Z-nightly.YYYYMMDD or .YYYYMMDD.N):      #
+          # Machine-generated dated tags cannot have pre-authored CHANGELOG     #
+          # sections. A canned summary body is the declared, unconditional      #
+          # output for nightly releases (no curated CHANGELOG required).        #
+          # MED-2 (Option B): git-cliff is not installed in publish-release     #
+          # and fetch-depth: 1 provides no commit history — the canned body     #
+          # is intentional for nightly builds, not a fallback for a failed      #
+          # tool. The anchored regex (SEC-NEW-LOW) prevents hybrid tags like    #
+          # v1.0.0-alpha.1-nightly.X from bypassing the curated-CHANGELOG gate. #
           #                                                                      #
           # ALL OTHER CHANNELS (stable vX.Y.Z, -alpha.*, -beta.*, -rc.*):       #
           # require a curated "## [VERSION] - DATE" section in CHANGELOG.md.   #
           # Hard-fail (RELEASE-NOTES-MISSING) if the section is absent — a     #
           # missing section is a release authoring defect; no auto-fallback.    #
           # ------------------------------------------------------------------ #
-          if [[ "$TAG" == *-nightly.* ]]; then
-            # ----- NIGHTLY CHANNEL: auto-generate notes via git-cliff -----
-            # cliff.toml at repo root governs the output format.
-            # '|| true': git-cliff non-zero exit (e.g. no conventional commits)
-            # should not abort the workflow — the empty-output fallback handles it.
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
+            # ----- NIGHTLY CHANNEL: canned generated body -----
+            # Nightly builds use a generated summary body (no curated CHANGELOG required).
             SHORT_SHA="$(git rev-parse --short HEAD)"
             DATE_UTC="$(date -u +%Y-%m-%d)"
-            git cliff --unreleased --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true
-            if [[ ! -s "$NOTES_FILE" ]]; then
-              echo "git-cliff produced empty output — using fallback nightly body"
-              {
-                echo "## Nightly build"
-                echo ""
-                echo "Nightly pre-release build of \`develop@${SHORT_SHA}\` — ${DATE_UTC} (UTC)."
-                echo ""
-                echo "Unreleased changes; see [CHANGELOG \[Unreleased\]](../../blob/develop/CHANGELOG.md) for ongoing development notes."
-              } > "$NOTES_FILE"
-            fi
-            echo "Nightly notes: $(wc -l < "$NOTES_FILE") lines for ${TAG} (git-cliff or fallback)"
+            {
+              echo "## Nightly build"
+              echo ""
+              echo "Nightly pre-release build of \`develop@${SHORT_SHA}\` — ${DATE_UTC} (UTC)."
+              echo ""
+              echo "Unreleased changes; see [CHANGELOG \[Unreleased\]](../../blob/develop/CHANGELOG.md) for ongoing development notes."
+            } > "$NOTES_FILE"
+            echo "Nightly notes: $(wc -l < "$NOTES_FILE") lines for ${TAG}"
           else
             # ----- STABLE / PRE-RELEASE CHANNEL (alpha, beta, rc): curated CHANGELOG -----
             # awk: skip the "## [VERSION] - DATE" header line itself; print all subsequent

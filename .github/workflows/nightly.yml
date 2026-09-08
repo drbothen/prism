@@ -174,7 +174,10 @@ jobs:
 
           TAG="$BASE_TAG"
           N=2
-          while git ls-remote --tags origin "${TAG}" | grep -qF "refs/tags/${TAG}"; do
+          # LOW-8: avoid SIGPIPE exit-141 under set -o pipefail (same pattern as LOW-5
+          # change-guard fix) — capture ls-remote output first, then check via parameter
+          # expansion (no pipe truncation, no grep-closes-pipe race).
+          while _ls_out=$(git ls-remote --tags origin "${TAG}" 2>&1) && [[ "$_ls_out" == *"refs/tags/${TAG}"* ]]; do
             echo "Tag ${TAG} already exists on origin — appending suffix .${N}"
             TAG="${BASE_TAG}.${N}"
             N=$((N + 1))
