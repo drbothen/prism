@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "2.0"
-timestamp: 2026-09-04T00:00:00Z
+version: "2.1"
+timestamp: 2026-09-08T00:00:00Z
 project: prism
 ---
 
@@ -14,6 +14,22 @@ project: prism
 > A zero-context restart MUST read this file to understand what the demo includes, what is already built, and what the honest gaps are.
 
 > **READ ORDER NOTE (cold-resume agents):** STATUS values in this document track build progress (MERGED / SCOPED-NOT-BUILT). For the AUTHORITATIVE current pipeline position, next action, and develop HEAD, the source-of-truth is **STATE.md frontmatter** + **SESSION-HANDOFF.md §RESUME SNAPSHOT**. This document is the demo SCOPE and NARRATIVE reference — not the live pipeline position.
+
+---
+
+## Live Demo Target — AUTHORITATIVE (Human-Directed 2026-09-08)
+
+> **GOVERNING DIRECTION (human-directed 2026-09-08, supersedes D-1163).** The live demo runs against the **LIVE Claroty xDome tenant ("monroe")** — a single real tenant, live API, read-only SOC-analyst Q&A over the 14 Claroty xDome tables. The DTU clone fleet is **STALE / NON-FUNCTIONAL** and is OUT of the live demo path.
+>
+> **DTU fleet status:** S-CLAROTY-DTU-PARITY-001 (Claroty DTU 14-table parity) and the demo bundle (S-REL-004) are DEFERRED post-rc.1 per D-2443. The DTU fleet as shipped implements only ~7 of 14 declared Claroty tables; G2–G6 routes are absent. The DTU fleet cannot serve a complete 14-table Claroty demo without S-CLAROTY-DTU-PARITY-001. No CrowdStrike/Armis/Cyberint DTU refreshes have landed for a multi-sensor live demo. Do NOT route a live demo walkthrough through the DTU demo-server.
+>
+> **Live demo path:** `prism start` against the real monroe/Claroty credential (AD-017 opaque path) → 14 Claroty xDome tables → PrismQL SOC-analyst queries → OCSF-normalized results. The `live-sensor-runbook.md` (`.factory/objectives/live-sensor-runbook.md`) documents the current live-soc deployment at `/Users/jmagady/Dev/test-soc/` with the monroe client (direct HTTPS to `api.claroty.com`).
+>
+> **`enrich` scope in live demos:** `enrich nvd(...)` is live-safe — it uses the HttpLookup path (`nvd.infusion.toml`) and has no DTU dependency. `enrich threat_intel(...)` routes through the prism-threatintel-infusion WASM plugin to the ThreatIntel DTU endpoint — the DTU is stale, so this path is NOT live-safe and must NOT be scripted in a live walkthrough unless the ThreatIntel DTU is explicitly brought up and confirmed functional.
+>
+> **See §Remaining Live-Demo Gaps** for the actual packaging gaps that stand between current code and a recorded live walkthrough.
+>
+> **See §Binding Demo Invariant — DTU-EVERYTHING (D-1163)** for the superseded prior direction (historical record).
 
 ---
 
@@ -233,53 +249,51 @@ BCs: **BC-2.11.024 v1.4** (IEQ/IIN/INE operators) + **BC-2.02.013 v1.10** (adapt
 
 ---
 
-## SCOPED-NOT-BUILT — Honest Gaps
+## REMAINING LIVE-DEMO GAPS — Honest Gaps
 
-> Critical to not forget. These items are designed and scoped but have NO code yet.
+> All previously SCOPED-NOT-BUILT stories are **MERGED** on `develop`. The items below are NOT code gaps — they are **packaging and validation gaps** for the live-monroe demo path. There is no unimplemented feature standing between current code and a live Claroty xDome demo; the gaps are in recording, narrative authorship, and the enrich scope boundary.
 
-### THE `enrich` QUERY PATH IS NOT WIRED YET — REQUIRED BEFORE DEMO (D-1164 USER DECISION)
+### (a) No end-to-end live-run record of the 14-table SOC Q&A
 
-> **D-1164 USER SCOPE DECISION (2026-06-14):** FULL Option-A infusion framework is REQUIRED before the demo is recorded. See §Binding Demo Invariant corollary above.
+The live-validation matrix (`.factory/objectives/xdome-v1-validation/`) covers the initial 4-table scope (devices, audit_log, vulnerabilities, device_vulnerability_relations from G1). The G2–G6 Wave-A/B/C tables — claroty_ot_activity_events, claroty_device_vulnerability_relations (wave-B iteration), claroty_servers + server_interfaces, claroty_organization_zones + policy tables, claroty_organization_acl_policies — have not been validated end-to-end against the live monroe tenant in a recorded walkthrough. The SOC-analyst Q&A over all 14 tables has not been demonstrated.
 
-ThreatIntel + NVD are seeded with correlated data and the DTU clones **return it**, but the analyst **CANNOT yet pivot** `| enrich nvd(cve_id)` **through prism** in a PrismQL query. The infusion engine (`S-1.14`) is partial-merge / 100% `unimplemented!()` (TD-PLUGIN-P0-002 P0 open).
+### (b) No authored live-monroe capstone narrative story
 
-**D-1164 resolution:** The user has chosen Full Option A — build the entire infusion framework before demo recording. Enrichment must run through the REAL prism code path with DTU clones as the only substituted element.
+**T13 (capstone)** has not been authored as a live-environment story. Owner: product-owner + story-writer. The narrative must be scoped to the LIVE Claroty xDome / monroe tenant — NOT to DTU clones. This replaces the prior DTU-based T13 capstone placeholder. See §Stale T13 Runbook below.
 
-**The FULL Option-A infusion chain (REQUIRED, demo-critical-path) — 4 stories (D-1168 architect verdict: S-1.15 DROPPED from demo lane):**
+### (c) No recorded LIVE walkthrough
 
-Designed in WO-D1109 at `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md`. Four stories in linear dependency order (S-1.15 REMOVED from demo enrichment lane — see §S-1.15 DROP below):
-- **S-1.14-REDO** (~8pt; draft/blocked) — Full infusion engine: InfusionLoader + 3-tier cache + all source types (MMDB/CSV/JSON + plugin). FOUNDATIONAL. (`S-DEMO-ENRICHMENT-PIVOT-001` is its `forward_subset_implemented_by`.)
-- **S-DEMO-ENRICHMENT-PIVOT-001** (~5pt; ready v1.3) — plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query.
-- **S-DEMO-ENRICHMENT-PIVOT-002** (~8pt; draft v1.1) — `threatintel.infusion.toml` + `nvd.infusion.toml` grounded vs DTU route surfaces + two WASM `.prx` plugin crates (`prism-threatintel-infusion`, `prism-nvd-infusion`) calling DTU HTTP endpoints.
-- **S-DEMO-ENRICHMENT-PIVOT-003** (~8pt; draft v1.8) — real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures + validation of canonical pivot queries `| enrich threat_intel(ioc_value)` / `| enrich nvd(device_cves_first)` against demo server at scenario stage >= 3.
+T14 (demo recording) is unstarted against the live-monroe path. A recorded walkthrough — demonstrating the SOC-analyst Q&A loop over the 14 tables against the real xDome tenant — is needed for the rc.1 release gate and the demo bundle (S-REL-004, post-rc.1).
 
-WASM toolchain risk ACCEPTED with documented contingency per D-1164: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. This is a human-directed deferral per Canonical Principle Rule 3.
+### (d) `enrich threat_intel(...)` is DTU-bound — not live-safe
 
-**§S-1.15 DROP from demo enrichment lane (D-1168 architect verdict):** S-1.15's remaining work is `fire_alert`/`fire_case`/`fire_report` action-plugin dispatch (TD-PLUGIN-P0-008). This is write-back/TDE (DEFERRED), NOT enrichment. `enrich_single` (the enrichment path) is already operational on develop. The enrichment lane needs NO S-1.15 work. S-1.15 is tracked alongside S-4.08 as deferred-TDE, NOT demo-blocking. S-1.15 as a story STILL EXISTS in STORY-INDEX (total_stories unchanged); it is only removed from the demo enrichment lane set.
+The `threat_intel(...)` enrichment path routes through the prism-threatintel-infusion WASM plugin (`threatintel.infusion.toml`) to the ThreatIntel DTU endpoint. The DTU fleet is stale. If enrichment is scripted in the live demo, only `enrich nvd(...)` (HttpLookup path via `nvd.infusion.toml`, no DTU dependency) is live-safe. `enrich threat_intel(...)` must NOT be scripted in a live walkthrough unless the ThreatIntel DTU is explicitly brought up and confirmed functional alongside the demo.
 
-This is **THE FLAGSHIP `enrich` FEATURE**. Slots AFTER the capability-discovery block, BEFORE T11 launcher and T13 capstone. Closes TD-PLUGIN-P0-002 (P0) upon merge.
+### Stale T13 Runbook — Do NOT Use for a Live Walkthrough
 
-### Capability-Discovery Block — REQUIRED (D-1107 scoped, D-1162 promoted to REQUIRED)
+`.factory/objectives/T13-capstone-demo-runbook.md` (v1.12) is **STALE for a live-monroe walkthrough** for three reasons:
 
-> **D-1162 USER SCOPE DECISION (2026-06-14):** These stories are NOT optional. User explicitly stated "are not optional." All four are now REQUIRED core demo deliverables.
+1. **Authored against DTU-EVERYTHING (D-1163):** The runbook opens with "Binding invariant — DTU-EVERYTHING (D-1163): Every data source in this demo is a prism DTU behavioral clone." That invariant is now superseded (see §Live Demo Target — AUTHORITATIVE above).
+2. **Pre-`S-ADR058-OCSF-ROUTING-001` column names:** Several query scripts use column names from before the OCSF ROUTING/COERCION stages. These names have changed since the runbook was authored.
+3. **Requires DTU demo-server infrastructure:** The runbook's setup steps use `demo-server start-multi` to launch the DTU clone fleet — a fleet that is stale and non-functional for a 14-table demo.
 
-Four stories:
-- **S-5.02** — Tool routing / errors / client scoping (depends_on S-5.01; PREREQ-VERIFICATION needed — S-5.01 formal story row shows not-started but S-5.01-FOLLOWUP-MCP-BOOT merged PR #163 2026-05-29 is the graduation vehicle)
-- **S-5.03** — Resources and prompts (hard dep of S-5.04; depends_on S-5.02; transitive pull-in per D-1162)
-- **S-5.04** — Sensor health subsystem (depends_on S-5.03 + S-DEMO-001)
-- **S-3.13** — Dynamic table availability (parallel after PO authors dedicated BCs; depends_on S-3.02 SATISFIED + S-1.12 PREREQ-VERIFICATION needed — partial-merge; S-1.12-FOLLOWUP BLOCKED)
+A fresh live-monroe capstone narrative + runbook must be authored as part of T13 before T14 recording begins. Do NOT attempt a live walkthrough using T13-capstone-demo-runbook.md as written.
 
-All four require `dclaude:remove-uncertainty` before TDD delivery (D-1110 standing rule). PO must author dedicated BCs for S-5.02 and S-3.13 before status=ready. Delivery ordering: S-5.01-verify → S-5.02 → S-5.03 → S-5.04; S-1.12-verify → S-3.13 (parallel chain).
+### Previously SCOPED-NOT-BUILT — Now MERGED (status correction)
 
-### T11 — Launcher Consolidation
+The following items were listed in prior versions of this document as SCOPED-NOT-BUILT with "no code yet" or "not wired" claims. All are MERGED on `develop`. Their prior not-built status was stale at the time of the 2026-09-08 correction:
 
-**Story:** `S-DEMO-LAUNCHER-CONSOLIDATION-001` (ready v2.1; depends_on S-DEMO-003 SATISFIED)
-
-Option-2 Rust executed (D-1167/D-1168): `StartMulti` CLI subcommand wiring `start_instances`/`MultiInstanceConfig`; `MultiOrgDemoConfig`/`OrgConfig` structs; nested `{org_slug:{sensor:url}}` sidecar; 13 ACs; 8 pts; tdd_mode tdd; 5 Red Gate tests; `fixture-gen` feature required (HARD-ERROR if absent — GAP-1 closure); Cyberint `new_with_seed`+`configure({access_token})` composite (GAP-2 closure); DEMO_RUN_DIR note (GAP-3); new `[[test]] required-features=["dtu","fixture-gen"]` guard. remove-uncertainty NEXT.
-
-### T13 — Capstone
-
-**Story:** Multi-client SOC-analyst narrative story (not yet named or authored). Owner: product-owner + story-writer. After data layer + tooling exist.
+| Story | Merged status | Notes |
+|-------|--------------|-------|
+| S-1.14-REDO (infusion engine) | MERGED PR #193 | TD-PLUGIN-P0-002 (infusion 100% `unimplemented!()`) CLOSED |
+| S-DEMO-ENRICHMENT-PIVOT-001 (plugin-bridge UDF) | MERGED PR #189 | |
+| S-DEMO-ENRICHMENT-PIVOT-002 (ThreatIntel + NVD infusion specs + WASM plugin) | MERGED PR #195 | prism-nvd-infusion → HttpLookup; prism-threatintel-infusion WASM |
+| S-DEMO-ENRICHMENT-PIVOT-003 (IOC stamping + pivot-query validation) | MERGED PR #196 | BC-2.06.019 §Interim State CLOSED; TD-PLUGIN-P0-002 P0 CLOSED |
+| S-5.02 (tool routing + client scoping) | MERGED PR #191 | BC-2.10.011 active |
+| S-5.03 (resources and prompts) | MERGED | BC-2.08.002/003/004 active |
+| S-5.04 (sensor health subsystem) | MERGED PR #202 | BC-2.08.001 active |
+| S-3.13 (dynamic table availability) | MERGED PR #192 | BC-2.16.007 active |
+| S-DEMO-LAUNCHER-CONSOLIDATION-001 (T11 launcher) | MERGED PR #190 | `demo-server start-multi` subcommand live |
 
 ---
 
@@ -329,17 +343,25 @@ T1–T4 DONE
 
 ---
 
-## Binding Demo Invariant — DTU-EVERYTHING (D-1163, user reaffirmation 2026-06-14)
+## ~~Binding Demo Invariant — DTU-EVERYTHING (D-1163, user reaffirmation 2026-06-14)~~ \[SUPERSEDED\]
 
-> **This invariant is authoritative and binding on ALL remaining demo stories.**
+> **SUPERSEDED by live-environment demo direction, human-directed 2026-09-08.** The DTU-EVERYTHING invariant is superseded by §Live Demo Target — AUTHORITATIVE above. Rationale: D-2443 (2026-09-04) already established that rc.1 is validated on the LIVE xDome/monroe gate only; the DTU fleet lacks G2–G6 routes and cannot serve a complete 14-table demo; the invariant directly contradicted the live-environment direction already recorded in §v1 FIRST RELEASE (D-2264/D-2443). Human-directed clarification 2026-09-08 resolves the contradiction in favor of the live-environment direction.
+>
+> The original invariant text is preserved below as historical record. It is NOT operative.
 
-**DTU-EVERYTHING: For the live demo, ALL data sources run on prism DTU behavioral clones — every sensor (CrowdStrike/Armis/Claroty/Cyberint) AND every enrichment source (ThreatIntel/NVD). NO real third-party API connections in the demo.**
+---
 
-All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consolidation / narrative capstone) MUST scope against DTU clones, not live services. Story specs, acceptance criteria, and Red Gate tests must ground against DTU clone routes, not production vendor endpoints.
+### Historical record — DTU-EVERYTHING (SUPERSEDED — not operative)
 
-**Corollary — infusion/WASM enrichment (D-1164 SUPERSEDES D-1163 corollary):** Per user decision D-1164 (2026-06-14), the FULL infusion framework (Option A) is REQUIRED before the demo is recorded. Real enrichment must flow through the REAL prism code path the same structural way sensors do: `| enrich` PrismQL pipe → DataFusion UDF → InfusionRegistry → PluginInfusionSource → WASM plugin → DTU HTTP endpoint. DTU clones are the ONLY substituted element — this is fully consistent with the DTU-EVERYTHING invariant (the DTUs ARE the endpoints; the prism enrichment code is real). Story B's demo-server-side enrichment correlation (BC-2.06.020) remains correct and on develop, but is acknowledged as NOT sensor-parity-real: it pre-seeds ThreatIntel/NVD DTU registries from `ScenarioEntityCatalog` without executing any prism enrichment code path. D-1164 supersedes and completes Story B's work via the FULL Option-A infusion framework. TD-PLUGIN-P0-002 (P0 open — infusion 100% `unimplemented!()`) is scheduled for closure by this work (S-1.14-REDO + S-1.15 + S-DEMO-ENRICHMENT-PIVOT-001/002/003). WASM toolchain risk ACCEPTED with contingency: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. **The PIVOT-001/002/003 enrichment chain is REQUIRED BEFORE T13 capstone/T14 recording.** Four Option-A stories (D-1168: S-1.15 DROPPED from demo enrichment lane — deferred-TDE with S-4.08; TD-PLUGIN-P0-008): S-1.14-REDO (full infusion engine) + S-DEMO-ENRICHMENT-PIVOT-001 (plugin-type UDF, ~5pt) + S-DEMO-ENRICHMENT-PIVOT-002 (2 WASM `.prx` plugins + infusion.toml, ~8pt) + S-DEMO-ENRICHMENT-PIVOT-003 (IOC stamping + pivot-query validation, ~8pt).
+> ~~**This invariant was authoritative and binding on ALL remaining demo stories.**~~
 
-**Cross-ref:** Task ledger `.factory/objectives/multi-client-soc-demo-tasks.md` §PREREQ-CONFIRMED block (D-1163).
+~~**DTU-EVERYTHING: For the live demo, ALL data sources run on prism DTU behavioral clones — every sensor (CrowdStrike/Armis/Claroty/Cyberint) AND every enrichment source (ThreatIntel/NVD). NO real third-party API connections in the demo.**~~
+
+~~All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consolidation / narrative capstone) MUST scope against DTU clones, not live services. Story specs, acceptance criteria, and Red Gate tests must ground against DTU clone routes, not production vendor endpoints.~~
+
+~~**Corollary — infusion/WASM enrichment (D-1164 SUPERSEDES D-1163 corollary):** Per user decision D-1164 (2026-06-14), the FULL infusion framework (Option A) is REQUIRED before the demo is recorded. Real enrichment must flow through the REAL prism code path the same structural way sensors do: `| enrich` PrismQL pipe → DataFusion UDF → InfusionRegistry → PluginInfusionSource → WASM plugin → DTU HTTP endpoint. DTU clones are the ONLY substituted element — this is fully consistent with the DTU-EVERYTHING invariant (the DTUs ARE the endpoints; the prism enrichment code is real). Story B's demo-server-side enrichment correlation (BC-2.06.020) remains correct and on develop, but is acknowledged as NOT sensor-parity-real: it pre-seeds ThreatIntel/NVD DTU registries from `ScenarioEntityCatalog` without executing any prism enrichment code path. D-1164 supersedes and completes Story B's work via the FULL Option-A infusion framework. TD-PLUGIN-P0-002 (P0 open — infusion 100% `unimplemented!()`) is scheduled for closure by this work (S-1.14-REDO + S-1.15 + S-DEMO-ENRICHMENT-PIVOT-001/002/003). WASM toolchain risk ACCEPTED with contingency: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. **The PIVOT-001/002/003 enrichment chain is REQUIRED BEFORE T13 capstone/T14 recording.** Four Option-A stories (D-1168: S-1.15 DROPPED from demo enrichment lane — deferred-TDE with S-4.08; TD-PLUGIN-P0-008): S-1.14-REDO (full infusion engine) + S-DEMO-ENRICHMENT-PIVOT-001 (plugin-type UDF, ~5pt) + S-DEMO-ENRICHMENT-PIVOT-002 (2 WASM `.prx` plugins + infusion.toml, ~8pt) + S-DEMO-ENRICHMENT-PIVOT-003 (IOC stamping + pivot-query validation, ~8pt).~~
+
+~~**Cross-ref:** Task ledger `.factory/objectives/multi-client-soc-demo-tasks.md` §PREREQ-CONFIRMED block (D-1163).~~
 
 ---
 
@@ -363,6 +385,7 @@ All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consoli
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.1 | 2026-09-08 | product-owner | Human-directed pivot 2026-09-08: live demo now runs against LIVE Claroty xDome tenant (monroe), DTU fleet stale/non-functional. Added §Live Demo Target — AUTHORITATIVE. Marked §Binding Demo Invariant — DTU-EVERYTHING (D-1163) SUPERSEDED. Replaced §SCOPED-NOT-BUILT with §REMAINING LIVE-DEMO GAPS — all prior SCOPED-NOT-BUILT stories (S-1.14-REDO, PIVOT-001/002/003, S-5.02/03/04, S-3.13, T11) are MERGED; corrected false "no code yet" claims; documented actual packaging gaps (a–d). Added stale T13 runbook flag. |
 | 2.0 | 2026-09-04 | state-manager | D-2443: amended §v1 FIRST RELEASE — demo bundle (S-REL-004) DEFERRED post-rc.1 per human decision 2026-09-04; Claroty DTU 14-table parity (S-CLAROTY-DTU-PARITY-001; 5 missing G2–G6 routes) DEFERRED post-rc.1; rc.1 validated on LIVE xDome/monroe only (not DTU-backed). §Explicitly DE-SCOPED updated with demo bundle + DTU parity deferral entries. §v1 FIRST RELEASE amended with D-2443 note. |
 | 1.9 | 2026-08-29 | state-manager | D-2357: amended §v1 FIRST RELEASE — full xDome G2–G6 expansion + 4 pre-work spikes IN v1 scope (human-directed); §Endpoint Expansion subsection added; §Explicitly DE-SCOPED updated with D-2357 note + write-back entry. xdome-endpoint-expansion-plan.md cross-ref added. |
 | 1.8 | 2026-08-21 | state-manager | D-2264: v1 FIRST RELEASE section added (GOVERNING DECISION — Claroty xDome end-to-end as v1 target; POST-v1 de-scopings listed). |

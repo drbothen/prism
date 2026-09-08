@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "10.000"
+version: "10.001"
 producer: state-manager
-timestamp: 2026-09-08T02:40:33Z
+timestamp: 2026-09-08T03:15:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -28,14 +28,14 @@ arch_index_version: "2.379"
 # NOTE: D-2490 — ARCH-INDEX v2.378→v2.379: ADR-063 pin v1.11→v1.12.
 workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
 # NOTE: D-2444 — workspace_test_count 6022 verified at @725cf413d.
-vsdd_factory_version: "1.0.0-rc.22"
+vsdd_factory_version: "1.0.0-rc.23"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2494 COMPACT-STATE + v1.0.0-beta.1 PUBLISHED (TD-VSDD-053) — v1.0.0-beta.1 GitHub prerelease PUBLISHED 2026-09-08T02:40:33Z; release.yml run 34178070190 ALL-GREEN (4 build legs + Create GitHub Release); 7 assets: 4 platform archives (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc) + checksums.txt + install.sh + install.ps1; prerelease=true, draft=false; develop pre-release lane (RELEASE-CHANNELS.md; no main promotion); tag object 31b0f075 on develop@1724e727f; .worktrees/S-REL-BETA1-NOTES-001 TORN DOWN; develop_head UNCHANGED 1724e727f; all indexes UNCHANGED; COMPACT-STATE burst: decisions D-2300..D-2489 → decisions-archive-D2300-D2489.md; snapshots D-2321..D-2491 → session-handoff-archive.md; STATE v9.021→v10.000."
+current_step: "D-2495 DEMO LIVE-ENV PIVOT + DEMO-SCOPE.md v2.0→v2.1 (TD-VSDD-053) — human-directed 2026-09-08: live demo runs against LIVE Claroty xDome tenant (monroe; live API; AD-017 opaque creds), NOT DTU clone fleet. DTU fleet STALE/non-functional; S-CLAROTY-DTU-PARITY-001 + S-REL-004 DEFERRED post-rc.1. D-1163 DTU-EVERYTHING SUPERSEDED. DEMO-SCOPE.md v2.0→v2.1: stale SCOPED-NOT-BUILT section (falsely claimed S-5.02/5.03/5.04/3.13 + enrich PIVOT chain unbuilt — all MERGED) corrected; 4 real packaging gaps (a–d) documented; T13 DTU runbook flagged stale. Demo readiness: live Claroty xDome READY-WITH-GAPS; multi-client DTU NOT-READY. Full live-demo packaging authorized (live-validation matrix + 27-Q&A → 14 tables → live monroe run → capstone → recording). NEXT: product-owner rewrite live-validation matrix + 27-Q&A catalog; capstone narrative; Phase-2 live monroe Q&A + recording. Parallel: S-REL-NIGHTLY-001 queued (serialized after/around demo Phase-1). develop_head UNCHANGED 1724e727f. trajectory-tail →8→0→1→2. STATE v10.000→v10.001."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "TORN DOWN (D-2494): .worktrees/S-REL-BETA1-NOTES-001. REMOVABLE: .worktrees/E-REL-NOTES (D-2492), .worktrees/S-REL-AGENT-VERSION-001 (D-2473), .worktrees/S-REL-VERSION-IDENTITY (D-2465), .worktrees/S-CLAROTY-VULNS-001, .worktrees/S-ENGINE-H2-LARGE-RESPONSE-001, .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001. PARKED (keep): S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch). All wave-5-e feature worktrees MERGED D-2387..D-2415."
+worktree_status: "TORN DOWN (D-2494): .worktrees/S-REL-BETA1-NOTES-001. REMOVABLE: .worktrees/E-REL-NOTES (D-2492), .worktrees/S-REL-AGENT-VERSION-001 (D-2473), .worktrees/S-REL-VERSION-IDENTITY (D-2465), .worktrees/S-CLAROTY-VULNS-001, .worktrees/S-ENGINE-H2-LARGE-RESPONSE-001, .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001. PARKED (keep): S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch). All wave-5-e feature worktrees MERGED D-2387..D-2415 (exhaustive)."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -70,6 +70,8 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-09-08"
 ---
 
+<!-- STATE.md SIZE BUDGET: 205 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -5 (over-soft) | margin from hard-cap: 295 | margin from actual: 0 | compact eligible: safe_to_compact: true -->
+
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
@@ -81,7 +83,7 @@ pre_compact_snapshot_at: "2026-09-08"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-08 D-2494: COMPACT-STATE + v1.0.0-beta.1 PUBLISHED — release.yml run 34178070190 ALL-GREEN; 7 assets; develop_head UNCHANGED 1724e727f; STATE v9.021→v10.000. |
+| **Last Updated** | 2026-09-08 D-2495: DEMO LIVE-ENV PIVOT + DEMO-SCOPE.md v2.0→v2.1 — live demo → LIVE Claroty xDome (monroe); DTU fleet stale/non-functional + deferred; D-1163 SUPERSEDED; 4 packaging gaps documented. trajectory-tail →8→0→1→2. STATE v10.000→v10.001. |
 
 ## Phase Progress
 
@@ -122,27 +124,27 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 
 ## Current Phase Steps
 
-_Steps D-735..D-2489 archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. Showing last 5 steps._
+_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. Showing last 5 steps._
 
 | Step | Date | Summary |
 |------|------|---------|
-| D-2494 | 2026-09-08 | COMPACT-STATE + v1.0.0-beta.1 PUBLISHED. release.yml run 34178070190 ALL-GREEN; 7 assets; develop_head UNCHANGED 1724e727f; .worktrees/S-REL-BETA1-NOTES-001 TORN DOWN; STATE v9.021→v10.000. |
-| D-2493 | 2026-09-08 | POST-MERGE + RELEASE-TAG. PR #275 (S-REL-BETA1-NOTES-001) merged @1724e727f; v1.0.0-beta.1 tag CUT; release.yml triggered (4-target matrix). develop_head be5b5c6fc→1724e727f. STATE v9.020→v9.021. |
-| D-2492 | 2026-09-08 | POST-MERGE. PR #264 (CLIFF+WRITER+DROP-INTEL) squash-merged @be5b5c6fc (explicit human auth); 3 stories MERGED; POL-14 NO-OP; story_index v3.024→v3.025. STATE v9.019→v9.020. |
 | D-2491 | 2026-09-07 | SESSION WRAP. PR #264 MERGE-READY; CLEAN(PR-merge) accepted (human-directed); DROP-INTEL crystallized (ADR-065 v1.1/ADR-064 v2.3/S-REL-DROP-INTEL-MAC-001 v1.2). STATE v9.018→v9.019. |
-| D-2490 | 2026-09-07 | PR #264 pass-6 F-1 LOW + OBS-1 RESOLVED. ARCH-INDEX v2.378→v2.379; STORY-INDEX v3.023→v3.024. CLEAN(PR-merge). STATE v9.017→v9.018. |
+| D-2492 | 2026-09-08 | POST-MERGE. PR #264 (CLIFF+WRITER+DROP-INTEL) squash-merged @be5b5c6fc (explicit human auth); 3 stories MERGED; POL-14 NO-OP; story_index v3.024→v3.025. STATE v9.019→v9.020. |
+| D-2493 | 2026-09-08 | POST-MERGE + RELEASE-TAG. PR #275 (S-REL-BETA1-NOTES-001) merged @1724e727f; v1.0.0-beta.1 tag CUT; release.yml triggered (4-target matrix). develop_head be5b5c6fc→1724e727f. STATE v9.020→v9.021. |
+| D-2494 | 2026-09-08 | COMPACT-STATE + v1.0.0-beta.1 PUBLISHED. release.yml run 34178070190 ALL-GREEN; 7 assets; develop_head UNCHANGED 1724e727f; .worktrees/S-REL-BETA1-NOTES-001 TORN DOWN; STATE v9.021→v10.000. |
+| D-2495 | 2026-09-08 | DEMO LIVE-ENV PIVOT + DEMO-SCOPE.md v2.0→v2.1. Human-directed: live demo → LIVE Claroty xDome (monroe); DTU fleet STALE/non-functional + OUT of demo path; D-1163 DTU-EVERYTHING SUPERSEDED; 4 packaging gaps (a–d) documented. STATE v10.000→v10.001. |
 
 ## Decisions Log
 
-_D-2300..D-2489 archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. Showing last 5 decisions._
+_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. Showing last 5 decisions._
 
 | ID | Agent | Date | Summary | Cycle | Committed |
 |----|-------|------|---------|-------|-----------|
-| D-2494 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — v1.0.0-beta.1 GitHub prerelease PUBLISHED 2026-09-08T02:40:33Z; release.yml run 34178070190 ALL-GREEN (4 build legs + Create GitHub Release); 7 assets: 4 platform archives (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc) + checksums.txt + install.sh + install.ps1; prerelease=true, draft=false; first published pre-release (develop lane; no main promotion); tag object 31b0f075 on develop@1724e727f; .worktrees/S-REL-BETA1-NOTES-001 TORN DOWN; develop_head UNCHANGED 1724e727f; all indexes UNCHANGED; COMPACT-STATE: D-2300..D-2489 → decisions-archive-D2300-D2489.md; D-2321..D-2491 → session-handoff-archive.md; STATE v9.021→v10.000; SESSION-HANDOFF v8.108→v9.000. | wave-5-e-demo-fidelity | factory-artifacts |
-| D-2493 | state-manager | 2026-09-08 | POST-MERGE + RELEASE-TAG SINGLE-COMMIT BURST (TD-VSDD-053) — PR #275 (S-REL-BETA1-NOTES-001) ADMIN SQUASH-MERGED @1724e727f 2026-09-08T01:44:50Z (explicit human auth; CI 49/49 green); v1.0.0-beta.1 CHANGELOG curated (git-cliff Layer-2 trimmed 243→86 entries); v1.0.0-rc.1 tag DELETED (never published); v1.0.0-beta.1 tag CUT (annotated object 31b0f075 on develop@1724e727f); release.yml run 34178070190 triggered (4-target matrix; NO Intel-mac per ADR-065); develop_head be5b5c6fc→1724e727f; story_index v3.025→v3.026; STATE v9.020→v9.021. | wave-5-e-demo-fidelity | factory-artifacts |
-| D-2492 | state-manager | 2026-09-08 | POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) ADMIN SQUASH-MERGED to develop @be5b5c6fc (explicit in-session human auth; CI 49/49 green on c09d63593); S-REL-CLIFF-001 [ready v1.8]→[merged]; S-REL-WRITER-001 [ready v1.2]→[merged]; S-REL-DROP-INTEL-MAC-001 [ready v1.2]→[merged]; POL-14 NO-OP; story_index v3.024→v3.025; develop_head a4cd1b3fd→be5b5c6fc; STATE v9.019→v9.020. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2491 | state-manager | 2026-09-07 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — CONVERGENCE-BAR (human-directed 2026-09-07): PR #264 CLEAN(PR-merge) accepted; strict cosmetic loop STOPPED (analogous to D-2259/D-2396); PR #264 MERGE-READY pending push→CI→explicit-human-auth-merge; DROP-INTEL crystallized: ADR-065 v1.1 / ADR-064 v2.3 / S-REL-DROP-INTEL-MAC-001 ready v1.2; develop_head UNCHANGED a4cd1b3fd; STATE v9.018→v9.019; SESSION-HANDOFF v8.107→v8.108. | wave-5-e-demo-fidelity | factory-artifacts |
-| D-2490 | state-manager | 2026-09-07 | SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 frozen code @c09d63593; PR-LEVEL passes 4+5 CLEAN(strict) streak 2/3; pass-6 F-1 LOW [spec-drift: S-REL-DROP-INTEL-MAC-001 grep exclusion filter added] + OBS-1 [spec-drift: ADR-063 §D3 breaking block guard documented]; ARCH-INDEX v2.378→v2.379; STORY-INDEX v3.023→v3.024; CLEAN(strict): NO; CLEAN(PR-merge): YES; streak RESET 0/3; STATE v9.017→v9.018; SESSION-HANDOFF v8.106→v8.107. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2492 | state-manager | 2026-09-08 | POST-MERGE SINGLE-COMMIT BURST (TD-VSDD-053) — PR #264 (CLIFF+WRITER+DROP-INTEL) ADMIN SQUASH-MERGED to develop @be5b5c6fc (explicit in-session human auth; CI 49/49 green on c09d63593); S-REL-CLIFF-001 [ready v1.8]→[merged]; S-REL-WRITER-001 [ready v1.2]→[merged]; S-REL-DROP-INTEL-MAC-001 [ready v1.2]→[merged]; POL-14 NO-OP; story_index v3.024→v3.025; develop_head a4cd1b3fd→be5b5c6fc; STATE v10.000→v10.001. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2493 | state-manager | 2026-09-08 | POST-MERGE + RELEASE-TAG SINGLE-COMMIT BURST (TD-VSDD-053) — PR #275 (S-REL-BETA1-NOTES-001) ADMIN SQUASH-MERGED @1724e727f 2026-09-08T01:44:50Z (explicit human auth; CI 49/49 green); v1.0.0-beta.1 CHANGELOG curated (git-cliff Layer-2 trimmed 243→86 entries); v1.0.0-rc.1 tag DELETED (never published); v1.0.0-beta.1 tag CUT (annotated object 31b0f075 on develop@1724e727f); release.yml run 34178070190 triggered (4-target matrix; NO Intel-mac per ADR-065); develop_head be5b5c6fc→1724e727f; story_index v3.025→v3.026; STATE v9.020→v9.021. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2494 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — v1.0.0-beta.1 GitHub prerelease PUBLISHED 2026-09-08T02:40:33Z; release.yml run 34178070190 ALL-GREEN (4 build legs + Create GitHub Release); 7 assets: 4 platform archives (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc) + checksums.txt + install.sh + install.ps1; prerelease=true, draft=false; first published pre-release (develop lane; no main promotion); tag object 31b0f075 on develop@1724e727f; .worktrees/S-REL-BETA1-NOTES-001 TORN DOWN; develop_head UNCHANGED 1724e727f; all indexes UNCHANGED; COMPACT-STATE: D-2300..D-2489 (exhaustive) → decisions-archive-D2300-D2489.md; D-2321..D-2491 (exhaustive) → session-handoff-archive.md; STATE v9.021→v10.000; SESSION-HANDOFF v8.108→v9.000. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2495 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — DEMO LIVE-ENVIRONMENT PIVOT, human-directed 2026-09-08. Live demo runs against LIVE Claroty xDome tenant (monroe; live API; AD-017 opaque creds), NOT DTU clone fleet. DTU fleet STALE/non-functional; S-CLAROTY-DTU-PARITY-001 + S-REL-004 remain DEFERRED post-rc.1. SUPERSEDES D-1163 (DTU-EVERYTHING). DEMO-SCOPE.md v2.0→v2.1: D-1163 marked superseded (historical text preserved); stale SCOPED-NOT-BUILT section (falsely claimed S-5.02/5.03/5.04/3.13 + enrich PIVOT chain unbuilt — all MERGED) corrected to merged-status truth + 4 real packaging gaps (a: no 14-table live Q&A run record; b: no live capstone narrative; c: no recorded live walkthrough; d: enrich threat_intel DTU-bound/not-live-safe); T13 DTU runbook flagged stale. Demo readiness: live Claroty xDome READY-WITH-GAPS; multi-client DTU demo NOT-READY. Human authorized full live-demo packaging (rewrite live-validation matrix + 27-Q&A catalog → 14 tables → live monroe run → capstone narrative → recording). develop_head UNCHANGED 1724e727f; STATE v10.000→v10.001. | wave-5-e-demo-fidelity | factory-artifacts |
 
 ## Skip Log
 
@@ -174,17 +176,18 @@ _D-2300..D-2489 archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D230
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, decisions-archive-D2300-D2489.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2494 — COMPACT-STATE + v1.0.0-beta.1 PUBLISHED; develop @1724e727f; STATE v10.000) [supersedes D-2493]
+## Session Resume Checkpoint (D-2495 — DEMO LIVE-ENV PIVOT + DEMO-SCOPE.md v2.0→v2.1; develop @1724e727f; STATE v10.001) [supersedes D-2494]
 
 ### RESUME IN ONE BREATH
-Phase 3, v1.0.0-beta.1 release complete. v1.0.0-beta.1 GitHub prerelease PUBLISHED 2026-09-08T02:40:33Z (release.yml run 34178070190 ALL-GREEN; 7 assets). STATE.md compacted (v9.021→v10.000). develop_head 1724e727f; all indexes frozen (bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.026 / total_stories 337). NEXT: triage 10 dependabot PRs #265–#274; close PR #255; plan post-beta.1 stories.
+Phase 3, demo live-environment pivot complete (D-2495). Human-directed 2026-09-08: live demo runs against LIVE Claroty xDome tenant (monroe), NOT DTU clone fleet. D-1163 DTU-EVERYTHING SUPERSEDED. DEMO-SCOPE.md v2.0→v2.1 (product-owner) corrects stale SCOPED-NOT-BUILT section (all prior unbuilt items MERGED) and documents 4 real packaging gaps (a–d). Demo readiness: READY-WITH-GAPS (live Claroty xDome). Full live-demo packaging authorized. develop_head 1724e727f UNCHANGED; all indexes frozen (bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.026 / total_stories 337). v1.0.0-beta.1 PUBLISHED.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
-1. **Close PR #255** (obsolete rc.1 CHANGELOG — CLOSE, do NOT merge; human UI action).
-2. **Triage dependabot PRs #265–#274** (10 PRs; cargo+github-actions bumps; non-blocking; batch review and merge if CI green + no breaking changes).
-3. **Post-beta.1 stories:** S-REL-HOLDOUT-HARNESS-001 (P2; draft v0.1; D-2472), S-REL-DOCS-CI-WIRE-001 (P2; draft stub v0.1; D-2456), S-REL-VBUMP-001 (F-B cargo-release stable path). Prioritize per wave-5 backlog.
-4. **Worktree cleanup (optional):** REMOVABLE: .worktrees/E-REL-NOTES, .worktrees/S-REL-AGENT-VERSION-001, .worktrees/S-REL-VERSION-IDENTITY, .worktrees/S-CLAROTY-VULNS-001, .worktrees/S-ENGINE-H2-LARGE-RESPONSE-001, .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001.
+1. **Demo Phase-1 (product-owner):** Rewrite live-validation matrix + 27-Q&A catalog to cover all 14 Claroty xDome tables; then author live-monroe capstone narrative story.
+2. **Demo Phase-2 (human-in-loop):** Live monroe Q&A run against real xDome tenant (MCP trust-gate) + demo recording. Human must authorize each live API call.
+3. **Parallel — S-REL-NIGHTLY-001:** Queued nightly-CI lane (core + keep-14 retention + edge-nightly + §5 4-target fix); authorized; serialized after/around demo Phase-1.
+4. **Post-demo triage:** 10 dependabot PRs #265–#274 (cargo+github-actions bumps; non-blocking). Close PR #255 (obsolete rc.1 CHANGELOG; human UI).
+5. **Worktree cleanup (optional):** REMOVABLE: .worktrees/E-REL-NOTES, .worktrees/S-REL-AGENT-VERSION-001, .worktrees/S-REL-VERSION-IDENTITY, .worktrees/S-CLAROTY-VULNS-001, .worktrees/S-ENGINE-H2-LARGE-RESPONSE-001, .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **HEADS (backup boundary):**
 - `develop`: origin = `1724e727f` (v1.0.0-beta.1 tag; PR #275 merged 2026-09-08T01:44:50Z; all changes PUSHED).
@@ -193,10 +196,10 @@ Phase 3, v1.0.0-beta.1 release complete. v1.0.0-beta.1 GitHub prerelease PUBLISH
 - Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE, do NOT merge). Dependabot: #265–#274 (UNTRIAGED).
 - WORKTREES PARKED (do not remove): S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch).
 
-**PENDING USER-APPROVED WORK:** None blocking. Force-push to any branch still requires explicit human approval.
+**PENDING USER-APPROVED WORK:** Demo Phase-2 (live monroe Q&A run + recording) requires human-in-loop MCP trust gate. Force-push to any branch still requires explicit human approval.
 
-**OPEN ITEMS:** 10 dependabot PRs #265–#274 (UNTRIAGED; non-blocking). PR #255 (close human UI). Post-beta.1: S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B).
+**OPEN ITEMS:** Demo packaging in progress (Phase-1 → Phase-2). 10 dependabot PRs #265–#274 (UNTRIAGED; non-blocking). PR #255 (close human UI). Post-beta.1: S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B), S-REL-NIGHTLY-001 (authorized+queued).
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1 FOLLOW-UPS: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (k) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063); cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION injection COMPLETE (ADR-064 §D4 + ADR-050 §D6); docs VERSION-AGNOSTIC; ADR-063 v1.12: DEVIATION-1/2/3 + §D3 catch-all skip parser + breaking block guard documented. (n) S-REL-DOCS-CI-WIRE-001 draft stub v0.1 (D-2456). (o) S-REL-HOLDOUT-HARNESS-001 draft v0.1 (D-2472).
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence / fix all issues (production-grade default). (b) D-989 + D-2445 autonomy grant in force (merge+tag on green gates; force-push any branch still needs human). (c) D-2410 DO NOT SAVE LIVE-TEST OUTPUT INTO REPO. (d) Live xDome validation: canonical runbook .factory/ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE + TAG (D-2445, 2026-09-04): all PRs autonomous on green gates; force-push STILL requires explicit human approval. (f) DEFECT-1 RESOLVED by PR #237. (g) POST-v1 FOLLOW-UPS: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) Sensor scope v1: Claroty xDome ONLY (D-2440/D-2443). (i) RELEASING.md at repo root; release-config quality_gates vsdd-partial. (j) No registry publish in v1 (DEF-REL-002/003/004; S-REL-008 future). (k) Demo bundle (S-REL-004) and Claroty DTU parity (S-CLAROTY-DTU-PARITY-001) DEFERRED post-beta.1 per D-2443. (l) BETA channel; v1.0.0-rc.1 = immutable never-published ghost (D-2452). (m) git-cliff 2.14.1 hybrid model (ADR-063); cargo-release 1.1.5 (ADR-064 §D3); PRISM_VERSION injection COMPLETE (ADR-064 §D4 + ADR-050 §D6); docs VERSION-AGNOSTIC; ADR-063 v1.12: DEVIATION-1/2/3 + §D3 catch-all skip parser + breaking block guard documented. (n) D-2495: LIVE demo direction — DEMO-SCOPE.md v2.1 authoritative; T13 capstone must be authored as live-monroe story (NOT DTU-based); T14 recording against live monroe. (o) S-REL-DOCS-CI-WIRE-001 draft stub v0.1 (D-2456). (p) S-REL-HOLDOUT-HARNESS-001 draft v0.1 (D-2472).
