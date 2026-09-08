@@ -723,3 +723,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2489 2026-09-07):** develop: `a4cd1b3fd` (origin); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/E-REL-NOTES-changelog: `c09d63593` (PR #264 OPEN); main: `bdf24cec8` (stub). Open PRs: #264 (E-REL-NOTES-changelog; PR-LEVEL streak 0/3; re-gate on c09d63593). #255 (OBSOLETE rc.1 — CLOSE, do NOT merge). WORKTREES: ACTIVE — `.worktrees/E-REL-NOTES` (feature/E-REL-NOTES-changelog @ c09d63593). PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **NOTE: Superseded by D-2490 — PR-LEVEL passes 4+5 CLEAN(strict) on frozen c09d63593 (streak reached 2/3), pass-6 F-1 LOW + OBS-1 (both SPEC-SIDE, code UNCHANGED) RESOLVED: S-REL-DROP-INTEL-MAC-001 v1.2 grep-exclusion fix + ADR-063 v1.12 §D3 guard doc. Streak RESET 0/3. NEXT: restart PR-LEVEL 3-pass on frozen c09d63593. STATE v9.017→v9.018. SESSION-HANDOFF v8.106→v8.107.**
+
+---
+
+## Archived: D-2498 — 2026-09-08; STATE v10.003→v10.004 — S-REL-NIGHTLY-001 REGISTERED (ready v1.0); develop @1724e727f
+
+**RESUME IN ONE BREATH:** Phase 3, Demo Phase-1 prep COMPLETE (D-2497). S-REL-NIGHTLY-001 REGISTERED (D-2498; ready v1.0; E-REL; P2; facade; own track). story_index v3.027 / total_stories 338. develop_head 1724e727f UNCHANGED; bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. v1.0.0-beta.1 PUBLISHED + deployed to live SOC. Capstone artefacts: live-monroe-capstone-runbook.md v1.0 + live-validation-matrix.md v0.3 + soc-analyst-qa-catalog.md v0.3.
+
+**HEADS (D-2498 2026-09-08):** develop: `1724e727f` (origin; v1.0.0-beta.1 tag; PR #275 merged 2026-09-08T01:44:50Z); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-NIGHTLY-001: local @a2c7a8bce (AS-BUILT, not yet pushed to PR); main: `bdf24cec8` (stub). Open PRs: #255 (OBSOLETE rc.1 — CLOSE, do NOT merge). Dependabot: #265–#274 (UNTRIAGED). WORKTREES PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: E-REL-NOTES, S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
+
+**NOTE: Superseded by D-2499 — PR #276 (S-REL-NIGHTLY-001) ADMIN SQUASH-MERGED @d5d5fe7c; nightly lane LIVE; live-verify IN PROGRESS (authorized Q3). develop_head 1724e727f→d5d5fe7c. story_index v3.027→v3.028. STATE v10.004→v10.005.**
