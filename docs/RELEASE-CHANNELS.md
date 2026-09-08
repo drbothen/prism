@@ -4,7 +4,7 @@ This document captures Prism's full release-channel strategy and maturity model.
 It is the reference for understanding what each channel promises, how versions
 flow through the ladder, and what criteria gate advancement.
 
-**Operator-approved: 2026-09-04.**
+**Operator-approved: 2026-09-04. Last revised: 2026-09-08 (v0.2).**
 
 > **Relationship to RELEASING.md:** `RELEASING.md` (repo root) is the operational
 > stable-release runbook — step-by-step procedures for cutting a stable release using
@@ -49,7 +49,7 @@ _release authority_ (strictly controlled — only stable writes `main`).
 
 | Channel | Promise | Trigger | Source branch | Human gate | Tag form | GitHub marking | Status |
 |---------|---------|---------|---------------|------------|----------|----------------|--------|
-| **nightly** | Current `develop` state — scheduled; only runs if `develop` changed since last nightly | Scheduled cron (nightly) | `develop` | None | `X.Y.Z-nightly.YYYYMMDD` | Pre-release | PLANNED |
+| **nightly** | Current `develop` state — scheduled; only runs if `develop` changed since last nightly | Scheduled cron (nightly) | `develop` | None | `X.Y.Z-nightly.YYYYMMDD` | Pre-release | IMPLEMENTED (`nightly.yml`) |
 | **dev** | Current `develop` state — ad-hoc snapshot for spot testing | `workflow_dispatch` | `develop` | None | `X.Y.Z-dev.<shortsha>` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
 | **alpha** | First intentional pre-release of a new `X.Y.Z` line; may be feature-incomplete; API may move | `workflow_dispatch` | `develop` | None | `X.Y.Z-alpha.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
 | **beta** | Feature-complete; feature freeze in effect; stabilization only | `workflow_dispatch` | `develop` | None | `X.Y.Z-beta.N` | Pre-release | TAGGING IMPLEMENTED (`release-tag.yml`) |
@@ -72,12 +72,21 @@ for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
 The workflow enforces a pre-release-only guard (stable tags are rejected) and a
 BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
 
-**Nightly (PLANNED):** The nightly channel (scheduled cron, `X.Y.Z-nightly.YYYYMMDD`
-tag form) is not yet implemented — it requires scheduling infrastructure and a
-change-since-last-nightly guard.
+**Nightly (IMPLEMENTED — `nightly.yml`):** The nightly channel is fully operational
+via `.github/workflows/nightly.yml` (scheduled cron 07:17 UTC, plus `workflow_dispatch`
+for manual verification). The workflow: checks out `develop`, guards for changes since
+the last nightly tag (no-op if HEAD unchanged), computes a `X.Y.Z-nightly.YYYYMMDD` tag
+from the `crates/prism-bin/Cargo.toml` X.Y.Z core (BASE-MATCH, no version-bump churn),
+pushes the annotated tag via PAT (triggering `release.yml`), enforces the 14-build
+retention window, and force-updates the `edge-nightly` convenience pointer.
 
-**Retention cleanup and edge convenience pointers (PLANNED):** These remain to be
-built as part of the release-channels epic. See §6 and §7 for the full design.
+**Retention cleanup (IMPLEMENTED for nightly — `nightly.yml` §6):** Nightly retention
+(keep last 14) is implemented inside `nightly.yml`. Dev/alpha/beta/rc retention remains
+PLANNED per §6.
+
+**Edge convenience pointer (IMPLEMENTED for `edge-nightly` — `nightly.yml` §7):**
+The `edge-nightly` mutable tag and GitHub Release are implemented in `nightly.yml`.
+The `edge-dev` pointer remains PLANNED per §7.
 
 ---
 
@@ -196,46 +205,51 @@ stable. The only difference is how the tag is created (dispatch workflow vs.
 
 ## 6. Retention Policy
 
-**Status: PLANNED.** Retention enforcement is not yet implemented. A cleanup step
-will be built as part of the pre-release channels epic.
+**Status: PARTIALLY IMPLEMENTED.** Nightly retention is implemented in
+`.github/workflows/nightly.yml` (step 7 — "Retention — keep last 14 nightly builds").
+Dev/alpha/beta/rc retention remains PLANNED.
 
-| Channel | Retention rule |
-|---------|---------------|
-| **nightly** | Keep the last 14 nightly Releases and their tags. Auto-delete older nightly Releases and tags. |
-| **dev** | Keep approximately the last 10 dev builds, or delete builds older than a configurable number of days. Exact threshold to be determined during epic implementation. |
-| **alpha** | Keep forever. |
-| **beta** | Keep forever. |
-| **rc** | Keep forever. |
-| **stable** | Keep forever. |
+| Channel | Retention rule | Status |
+|---------|---------------|--------|
+| **nightly** | Keep the last 14 nightly Releases and their tags. Auto-delete older nightly Releases and tags. | **IMPLEMENTED** (`nightly.yml`) |
+| **dev** | Keep approximately the last 10 dev builds, or delete builds older than a configurable number of days. Exact threshold to be determined during epic implementation. | PLANNED |
+| **alpha** | Keep forever. | n/a |
+| **beta** | Keep forever. | n/a |
+| **rc** | Keep forever. | n/a |
+| **stable** | Keep forever. | n/a |
 
-Nightly and dev retention will be enforced by a cleanup step within the nightly/dev
-dispatch workflow itself, or by a standalone scheduled cleanup workflow.
+Nightly retention is enforced inside `nightly.yml` after each tag push.  The deletion
+filter is a regex anchored to `v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}` — it cannot
+match alpha/beta/rc/stable/edge tags.  Dev retention will be enforced in a future
+workflow.
 
 ---
 
 ## 7. Edge Convenience Pointers
 
-**Status: PLANNED.** Edge pointers are not yet implemented.
+**Status: PARTIALLY IMPLEMENTED.** `edge-nightly` is implemented in
+`.github/workflows/nightly.yml` (step 8). `edge-dev` remains PLANNED.
 
 Immutable dated tags are the authoritative source of truth for every build — they
 are auditable, permanent, and unambiguous. However, for fast-moving channels
 (nightly and dev), operators often want a stable URL that always resolves to the
 newest build without tracking tag names.
 
-For the nightly and dev channels, a moving `edge` convenience pointer will be
-maintained alongside the immutable dated tags:
+For the nightly and dev channels, a moving `edge` convenience pointer is maintained
+alongside the immutable dated tags:
 
 - `edge-nightly` — a repointed tag and GitHub Release that always resolves to the
-  newest nightly build.
+  newest nightly build. **IMPLEMENTED** in `nightly.yml` step 8.
 - `edge-dev` — a repointed tag and GitHub Release that always resolves to the newest
-  dev build.
+  dev build. **PLANNED.**
 
 **Mutability tradeoff:** Edge pointers are mutable — the tag is force-updated on each
-new build. This means `git fetch --tags` will update the local ref, and a download URL
-using the edge tag will resolve to a different binary over time. Operators who need
-reproducibility must pin to the immutable dated tag (e.g. `v1.0.0-nightly.20260905`),
-not the edge pointer. The edge pointer is a convenience for "give me the latest
-nightly" use cases only.
+new build via a delete-then-repush pattern. This means `git fetch --tags` will update
+the local ref, and a download URL using the edge tag will resolve to a different binary
+over time. Operators who need reproducibility must pin to the immutable dated tag (e.g.
+`v1.0.0-nightly.20260908`), not the edge pointer. The edge pointer is a convenience
+for "give me the latest nightly" use cases only.  The `edge-nightly` GitHub Release
+body references the current dated nightly release for actual build artifact downloads.
 
 ---
 
@@ -260,3 +274,12 @@ risk reduction.
 requirement means a stable release requires both human approval and evidence of
 stability from the rc soak. This is the only point where `main` is written and a
 build is marked Latest.
+
+---
+
+## Document Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.2 | 2026-09-08 | §2/§6/§7: nightly channel status PLANNED → IMPLEMENTED (`nightly.yml`); retention and edge-nightly implemented; §5 already corrected to 4-target matrix (ADR-065 DROP-INTEL, PR #264) |
+| 0.1 | 2026-09-04 | Initial approval |
