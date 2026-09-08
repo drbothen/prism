@@ -239,7 +239,7 @@ jobs:
         shell: bash
         run: |
           cat artifacts/release-*/checksums.txt > checksums.txt
-      - name: Extract CHANGELOG notes for release
+      - name: Extract release notes (channel-aware)
         shell: bash
         env:
           # F-REL001-P1-001: TAG bound via env: map to prevent textual-substitution
@@ -255,31 +255,66 @@ jobs:
           # consume it without any GitHub Actions expression substitution into shell bodies.
           NOTES_FILE="$(mktemp)"
           echo "NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
-          # Extract the curated CHANGELOG.md section for this version.
-          # awk: skip the "## [VERSION] - DATE" header line itself; print all subsequent
-          # lines until the next "## [" header (exclusive). index() performs a literal
-          # substring match — avoids treating dots/dashes in semver strings as regex
-          # metacharacters (e.g. "1.0.0-rc.2" would match "1X0X0-rc2" if unanchored regex).
-          # sed '/./,$!d' strips leading blank lines; the trailing awk strips trailing
-          # blank lines by buffering all lines and printing only up to the last non-blank.
-          awk -v ver="$VERSION" '
-            /^## \[/ { if (found) exit; if (index($0, "[" ver "]") > 0) found=1; next }
-            found { print }
-          ' CHANGELOG.md \
-            | sed '/./,$!d' \
-            | awk '{buf[NR]=$0} /[^[:blank:]]/{last=NR} END{for(i=1;i<=last;i++) print buf[i]}' \
-            > "$NOTES_FILE"
-          # Fail loudly if no curated section exists for this tag's version. A missing
-          # section is a release authoring defect — there is no fallback to
-          # --generate-notes. Add "## [${VERSION}] - YYYY-MM-DD" to CHANGELOG.md,
-          # commit it to develop, then re-tag. Never publish a release with an
-          # uncurated body.
-          if [[ ! -s "$NOTES_FILE" ]]; then
-            echo "RELEASE-NOTES-MISSING: CHANGELOG.md has no section for version '${VERSION}' (tag '${TAG}')." >&2
-            echo "A curated section is required before tagging. Add '## [${VERSION}] - YYYY-MM-DD' to CHANGELOG.md." >&2
-            exit 1
+
+          # ------------------------------------------------------------------ #
+          # CHANNEL-AWARE NOTES EXTRACTION                                      #
+          #                                                                      #
+          # NIGHTLY (-nightly.* suffix): machine-generated dated tags cannot    #
+          # have pre-authored CHANGELOG sections — use git-cliff to summarise   #
+          # unreleased commits. Falls back to a concise generated body if       #
+          # git-cliff produces empty output (e.g. no conventional commits).     #
+          #                                                                      #
+          # ALL OTHER CHANNELS (stable vX.Y.Z, -alpha.*, -beta.*, -rc.*):       #
+          # require a curated "## [VERSION] - DATE" section in CHANGELOG.md.   #
+          # Hard-fail (RELEASE-NOTES-MISSING) if the section is absent — a     #
+          # missing section is a release authoring defect; no auto-fallback.    #
+          # ------------------------------------------------------------------ #
+          if [[ "$TAG" == *-nightly.* ]]; then
+            # ----- NIGHTLY CHANNEL: auto-generate notes via git-cliff -----
+            # cliff.toml at repo root governs the output format.
+            # '|| true': git-cliff non-zero exit (e.g. no conventional commits)
+            # should not abort the workflow — the empty-output fallback handles it.
+            SHORT_SHA="$(git rev-parse --short HEAD)"
+            DATE_UTC="$(date -u +%Y-%m-%d)"
+            git cliff --unreleased --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true
+            if [[ ! -s "$NOTES_FILE" ]]; then
+              echo "git-cliff produced empty output — using fallback nightly body"
+              {
+                echo "## Nightly build"
+                echo ""
+                echo "Nightly pre-release build of \`develop@${SHORT_SHA}\` — ${DATE_UTC} (UTC)."
+                echo ""
+                echo "Unreleased changes; see [CHANGELOG \[Unreleased\]](../../blob/develop/CHANGELOG.md) for ongoing development notes."
+              } > "$NOTES_FILE"
+            fi
+            echo "Nightly notes: $(wc -l < "$NOTES_FILE") lines for ${TAG} (git-cliff or fallback)"
+          else
+            # ----- STABLE / PRE-RELEASE CHANNEL (alpha, beta, rc): curated CHANGELOG -----
+            # awk: skip the "## [VERSION] - DATE" header line itself; print all subsequent
+            # lines until the next "## [" header (exclusive). index() performs a literal
+            # substring match — avoids treating dots/dashes in semver strings as regex
+            # metacharacters (e.g. "1.0.0-rc.2" would match "1X0X0-rc2" if unanchored regex).
+            # sed '/./,$!d' strips leading blank lines; the trailing awk strips trailing
+            # blank lines by buffering all lines and printing only up to the last non-blank.
+            awk -v ver="$VERSION" '
+              /^## \[/ { if (found) exit; if (index($0, "[" ver "]") > 0) found=1; next }
+              found { print }
+            ' CHANGELOG.md \
+              | sed '/./,$!d' \
+              | awk '{buf[NR]=$0} /[^[:blank:]]/{last=NR} END{for(i=1;i<=last;i++) print buf[i]}' \
+              > "$NOTES_FILE"
+            # Fail loudly if no curated section exists for this tag's version. A missing
+            # section is a release authoring defect — there is no fallback to
+            # --generate-notes. Add "## [${VERSION}] - YYYY-MM-DD" to CHANGELOG.md,
+            # commit it to develop, then re-tag. Never publish a release with an
+            # uncurated body.
+            if [[ ! -s "$NOTES_FILE" ]]; then
+              echo "RELEASE-NOTES-MISSING: CHANGELOG.md has no section for version '${VERSION}' (tag '${TAG}')." >&2
+              echo "A curated section is required before tagging. Add '## [${VERSION}] - YYYY-MM-DD' to CHANGELOG.md." >&2
+              exit 1
+            fi
+            echo "Extracted $(wc -l < "$NOTES_FILE") lines of release notes for ${VERSION}"
           fi
-          echo "Extracted $(wc -l < "$NOTES_FILE") lines of release notes for ${VERSION}"
       - name: Create GitHub Release
         shell: bash
         env:
