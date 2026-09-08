@@ -27,7 +27,7 @@
 #
 # REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
 # ---------------------------------------
-# A PAT is REQUIRED — the default GITHUB_TOKEN cannot trigger downstream
+# A PAT is REQUIRED — the default Actions token cannot trigger downstream
 # on:push:tags workflows (release.yml) per GitHub's security model.  Same
 # mechanism and minimum scopes as release-tag.yml.
 #   Fine-Grained PAT (recommended):  Repository contents: Read and write
@@ -67,7 +67,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write  # required for tag push via RELEASE_PROMOTE_TOKEN credential
+  contents: read  # the PAT from RELEASE_PROMOTE_TOKEN handles all tag/release writes; the default Actions token needs only read
 
 jobs:
   nightly:
@@ -84,7 +84,7 @@ jobs:
       # ------------------------------------------------------------------ #
       # 1. Checkout develop — full history required for tag operations       #
       #    RELEASE_PROMOTE_TOKEN is required so the subsequent tag push      #
-      #    triggers release.yml; the default GITHUB_TOKEN push does NOT      #
+      #    triggers release.yml; the default Actions token push does NOT     #
       #    fire downstream on:push:tags workflows.                           #
       # ------------------------------------------------------------------ #
       - name: Checkout develop
@@ -114,7 +114,11 @@ jobs:
         id: change_guard
         run: |
           set -euo pipefail
-          LATEST_NIGHTLY=$(git tag --list "v*-nightly.*" --sort=-creatordate | head -1)
+          # LOW-5: avoid SIGPIPE exit-141 under set -o pipefail by capturing the full
+          # sorted list first, then extracting the first line via parameter expansion
+          # (no pipe truncation, no head-closes-pipe race).
+          _nightly_sorted=$(git tag --list "v*-nightly.*" --sort=-creatordate)
+          LATEST_NIGHTLY="${_nightly_sorted%%$'\n'*}"
           if [[ -z "$LATEST_NIGHTLY" ]]; then
             echo "No prior nightly tag found — proceeding with first nightly build"
             echo "LATEST_NIGHTLY=" >> "$GITHUB_ENV"
@@ -159,6 +163,12 @@ jobs:
           # Strip everything from the first '-' onwards to get the X.Y.Z core.
           # %%-* removes the LONGEST suffix starting with '-' (channel suffix).
           PRISM_BIN_CORE="${PRISM_BIN_VERSION%%-*}"
+          # SEC-003: validate extracted core matches pure X.Y.Z before writing to GITHUB_ENV.
+          # Rejects any form with unexpected characters that could cause GITHUB_ENV injection.
+          if [[ ! "${PRISM_BIN_CORE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: PRISM_BIN_CORE '${PRISM_BIN_CORE}' does not match X.Y.Z (extracted from '${PRISM_BIN_VERSION}')" >&2
+            exit 1
+          fi
           TODAY="$(date -u +%Y%m%d)"
           BASE_TAG="v${PRISM_BIN_CORE}-nightly.${TODAY}"
 
@@ -199,11 +209,12 @@ jobs:
         if: steps.change_guard.outputs.proceed == 'true'
         run: |
           set -euo pipefail
-          # A PAT push is REQUIRED — GITHUB_TOKEN cannot trigger downstream on:push:tags
-          # workflows (release.yml) per GitHub's security model.  The token from the checkout
-          # step provides PAT credentials for this push.
+          # A PAT push is REQUIRED — the default Actions token cannot trigger downstream
+          # on:push:tags workflows (release.yml) per GitHub's security model.  The token
+          # from the checkout step provides PAT credentials for this push.
           # This step pushes the tag ref ONLY — never a branch; never main.
-          git push origin "${TAG}"
+          # SEC-002/LOW-2: use fully-qualified refs/tags/ refspec (AC-008 compliance).
+          git push origin "refs/tags/${TAG}"
           echo ""
           echo "Tag '${TAG}' pushed to origin."
           echo "release.yml will now build the 4-target matrix and publish"
@@ -240,21 +251,29 @@ jobs:
               [[ -z "$old_tag" ]] && continue
               # Defensive double-check: only delete tags that match the nightly pattern.
               # Anchored regex: vX.Y.Z-nightly.YYYYMMDD (8 digits minimum after the dot).
-              if [[ ! "$old_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8} ]]; then
+              # SEC-001: end-anchored regex — rejects hybrid/foreign tags while accepting
+              # the two allowed forms: vX.Y.Z-nightly.YYYYMMDD and vX.Y.Z-nightly.YYYYMMDD.N
+              if [[ ! "$old_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
                 echo "::warning::Skipping '${old_tag}' — does not match nightly pattern; will not delete"
                 continue
               fi
               echo "Pruning: ${old_tag}"
               # Delete GitHub Release first (best-effort — may not exist if release.yml
               # never completed for this tag, e.g. a prior build failure).
-              gh release delete "${old_tag}" --yes 2>/dev/null \
-                && echo "  GitHub Release deleted: ${old_tag}" \
-                || echo "  No GitHub Release for ${old_tag} (or already deleted) — continuing"
+              # LOW-4: capture and log stderr rather than suppressing — surfaces PAT-expiry
+              # and branch-protection failures that 2>/dev/null would silently hide.
+              if gh_del_err=$(gh release delete "${old_tag}" --yes 2>&1); then
+                echo "  GitHub Release deleted: ${old_tag}"
+              else
+                echo "  gh release delete ${old_tag}: ${gh_del_err}" >&2
+              fi
               # Delete the tag on origin.  The ':refs/tags/NAME' push syntax removes
               # the remote ref without affecting the local tag mirror.
-              git push origin ":refs/tags/${old_tag}" 2>/dev/null \
-                && echo "  Tag deleted on origin: ${old_tag}" \
-                || echo "  Tag delete failed for ${old_tag} — may already be absent"
+              if git_del_err=$(git push origin ":refs/tags/${old_tag}" 2>&1); then
+                echo "  Tag deleted on origin: ${old_tag}"
+              else
+                echo "  git push (tag delete) ${old_tag}: ${git_del_err}" >&2
+              fi
             done <<< "$TO_DELETE"
           fi
 
@@ -283,21 +302,28 @@ jobs:
           set -euo pipefail
 
           # Delete the prior edge-nightly GitHub Release (best-effort).
-          gh release delete edge-nightly --yes 2>/dev/null \
-            && echo "Deleted prior edge-nightly release" \
-            || echo "No prior edge-nightly release to delete (first run or prior failure)"
+          # LOW-4: capture and log stderr — surfaces PAT-expiry / protection failures.
+          if gh_del_err=$(gh release delete edge-nightly --yes 2>&1); then
+            echo "Deleted prior edge-nightly release"
+          else
+            echo "gh release delete edge-nightly: ${gh_del_err}" >&2
+          fi
 
           # Delete the remote edge-nightly tag via delete-then-repush pattern.
           # Avoids --force-push and makes the mutation explicit.
-          git push origin :refs/tags/edge-nightly 2>/dev/null \
-            && echo "Deleted prior edge-nightly tag on origin" \
-            || echo "No prior edge-nightly tag on origin (first run or prior failure)"
+          # LOW-4: capture and log stderr rather than suppressing.
+          if git_del_err=$(git push origin :refs/tags/edge-nightly 2>&1); then
+            echo "Deleted prior edge-nightly tag on origin"
+          else
+            echo "git push (edge-nightly tag delete): ${git_del_err}" >&2
+          fi
 
           # Create the new edge-nightly annotated tag at the same commit as the dated
           # nightly.  '-f' overwrites any locally-cached copy from a prior run.
           git tag -f edge-nightly -a \
             -m "edge-nightly — latest nightly is ${TAG} (SHA: ${DEVELOP_SHA})"
-          git push origin edge-nightly
+          # SEC-002/LOW-2: use fully-qualified refs/tags/ refspec (consistent with dated tag push).
+          git push origin refs/tags/edge-nightly
           echo "edge-nightly tag pushed at ${DEVELOP_SHA}"
 
           # Write the edge-nightly release notes to a temp file.  Using echo with
@@ -334,6 +360,13 @@ jobs:
       # ------------------------------------------------------------------ #
       - name: Job summary
         if: always()
+        env:
+          # MED-1: branch on ACTUAL job outcome and change-guard decision rather
+          # than env-var presence.  A failed push/retention/edge step sets
+          # JOB_STATUS=failure even when TAG was already written to GITHUB_ENV,
+          # so the summary correctly reports failure instead of false-success.
+          JOB_STATUS: ${{ job.status }}
+          CHANGE_GUARD_PROCEED: ${{ steps.change_guard.outputs.proceed }}
         run: |
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME:-}" == "schedule" ]]; then
@@ -352,16 +385,16 @@ jobs:
             echo "| Latest prior nightly | \`${LATEST_NIGHTLY:-(none)}\` |"
             echo "| prism-bin core | \`${PRISM_BIN_CORE:-—}\` |"
             echo ""
-            if [[ -n "${TAG:-}" && -n "${DEVELOP_SHA:-}" ]]; then
-              echo "> **Tag pushed.** \`release.yml\` will build the 4-target matrix and publish"
-              echo "> the pre-release GitHub Release for \`${TAG}\`."
-              echo "> \`edge-nightly\` pointer updated."
-              echo ">"
-              echo "> This workflow tagged \`develop\` only. \`main\` was NOT touched."
-            elif [[ -z "${TAG:-}" ]]; then
+            if [[ "${JOB_STATUS}" != "success" ]]; then
+              echo "> **Workflow failed or was cancelled** (status: \`${JOB_STATUS}\`) — see step logs above."
+            elif [[ "${CHANGE_GUARD_PROCEED:-false}" != "true" ]]; then
               echo "> **No-op.** develop has not changed since the last nightly"
               echo "> (\`${LATEST_NIGHTLY:-(none)}\`). No tag was created."
             else
-              echo "> **Workflow did not complete successfully** — see step logs above."
+              echo "> **Tag pushed.** \`release.yml\` will build the 4-target matrix and publish"
+              echo "> the pre-release GitHub Release for \`${TAG:-}\`."
+              echo "> \`edge-nightly\` pointer updated."
+              echo ">"
+              echo "> This workflow tagged \`develop\` only. \`main\` was NOT touched."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
