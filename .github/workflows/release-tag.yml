@@ -140,7 +140,8 @@ jobs:
       - name: Guard — tag must not already exist on origin
         run: |
           set -euo pipefail
-          if git ls-remote --tags origin "${TAG}" | grep -qF "refs/tags/${TAG}"; then
+          _tag_refs="$(git ls-remote --tags origin "${TAG}")"
+          if [[ "${_tag_refs}" == *"refs/tags/${TAG}"* ]]; then
             echo "::error::FATAL: tag '${TAG}' already exists on origin."
             echo "Never clobber an existing tag.  Choose a different tag name."
             exit 1
