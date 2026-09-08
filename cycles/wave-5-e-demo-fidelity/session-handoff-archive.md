@@ -245,5 +245,7 @@ Full content of all entries is available in git history on `factory-artifacts` a
 | §RESUME SNAPSHOT D-2489 | 2026-09-07 | PR #264 PR-LEVEL pass-3 fix-burst (F1 MED+F2 LOW fix-comment paraphrase; O2 ADR-064 v2.2→v2.3; O1 WRITER-001 v1.1→v1.2). STATE v9.016→v9.017 [SUPERSEDED by D-2490] |
 | §RESUME SNAPSHOT D-2490 | 2026-09-07 | PR #264 passes 4+5 CLEAN(strict) streak 2/3; pass-6 F-1 LOW+OBS-1 RESOLVED; streak RESET 0/3; ADR-063 v1.12; arch_index v2.379. STATE v9.017→v9.018 [SUPERSEDED by D-2491] |
 | §RESUME SNAPSHOT D-2491 | 2026-09-07 | SESSION WRAP — CONVERGENCE-BAR accepted CLEAN(PR-merge); DROP-INTEL crystallized; PR #264 MERGE-READY. STATE v9.018→v9.019 [SUPERSEDED by D-2494] |
+| §RESUME SNAPSHOT D-2492 through D-2498 | 2026-09-07..08 | v1.0.0-beta.1 PUBLISHED; demo pivot to live monroe; capstone runbook; nightly lane AS-BUILT; S-REL-NIGHTLY-001 REGISTERED; full content in git history |
+| §RESUME SNAPSHOT D-2499 | 2026-09-08 | NIGHTLY-001-MERGED + LIVE-VERIFY-IN-PROGRESS; S-REL-NIGHTLY-001 MERGED PR #276 @d5d5fe7c; nightly lane LIVE; live-verify IN PROGRESS authorized Q3. STATE v10.004→v10.005 [SUPERSEDED by D-2500] |
 
 _Full snapshot content for all entries above available in git history on factory-artifacts at commit `23df3430c`._
