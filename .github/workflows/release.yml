@@ -239,6 +239,25 @@ jobs:
         shell: bash
         run: |
           cat artifacts/release-*/checksums.txt > checksums.txt
+      - name: Fetch full history and tags (nightly path)
+        # git-cliff --latest requires the full tag history that the default
+        # shallow checkout (fetch-depth: 1) does not provide. This step fetches
+        # complete history and all tags so git-cliff can walk the tag range.
+        # Gated to nightly tags only — stable/beta/rc channels use curated
+        # CHANGELOG extraction and do not need git-cliff or full history.
+        if: contains(github.ref_name, '-nightly.')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --unshallow --tags 2>/dev/null || git fetch --tags
+      - name: Install git-cliff (nightly path)
+        # Installs git-cliff 2.14.1 (ADR-063 §D1 version pin) via taiki-e/install-action.
+        # Pre-built binary download (~10s vs 3-5 min cargo compile).
+        # SHA-pinned per project CWE-494 supply-chain hardening convention.
+        if: contains(github.ref_name, '-nightly.')
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2
+        with:
+          tool: git-cliff@2.14.1
       - name: Extract release notes (channel-aware)
         shell: bash
         env:
@@ -261,13 +280,14 @@ jobs:
           #                                                                      #
           # NIGHTLY (exact form: vX.Y.Z-nightly.YYYYMMDD or .YYYYMMDD.N):      #
           # Machine-generated dated tags cannot have pre-authored CHANGELOG     #
-          # sections. A canned summary body is the declared, unconditional      #
-          # output for nightly releases (no curated CHANGELOG required).        #
-          # MED-2 (Option B): git-cliff is not installed in publish-release     #
-          # and fetch-depth: 1 provides no commit history — the canned body     #
-          # is intentional for nightly builds, not a fallback for a failed      #
-          # tool. The anchored regex (SEC-NEW-LOW) prevents hybrid tags like    #
-          # v1.0.0-alpha.1-nightly.X from bypassing the curated-CHANGELOG gate. #
+          # sections. git-cliff --latest generates categorized changelog output  #
+          # (feat/fix/perf/refactor/security) for the nightly window; falls     #
+          # back to the canned "## Nightly build" summary body when git-cliff   #
+          # exits non-zero or produces empty output (all-skip-rule commits).    #
+          # Full tag history is fetched by the preceding unshallow step (gated  #
+          # to nightly path) before this step runs. The anchored regex          #
+          # (SEC-NEW-LOW) prevents hybrid tags like v1.0.0-alpha.1-nightly.X   #
+          # from bypassing the curated-CHANGELOG gate.                          #
           #                                                                      #
           # ALL OTHER CHANNELS (stable vX.Y.Z, -alpha.*, -beta.*, -rc.*):       #
           # require a curated "## [VERSION] - DATE" section in CHANGELOG.md.   #
@@ -275,18 +295,29 @@ jobs:
           # missing section is a release authoring defect; no auto-fallback.    #
           # ------------------------------------------------------------------ #
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
-            # ----- NIGHTLY CHANNEL: canned generated body -----
-            # Nightly builds use a generated summary body (no curated CHANGELOG required).
+            # ----- NIGHTLY CHANNEL: git-cliff categorized output (fallback: canned body) -----
+            # git-cliff --latest renders commits between the two most recent tag_pattern-matching
+            # tags (cliff.toml tag_pattern "v[0-9].*" matches nightly tags). This gives the
+            # commit window from prev_tag to the current nightly tag.
+            # Fallback: canned "## Nightly build" body when git-cliff exits non-zero or output
+            # is empty/whitespace-only (all-skip-rule commits). A nightly MUST always publish.
             SHORT_SHA="$(git rev-parse --short HEAD)"
             DATE_UTC="$(date -u +%Y-%m-%d)"
-            {
-              echo "## Nightly build"
-              echo ""
-              echo "Nightly pre-release build of \`develop@${SHORT_SHA}\` — ${DATE_UTC} (UTC)."
-              echo ""
-              echo "Unreleased changes; see [CHANGELOG \[Unreleased\]](../../blob/develop/CHANGELOG.md) for ongoing development notes."
-            } > "$NOTES_FILE"
-            echo "Nightly notes: $(wc -l < "$NOTES_FILE") lines for ${TAG}"
+            CLIFF_OUTPUT="$(git cliff --latest 2>/dev/null || true)"
+            if [[ -n "$(echo "${CLIFF_OUTPUT}" | tr -d '[:space:]')" ]]; then
+              echo "${CLIFF_OUTPUT}" > "$NOTES_FILE"
+              echo "Nightly notes: git-cliff categorized output ($(wc -l < "$NOTES_FILE") lines) for ${TAG}"
+            else
+              # Fallback: git-cliff produced empty output (all skip-rule commits) or errored.
+              {
+                echo "## Nightly build"
+                echo ""
+                echo "Nightly pre-release build of \`develop@${SHORT_SHA}\` — ${DATE_UTC} (UTC)."
+                echo ""
+                echo "Unreleased changes; see [CHANGELOG \[Unreleased\]](../../blob/develop/CHANGELOG.md) for ongoing development notes."
+              } > "$NOTES_FILE"
+              echo "Nightly notes: canned fallback body (git-cliff empty or error) for ${TAG}"
+            fi
           else
             # ----- STABLE / PRE-RELEASE CHANNEL (alpha, beta, rc): curated CHANGELOG -----
             # awk: skip the "## [VERSION] - DATE" header line itself; print all subsequent
