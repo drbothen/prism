@@ -5,332 +5,180 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0-beta.1] - 2026-09-05
+## [1.0.0-beta.1] - 2026-09-07
 
-Prism v1.0.0-beta.1 is the first **published** pre-release of an ephemeral federated
-query engine for MSSP security operations. This beta release is feature-complete for
-the **Claroty xDome scope** — 14 tables, full PrismQL query engine, MCP server,
-multi-tenant isolation, OCSF normalization, query push-down, and structured audit
-logging in a single operator-deployable binary. The API surface is stable;
-stabilization work is ongoing before the release-candidate bar. Code for CrowdStrike
-Falcon, Cyberint, and Armis sensors exists in the workspace but is not supported in
-beta.1; those sensors return with full native-auth support in a future release (see
-Deferred section below). Use beta.1 to evaluate Prism against your Claroty xDome
-deployment.
+### Highlights
 
-This release is functionally identical to the never-published v1.0.0-rc.1 tag
-(cf92ab535). The only changes are: (1) the release-CI fix that unblocks the
-`x86_64-unknown-linux-musl` static-Linux matrix leg
-(DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001 — `dtolnay/rust-toolchain` hoisted
-before `cargo install cargo-zigbuild` to eliminate a rustup component conflict on
-ubuntu-24.04 runner images >= 20260831.293), (2) wiring of this CHANGELOG section
-into the GitHub Release body via `--notes-file`, and (3) the maturity label
-correction from rc to beta to reflect the evaluation scope of this release. No
-product or runtime behavior changed between the rc.1 tag and beta.1.
+> **Supported sensor scope for beta.1: Claroty xDome only.** Adapter code for CrowdStrike Falcon, Cyberint, and Armis is present in the workspace but is **not supported** in beta.1 and returns in a future release.
+
+- MCP stdio server exposing sensor data via the Model Context Protocol — designed for AI agent-driven security analyst workflows
+- PrismQL query engine — SQL-pipe queries over live API data with OCSF normalization; federation-capable architecture shipping one sensor in beta.1
+- OCSF + protobuf normalization at the sensor adapter boundary — events are normalized to Open Cybersecurity Schema Framework on ingestion
+- Multi-tenant MSSP sensor management with per-org credential isolation and hot-reload configuration
+- Built-in Claroty xDome sensor — TOML-spec-driven adapter with full table coverage over the live xDome API, normalized to OCSF
+- Agent-facing version identity — `prism-mcp` reports `serverInfo.version` via MCP protocol; `prism-spec-engine` sets a version-pinned User-Agent on all outbound sensor requests
+
+### Upgrade Notes
+
+- Intel-macOS (`x86_64-apple-darwin`) is not a published binary target for this release. Published targets are: `aarch64-apple-darwin` (Apple Silicon macOS), `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, and `x86_64-pc-windows-msvc`. Intel-Mac users must build from source.
 
 ### Added
 
-#### CI/CD and Release Infrastructure
+- CI/CD pipeline and release workflow ([#1](https://github.com/drbothen/prism/pull/1))
 
-- Full 4-platform release pipeline (`aarch64-apple-darwin`,
-  `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `x86_64-pc-windows-msvc`)
-  with static musl via `cargo-zigbuild`, build-provenance attestations, and
-  `checksums.txt` generation (S-0.01, S-REL-001, #1, #228)
-- Release archives bundle the Claroty xDome sensor TOML spec (`specs/`) alongside
-  the binary and a `prism.toml.example` configuration template. A fresh install is
-  bootable without cloning the source repository: extract the archive, point
-  `spec_dir` at the bundled `specs/` directory, and run `prism start` (#253).
-  The binary includes the `ENRICH` clause and file-backed LocalLookup
-  (MMDB/CSV/JSON) infusion code path; no infusion specs or WASM plugins are
-  bundled in beta.1. Enrichment is not part of the validated beta.1 surface;
-  plugin-based enrichment (ThreatIntel, NVD) ships in a later release.
-- Developer toolchain bootstrap: `just` recipes, `lefthook` pre-commit/push/tag
-  hooks, `cargo-nextest` integration, `cargo deny`, `cargo audit`, `cargo semver-checks`
-  (S-0.02, #2)
-- GitHub Actions CI with 24 required status checks including compile-fail gates,
-  fuzz smoke, WASM32 compile check, `.prx` build, and cross-platform test
-  matrix; Kani formal proofs run as a separate post-merge job (`post-merge.yml`,
-  not a PR gate) (#1, #46, #241)
-- Workspace crate-layout enforcement via `check-crate-layout.sh` CI gate
-  (`src/` convention, ADR-012; S-3.5.01, #82)
+- prism-security + prism-mcp — four-layer prompt injection defense (SS-09) ([#16](https://github.com/drbothen/prism/pull/16))
 
-#### PrismQL Query Engine
+- sensor-spec-engine write endpoints with verb uniqueness ([#20](https://github.com/drbothen/prism/pull/20))
 
-- PrismQL (PQL) ephemeral query engine over sensor APIs: SQL-like pipe syntax,
-  WHERE/ORDER BY/LIMIT/GROUP BY, column-type gating, and plan-time error taxonomy
-  (`E-QUERY-*`) (S-1.11, S-2.08, #14, #61)
-- DataFusion integration for in-process query execution over Arrow `RecordBatch`
-  results (S-3.02-FOLLOWUP-RUNTIME, #162)
-- Dynamic table availability with `TableRegistry` and `E-QUERY-037` plan-time gate
-  preventing queries to unavailable sensor tables (S-3.13, #192)
-- LIMIT-aware early-stop pagination: `is_truncated` signaling and adapter-boundary
-  `early_stop_limit` wiring (ADR-060 §D8; S-ENGINE-LIMIT-EARLY-STOP-001)
-- Case-insensitive operators `IEQ`/`IIN`/`INE` with adapter-boundary OCSF enum-label
-  normalization (S-PRISMQL-CASE-INSENSITIVE-001, #217)
-- Native temporal typing: lenient-parse + AST-walk + `String` coercion for datetime
-  literals (ADR-052 §D4 Option A; S-PRISMQL-NATIVE-TEMPORAL-TYPING-001, #214)
-- PrismQL grammar remediation for demo-readiness: SQL pipe syntax fixes, MCP
-  surface corrections (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001, #203)
-- `prism_describe` MCP teaching surface — schema introspection, reference prompts,
-  ADR-042 reload-aware table listing (S-DEMO-PRISMQL-ONBOARDING-001-A, #198)
-- `E-QUERY-038` column gate — Tier-2 source column rejection with pedagogical
-  enrichments and `normalized_pql` output (S-DEMO-PRISMQL-ONBOARDING-001-B)
-- OCSF column-naming and routing: Stage 1 coercion gap closure, Stage 2 push-down
-  (ADR-058; S-ADR058-OCSF-COERCION-001, S-ADR058-OCSF-ROUTING-001, #240)
-- Enrichment chain: PrismQL `ENRICH` clause, ThreatIntel/NVD dual-path enrichment
-  engine (HttpLookup + WASM plugin infusion), typed UDF output with consistent
-  `ColumnType` coercion — code path present in binary; no infusion specs or WASM
-  plugins bundled in beta.1 (enrichment not part of the validated beta.1 surface);
-  sensor-specific enrichment demos (IOC stamping for Cyberint/CrowdStrike) deferred
-  with those sensors to a future release
-  (S-DEMO-ENRICHMENT-PIVOT-001/002/003, S-DEMO-ENRICHMENT-TYPED-OUTPUT-001)
-- Full infusion engine: MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin
-  runtime wiring, SEC-001 source-size guard — code path present in binary; only
-  file-backed LocalLookup (MMDB/CSV/JSON) is exercised in beta.1, and no infusion
-  specs or WASM plugins are bundled (S-1.14-REDO)
-- `E-QUERY-042` gate for `Literal::Timestamp` in GROUP BY/ORDER BY
-  (ADR-052 §D4 arms 6+7; DEFECT-EQUERY042-GROUPBY-DEADARM-001, #220)
-- `E-QUERY-038` plan-time column gate expanded to 14-position binding-context walk
-  with 6 suspension rules (BC-2.11.016; FIX-IEQ-ERRPATH-001, #219)
+- prism-security credential store trait + Argon2id file backend ([#19](https://github.com/drbothen/prism/pull/19))
 
-#### Sensor Adapter Framework
+- prism-feature-flags P0 core — runtime gating + analyst audit ([#23](https://github.com/drbothen/prism/pull/23))
 
-- `SpecDrivenSensorAdapter`: TOML-spec-driven sensor abstraction bridging
-  `PipelineExecutor` to `AdapterRegistry`, replacing hardcoded per-sensor adapters
-  (S-DEMO-001, #166)
-- Config-driven sensor TOML specs: CrowdStrike, Cyberint, Claroty, and Armis were
-  implemented as TOML specs processed by the spec engine; only claroty.sensor.toml
-  ships in beta.1 (see Deferred) (PLUGIN-MIGRATION-001-D, #153)
-- `SpecParser` hot reload: runtime spec reloading with `ArcSwap` config snapshots
-  (S-1.12, #24)
-- Plugin framework: WASM plugin runtime with host-function security boundary,
-  PRX plugin format (S-1.15, PLUGIN-MIGRATION-001-E, S-PLUGIN-PREREQ-D, #22, #149, #154);
-  the CrowdStrike OAuth2 refresh-on-401 plugin ships with CrowdStrike support (see Deferred)
-- `SensorAuth` open trait + `CustomAdapter` deprecation for extensible plugin
-  authentication (S-PLUGIN-PREREQ-E, #151)
-- `${env.VAR}` interpolation resolution in sensor-spec string fields (S-SPEC-ENV-VAR-001)
-- HTTP method whitelist validation: `E-SPEC-025` + BC-2.16.009 Rule 7 (S-SPEC-HTTP-METHOD-VALIDATION-001, #172)
-- Unified sensor type: retire `types::SensorSpec` shadow type, unify on
-  `spec_parser::SensorSpec` (ADR-030; S-SPEC-TYPE-UNIFICATION-001, #161)
-- `SpecDrivenMapper` in `prism-ocsf` replaces 4 hardcoded OCSF mappers
-  (PLUGIN-MIGRATION-001-C, #158)
-- `WASMtime` compilation cache with degradable boot (S-PERF-GATE-008, #213)
+- prism-wasm plugin runtime + host-function security boundary ([#22](https://github.com/drbothen/prism/pull/22))
 
-#### Claroty xDome Sensor Suite (14 tables)
+- prism-security confirmation tokens — RiskTier gate, single-use tokens, Kani VP-007..010 ([#25](https://github.com/drbothen/prism/pull/25))
 
-- `devices` table with full column set, SAP-2 parity, live structural tests
-  (Wave A baseline, fix #236)
-- `alerts` and `device_alert_relations` tables (Wave A/B)
-- `vulnerabilities` table: 19-column Tier-1/Tier-2 spec, explicit-nulls wire shape,
-  SAP-3 E-QUERY-038 gate (S-CLAROTY-VULNS-001, #245)
-- `ot_activity_events` table: 21-column spec, native JSON array for
-  `related_alert_ids` (S-CLAROTY-OT-EVENTS-001, #246)
-- `device_vulnerability_relations` table: 13-column composite PK spec
-  (S-CLAROTY-DEVVULNREL-001, #247)
-- `servers` and `server_interfaces` tables: 17-col + 10-col spec, null-passthrough,
-  `count=null` empty-page halt (S-CLAROTY-SERVERS-001, #248)
-- `organization_zones`, `organization_zone_policies`, `organization_firewall_groups`, `organization_firewall_policies` tables: 4 org
-  policy TOML blocks, `entity_management/3004`, URL↔envelope asymmetry
-  (S-CLAROTY-ORGPOLICY-001, #249)
-- `organization_acl_policies` table: pagination-none, mandatory `filter_by`/`policy_acl_syntax`,
-  `applied_models` JSON array (S-CLAROTY-ACLPOLICY-001, #250)
-- `audit_logs` time-filter push-down: ADR-033 T1 option with `INDEX` eligibility and
-  default `>=` time-guard injection (S-CLAROTY-AUDITLOG-TIMEBOX-001, #239)
-- HTTPS transport hardening, deterministic `sort_by` for offset-pagination stability
-  across all 7 paginated tables (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, #252)
+- prism-spec-engine hot reload + runtime management ([#24](https://github.com/drbothen/prism/pull/24))
 
-#### Multi-tenant Architecture
+- prism-credentials CRUD, resolution, secret redaction, and audit logging ([#27](https://github.com/drbothen/prism/pull/27))
 
-- `OrgId(Uuid v7)` canonical org identity newtype with `OrgRegistry` bijective BiMap
-  (S-3.1.01, S-3.1.03, #81, #94)
-- `OrgSlug` newtype with redacted `Debug`, `new_unchecked` symbol-keyed audit gate
-  (S-3.1.02, #93)
-- Per-org overlay loading: `OverlayLoader`, `OrgScopedSpecStore`, resolved-spec-map
-  threading through `MaterializationContext` and `QueryEngine`
-  (S-CONFIG-MULTI-TENANT-OVERRIDE-001, #155)
-- Customer config TOML schema + parser + startup validator (S-3.3.01, #92)
-- `OrgRegistry` boot from customer config with validate-before-register pattern
-  (S-3.3.02, #97)
-- Multi-tenant state segregation in all 4 sensor DTU clones: `(OrgId, String)`
-  re-keying across Claroty, CrowdStrike, Armis, Cyberint (S-3.2.01–3.2.04, #85–#88)
-- Multi-org smoke test: 4-sensor × N-org isolation with seeded DTU data
-  (S-DEMO-004, S-DEMO-MULTI-TENANT-DTU-001, #181)
-- Per-org DTU instance: N-address binding for overlay testing
-  (S-DEMO-MULTI-TENANT-DTU-001)
-- `start-multi` subcommand + N-org demo script consolidation
-  (S-DEMO-LAUNCHER-CONSOLIDATION-001)
+- prism-audit — audit emitter + redaction + AuditRiskLevel (Wave 2) ([#58](https://github.com/drbothen/prism/pull/58))
 
-#### MCP Server
+- claroty multi-tenant state segregation — (OrgId, String) re-keying (BC-3.2.001/003) ([#86](https://github.com/drbothen/prism/pull/86))
 
-- `PrismServer` via `rmcp` 1.7: tool router, structured error responses,
-  prompt injection defense, tri-state client scoping (S-5.01-FOLLOWUP-MCP-BOOT,
-  S-5.02, #163)
-- MCP Resources + Prompts: per-org DI resources, sensor-health prompts,
-  `sanitize_for_log` injection defense (S-5.03)
-- Sensor Health Subsystem: live probes, `probe_table` routing, `E-SPEC-026`,
-  `HealthSummary` structured content (S-5.04, #202)
-- `_meta` envelope in query responses: `sensors_queried`, `has_more`, error-arm
-  handling (DEFECT-LIVE-ENVELOPE-OBS-001, #251)
-- MCP query row-shape: explicit nulls, structured `message`/`suggestion` split in
-  error responses (DEFECT-MCP-ROWSHAPE-NULLS-001, #222)
-- Write endpoints with verb uniqueness validation (S-1.13, #20)
+- prism-customer-config TOML schema + parser + startup validator (BC-3.3.001/002/003/004) ([#92](https://github.com/drbothen/prism/pull/92))
 
-#### Digital Twin Universe (DTU) Clones
+- reload_config detects + warns on DTU mode changes — invariant-preserving rejection (BC-3.2.005) ([#100](https://github.com/drbothen/prism/pull/100))
 
-- DTU common infrastructure: shared harness, `DtuMode` validation, fixture-gen
-  feature (S-6.06, S-3.7.01, #4, #76)
-- Behavioral DTU clones for all 4 primary sensors: Claroty xDome (53 tests),
-  CrowdStrike Falcon, Cyberint, Armis (S-6.07–6.09, #9–#11)
-- Fixture generators for all 4 sensors: 8 archetypes each, seeded deterministic
-  scenario progression (S-3.7.02–3.7.05, S-DEMO-DTU-LIVE-SCENARIO-001-A/B, #76–#80)
-- Harness clone route parity: Armis search + Claroty `audit_log` (S-DEMO-HARNESS-CLONE-PARITY-001, #180)
-- Secondary DTU clones: NVD CVE API, ThreatIntel, Slack webhook, Jira REST v3,
-  PagerDuty Events v2 (S-6.11–6.15, #55–#57)
-- Multi-tenant DTU OrgId ingress tagging across Slack, Jira, PagerDuty
-  (S-3.2.05–3.2.07, #89–#91)
-- Admin token (`X-Admin-Token`) auth on DTU `/dtu/reset` and `/dtu/configure`
-  endpoints (W3-FIX-SEC-001/002/005, #113, #119, #125)
-- DTU schema derivation: Armis + CrowdStrike Rust types from Go SDK sources
-  (S-3.7.00, #75)
-- Unified DTU demo server: `prism-dtu-demo-server` multi-clone harness
-  (S-6.20, #29)
+- S-3.01 PrismQL parser — filter/SQL/pipe modes via Chumsky 0.12 ([#127](https://github.com/drbothen/prism/pull/127))
 
-#### Audit and Credential Subsystems
+- PrismQL write parser extensions — BC-2.11.004 v1.4 + perimeter +10 symbols ([#130](https://github.com/drbothen/prism/pull/130))
 
-- `prism-audit`: audit emitter, redaction, `AuditRiskLevel`, specialized audit events
-  (credential, vector, flag, token), `org_id`/`org_slug` fields, SHA-256 `aql_hash`
-  (S-2.04, S-2.05, S-3.1.07, #58, #59, #96)
-- `prism-credentials`: credential CRUD, secret redaction, audit logging,
-  `CredentialStoreOrgId` OrgId-keyed namespace (S-1.07, #27)
-- `prism credential set/delete` CLI with stdin credential read (no terminal echo),
-  demo setup scripts, operator runbook (S-DEMO-003, #176)
-- Canonical `E-CRED-001..010` namespace migration + collision resolution (ADR-035;
-  S-MAINT-ECRED-TAXONOMY-SYNC-001)
+- PrismQL query materialization — BC-2.11.001/005/006/007/011/012 ([#129](https://github.com/drbothen/prism/pull/129))
 
-#### Security
+- pagination + caching (cursor lifecycle, moka LRU, write invalidation)
 
-- Four-layer prompt injection defense in `prism-security` and `prism-mcp`
-  (S-1.10, #16)
-- `prism-security`: `CredentialStore` Argon2id file backend, confirmation tokens,
-  `RiskTier` gate, single-use tokens, `FeatureFlagEvaluator`
-  (S-1.06, S-1.09, #19, #25)
-- `rustls-tls` mandatory workspace-wide: eliminate `native-tls` from all `reqwest`
-  dependency entries (ADR-050; DEFECT-ADAPTER-TLS-XDOME-LIVE-001)
-- `sanitize_for_log` sibling-sweep across `prism-spec-engine` overlay and error paths
-  (SEC-PASS4/5/6)
-- Customer-config spec path traversal hardening (`CWE-22`/`E-CFG-018`;
-  W3-FIX-SEC-003, #114)
-- `SecretString` bearer tokens + Armis AQL validator (W2-FIX-I, #69)
-- TOML inline-table redaction + constant-time admin token comparison
-  (W3-FIX-SEC-004, #122)
-- `X-Org-Id` auth enforcement on all 4 DTU clones (`CWE-287`/`CWE-639`/A01;
-  W3-FIX-SEC-001, #113)
+- alias system — alias-write feature flag + capability/resolver/store/tools/types modules
 
-#### Formal Verification and Testing Infrastructure
+- explain query diagnostics — BC-2.11.010
 
-- Kani formal proofs: VP-002/003/004 (capability deny-by-default), VP-007–010
-  (confirmation tokens), VP-014/015 (query size/depth limits)
-  (S-1.03, S-1.09, S-1.11 proofs, #15, #25)
-- Fuzz target `vp021_parse_fuzz` for PrismQL grammar
-- Perimeter compile-fail gates: `E0432` (prism-query import boundary),
-  `E0639` (`#[non_exhaustive]` external match) (S-PLUGIN-PREREQ-A, S-PLUGIN-PREREQ-C)
-- `#[non_exhaustive]` discipline: all public TOML-deserialized and API surface types
-  annotated; Layer-1 equality CI gate (S-PLUGIN-PREREQ-C, expanded through Wave C)
-- Wire-shape assertion discipline: MCP-visible surfaces assert on serialized JSON
-  output, enforcing null-not-absent at wire level (DEFECT-MCP-ROWSHAPE-NULLS-001,
-  S-CLAROTY-VULNS-001, S-CLAROTY-OT-EVENTS-001 and subsequent)
-- T13 pre-flight live-audit script: 106-check coverage matrix for CI/live parity
-  (AUDIT-COVERAGE-001, #226)
-- E2E subprocess smoke test: all 4 sensors + multi-org isolation + AQL push-down
-  (S-DEMO-002, #171)
-- `records-lint.sh` mechanical gate: L1/L7/L9/L10 checks across `.factory/` record
-  files (TD-VSDD-092)
+- write execution pipeline — BC-2.04.001/005, BC-2.05.009 (Phase 2 safety + Phase 5 dispatch + structured error taxonomy)
 
-#### Storage
+- prism-bin chassis — boot sequence + CLI + signal handlers ([#138](https://github.com/drbothen/prism/pull/138))
 
-- `prism-storage`: RocksDB foundation with 19 column families, audit buffer,
-  watchdog, denylist, event buffer, dirty bits (S-2.01–2.03, S-2.08, #43, #52–#53)
+- S-PLUGIN-PREREQ-B — Real PipelineExecutor with multi-step fetch, auth refresh, and Structured Event Catalog ([#143](https://github.com/drbothen/prism/pull/143))
 
-#### Observability
+- S-PLUGIN-PREREQ-C — TOML grammar extensions (page_size + JSONPath brackets/wildcards + Interpolator escape) + pub-API hardening (30 #[non_exhaustive] types + symbol-keyed allowlist + SensorIdValidationError re-export) ([#144](https://github.com/drbothen/prism/pull/144))
 
-- Structured event catalog: all `tracing::*!(event_type=…)` emission sites
-  registered in BC-2.16.002 canonical catalog with field schema, audit role,
-  recurrence policy (PG-LP11-001)
-- 18 diagnostic log targets defined in observability architecture
+- plugin runtime boot wiring (18 ACs; 25 Red Gate tests; 3-CLEAN converged) ([#149](https://github.com/drbothen/prism/pull/149))
 
-#### Performance
+- un-seal SensorAuth + deprecate CustomAdapter + WriteToolInvalidationMap runtime extensibility ([#151](https://github.com/drbothen/prism/pull/151))
 
-- `cargo-nextest` + per-platform `PROPTEST_CASES` + `mold` linker: CI wall-clock
-  optimization (W3-FIX-CI-001, #112)
-- Nextest profile hardening: `wasm-cap` + `http-cap` groups eliminate
-  WASMtime/wiremock oversubscription (5.4x faster test runs)
-  (S-PERF-GATE-001–008, #204–#213)
-- `WASMtime` compilation cache with degradable boot (S-PERF-GATE-008, #213)
-- Graceful DTU shutdown for prompt `stop()` completion (S-PERF-GATE-005, #210)
+- implement per-org overlay loading (BC-2.06.012..016)
 
-### Deferred to a Future Release
+- per-org sensor endpoint overlay loading (ADR-029) ([#155](https://github.com/drbothen/prism/pull/155))
 
-The following sensor adapters are present in the workspace but are **not supported
-in beta.1**. They will return in a future release with full native authentication:
+- prism-mcp PrismServer — rmcp 1.7, tool router, injection defense ([#163](https://github.com/drbothen/prism/pull/163))
 
-- **CrowdStrike Falcon**: multi-region base URL, `devices` POST fan-out, `E-QUERY-043`
-  gate; OAuth2 refresh-on-401 via PRX WASM plugin. Blocked pending S-ADR054-WAVE-A-001
-  (native CrowdStrike auth without the crowdstrike-oauth2.prx plugin dependency).
-- **Cyberint**: `access_token` auth, `StaticCookieAuthProvider`, sensor-spec fidelity.
-- **Armis**: AQL search endpoint fidelity, DTU `/api/v1/search` push-down, AQL
-  validator (multi-occurrence SELECT + single-quote rejection).
-- **Sensor-specific enrichment demos**: IOC stamping for Cyberint/CrowdStrike, NVD
-  CVSS enrichment on Armis CVE data — enrichment code path present in the binary;
-  sensor pipelines deferred.
+- ${env.VAR} interpolation resolution in sensor-spec string fields
+
+- SpecDrivenSensorAdapter + boot step 9A — bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) ([#166](https://github.com/drbothen/prism/pull/166))
+
+- HTTP method whitelist validation in sensor spec — E-SPEC-025 + BC-2.16.009 v1.10 Rule 7 (DRIFT-D926-001) ([#172](https://github.com/drbothen/prism/pull/172))
+
+- migrate sensor TOMLs ocsf_class security_finding → detection_finding (OCSF v1.1) ([#174](https://github.com/drbothen/prism/pull/174))
+
+- demo setup scripts + prism credential set/delete CLI + operator runbook ([#176](https://github.com/drbothen/prism/pull/176))
+
+- NormalizePathLayer trailing-slash route fidelity — ADR-031 §D8-b Gap-CL-001 (BC-2.16.013 v1.25)
+
+- OffsetLimit POST-body pagination for Claroty (closes Gap-CL-004)
+
+- start-multi subcommand + N-org demo script consolidation
+
+- enrichment pivot query support for prism-query
+
+- MCP tool routing, structured error responses, tri-state client scoping
+
+- dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate
+
+- full infusion engine (MMDB/CSV/JSON/HttpLookup sources, 3-tier cache, plugin runtime, SEC-001 source-size guard)
+
+- MCP Resources & Prompts — per-org DI resources, sensor-health, prompt sanitization
+
+- ThreatIntel/NVD dual-path enrichment (HttpLookup + WASM plugin infusion)
+
+- MCP teaching surface — prism_describe + reference prompts + ADR-042 reload-aware schema
+
+- PrismQL Query Engine L4 — E-QUERY-038 column gate + pedagogical enrichments + normalized_pql ([#198](https://github.com/drbothen/prism/pull/198))
+
+- ENRICH-1/2/3/4-B integration — PrismQL enrichment chain end-to-end
+
+- prism-mcp Sensor Health Subsystem — live probes, probe_table routing, E-SPEC-026, HealthSummary ([#202](https://github.com/drbothen/prism/pull/202))
+
+- ADR-052 §D4 Option A temporal typing — lenient-parse + AST-walk + String coercion ([#214](https://github.com/drbothen/prism/pull/214))
+
+- typed enrichment-UDF output with consistent ColumnType coercion
+
+- PrismQL case-insensitive operators IEQ/IIN/INE with adapter-boundary OCSF enum-label normalization ([#217](https://github.com/drbothen/prism/pull/217))
+
+- release.yml repair — 5-platform release pipeline (DEF-REL-001..004, prerelease, static musl, pinned toolchain) ([#228](https://github.com/drbothen/prism/pull/228))
+
+- ADR-058 Stage 1 — column coercion gap closure (EC-016-013-007/008/009/030) ([#240](https://github.com/drbothen/prism/pull/240))
+
+- OCSF column-naming/routing Stage 2 (§J1–J5, query-surface resolution, push-down)
+
+- LIMIT-aware early-stop pagination + is_truncated signaling (ADR-060 §D8)
+
+- Claroty xDome vulnerabilities table — TOML block, 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) ([#245](https://github.com/drbothen/prism/pull/245))
+
+- Claroty xDome OT activity events table — TOML block, 21-column Tier-1/Tier-2 spec, live structural tests (Wave A G2) ([#246](https://github.com/drbothen/prism/pull/246))
+
+- Claroty xDome device_vulnerability_relations table — 13-column Tier-1/Tier-2 spec, composite PK, live structural tests (Wave B G3) ([#247](https://github.com/drbothen/prism/pull/247))
+
+- Claroty xDome servers + server_interfaces tables — 17-col + 10-col TOML spec, live structural tests (Wave C G4) ([#248](https://github.com/drbothen/prism/pull/248))
+
+- Claroty xDome org policy tables — 4 TOML blocks, entity_management/3004, 8 Json cols, fw URL↔envelope asymmetry, live structural tests (Wave C G5) ([#249](https://github.com/drbothen/prism/pull/249))
+
+- Claroty xDome ACL policies table — 14th Claroty table, pagination-none, mandatory filter_by/policy_acl_syntax, Wave C G6 ([#250](https://github.com/drbothen/prism/pull/250))
+
+- install.sh + install.ps1 — checksum-verified 5-platform consumer install scripts ([#254](https://github.com/drbothen/prism/pull/254))
+
+- version identity — 1.0.0-dev reset + PRISM_VERSION injection + version-agnostic docs ([#262](https://github.com/drbothen/prism/pull/262))
+
+- agent-facing version identity — prism-mcp serverInfo + prism-spec-engine UA (S-REL-AGENT-VERSION-001) ([#263](https://github.com/drbothen/prism/pull/263))
+
 
 ### Fixed
 
-- `_meta` envelope: `sensors_queried` Err-arm + `has_more` invariant
-  (DEFECT-LIVE-ENVELOPE-OBS-001, #251)
-- Deterministic `sort_by` for 7 Claroty xDome paginated tables: fixes
-  offset-pagination instability (DEFECT-CLAROTY-SORTBY-DETERMINISM-001, #252)
-- `claroty_vulnerabilities` live-query timeout: replaced unindexed `adjusted_vulnerability_score`
-  primary sort (computed composite score requiring full-corpus evaluation → >30s timeout) with
-  `published_date desc` (native-indexed datetime, xDome OpenAPI default for /vulnerabilities/)
-  while retaining `name asc` as tiebreaker — queries now return within timeout
-  (DEFECT-CLAROTY-VULN-PAGESIZE-001)
-- Claroty `audit_logs` time-filter push-down with INDEX eligibility
-  (fix #239)
-- Claroty HTTPS transport hardening + sensor error/health-status fidelity (fix #237)
-- Claroty live xDome API SAP-2 silent-data-loss fixes, column expansion,
-  `device_alert_relations` table (fix #236)
-- CrowdStrike `devices` pipeline empty results: POST fan-out + empty MemTable
-  pre-registration + `E-QUERY-043` gate (#221)
-- MCP query row-shape: explicit nulls, `message`/`suggestion` split (#222)
-- PrismQL function-call LHS predicate gating: `E-QUERY-038`/`E-QUERY-039`
-  plan-time gates, aggregate-in-WHERE enforcement (#223)
-- `E-QUERY-042` gate for timestamp literals in GROUP BY/ORDER BY (#220)
-- Demo setup scripts: cwd-independence + config-dir-aware guidance
-- Per-org overlay resolved-spec-map threading through
-  `MaterializationContext` + `QueryEngine` (F-LP2-CRIT-001, F-LP2-HIGH-001)
-- Retire `ColumnType` shadow enum; re-export `prism_core` canonical
-  (ADR-024, #148)
-- `CredentialStoreOrgId` false-positive remediation for BC-3.2.002 regression
-  (W3-FIX-CREDS-001, #121)
-- `OrgSlug::new_unchecked` guarded by symbol-keyed audit test (not `#[cfg(test)]`
-  which doesn't propagate to downstream crates)
-- Armis AQL multi-occurrence SELECT + single-quote rejection (W2-FIX-L, #72)
-- Audit emitter persistence + `evict_expired` backend scan (W2-FIX-H, #68)
-- `SecretString` bearer tokens replacing plain-string credential handling (W2-FIX-I, #69)
-- `HarnessBuilder` failure scope + Drop grace period (W3-FIX-CODE-001, #116)
+- query-core — E-QUERY taxonomy splits, watchdog grace period, cache/hot-reload fixes
 
-### Changed
+- mcp-boot lane — fail-closed write audit, reload_config WriteTool, capability fields, security polish ([#184](https://github.com/drbothen/prism/pull/184))
 
-- `TenantId` renamed to `OrgSlug` across the full workspace (S-3.1.02, #93)
-- Sensor auth: replaced 4 named auth modules with TOML spec-driven auth
-  (PLUGIN-MIGRATION-001-A/B/C, #156, #157, #158)
-- `crowdstrike_session` field renamed to `org_scoped_session_id` (#126)
-- All sensor TOML specs migrated from `ocsf_class: security_finding` to
-  `detection_finding` (OCSF v1.1; OCSF-CLASS-MIGRATION-001, #174)
-- `prism-spec-engine` compile-fail perimeter: 12 sensor-named tests rewritten to
-  TOML fixture loading (PLUGIN-MIGRATION-001-F, #160)
-- `reqwest` TLS backend: `native-tls` eliminated workspace-wide, all entries use
-  `rustls-tls` (ADR-050)
+- E-QUERY-038 plan-time column gate — 14-position binding-context walk + 6 suspension rules (BC-2.11.016 v1.25) ([#219](https://github.com/drbothen/prism/pull/219))
+
+- E-QUERY-042 gate for Literal::Timestamp in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7) ([#220](https://github.com/drbothen/prism/pull/220))
+
+- PrismQL function-call LHS predicate gating — seven-position E-QUERY-038/039 plan-time gates, aggregate-in-WHERE enforcement, LOW-006 reserved-keyword exclusion, BC-2.11.019 injection-safety ([#223](https://github.com/drbothen/prism/pull/223))
+
+- MCP query row-shape defects — explicit nulls + error message/suggestion split ([#222](https://github.com/drbothen/prism/pull/222))
+
+- cmd_configure missing X-Admin-Token header — POST /dtu/configure returns 401 ([#225](https://github.com/drbothen/prism/pull/225))
+
+- live xDome API fidelity — SAP-2 silent-data-loss fixes, column expansion, device_alert_relations table ([#236](https://github.com/drbothen/prism/pull/236))
+
+- xDome HTTPS transport hardening + sensor error/health-status fidelity (F10 + F9) ([#237](https://github.com/drbothen/prism/pull/237))
+
+- audit_logs time-filter push-down + INDEX eligibility (S-CLAROTY-AUDITLOG-TIMEBOX-001) ([#239](https://github.com/drbothen/prism/pull/239))
+
+- _meta envelope — sensors_queried Err-arm (OBS-1) + has_more invariant (OBS-2) ([#251](https://github.com/drbothen/prism/pull/251))
+
+- deterministic sort_by for 7 Claroty xDome tables — fixes offset-pagination instability (D-001..D-007) ([#252](https://github.com/drbothen/prism/pull/252))
+
+- claroty_vulnerabilities sort_by — published_date replaces adjusted_vulnerability_score ([#256](https://github.com/drbothen/prism/pull/256))
+
+- musl rustup race + CHANGELOG beta.1 section + Release-notes wiring (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001) ([#261](https://github.com/drbothen/prism/pull/261))
+
 
 ### Security
 
@@ -349,16 +197,16 @@ in beta.1**. They will return in a future release with full native authenticatio
   and corporate MITM proxy interception path for sensor API credentials
   (ADR-050; DEFECT-ADAPTER-TLS-XDOME-LIVE-001)
 
-## [1.0.0-rc.1] - 2026-09-03
 
-v1.0.0-rc.1 was tagged at commit cf92ab535 but was **never published**. The
-`x86_64-unknown-linux-musl` release workflow leg failed deterministically on
-ubuntu-24.04 runner image `ubuntu24/20260831.293` due to a rustup component
-installation conflict (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001), preventing
-`publish-release` from running. No release assets were produced under this tag.
-Additionally, the maturity label was corrected from rc to beta to reflect the
-evaluation scope of this release. Superseded by v1.0.0-beta.1.
+### Performance
+
+- WASMtime compilation cache with degradable boot ([#213](https://github.com/drbothen/prism/pull/213))
+
+
+### Changed
+
+- canonical E-CRED-001..010 namespace migration + collision resolution (ADR-035)
+
 
 [Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...HEAD
-[1.0.0-beta.1]: https://github.com/drbothen/prism/compare/v1.0.0-rc.1...v1.0.0-beta.1
-[1.0.0-rc.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-rc.1
+[1.0.0-beta.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-beta.1
