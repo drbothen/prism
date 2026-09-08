@@ -240,16 +240,23 @@ jobs:
         run: |
           cat artifacts/release-*/checksums.txt > checksums.txt
       - name: Fetch full history and tags (nightly path)
-        # git-cliff --latest requires the full tag history that the default
+        # git-cliff --current requires the full tag history that the default
         # shallow checkout (fetch-depth: 1) does not provide. This step fetches
         # complete history and all tags so git-cliff can walk the tag range.
         # Gated to nightly tags only — stable/beta/rc channels use curated
         # CHANGELOG extraction and do not need git-cliff or full history.
+        # Finding 3 fix: guard on --is-shallow-repository so transient fetch
+        # failures on a full clone surface as real errors rather than silently
+        # falling back to a tags-only fetch.
         if: contains(github.ref_name, '-nightly.')
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --unshallow --tags 2>/dev/null || git fetch --tags
+          if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+            git fetch --unshallow --tags
+          else
+            git fetch --tags
+          fi
       - name: Install git-cliff (nightly path)
         # Installs git-cliff 2.14.1 (ADR-063 §D1 version pin) via taiki-e/install-action.
         # Pre-built binary download (~10s vs 3-5 min cargo compile).
@@ -280,10 +287,12 @@ jobs:
           #                                                                      #
           # NIGHTLY (exact form: vX.Y.Z-nightly.YYYYMMDD or .YYYYMMDD.N):      #
           # Machine-generated dated tags cannot have pre-authored CHANGELOG     #
-          # sections. git-cliff --latest generates categorized changelog output  #
-          # (feat/fix/perf/refactor/security) for the nightly window; falls     #
-          # back to the canned "## Nightly build" summary body when git-cliff   #
-          # exits non-zero or produces empty output (all-skip-rule commits).    #
+          # sections. git-cliff --current --strip=header generates categorized  #
+          # changelog output (feat/fix/perf/refactor/security) for the nightly  #
+          # window; --strip=header omits the cliff.toml [changelog] header so   #
+          # no masthead leaks into the release body. Falls back to the canned   #
+          # "## Nightly build" summary body when git-cliff exits non-zero or    #
+          # produces no entry lines (all-skip-rule commits, e.g. ci:/chore:).   #
           # Full tag history is fetched by the preceding unshallow step (gated  #
           # to nightly path) before this step runs. The anchored regex          #
           # (SEC-NEW-LOW) prevents hybrid tags like v1.0.0-alpha.1-nightly.X   #
@@ -296,19 +305,22 @@ jobs:
           # ------------------------------------------------------------------ #
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
             # ----- NIGHTLY CHANNEL: git-cliff categorized output (fallback: canned body) -----
-            # git-cliff --latest renders commits between the two most recent tag_pattern-matching
-            # tags (cliff.toml tag_pattern "v[0-9].*" matches nightly tags). This gives the
-            # commit window from prev_tag to the current nightly tag.
-            # Fallback: canned "## Nightly build" body when git-cliff exits non-zero or output
-            # is empty/whitespace-only (all-skip-rule commits). A nightly MUST always publish.
+            # git-cliff --current renders commits between the previous tag_pattern-matching
+            # tag and the current tag at HEAD (cliff.toml tag_pattern "v[0-9].*" matches
+            # nightly tags). This gives the commit window from prev_tag to the current nightly
+            # tag. --strip=header omits the cliff.toml [changelog] header field so only
+            # version/section content is emitted (no masthead in the release body).
+            # Fallback: canned "## Nightly build" body when git-cliff exits non-zero or
+            # produces no entry lines (all-skip-rule commits, e.g. ci:/chore:).
+            # A nightly MUST always publish.
             SHORT_SHA="$(git rev-parse --short HEAD)"
             DATE_UTC="$(date -u +%Y-%m-%d)"
-            CLIFF_OUTPUT="$(git cliff --latest 2>/dev/null || true)"
-            if [[ -n "$(echo "${CLIFF_OUTPUT}" | tr -d '[:space:]')" ]]; then
-              echo "${CLIFF_OUTPUT}" > "$NOTES_FILE"
+            CLIFF_OUTPUT="$(git cliff --current --strip=header || true)"
+            if printf '%s\n' "$CLIFF_OUTPUT" | grep -q '^- '; then
+              printf '%s\n' "$CLIFF_OUTPUT" > "$NOTES_FILE"
               echo "Nightly notes: git-cliff categorized output ($(wc -l < "$NOTES_FILE") lines) for ${TAG}"
             else
-              # Fallback: git-cliff produced empty output (all skip-rule commits) or errored.
+              # Fallback: git-cliff produced no entry lines (all skip-rule commits) or errored.
               {
                 echo "## Nightly build"
                 echo ""
