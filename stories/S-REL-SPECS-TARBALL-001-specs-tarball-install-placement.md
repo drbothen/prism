@@ -5,8 +5,8 @@ title: "devops: specs tarball release asset + install.sh/install.ps1 spec placem
 wave: F-A
 epic_id: E-REL
 priority: P2
-status: draft
-version: "1.1"
+status: merged
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-09T00:00:00Z"
@@ -99,7 +99,7 @@ phase: "F3"
 # S-REL-SPECS-TARBALL-001 — Specs Tarball Release Asset + Install Script Spec Placement
 
 **Story ID:** S-REL-SPECS-TARBALL-001
-**Status:** draft v1.1
+**Status:** merged v1.2
 **Target release:** v1.0.0-beta.2
 
 ---
@@ -241,7 +241,6 @@ Well within the 30% context window budget.
    # Spec placement (AC-003, AC-004)
    # ---------------------------------------------------------------------------
    if [[ -n "${SPEC_DIR}" ]]; then
-     mkdir -p "${SPEC_DIR}"
      SPECS_ARCHIVE="prism-specs-${VERSION}.tar.gz"
      SPECS_URL="https://github.com/${REPO}/releases/download/${VERSION}/${SPECS_ARCHIVE}"
      printf 'Downloading sensor specs for %s...\n' "${VERSION}"
@@ -269,7 +268,8 @@ Well within the 30% context window budget.
      if [[ -f "${SPEC_TARGET}" ]] && [[ "${FORCE_SPECS}" != "true" ]]; then
        printf 'NOTE: %s already exists; skipping (pass --force-specs to overwrite).\n' "${SPEC_TARGET}"
      else
-       tar -xzf "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" -C "${SPEC_DIR}"
+       mkdir -p "${SPEC_DIR}"
+       tar -xzf "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" -C "${SPEC_DIR}" claroty.sensor.toml
        printf 'Sensor spec installed to %s\n' "${SPEC_TARGET}"
        printf '  Set spec_dir = "%s" in your prism.toml.\n' "${SPEC_DIR}"
      fi
@@ -321,7 +321,6 @@ Well within the 30% context window budget.
    # Spec placement (AC-005, AC-006)
    # ---------------------------------------------------------------------------
    if ($SpecDir) {
-       New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
        $SpecsArchive = "prism-specs-$Version.tar.gz"
        $SpecsUrl = "https://github.com/$Repo/releases/download/$Version/$SpecsArchive"
        Write-Host "Downloading sensor specs for $Version..."
@@ -355,7 +354,8 @@ Well within the 30% context window budget.
            if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
                Write-Error "tar.exe is required (Windows 10 1803+ / Server 2019+); manual extraction required."; exit 1
            }
-           & tar.exe -xzf $SpecsArchivePath -C $SpecDir
+           New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
+           & tar.exe -xzf $SpecsArchivePath -C $SpecDir claroty.sensor.toml
            if ($LASTEXITCODE -ne 0) {
                Write-Error "tar.exe extraction failed (exit code $LASTEXITCODE)"; exit 1
            }
@@ -619,5 +619,6 @@ All decisions are answerable from existing project conventions (Canonical Princi
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 1.2 | 2026-09-09 | NIT-1 reconciliation: mkdir/New-Item moved to write-path post-verify per PR #279 review (merged @54523dccd) |
 | 1.1 | 2026-09-09 | remove-uncertainty (D-1110): U-1 pipefail-abort guard + binary-block sibling sweep task, U-2 CWE-78 injection option removed, U-3 tar.exe absence check added to install.ps1 snippet |
 | 1.0 | 2026-09-09 | Initial story creation (story-writer; beta.2 charter) |
