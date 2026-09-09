@@ -114,17 +114,19 @@ $env:PRISM_INSTALL_VERSION = '<version>'
 irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
 ```
 
-To install sensor specs at the same time as the binary (requires direct invocation — `-SpecDir`
-cannot be passed through `irm | iex`):
+To install sensor specs at the same time as the binary (`-SpecDir` cannot be passed through
+`irm | iex` — download the release script first, then invoke it directly):
 
 ```powershell
-pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+Invoke-WebRequest -Uri "https://github.com/drbothen/prism/releases/download/<version>/install.ps1" `
+    -OutFile "$env:TEMP\prism-install.ps1" -UseBasicParsing
+& "$env:TEMP\prism-install.ps1" -Version <version> -SpecDir C:\prism\specs
 ```
 
 To overwrite existing spec files (e.g., when upgrading to a new release):
 
 ```powershell
-pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs -ForceSpecs
+& "$env:TEMP\prism-install.ps1" -Version <version> -SpecDir C:\prism\specs -ForceSpecs
 ```
 
 ### Manual download (fallback)
@@ -212,8 +214,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/
 ```
 
 ```powershell
-# Windows: install binary + specs in one step (direct invocation required for -SpecDir)
-pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+# Windows: install binary + specs in one step (download script first, then invoke with -SpecDir)
+Invoke-WebRequest -Uri "https://github.com/drbothen/prism/releases/download/<version>/install.ps1" `
+    -OutFile "$env:TEMP\prism-install.ps1" -UseBasicParsing
+& "$env:TEMP\prism-install.ps1" -Version <version> -SpecDir C:\prism\specs
 ```
 
 After this command, `claroty.sensor.toml` is in your `--spec-dir` path. Set that path as

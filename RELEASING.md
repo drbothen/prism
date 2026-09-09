@@ -360,9 +360,11 @@ Verify all of the following before declaring the release complete:
    appended line for `prism-specs-vX.Y.Z.tar.gz`).
 3. **`install.sh` and `install.ps1`** are attached (install scripts, uploaded per ADJ-002 / S-REL-003).
 4. **`prism-specs-vX.Y.Z.tar.gz`** is attached (sensor spec tarball, uploaded per S-REL-SPECS-TARBALL-001).
-5. **Build-provenance attestations** are present for each archive (created by
-   `actions/attest-build-provenance` during the build step, visible in the
-   workflow run's artifact attestations, verifiable via `gh attestation verify`).
+5. **Build-provenance attestations** are present for each binary archive (created by
+   `actions/attest-build-provenance` during the build step, visible in the workflow run's
+   artifact attestations, verifiable via `gh attestation verify`). The specs tarball
+   (`prism-specs-vX.Y.Z.tar.gz`) and install scripts do not carry SLSA attestations —
+   their integrity is covered by `checksums.txt` SHA-256 verification only.
 6. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
 7. **Release body** is present and contains the curated `## [VERSION]` CHANGELOG content
    (Layer-1 Highlights + Layer-2 git-cliff entries) extracted via `--notes-file` by
