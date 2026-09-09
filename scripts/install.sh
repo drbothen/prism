@@ -270,7 +270,6 @@ chmod 755 "${INSTALL_DIR}/prism"
 # Spec placement (AC-003, AC-004)
 # ---------------------------------------------------------------------------
 if [[ -n "${SPEC_DIR}" ]]; then
-  mkdir -p "${SPEC_DIR}"
   SPECS_ARCHIVE="prism-specs-${VERSION}.tar.gz"
   SPECS_URL="https://github.com/${REPO}/releases/download/${VERSION}/${SPECS_ARCHIVE}"
   printf 'Downloading sensor specs for %s...\n' "${VERSION}"
@@ -299,6 +298,7 @@ if [[ -n "${SPEC_DIR}" ]]; then
   if [[ -f "${SPEC_TARGET}" ]] && [[ "${FORCE_SPECS}" != "true" ]]; then
     printf 'NOTE: %s already exists; skipping (pass --force-specs to overwrite).\n' "${SPEC_TARGET}"
   else
+    mkdir -p "${SPEC_DIR}"
     tar -xzf "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" -C "${SPEC_DIR}" claroty.sensor.toml
     printf 'Sensor spec installed to %s\n' "${SPEC_TARGET}"
     printf '  Set spec_dir = "%s" in your prism.toml.\n' "${SPEC_DIR}"

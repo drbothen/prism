@@ -207,7 +207,6 @@ try {
     # Spec placement (AC-005, AC-006)
     # ---------------------------------------------------------------------------
     if ($SpecDir) {
-        New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
         $SpecsArchive = "prism-specs-$Version.tar.gz"
         $SpecsUrl = "https://github.com/$Repo/releases/download/$Version/$SpecsArchive"
         Write-Host "Downloading sensor specs for $Version..."
@@ -241,6 +240,7 @@ try {
             if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
                 Write-Error "tar.exe is required (Windows 10 1803+ / Server 2019+); manual extraction required."; exit 1
             }
+            New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
             & tar.exe -xzf $SpecsArchivePath -C $SpecDir claroty.sensor.toml
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "tar.exe extraction failed (exit code $LASTEXITCODE)"; exit 1
