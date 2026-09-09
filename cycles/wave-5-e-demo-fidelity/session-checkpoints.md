@@ -11,6 +11,18 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2511 — 2026-09-09; STATE v10.017 — RECORDS-ONLY MICRO-BURST; v1.0.0-beta.2 PRE-RELEASE PUBLISHED
+
+**RESUME IN ONE BREATH (D-2511):** Prism at develop@baf720d89 — beta.1 SHIPPED; nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 + S-REL-SPECS-TARBALL-001 COMPLETE; v1.0.0-beta.2 PRE-RELEASE PUBLISHED (release-tag.yml run 34407101117 + release.yml run 34407137100; RELEASING.md §6 all 8 PASS; beta.2 workstream COMPLETE). S-REL-CHANGELOG-CHANNEL-SCOPE-001 MATERIALIZED (P1; draft; ADR-063 §D7 amendment pending; BLOCKS v1.0.0 stable).
+
+**NEXT ACTIONS (D-2511):** (0) Re-arm heartbeat cron b98bd9dc. (1) ADR-063 §D7 amendment (route architect): amend with per-channel git-cliff tag-pattern scoping before S-REL-CHANGELOG-CHANNEL-SCOPE-001 advances draft→ready. (2) Demo Phase-2 (live monroe; human-in-loop). (3) Node-24 action bumps. (4) Rotate test-soc/.mcp.json keys (AD-017).
+
+**HEADS (D-2511):** develop `baf720d89` (origin/develop; v1.0.0-beta.2 published). factory-artifacts: `git -C .factory log -1 --format='%h'` (TD-VSDD-053). main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). Worktrees: REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001/E-REL-NOTES/S-CLAROTY-VULNS-001/S-ENGINE-LIMIT-EARLY-STOP-001/S-REL-NIGHTLY-001. PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001.
+
+**NOTE: Superseded by D-2512 — SESSION WRAP; durable §RESUME SNAPSHOT D-2512 written. STATE v10.017→v10.018; SESSION-HANDOFF v9.009→v9.010.**
+
+---
+
 ## Archived: D-2502 — 2026-09-08; STATE v10.007→v10.008 — SESSION WRAP; PR #277 OPEN @70909d13; cycle-1 ALL FIXED; cycle-2 PENDING
 
 **RESUME IN ONE BREATH:** Prism at develop@d5d5fe7c — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE (first nightly v1.0.0-nightly.20260908 verified); demo Phase-1 fully prepped (live-monroe). IN FLIGHT: git-cliff categorized nightly-notes PR #277 @70909d13 — all cycle-1 findings FIXED, needs cycle-2 re-review + CI-green confirm → merge.
