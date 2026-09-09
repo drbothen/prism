@@ -316,7 +316,7 @@ jobs:
             SHORT_SHA="$(git rev-parse --short HEAD)"
             DATE_UTC="$(date -u +%Y-%m-%d)"
             CLIFF_OUTPUT="$(git cliff --current --strip=header || true)"
-            if printf '%s\n' "$CLIFF_OUTPUT" | grep -q '^- '; then
+            if grep -q '^- ' <<<"$CLIFF_OUTPUT"; then
               printf '%s\n' "$CLIFF_OUTPUT" > "$NOTES_FILE"
               echo "Nightly notes: git-cliff categorized output ($(wc -l < "$NOTES_FILE") lines) for ${TAG}"
             else
