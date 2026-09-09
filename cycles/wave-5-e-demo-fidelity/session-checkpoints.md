@@ -733,3 +733,14 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2498 2026-09-08):** develop: `1724e727f` (origin; v1.0.0-beta.1 tag; PR #275 merged 2026-09-08T01:44:50Z); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); feature/S-REL-NIGHTLY-001: local @a2c7a8bce (AS-BUILT, not yet pushed to PR); main: `bdf24cec8` (stub). Open PRs: #255 (OBSOLETE rc.1 — CLOSE, do NOT merge). Dependabot: #265–#274 (UNTRIAGED). WORKTREES PARKED: S-3.09 (KEEP), W3-FIX-S307-001 (DIRTY do-NOT-touch). REMOVABLE: E-REL-NOTES, S-REL-AGENT-VERSION-001, S-REL-VERSION-IDENTITY, S-CLAROTY-VULNS-001, S-ENGINE-H2-LARGE-RESPONSE-001, S-ENGINE-LIMIT-EARLY-STOP-001.
 
 **NOTE: Superseded by D-2499 — PR #276 (S-REL-NIGHTLY-001) ADMIN SQUASH-MERGED @d5d5fe7c; nightly lane LIVE; live-verify IN PROGRESS (authorized Q3). develop_head 1724e727f→d5d5fe7c. story_index v3.027→v3.028. STATE v10.004→v10.005.**
+
+---
+
+## Archived: D-2501 — 2026-09-08; STATE v10.006→v10.007 — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0); develop @d5d5fe7c
+
+**RESUME IN ONE BREATH:** Prism at develop@d5d5fe7c — v1.0.0-beta.1 shipped+published+deployed to live SOC; nightly lane LIVE + first nightly v1.0.0-nightly.20260908 published; S-REL-NIGHTLY-NOTES-001 MATERIALIZED (draft v1.0; own track). story_index v3.029 / total_stories 339. NEXT ACTION: devops delivers S-REL-NIGHTLY-NOTES-001 → S-REL-SPECS-TARBALL-001 (beta.2) → Demo Phase-2.
+
+**HEADS (D-2501 2026-09-08):** develop: `d5d5fe7c` (origin; PR #276 merged 2026-09-08; nightly LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE: E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-nightly.20260908 + edge-nightly.
+
+**NOTE: Superseded by D-2502 — SESSION WRAP (context-reset prep). PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3+LOW/NIT); cycle-2 pr-reviewer PENDING re-run. STATE v10.007→v10.008; SESSION-HANDOFF v9.002→v9.003.**
+

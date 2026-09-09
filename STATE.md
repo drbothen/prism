@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "10.007"
+version: "10.008"
 producer: state-manager
-timestamp: 2026-09-08T23:00:00Z
+timestamp: 2026-09-08T23:45:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,11 +31,11 @@ workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
 vsdd_factory_version: "1.0.0-rc.23"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2501 SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own track; NOT beta.2-blocking; depends_on S-REL-NIGHTLY-001, S-REL-CLIFF-001; 8 ACs; AC-008 live-verify). story_index v3.028→v3.029; total_stories 338→339. records-lint L1/L7/L9/L10 PASS. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.006→v10.007."
+current_step: "D-2502 SESSION WRAP (context-reset prep) — S-REL-NIGHTLY-NOTES-001 (D-2501) on PR #277 @70909d13 (OPEN): cycle-1 ALL FIXED (HIGH-1 git-cliff --current --strip=header; HIGH-2 entry-count fallback guard; MED-3 is-shallow branch guard; +3 LOW/NIT). actionlint CLEAN; replay-verified. CI 38/49 pass 0 fail. Cycle-2 pr-reviewer PENDING (STOPPED mid-CI-wait; re-run on resume). SESSION-HANDOFF v9.002→v9.003; §RESUME SNAPSHOT D-2500 SUPERSEDED by D-2502. records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.029 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.007→v10.008."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "TORN DOWN (D-2494): .worktrees/S-REL-BETA1-NOTES-001. REMOVABLE: .worktrees/E-REL-NOTES (D-2492), .worktrees/S-REL-AGENT-VERSION-001 (D-2473), .worktrees/S-REL-VERSION-IDENTITY (D-2465), .worktrees/S-CLAROTY-VULNS-001, .worktrees/S-ENGINE-H2-LARGE-RESPONSE-001, .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001. PARKED (keep): S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch). All wave-5-e feature worktrees MERGED D-2387..D-2415 (exhaustive)."
+worktree_status: "ACTIVE: feature/S-REL-NIGHTLY-NOTES-001 @70909d13 (PR #277 OPEN — do NOT remove). REMOVABLE-POST-MERGE: .worktrees/E-REL-NOTES (PR #264), .worktrees/S-CLAROTY-VULNS-001 (PR #245), .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001 (PR #243), .worktrees/S-REL-NIGHTLY-001 (PR #276). PARKED (keep): S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -70,7 +70,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-09-08"
 ---
 
-<!-- STATE.md SIZE BUDGET: 206 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -6 (over-soft) | margin from hard-cap: 294 | margin from actual: 0 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 207 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -7 (over-soft) | margin from hard-cap: 293 | margin from actual: 0 | safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-09-08"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-08 D-2501: S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own track; NOT beta.2-blocking). story_index v3.028→v3.029; total_stories 338→339. trajectory-tail →8→0→1→2. STATE v10.006→v10.007. |
+| **Last Updated** | 2026-09-08 D-2502: SESSION WRAP (context-reset prep). PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3 +3 LOW/NIT). Cycle-2 pr-reviewer PENDING. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.007→v10.008. |
 
 ## Phase Progress
 
@@ -124,27 +124,27 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 
 ## Current Phase Steps
 
-_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496 archived to burst-log (D-2497+D-2498+D-2499+D-2500+D-2501 rotations). Showing last 5 steps._
+_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497 archived to burst-log (D-2498+D-2499+D-2500+D-2501+D-2502 rotations). Showing last 5 steps._
 
 | Step | Date | Summary |
 |------|------|---------|
-| D-2497 | 2026-09-08 | SINGLE-COMMIT BURST — live-monroe-capstone-runbook.md v1.0 NEW (10 acts / 24 beats; all 14 Claroty tables; DTU-zero; SUPERSEDES T13 runbook). Demo Phase-1 prep COMPLETE. Nightly lane own track (feature/S-REL-NIGHTLY-001). STATE v10.002→v10.003. |
 | D-2498 | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-001 REGISTERED (ready v1.0; E-REL; P2; facade; own INDEPENDENT track; NOT beta.2-blocking). story_index v3.026→v3.027; total_stories 337→338. AS-BUILT on feature/S-REL-NIGHTLY-001 @a2c7a8bce. STATE v10.003→v10.004. |
 | D-2499 | 2026-09-08 | POST-MERGE BURST (TD-VSDD-053) — PR #276 (S-REL-NIGHTLY-001) ADMIN SQUASH-MERGED @d5d5fe7c (explicit human auth; 4 review cycles CLEAN(PR-merge); CI 48/48). Nightly lane LIVE. develop_head 1724e727f→d5d5fe7c. POL-14 NO-OP (behavioral_contracts: []). story_index v3.027→v3.028. FOLLOW-UP TRACKED: S-REL-NIGHTLY-NOTES-001 (draft, own-track; git-cliff notes). LIVE-VERIFY IN PROGRESS (authorized Q3). records-lint L1/L7/L9/L10 PASS. STATE v10.004→v10.005. |
 | D-2500 | 2026-09-08 | SESSION WRAP — NIGHTLY LANE LIVE-VERIFY SUCCESS. v1.0.0-nightly.20260908 PUBLISHED (7 assets; AC-010 SATISFIED; production-ready). Node-24 action bumps tracked. STATE v10.005→v10.006. |
 | D-2501 | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own independent track; NOT beta.2-blocking). story_index v3.028→v3.029; total_stories 338→339. records-lint L1/L7/L9/L10 PASS. STATE v10.006→v10.007. |
+| D-2502 | 2026-09-08 | SESSION WRAP (context-reset prep) — PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3 +3 LOW/NIT); actionlint CLEAN; CI 38/49 0-fail. Cycle-2 pr-reviewer PENDING (re-run on resume). STATE v10.007→v10.008. |
 
 ## Decisions Log
 
-_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496 archived to burst-log (D-2497+D-2498+D-2499+D-2500+D-2501 rotations). Showing last 5 decisions._
+_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497 archived to burst-log (D-2498+D-2499+D-2500+D-2501+D-2502 rotations). Showing last 5 decisions._
 
 | ID | Agent | Date | Summary | Cycle | Committed |
 |----|-------|------|---------|-------|-----------|
-| D-2497 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — Live-monroe capstone narrative runbook authored: .factory/objectives/live-monroe-capstone-runbook.md v1.0 (10 acts / 24 beats; all 14 Claroty tables exercised; enrich nvd only, enrich threat_intel prohibited as DTU-bound; DTU-zero; customer-data-free per AD-017; launcher test-soc/prism-live-mcp-wrapper.sh; read-only surface). SUPERSEDES stale T13-capstone-demo-runbook.md (DTU-based). Autonomous demo Phase-1 prep COMPLETE (14-table live-validation matrix + 64-question SOC Q&A catalog per D-2496 + this capstone narrative). Remaining demo work = Phase-2: live monroe Q&A run + recorded walkthrough (HUMAN-IN-LOOP; MCP trust-gate operator-approved). PLANNING NOTES: (1) nightly release lane own track (human-directed 2026-09-08), in progress on feature/S-REL-NIGHTLY-001 (nightly.yml cron 07:17 UTC + change-guard + vX.Y.Z-nightly.YYYYMMDD via RELEASE_PROMOTE_TOKEN → release.yml; keep-14 retention; edge-nightly pointer; RELEASE-CHANNELS §5 4-target doc fix). (2) S-REL-SPECS-TARBALL-001 TARGETED for v1.0.0-beta.2. (3) v1.0.0-beta.1 PUBLISHED (D-2494) + DEPLOYED to live SOC env (binary + matching 14-table Claroty spec). (4) SECURITY: plaintext API keys observed in test-soc/.mcp.json (Perplexity + Tavily) — operator advised to rotate + move to secret refs (values NOT recorded here per AD-017). records-lint L1/L7/L9/L10 PASS. develop_head UNCHANGED 1724e727f. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.026 / total_stories 337 UNCHANGED. STATE v10.002→v10.003. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2498 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-001 REGISTERED (ready v1.0; E-REL; P2; Wave F-A; tdd_mode: facade; subsystems [SS-22]; crates_touched []; behavioral_contracts [] POL-14 NO-OP; depends_on S-REL-001; OWN INDEPENDENT TRACK human-directed 2026-09-08; NOT beta.2-blocking; 10 ACs; AC-010 live workflow_dispatch human-in-loop verify; nightly.yml: cron 07:17 UTC + change-guard + vX.Y.Z-nightly.YYYYMMDD tag via RELEASE_PROMOTE_TOKEN → release.yml 4-target build + prerelease; keep-14 retention two-layer safety filter; edge-nightly mutable pointer delete+recreate non-v* tag). Implementation AS-BUILT on feature/S-REL-NIGHTLY-001 @a2c7a8bce (2 commits: c799847d5 nightly.yml + a2c7a8bce RELEASE-CHANNELS §2/§6/§7 status). RELEASE-CHANNELS §5 4-target already correct per D-2497. release.yml UNCHANGED. records-lint L1/L7/L9/L10 PASS. develop_head UNCHANGED 1724e727f. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. story_index v3.026→v3.027; total_stories 337→338. STATE v10.003→v10.004. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2499 | state-manager | 2026-09-08 | POST-MERGE BURST (TD-VSDD-053) — PR #276 (S-REL-NIGHTLY-001, nightly release lane) ADMIN SQUASH-MERGED to develop @d5d5fe7c under explicit in-session human authorization. Nightly lane now LIVE: nightly.yml (cron 07:17 UTC + workflow_dispatch; change-guard; vX.Y.Z-nightly.YYYYMMDD BASE-MATCH tag via RELEASE_PROMOTE_TOKEN → release.yml) + channel-aware release.yml (nightly canned summary body: '## Nightly build' + develop@sha + date + CHANGELOG-Unreleased link; stable/alpha/beta/rc curated-CHANGELOG hard-fail PRESERVED; exact-form nightly regex prevents hybrid-tag bypass) + keep-14 retention (two-layer nightly-only filter) + edge-nightly mutable pointer + LOW-12 SIGPIPE hardening across release-tag/promote/prep. RELEASE-CHANNELS §2 nightly PLANNED→IMPLEMENTED / §6 §7 PARTIALLY IMPLEMENTED. 4 review cycles CLEAN(PR-merge). CI 48/48 green. develop_head 1724e727f→d5d5fe7c. S-REL-NIGHTLY-001 [ready v1.0]→[merged v1.0; PR #276 @d5d5fe7c]. POL-14 NO-OP (behavioral_contracts: []). story_index v3.027→v3.028. Review: CRIT-1 (Option-A git-cliff unworkable in publish job: git-cliff not installed + shallow checkout) resolved via canned summary body (Option B). FOLLOW-UP TRACKED: S-REL-NIGHTLY-NOTES-001 (draft, own-track) — enhance nightly release notes from canned summary to git-cliff categorized changelog; requires git-cliff install + full-history checkout in release.yml nightly path; human-directed 2026-09-08 Q1 preference; story to be materialized by story-writer when picked up. LIVE-VERIFY (workflow_dispatch nightly) IN PROGRESS to publish first v1.0.0-nightly.YYYYMMDD prerelease + edge-nightly (authorized Q3). D-2494 rotated to burst-log archive. records-lint L1/L7/L9/L10 PASS. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. STATE v10.004→v10.005. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2500 | state-manager | 2026-09-08 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — NIGHTLY LANE LIVE-VERIFY SUCCESS. First nightly v1.0.0-nightly.20260908 PUBLISHED (prerelease; isDraft=false; 7 assets: 4 platform archives aarch64-darwin/linux-gnu/linux-musl/windows + checksums.txt + install.sh + install.ps1; canned '## Nightly build' body citing develop@d5d5fe7c + date). Nightly run 34265553967 (change-guard PROCEEDED — no prior nightly; tag computed v1.0.0-nightly.20260908; annotated tag pushed via RELEASE_PROMOTE_TOKEN; retention no-op; edge-nightly updated). release.yml run 34265612962 (4-target build all GREEN + Create Release). edge-nightly pointer published — points at v1.0.0-nightly.20260908 with pin-for-reproducibility notice. Nightly lane WORKS end-to-end hands-off; AC-010 SATISFIED; production-ready. Maintenance follow-up: Node.js 20 deprecation — arduino/setup-protoc + actions/cache pinned SHAs need Node-24 bump (builds succeed but warn). SESSION-HANDOFF v9.001→v9.002; §RESUME SNAPSHOT D-2499 SUPERSEDED by D-2500. records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.028 UNCHANGED. STATE v10.005→v10.006. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2501 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own independent track; NOT beta.2-blocking; depends_on S-REL-NIGHTLY-001, S-REL-CLIFF-001; 8 ACs AC-008=live-verify-next-nightly). Story enhances NIGHTLY release-notes path in release.yml: git-cliff@2.14.1 (SHA-pinned taiki-e/install-action) + conditional `git fetch --unshallow --tags` (nightly path only) + `git cliff --latest` → categorized body (two most recent v* tags window); canned '## Nightly build' fallback on empty/error; stable/beta/rc curated-CHANGELOG hard-fail + exact-form bypass-guard PRESERVED. ADR-063 §D1/§D3 + RELEASE-CHANNELS.md §2/§5 authority. Human-directed 2026-09-08 Q1 preference. NEXT: devops impl → PR → review → merge (human) → live-verify (AC-008). records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. story_index v3.028→v3.029; total_stories 338→339. STATE v10.006→v10.007. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2502 | state-manager | 2026-09-08 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — git-cliff-notes workstream: S-REL-NIGHTLY-NOTES-001 (D-2501) implemented on feature/S-REL-NIGHTLY-NOTES-001 → PR #277 OPEN @70909d13. Cycle-1 review: security-reviewer APPROVED; AI pr-reviewer REQUEST_CHANGES (2 HIGH + 1 MED). ALL CYCLE-1 FINDINGS FIXED in commit 70909d13: HIGH-1 `git cliff --current --strip=header` (drop git-cliff masthead from categorized output); HIGH-2 entry-count fallback guard `grep -q '^- '` (canned fallback now reachable on header-only/all-skip-rule windows); MED-3 `git rev-parse --is-shallow-repository` branch guard (no silent fetch degradation); +3 LOW/NIT. actionlint CLEAN. replay-verified (header-only→canned fallback; real-commits→categorized no-masthead; stable/beta path byte-unchanged). CI on 70909d13: 38 pass / 11 pending / 0 fail. Cycle-2 pr-reviewer STOPPED mid-CI-wait for context-reset wrap (no durable verdict yet — must re-run on resume). SESSION-HANDOFF v9.002→v9.003; §RESUME SNAPSHOT D-2500 SUPERSEDED by D-2502. records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.029 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.007→v10.008. | wave-5-e-demo-fidelity | factory-artifacts |
 
 ## Skip Log
 
@@ -176,31 +176,32 @@ _D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, decisions-archive-D2300-D2489.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2501 — S-REL-NIGHTLY-NOTES-001-REGISTERED; develop @d5d5fe7c; STATE v10.007) [supersedes D-2500]
+## Session Resume Checkpoint (D-2502 — SESSION-WRAP; develop @d5d5fe7c; STATE v10.008) [supersedes D-2501]
 
 ### RESUME IN ONE BREATH
-Prism at develop@d5d5fe7c — v1.0.0-beta.1 shipped+published+deployed to live SOC; nightly lane LIVE + first nightly v1.0.0-nightly.20260908 published; S-REL-NIGHTLY-NOTES-001 MATERIALIZED (draft v1.0; own track). NEXT ACTION: devops delivers S-REL-NIGHTLY-NOTES-001 (git-cliff nightly notes) → S-REL-SPECS-TARBALL-001 (beta.2) → Demo Phase-2. Rotate exposed test-soc/.mcp.json keys; Node-24 action bumps pending.
+Prism at develop@d5d5fe7c — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE (first nightly v1.0.0-nightly.20260908 verified); demo Phase-1 fully prepped (live-monroe).
+IN FLIGHT: git-cliff categorized nightly-notes PR #277 @70909d13 — all cycle-1 findings FIXED, needs cycle-2 re-review + CI-green confirm → merge.
+THEN: S-REL-SPECS-TARBALL-001 (beta.2, install-script spec placement) → Demo Phase-2 live Q&A run. Nightly=own track; rotate test-soc/.mcp.json keys; Node-24 action bumps pending.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
-1. **S-REL-NIGHTLY-NOTES-001 (own track, draft v1.0, Q1):** Devops delivers: git-cliff@2.14.1 (SHA-pinned taiki-e/install-action) + `git fetch --unshallow --tags` step (nightly path) + `git cliff --latest` nightly body + canned fallback; AC-001..AC-007 structural + AC-008 live-verify next nightly.
-2. **S-REL-SPECS-TARBALL-001 (targeted beta.2):** Story-writer materializes; devops adds standalone specs tarball + install.sh/ps1 spec placement in config spec_dir.
-3. **Demo Phase-2 (human-in-loop):** Live monroe Q&A run + recording per live-monroe-capstone-runbook.md (MCP trust-gate operator-approved).
-4. **Node-24 bumps (maintenance):** arduino/setup-protoc + actions/cache SHA bumps to Node-24 versions.
+1. **S-REL-NIGHTLY-NOTES-001 / PR #277 (IN FLIGHT):** re-run cycle-2 pr-reviewer on PR #277 @70909d13 (verify HIGH-1/HIGH-2/MED-3 fixed + stable/beta path byte-unchanged + no new issues) AND confirm CI green (was 38/49 pass 0 fail); if CLEAN(PR-merge) + CI green → obtain explicit human admin-override auth → `gh pr merge 277 --squash --admin` → post-merge burst → live-verify next nightly renders CATEGORIZED notes.
+2. **S-REL-SPECS-TARBALL-001 (beta.2):** AFTER PR #277 merges (both touch release.yml): materialize story + devops implement `prism-specs-<tag>.tar.gz` release asset + install.sh/ps1 DOWNLOAD + PLACE specs into config dir spec_dir (<config-dir>/specs/). Ships v1.0.0-beta.2.
+3. **Demo Phase-2 (human-in-loop):** Drive test-soc/prism-live per .factory/objectives/live-monroe-capstone-runbook.md (MCP trust-gate operator-approved); record walkthrough.
+4. **Node-24 action bumps (maintenance):** arduino/setup-protoc + actions/cache SHA bumps to Node-24 versions.
 5. **Security:** Rotate plaintext Perplexity + Tavily keys in test-soc/.mcp.json (AD-017).
 
 **HEADS (backup boundary):**
-- develop HEAD `d5d5fe7c` (origin; PR #276 S-REL-NIGHTLY-001 merged 2026-09-08; nightly LIVE).
-- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053).
-- `main`: `bdf24cec8` (stub, untouched; first main join deferred to stable v1.0.0).
-- Open PRs: #255 (OBSOLETE rc.1 CHANGELOG — CLOSE). Dependabot: #265–#274 (UNTRIAGED).
-- WORKTREES REMOVABLE: E-REL-NOTES (PR #264), S-CLAROTY-VULNS-001 (PR #245), S-ENGINE-LIMIT-EARLY-STOP-001 (PR #243), S-REL-NIGHTLY-001 (PR #276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY do-NOT-touch), S-ENGINE-H2-LARGE-RESPONSE-001.
+- develop HEAD `d5d5fe7c` (origin; PR #276 merged 2026-09-08; nightly LIVE).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h'` for current HEAD (TD-VSDD-053). `main`: `bdf24cec8` (stub).
+- Open PRs: PR #277 OPEN @70909d13 (cycle-1 FIXED; cycle-2 PENDING re-run; CI 38/49 0 fail — do NOT remove worktree). PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED).
+- WORKTREES: feature/S-REL-NIGHTLY-NOTES-001 @70909d13 (PR #277 — do NOT remove). REMOVABLE: E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001.
 - Releases: v1.0.0-beta.1 + v1.0.0-nightly.20260908 + edge-nightly (all published prereleases).
 
-**PENDING USER-APPROVED WORK:** Demo Phase-2 (human-in-loop MCP trust gate). Force-push any branch: explicit human approval. Node-24 bumps; rotate test-soc/.mcp.json keys.
+**PENDING USER-APPROVED WORK:** git-cliff notes merge (PR #277 needs admin-override auth); specs-tarball beta.2; live demo QA run. Node-24 bumps; rotate test-soc/.mcp.json keys.
 
-**OPEN ITEMS:** S-REL-NIGHTLY-NOTES-001 (draft, own-track). S-REL-SPECS-TARBALL-001 (beta.2). Demo Phase-2 (live monroe; human-in-loop). Dependabot: #265–#274 (UNTRIAGED). PR #255 (close). S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B).
+**OPEN ITEMS:** PR #277 cycle-2 re-review PENDING. S-REL-SPECS-TARBALL-001 (beta.2). Demo Phase-2 (live monroe; human-in-loop). Dependabot: #265–#274 (UNTRIAGED). PR #255 (close). S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B).
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant (force-push still needs human). (c) D-2410 no live-test output in repo. (d) Live xDome runbook: ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE+TAG (D-2445). (f) DEFECT-1 RESOLVED (PR #237). (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) v1 sensor scope: Claroty xDome (D-2443). (i) RELEASING.md; quality_gates vsdd-partial. (j) No registry publish v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; rc.1 = ghost (D-2452). (m) ADR-063 v1.12 git-cliff hybrid; ADR-064 cargo-release 1.1.5; PRISM_VERSION COMPLETE. (n) DEMO-SCOPE.md v2.1 + capstone-runbook v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; v1.0.0-nightly.20260908 PUBLISHED; AC-010 SATISFIED; S-REL-NIGHTLY-NOTES-001 materialized draft v1.0 own-track (D-2501; devops delivers); S-REL-SPECS-TARBALL-001 targeted beta.2; Node-24 bumps pending.
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant (force-push still needs human). (c) D-2410 no live-test output in repo. (d) Live xDome runbook: ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE+TAG (D-2445). (f) DEFECT-1 RESOLVED (PR #237). (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) v1 sensor scope: Claroty xDome (D-2443). (i) RELEASING.md; quality_gates vsdd-partial. (j) No registry publish v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; rc.1 = ghost (D-2452). (m) ADR-063 v1.12 git-cliff hybrid; ADR-064 cargo-release 1.1.5; PRISM_VERSION COMPLETE. (n) DEMO-SCOPE.md v2.1 + capstone-runbook v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE; v1.0.0-nightly.20260908 PUBLISHED; AC-010 SATISFIED; S-REL-NIGHTLY-NOTES-001 materialized draft v1.0 own-track (D-2501). (r) D-2502 SESSION WRAP: PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3+LOW/NIT); cycle-2 pr-reviewer PENDING re-run; S-REL-SPECS-TARBALL-001 targeted beta.2 (AFTER PR #277 merges; avoids release.yml conflict); Node-24 bumps pending.
