@@ -356,17 +356,19 @@ Verify all of the following before declaring the release complete:
 
 1. **4 platform archives** are attached (`prism-vX.Y.Z-<target>.tar.gz` x3 +
    `prism-vX.Y.Z-x86_64-pc-windows-msvc.zip`).
-2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 4 legs).
+2. **`checksums.txt`** is attached (merged SHA-256 checksums from all 4 legs, plus an
+   appended line for `prism-specs-vX.Y.Z.tar.gz`).
 3. **`install.sh` and `install.ps1`** are attached (install scripts, uploaded per ADJ-002 / S-REL-003).
-4. **Build-provenance attestations** are present for each archive (created by
+4. **`prism-specs-vX.Y.Z.tar.gz`** is attached (sensor spec tarball, uploaded per S-REL-SPECS-TARBALL-001).
+5. **Build-provenance attestations** are present for each archive (created by
    `actions/attest-build-provenance` during the build step, visible in the
    workflow run's artifact attestations, verifiable via `gh attestation verify`).
-5. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
-6. **Release body** is present and contains the curated `## [VERSION]` CHANGELOG content
+6. Release is marked **Latest**, not Pre-release (for stable tags without a hyphen).
+7. **Release body** is present and contains the curated `## [VERSION]` CHANGELOG content
    (Layer-1 Highlights + Layer-2 git-cliff entries) extracted via `--notes-file` by
    the `publish-release` job. (`--generate-notes` is intentionally NOT used — the curated
    CHANGELOG section is the authoritative and complete release body.)
-7. **Bundled specs** are present in each archive. Spot-check a tar.gz:
+8. **Bundled specs** are present in each archive. Spot-check a tar.gz:
    ```bash
    curl -sL https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
      | tar tzf - | grep -E 'specs/|prism\.toml\.example'
@@ -606,7 +608,9 @@ without deleting the tag or the release is safe.
 ### The checksums.txt is missing or incorrect
 
 `checksums.txt` is merged from per-leg `checksums.txt` artifacts in the
-`publish-release` job. If it is absent or contains only some legs, re-run the
+`publish-release` job; the `prism-specs-<tag>.tar.gz` checksum line is then
+appended by the specs-upload step in the same job. If `checksums.txt` is absent,
+contains only some platform legs, or is missing the specs-tarball line, re-run the
 workflow (see above). Do not manually construct or upload a `checksums.txt` — it
 must come from the CI build.
 

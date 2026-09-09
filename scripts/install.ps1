@@ -11,6 +11,8 @@
 #   Direct invocation with parameters:
 #     pwsh -File scripts/install.ps1 -Version <version>
 #     pwsh -File scripts/install.ps1 -DryRun
+#     pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+#     pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs -ForceSpecs
 #
 # PLATFORM
 #   Always installs the x86_64-pc-windows-msvc target.
@@ -22,6 +24,9 @@
 #   3. Verifies the SHA-256 checksum; exits non-zero on mismatch.
 #   4. Extracts prism.exe and installs it to %LOCALAPPDATA%\prism\bin\.
 #   5. Prints PATH guidance if the install directory is not in PATH.
+#   6. If -SpecDir is given: downloads prism-specs-<version>.tar.gz from the release,
+#      verifies its SHA-256 checksum, and extracts claroty.sensor.toml to SpecDir.
+#      Skips existing files unless -ForceSpecs is also passed.
 #
 # SECURITY
 #   - Checksum mismatch aborts install immediately (exit code 1).
@@ -30,7 +35,7 @@
 #   - No credential piping; install scripts handle only binary archives (U31, AD-017).
 #   - Temp directory is always cleaned up in the finally block.
 #
-# Stories: S-REL-003 | ACs: AC-005..AC-007
+# Stories: S-REL-003, S-REL-SPECS-TARBALL-001 | ACs: AC-005..AC-007
 
 [CmdletBinding()]
 param(

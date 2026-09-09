@@ -8,9 +8,10 @@ Claroty xDome sensor connection and Claude Code wired as an MCP client.
 > **Note on sensor specs**: Release archives bundle sensor spec files in `specs/` alongside
 > the binary and `prism.toml.example`. **If you extracted the release archive manually**,
 > the `specs/` directory is already present — skip §4 and proceed to §5. **If you installed
-> via `install.sh` or `install.ps1`**, those scripts deploy only the binary; obtain spec
-> files from the GitHub repository as described in §4. A future release will embed built-in
-> sensor specs directly in the binary (S-REL-010).
+> via `install.sh` or `install.ps1`**, pass `--spec-dir` / `-SpecDir` to have the script
+> download and SHA-256 verify the specs from the GitHub release at the same time (see §2
+> and §4 for details). A future release will embed built-in sensor specs directly in the
+> binary (S-REL-010).
 
 ---
 
@@ -82,6 +83,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/
   --skip-verify-provenance
 ```
 
+To install sensor specs at the same time as the binary (recommended — downloads and
+SHA-256 verifies `prism-specs-<version>.tar.gz` from the release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+  --version <version> --spec-dir /etc/prism/specs
+```
+
+To overwrite existing spec files (e.g., when upgrading to a new release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+  --version <version> --spec-dir /etc/prism/specs --force-specs
+```
+
 ### Windows (PowerShell 5.1+)
 
 ```powershell
@@ -96,6 +112,19 @@ arguments cannot be passed through that pattern):
 ```powershell
 $env:PRISM_INSTALL_VERSION = '<version>'
 irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
+```
+
+To install sensor specs at the same time as the binary (requires direct invocation — `-SpecDir`
+cannot be passed through `irm | iex`):
+
+```powershell
+pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+```
+
+To overwrite existing spec files (e.g., when upgrading to a new release):
+
+```powershell
+pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs -ForceSpecs
 ```
 
 ### Manual download (fallback)
@@ -170,11 +199,28 @@ workflow, not a third party.
 > under `specs/` alongside the binary. Copy that directory to your `spec_dir`, or set
 > `spec_dir = "./specs"` in `prism.toml` (§6) to use them in place. You can skip to §5.
 
-**Install-script users:** The install scripts deploy the `prism` binary only. Sensor TOML
-spec files are not embedded in the binary. You must place them at the `spec_dir` path
-declared in `prism.toml` (configured in §6).
+**Install-script users (recommended):** Pass `--spec-dir` (macOS/Linux) or `-SpecDir`
+(Windows) when running the install script. The script downloads `prism-specs-<version>.tar.gz`
+directly from the GitHub release, verifies its SHA-256 checksum against the release
+`checksums.txt`, and extracts `claroty.sensor.toml` to the specified directory. This is the
+preferred method because it is pinned to the exact release version and checksum-verified.
 
-Download the sensor specs directly from the GitHub repository:
+```bash
+# macOS / Linux: install binary + specs in one step
+bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+  --version <version> --spec-dir /etc/prism/specs
+```
+
+```powershell
+# Windows: install binary + specs in one step (direct invocation required for -SpecDir)
+pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+```
+
+After this command, `claroty.sensor.toml` is in your `--spec-dir` path. Set that path as
+`spec_dir` in `prism.toml` (§6) and proceed to §5.
+
+**Fallback (manual curl):** If you cannot use `--spec-dir` (e.g., the install script was
+piped and the flag was omitted), download the spec directly from the GitHub repository:
 
 ```bash
 # Create a directory to hold specs (use any path you prefer)
@@ -191,6 +237,9 @@ Verify the file arrived:
 grep -c '^\[\[tables\]\]' /etc/prism/specs/claroty.sensor.toml
 # Expected: 14
 ```
+
+Note: the manual curl path is unpinned (downloads from the `main` branch HEAD, not from
+the release tag) and not checksum-verified. Use `--spec-dir` when possible.
 
 Additional sensor specs (CrowdStrike, Armis, Cyberint) are in the repository at
 `crates/prism-sensors/specs/`. They are present in the workspace but not validated

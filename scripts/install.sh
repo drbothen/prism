@@ -5,6 +5,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
 #   bash install.sh --version <version>
 #   bash install.sh --version <version> --dry-run
+#   bash install.sh --version <version> --spec-dir /etc/prism/specs
+#   bash install.sh --version <version> --spec-dir /etc/prism/specs --force-specs
 #
 # SUPPORTED PLATFORMS
 #   aarch64-apple-darwin      macOS (Apple Silicon)
@@ -20,13 +22,16 @@
 #   5. Extracts the prism binary and installs it to INSTALL_DIR.
 #   6. Prints PATH guidance if INSTALL_DIR is not in PATH.
 #   7. Optionally verifies build provenance via gh attestation verify.
+#   8. If --spec-dir is given: downloads prism-specs-<version>.tar.gz from the release,
+#      verifies its SHA-256 checksum, and extracts claroty.sensor.toml to SPEC_DIR.
+#      Skips existing files unless --force-specs is also passed.
 #
 # SECURITY
 #   - Checksum mismatch aborts install immediately (no silent continuation).
 #   - No gh CLI dependency in the script itself (auth-free GitHub REST API for version resolution).
 #   - Temp dir is always cleaned up on exit (trap).
 #
-# Stories: S-REL-003 | ACs: AC-001..AC-009
+# Stories: S-REL-003, S-REL-SPECS-TARBALL-001 | ACs: AC-001..AC-009
 
 set -euo pipefail
 
