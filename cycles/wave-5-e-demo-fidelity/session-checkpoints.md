@@ -798,3 +798,14 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2510 2026-09-09):** develop: `baf720d89` (origin; PR #280 v1.0.0-beta.2 CHANGELOG MERGED); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES: REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (PR #279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + nightly builds + edge-nightly. beta.2 tag NOT YET CUT.
 
 **NOTE: Superseded by D-2511 — v1.0.0-beta.2 PRE-RELEASE PUBLISHED (release-tag.yml run 34407101117 + release.yml run 34407137100; RELEASING.md §6 all 8 PASS). Beta.2 workstream COMPLETE. develop_head baf720d89 UNCHANGED. STATE v10.016→v10.017. SESSION-HANDOFF v9.008→v9.009.**
+
+
+---
+
+## Archived: D-2512 — 2026-09-09; STATE v10.017→v10.018 — SESSION WRAP; v1.0.0-beta.2 PUBLISHED; ADR-063 §D7 PENDING
+
+**RESUME IN ONE BREATH:** Prism at develop@baf720d89 — v1.0.0-beta.2 PUBLISHED this session (nightly categorized notes + specs-tarball & install placement + curated CHANGELOG; PRs #277/#278/#279/#280 all merged; AC-008+AC-009 live-verified). Nothing in flight. NEXT: architect authors ADR-063 §D7 per-channel tag-scoping amendment → S-REL-CHANGELOG-CHANNEL-SCOPE-001 draft→ready→deliver (v1.0.0-stable blocker).
+
+**HEADS (D-2512 2026-09-09):** develop: `baf720d89` (origin; v1.0.0-beta.2 published; nightly lane LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (PR #279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.20260908 + v1.0.0-nightly.20260909.2 + v1.0.0-nightly.20260909.3 + edge-nightly.
+
+**NOTE: Superseded by D-2513 — ADR-063 §D7 v1.14 AUTHORED + CORRECTED; S-REL-CHANGELOG-CHANNEL-SCOPE-001 draft→ready v1.2; DEP D-2509 RESOLVED. NEXT: facade delivery. develop_head baf720d89 UNCHANGED. STATE v10.018→v10.019. SESSION-HANDOFF v9.010→v9.011.**

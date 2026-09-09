@@ -4,7 +4,7 @@ adr_id: "ADR-063"
 title: "CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling"
 status: ACCEPTED
 date: "2026-09-05"
-version: "1.12"
+version: "1.14"
 producer: architect
 subsystems_affected: [SS-22]
 supersedes: []
@@ -15,6 +15,7 @@ anchor_stories:
   - S-REL-WRITER-001       # D4/D5 — cites ADR-063 D4/D5 in §Authority
   - S-REL-BETA1-NOTES-001  # D6 — cites ADR-063 D6 in §Authority
   - S-REL-VBUMP-001        # D1 — cites ADR-063 git-cliff ownership in §Authority
+  - S-REL-CHANGELOG-CHANNEL-SCOPE-001  # D7 — cites ADR-063 §D7 in §Authority
 related_adrs: [ADR-062]
 related_bcs: []
 locked_decisions: []
@@ -25,12 +26,17 @@ inputs:
   - docs/RELEASE-CHANNELS.md
   - .github/workflows/release-prep.yml
   - .github/workflows/release.yml
-input-hash: "360fc13"
+  - .github/workflows/release-tag.yml
+input-hash: "7ec5c9d"
 ---
 
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
 
 ## Status
+
+ACCEPTED v1.14 (2026-09-09) — §D7 spec-accuracy corrections (three fixes from uncertainty-pass): (Fix 1) Site 1 code block corrected: live `release.yml` nightly invocation is `git cliff --latest --strip=header || true` with no `2>/dev/null`; spurious `2>/dev/null` removed from §D7 Site 1 code block. (Fix 2) Site 3 install mechanism stated normatively: `taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` with `tool: git-cliff@2.14.1`, mirroring `release.yml` nightly path; `cargo install` mechanism NOT used (no Rust toolchain step in release-tag.yml). (Fix 3) Site 3 ordering invariant: develop CHANGELOG commit+push (step 5b) MUST complete before "Create annotated tag on develop HEAD" (step 6), so annotated tag points at the post-CHANGELOG HEAD; `permissions: contents: write` and `RELEASE_PROMOTE_TOKEN` already in place; closes Task 8d "verify" placeholder. `.github/workflows/release-tag.yml` added to `inputs:`. TD-VSDD-097: Dim-1 CLEAR; Dim-2 HANDOFF to story-writer; Dim-3 all new MUSTs anchored (install MUST + ordering MUST → AC-010; 3-substep MUSTs → AC-003/AC-001).
+
+ACCEPTED v1.13 (2026-09-09) — §D7 added: Channel-Scoped Tag Filtering; per-channel `--tag-pattern` CLI override generalizes the ad-hoc v1.0.0-beta.2 CHANGELOG workaround (D-2510) into automatic channel-scoped filtering across all git-cliff invocation sites (release.yml `publish-release` nightly branch / release-prep.yml Step 7 / release-tag.yml new CHANGELOG step). Five-channel pattern table (nightly/alpha/beta/rc/stable) with stable-floor fallback via optional-group design. Stable-exclusion invariant: stable pattern MUST NOT include optional pre-release suffix group. `cliff.toml` NOT modified. anchor_stories += S-REL-CHANGELOG-CHANNEL-SCOPE-001. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed; ADR-064 covers cargo-release/build.rs version identity, not git-cliff workflow invocations; CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CHANGELOG-CHANNEL-SCOPE-001 §Authority + prose locations carry "[pending amendment]" qualifier on ADR-063 §D7 citations — sweep to bare "ADR-063 §D7" (no qualifier) in same burst. Dim-3: stable-exclusion MUST → S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-004; bypass-guard MUST → AC-006; 3-substep MUST → AC-003; --tag-pattern presence MUST → AC-001. No change to D1/D2/D3/D4/D5/D6.
 
 ACCEPTED v1.12 (2026-09-07) — §D3 cliff.toml body-template sketch corrected: `breaking_description` inline guard updated to include `and commit.breaking_description != commit.message` — suppresses redundant `— {desc}` suffix when git-cliff defaults `breaking_description` to the commit subject line (identical to `commit.message`); avoids duplicate "subject — subject" rendering. §D3 informative sketch now matches the shipped cliff.toml exactly. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 CLEAR (S-REL-CLIFF-001 contains no `breaking_description` body-template guard — story delegates entirely to ADR-063 sketch; no stale copy present). Dim-3 CLEAR (no new MUST).
 
@@ -507,6 +513,141 @@ initial commit — a long range with many chore/ci/refactor commits that are ski
    The first-release CHANGELOG reflects the actual commit history; any quality gap in commit
    subjects is absorbed by the curation gate, not by manual history rewriting.
 
+### D7 — Channel-Scoped Tag Filtering
+
+**Motivation:** v1.0.0-beta.2 CHANGELOG generation (2026-09-09) required a manual
+`--tag-pattern "^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$"` workaround to exclude nightly
+tags `v1.0.0-nightly.20260909` and `v1.0.0-nightly.20260909.2` from the tag universe. Without
+the override, the global `tag_pattern = "v[0-9].*"` in `cliff.toml` (§D3) caused git-cliff to
+treat those commits as "already released under the nightly tags" and silently drop them from the
+beta.2 CHANGELOG. §D7 generalizes that workaround into automatic per-channel filtering across
+all git-cliff workflow invocation sites. (Origin: D-2510; precedent established in
+S-REL-SPECS-TARBALL-001 release cascade.)
+
+**Decision:** Release notes are channel-scoped. Each release channel diffs against the previous
+tag of the same channel only. The global `tag_pattern = "v[0-9].*"` in `cliff.toml` is
+overridden per-invocation via the git-cliff `--tag-pattern` CLI flag. The `--tag-pattern` flag
+replaces (does not merge with) the `cliff.toml` `tag_pattern` for that invocation — confirmed
+by the beta.2 workaround precedent and git-cliff 2.14.1 CLI semantics. `cliff.toml` is NOT
+modified by this decision; per-channel scoping is entirely via CLI flags.
+
+**Per-channel tag-pattern mapping (normative):**
+
+| Channel | `--tag-pattern` regex | Stable-floor via optional group? |
+|---------|-----------------------|----------------------------------|
+| nightly | `^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$` | Yes |
+| alpha   | `^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$` | Yes |
+| beta    | `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$` | Yes |
+| rc      | `^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$` | Yes |
+| stable  | `^v[0-9]+\.[0-9]+\.[0-9]+$` | N/A — stable only |
+
+**Stable-floor rule:** Each pre-release channel pattern uses an optional suffix group
+(`(-channel\.N)?$`) so that the pattern also matches stable tags (no pre-release suffix). When
+no prior same-channel tag exists in the filtered universe, git-cliff uses the most recent stable
+tag as the delta floor. This ensures the first release in any channel on a given X.Y.Z line
+correctly shows commits since the last stable, not from the repo origin.
+
+**Stable-exclusion invariant:** The stable channel pattern `^v[0-9]+\.[0-9]+\.[0-9]+$` MUST
+NOT include any optional pre-release suffix group. Any optional suffix would admit pre-release
+tags into the stable tag universe, causing git-cliff to treat pre-release-captured commits as
+"already released" and silently omit them from the stable CHANGELOG — the same class of defect
+that motivated §D7. (Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-004.)
+
+**Line-origin fallback:** When no matching tag exists at all (new X.Y.Z line with no prior
+stable), git-cliff walks from the repository origin. No special handling is required; this is
+the default behavior.
+
+**Three workflow implementation sites (normative):**
+
+**Site 1 — `release.yml` `publish-release` job, "Extract release notes (channel-aware)" step,
+nightly branch:**
+
+The live nightly invocation `git cliff --latest --strip=header || true` gains a `--tag-pattern`
+argument. The only change to the step body is inserting `--tag-pattern '<regex>'`. No
+`2>/dev/null` is added — the live step deliberately surfaces stderr for observability and does
+not redirect it:
+```bash
+CLIFF_OUTPUT="$(git cliff --latest \
+  --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$' \
+  --strip=header || true)"
+```
+The nightly bypass-guard regex that selects which branch of the step runs —
+`^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$` — MUST remain unchanged (both `^`
+start-anchor and `$` end-anchor present). The `--tag-pattern` addition is inside the nightly
+branch body only; it does not alter the bypass-guard condition. (Anchored:
+S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-001 for `--tag-pattern` presence; AC-006 for
+bypass-guard integrity.)
+
+**Site 2 — `release-prep.yml` Step 7 "Generate CHANGELOG section (git-cliff)":**
+
+Channel detection is inserted before the `git cliff` invocation. The existing 3-substep
+structure (PRE-STRIP + git-cliff + LINK-REF-UPDATE per §D3 `--prepend` mechanism) is unchanged;
+only the git-cliff line gains `--tag-pattern "${TAG_PATTERN}"`. The `VERSION` variable in
+`release-prep.yml` holds the semver string without the `v` prefix (e.g., `1.0.0` or
+`1.0.0-beta.2`):
+```bash
+# Channel detection for per-channel tag scoping (ADR-063 §D7)
+if [[ "${VERSION}" =~ -nightly\. ]]; then
+  TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
+elif [[ "${VERSION}" =~ -alpha\. ]]; then
+  TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
+elif [[ "${VERSION}" =~ -beta\. ]]; then
+  TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+elif [[ "${VERSION}" =~ -rc\. ]]; then
+  TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+else
+  # stable: no pre-release suffix
+  TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+fi
+git cliff --tag "v${VERSION}" --unreleased \
+  --tag-pattern "${TAG_PATTERN}" \
+  --prepend CHANGELOG.md
+```
+(Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-001 / AC-004 / AC-005.)
+
+**Site 3 — `release-tag.yml`, two new steps inserted BEFORE the existing "Create annotated tag on develop HEAD" step (step 6):**
+
+**Step 5a — Install git-cliff (MUST):** The new install step MUST use
+`taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` with
+`tool: git-cliff@2.14.1`. This mirrors the mechanism used by `release.yml`'s nightly path
+(identical SHA pin and tool spec). The `cargo install git-cliff --version 2.14.1 --locked`
+mechanism used in `release-prep.yml` MUST NOT be used here: `release-tag.yml` has no Rust
+toolchain setup step and `cargo install` requires one; `taiki-e/install-action` downloads
+a pre-built binary without a toolchain dependency (~10 s vs 3–5 min compile). The SHA pin
+`d438492...` satisfies the project CWE-494 supply-chain hardening convention already applied
+in `release.yml`. (Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-010.)
+
+**Step 5b — Generate CHANGELOG, commit, and push develop (MUST):** Apply the channel-detection
+block (using the `TAG` input variable, which includes the `v` prefix, e.g., `v1.0.0-beta.2`),
+then run the full 3-substep mechanism from §D3: PRE-STRIP + `git cliff --tag "${TAG}"
+--unreleased --tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md` + LINK-REF-UPDATE. After
+the 3-substep flow, commit `CHANGELOG.md` to develop and run `git push origin develop`.
+Authentication: the existing `RELEASE_PROMOTE_TOKEN` PAT (already used for checkout in step 1)
+carries "Repository contents: Read and write" scope; `permissions: contents: write` is already
+declared at the workflow-level `permissions` block. No new permission addition is required.
+(Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-001 / AC-010.)
+
+**Tag-ordering invariant (MUST):** Step 5b's `git push origin develop` MUST complete before
+step 6 ("Create annotated tag on develop HEAD") runs. `git tag -a "${TAG}"` in step 6 targets
+the local `HEAD` at execution time; the annotated tag therefore points at the post-CHANGELOG
+commit. When step 7 pushes the tag and triggers `release.yml`, `release.yml`'s awk extraction
+reads CHANGELOG.md from its `develop@TAG_SHA` checkout — the correctly-scoped `## [VERSION]`
+section is already present because the tag was created on the post-CHANGELOG HEAD.
+(Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-010.)
+
+The 3-substep PRE-STRIP + git-cliff + LINK-REF-UPDATE flow MUST be present in step 5b —
+omitting PRE-STRIP causes masthead duplication across repeated CHANGELOG prepends; omitting
+LINK-REF-UPDATE leaves stale compare-link refs. (Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001
+AC-003 / AC-001.)
+
+**RELEASE-NOTES-MISSING guard unchanged:** The non-nightly branch of `release.yml`'s "Extract
+release notes (channel-aware)" step performs awk extraction from CHANGELOG.md and hard-fails
+with `RELEASE-NOTES-MISSING` if the curated section is absent. §D7 does not modify this branch.
+(Anchored: S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-007.)
+
+**Implementation owned by:** S-REL-CHANGELOG-CHANNEL-SCOPE-001 (all three sites; §Authority
+cites §D7).
+
 ---
 
 ## Rationale
@@ -628,6 +769,8 @@ block per D4). See story breakdown in §Source / Origin below.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.14 | 2026-09-09 | architect | §D7 spec-accuracy corrections (three fixes from uncertainty-pass): (Fix 1) Site 1 corrected — live `release.yml` nightly invocation is `git cliff --latest --strip=header \|\| true` with NO `2>/dev/null`; `2>/dev/null` erroneously present in v1.13 §D7 Site 1 code block removed. (Fix 2) Site 3 install mechanism stated normatively: `taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` with `tool: git-cliff@2.14.1`, mirroring `release.yml` nightly path; `cargo install` NOT used (requires Rust toolchain not present in release-tag.yml). (Fix 3) Site 3 tag-ordering invariant: develop CHANGELOG commit+push (step 5b) MUST complete before "Create annotated tag on develop HEAD" (step 6) so annotated tag points at the post-CHANGELOG commit; `permissions: contents: write` + `RELEASE_PROMOTE_TOKEN` already in place; closes Task 8d "verify" placeholder. `.github/workflows/release-tag.yml` added to `inputs:`. TD-VSDD-097 Dim-1 CLEAR; Dim-2 HANDOFF to story-writer; Dim-3 all MUSTs anchored to S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-001/AC-003/AC-010. |
+| 1.13 | 2026-09-09 | architect | §D7 Channel-Scoped Tag Filtering added — per-channel `--tag-pattern` CLI override generalizes the v1.0.0-beta.2 ad-hoc workaround (D-2510) into automatic channel-scoped filtering across all git-cliff invocation sites (release.yml `publish-release` nightly branch / release-prep.yml Step 7 / release-tag.yml new CHANGELOG step). Five-channel pattern table (nightly/alpha/beta/rc/stable) with stable-floor fallback via optional-group design. Stable-exclusion invariant: stable pattern MUST NOT include optional pre-release suffix group. `cliff.toml` NOT modified. anchor_stories += S-REL-CHANGELOG-CHANNEL-SCOPE-001. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed; ADR-064 covers cargo-release/build.rs version identity, not git-cliff workflow invocations; CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CHANGELOG-CHANNEL-SCOPE-001 §Authority + prose locations carry "[pending amendment]" qualifier on ADR-063 §D7 citations — sweep to bare "ADR-063 §D7" (no qualifier) in same burst. Dim-3: stable-exclusion MUST → S-REL-CHANGELOG-CHANNEL-SCOPE-001 AC-004; bypass-guard MUST → AC-006; 3-substep MUST → AC-003; --tag-pattern presence MUST → AC-001. No change to D1/D2/D3/D4/D5/D6. |
 | 1.12 | 2026-09-07 | architect | §D3 cliff.toml body-template sketch corrected: `breaking_description` inline guard updated to `{% if commit.breaking_description and commit.breaking_description != commit.message %}` — suppresses redundant `— {desc}` suffix when git-cliff defaults `breaking_description` to the commit subject line (identical to `commit.message`); avoids duplicate "subject — subject" rendering. §D3 informative sketch now matches the shipped cliff.toml exactly. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 CLEAR (S-REL-CLIFF-001 contains no `breaking_description` body-template guard — story delegates entirely to ADR-063 sketch; no stale copy present). Dim-3 CLEAR (no new MUST). |
 | 1.11 | 2026-09-07 | architect | §D3 catch-all skip parser documented: shipped cliff.toml `commit_parsers` ends with `{ message = ".*", skip = true }` as the FINAL entry — unlisted conventional types (e.g., `evidence:`, `factory:`, `ci:` prefixes not in D3 mapping table) are skipped rather than rendered as raw headings; `protect_breaking_commits = true` ensures breaking commits surface via Tera two-part body filter regardless of the catch-all; operationalizes D3 "only enumerated types render" intent; v1.10 sketch was incomplete, not incorrect. §D3 cliff.toml sketch updated with catch-all as final `commit_parsers` entry. No change to D1/D2/D4/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR twin — confirmed; ADR-064 checked, no cliff.toml `commit_parsers` reference, CLEAR). Dim-2 HANDOFF to story-writer: S-REL-CLIFF-001 §D3/cliff.toml description must include catch-all skip parser if `commit_parsers` is enumerated — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST; catch-all operationalizes already-anchored D3 "only enumerated types render" intent, S-REL-CLIFF-001 AC-006). |
 | 1.10 | 2026-09-07 | architect | §D4 CHANGELOG.md structure block corrected: `### Breaking Changes (from commits)` → plain `### Breaking Changes`. §D3 cliff.toml body template and shipped cliff.toml are authoritative for the emitted heading (plain form); `(from commits)` suffix appeared outside brackets and read as a literal heading. Option (a) applied — block reads as showing literal headings. No change to D1/D2/D3/D5/D6. TD-VSDD-097: Dim-1 CLEAR (no ADR sibling twin — confirmed). Dim-2 HANDOFF: S-REL-BETA1-NOTES-001 §Tasks (Task 7 structure block) and §Edge Cases (EC-003) carry `### Breaking Changes (from commits)` — flag for story-writer sweep in same burst. Dim-3 CLEAR (no new MUST). |

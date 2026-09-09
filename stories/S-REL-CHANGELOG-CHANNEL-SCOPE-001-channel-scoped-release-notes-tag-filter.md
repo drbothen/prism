@@ -13,9 +13,8 @@ priority: P1
 # Precedent: v1.0.0-beta.2 CHANGELOG required a manual --tag-pattern workaround for exactly this
 # reason (S-REL-SPECS-TARBALL-001 release cascade, 2026-09-09 — see §Origin).
 # This story generalises that workaround into automatic per-channel tag filtering on all lanes.
-status: draft
-# BC status: pending PO authorship (behavioral_contracts: [])
-version: "1.0"
+status: ready
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-09T00:00:00Z"
@@ -39,7 +38,9 @@ behavioral_contracts: []
 # BC status: N/A — release tooling / CI workflow governance.
 # No subsystem behavioral contract governs channel-scoped git-cliff tag filtering.
 # Authority is RELEASE-CHANNELS.md §3 (channel model + BASE-MATCH) and
-# ADR-063 §D3/§D5 (git-cliff config and release-prep.yml integration).
+# ADR-063 §D3/§D5/§D7 (git-cliff config, release-prep.yml integration, channel-scoped tag filtering).
+# ADR-063 §D7 ACCEPTED v1.14 (2026-09-09): per-channel tag-pattern mapping, stable-floor rule,
+# stable-exclusion invariant, and three workflow implementation sites are now normative.
 # POL-14 NO-OP (behavioral_contracts: []).
 verification_properties: []
 depends_on: [S-REL-CLIFF-001, S-REL-NIGHTLY-NOTES-001]
@@ -105,12 +106,10 @@ risk_mitigations:
     on repeated CHANGELOG prepends. Omitting LINK-REF-UPDATE leaves stale compare-link refs.
     AC-003 verifies the 3-substep flow is present for release-tag.yml's pre-release CHANGELOG
     generation."
-  - "ADR-063 amendment routing: per-channel tag-pattern design is a new architecture decision
-    within ADR-063's domain (§D3/§D5). The story captures the implementation spec; the
-    architect must add §D7 (or amend §D3/§D5) to document the per-channel pattern table and
-    the stable-floor fallback rule. This story's AC-009 (docs update) MUST NOT pre-empt the
-    ADR amendment — docs should reference the per-channel patterns with a note 'see ADR-063
-    §D7 [pending amendment]'."
+  - "ADR-063 §D7 amendment routing: DISCHARGED. ADR-063 §D7 was accepted (v1.14, 2026-09-09)
+    before this story advanced to status: ready. The per-channel tag-pattern table, stable-floor
+    fallback rule, and stable-exclusion invariant are now normative in §D7. Docs (AC-009) must
+    reference 'ADR-063 §D7' (bare citation — no qualifier)."
   - "actionlint must pass on all three modified workflow files (release.yml, release-prep.yml,
     release-tag.yml). Any expression syntax issues from the added `--tag-pattern` arguments
     (bash variable interpolation inside YAML multi-line strings) must be resolved. AC-008
@@ -131,40 +130,31 @@ phase: "3"
 # S-REL-CHANGELOG-CHANNEL-SCOPE-001 — Channel-Scoped Release Notes: Per-Channel git-cliff Tag Filter
 
 **Story ID:** S-REL-CHANGELOG-CHANNEL-SCOPE-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.2
 **Wave:** F-A
 **Priority:** P1
 **Points:** 8
 
 ---
 
-## ADR-063 Amendment Routing Flag
+## ADR-063 §D7 Amendment Status
 
-**ROUTE TO ARCHITECT before status: ready transition.**
+**ACCEPTED — blocker discharged.** ADR-063 §D7 "Channel-Scoped Tag Filtering" was authored
+by the architect and accepted as ADR-063 v1.14 (2026-09-09). The per-channel `--tag-pattern`
+mapping, stable-floor fallback rule, stable-exclusion invariant, and three normative workflow
+implementation sites are now codified in §D7.
 
-Per-channel tag-pattern scoping is a **new design decision** within ADR-063's domain
-(git-cliff + cliff.toml architecture, §D3/§D5). This story captures the implementation
-spec; ADR-063 must be amended to add:
-- A new §D7 "Channel-Scoped Tag Filtering" (or amend §D3) documenting the per-channel
-  `--tag-pattern` patterns and the stable-floor fallback rule
-- An update to §D5 (release-prep.yml integration) documenting per-channel invocations
+**Context (retained for history):** Per-channel tag-pattern scoping was identified as a new
+design decision within ADR-063's domain (git-cliff + cliff.toml architecture, §D3/§D5).
+§D7 documents:
+- The five-channel `--tag-pattern` regex table (nightly/alpha/beta/rc/stable)
+- The stable-floor fallback rule via optional-group pattern design
+- The stable-exclusion invariant (stable pattern MUST NOT carry an optional pre-release suffix)
+- The three normative workflow implementation sites: release.yml nightly branch, release-prep.yml
+  Step 7, and the new release-tag.yml CHANGELOG generation step
 
-**Why an amendment is needed (not just mechanical):**
-1. ADR-063 §D3 currently defines `tag_pattern = "v[0-9].*"` as a global setting that
-   includes ALL version tags in the tag universe for any git-cliff invocation.
-2. Adding per-channel `--tag-pattern` CLI overrides is a new design dimension: it changes
-   the semantics of when each tag "owns" a set of commits, which affects CHANGELOG
-   correctness across all channels, not just one.
-3. The stable-floor fallback rule (include stable in each channel's pattern) is a new
-   architectural invariant that must be documented for future implementers.
-4. ADR-063 §D5 currently only documents the release-prep.yml invocation; per-channel
-   invocations in release-tag.yml (new capability) need an ADR home.
-
-**The architect should decide:** whether §D7 is a new section or an amendment to §D3/§D5.
-The story proceeds with the implementation approach described below while the amendment is
-authored in parallel. The story's `status: draft` MUST NOT advance to `status: ready` until
-the ADR-063 amendment is accepted and the story's §Authority section is updated to cite it.
+This story's §Authority now cites §D7 directly (bare citation; no qualifier).
 
 ---
 
@@ -247,8 +237,9 @@ channels, and the first release in any channel line correctly floors to the last
   globally; this story adds per-invocation `--tag-pattern` overrides per channel.
 - ADR-063 §D5 — release-prep.yml integration point; this story extends it with
   per-channel `--tag-pattern` detection.
-- **ADR-063 §D7** [pending amendment] — per-channel tag-scoping model and stable-floor
-  fallback rule. This citation will be filled in once the architect authors the amendment.
+- **ADR-063 §D7** (v1.14, ACCEPTED 2026-09-09) — per-channel tag-scoping model: five-channel
+  `--tag-pattern` regex table, stable-floor fallback rule, stable-exclusion invariant, and
+  three normative workflow implementation sites.
 
 (No BC: CI release tooling governance; no subsystem behavioral contract. POL-14 NO-OP.)
 
@@ -257,7 +248,7 @@ channels, and the first release in any channel line correctly floors to the last
 ## Behavioral Contracts
 
 This story has no subsystem behavioral contracts. Authority is RELEASE-CHANNELS.md §3/§5
-and ADR-063 §D1/§D3/§D5 (+ §D7 pending amendment).
+and ADR-063 §D1/§D3/§D5/§D7 (§D7 ACCEPTED v1.14, 2026-09-09).
 
 | Architecture Source | Clause |
 |---------------------|--------|
@@ -266,7 +257,7 @@ and ADR-063 §D1/§D3/§D5 (+ §D7 pending amendment).
 | ADR-063 §D1 | git-cliff 2.14.1 pinned — mandatory for any git-cliff invocation in CI |
 | ADR-063 §D3 | cliff.toml `tag_pattern = "v[0-9].*"` is the default; `--tag-pattern` CLI flag overrides it per invocation |
 | ADR-063 §D5 | release-prep.yml Step 7 git-cliff invocation: `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md` — this story adds `--tag-pattern` detection |
-| ADR-063 §D7 [pending] | Per-channel tag-pattern table and stable-floor fallback rule — architect must author |
+| ADR-063 §D7 (v1.14) | Per-channel tag-pattern table (nightly/alpha/beta/rc/stable), stable-floor fallback rule, stable-exclusion invariant, and three normative workflow implementation sites; Site 1 no `2>/dev/null`; Site 3 uses taiki-e SHA pin `d438492...` + ordering MUST |
 
 ---
 
@@ -352,19 +343,22 @@ before the PR:
    should match. Test against `[v1.0.0]` (stable, no beta exists) — `v1.0.0` should match
    (stable-floor).
 
-6. **Modify release.yml — nightly path only.** In the "Extract release notes" step's
-   nightly branch, change:
+6. **Modify release.yml — nightly path only.** In the "Extract release notes (channel-aware)"
+   step's nightly branch, the **only prescribed change** is inserting the `--tag-pattern`
+   argument. The live invocation already has `--strip=header` and does NOT have `2>/dev/null`:
    ```bash
-   CLIFF_OUTPUT="$(git cliff --latest 2>/dev/null || true)"
+   # LIVE before:
+   CLIFF_OUTPUT="$(git cliff --latest --strip=header || true)"
    ```
-   to:
+   Change to (§D7 Site 1 target):
    ```bash
    CLIFF_OUTPUT="$(git cliff --latest \
      --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$' \
-     2>/dev/null || true)"
+     --strip=header || true)"
    ```
+   Do NOT add `2>/dev/null` — the live step deliberately surfaces stderr for observability.
    The nightly regex bypass-guard at the top of the step (gating which branch runs) is
-   NOT touched. The `--tag-pattern` change is inside the nightly branch only.
+   NOT touched. The `--tag-pattern` change is inside the nightly branch body only.
 
 7. **Modify release-prep.yml — Step 7 git-cliff invocation.** Add channel detection and
    per-channel `--tag-pattern`. The `VERSION` variable in release-prep.yml holds the semver
@@ -393,35 +387,71 @@ before the PR:
    The 3-substep structure (PRE-STRIP before, LINK-REF-UPDATE after) is unchanged.
    Only the git-cliff invocation line gains `--tag-pattern "${TAG_PATTERN}"`.
 
-8. **Modify release-tag.yml — add CHANGELOG generation for alpha/beta/rc.** The workflow
-   currently creates the annotated tag and pushes it, triggering release.yml which extracts
-   the CHANGELOG section via awk. Add a CHANGELOG generation step BEFORE the tag push:
+8. **Modify release-tag.yml — insert two new steps BEFORE the existing step 6 "Create
+   annotated tag on develop HEAD" (§D7 Site 3).** The workflow currently creates the
+   annotated tag at step 6 and pushes it at step 7, triggering release.yml which extracts
+   the CHANGELOG section via awk. Insert steps 5a and 5b immediately before step 6.
 
-   a. Detect the channel from the dispatch input tag (e.g., `v1.0.0-beta.2`).
-   b. Select the appropriate `--tag-pattern` per the table in Task 5.
-   c. Run the 3-substep CHANGELOG generation (matching release-prep.yml Step 7):
-      - PRE-STRIP: strip prior masthead + `## [Unreleased]` from CHANGELOG.md
-      - `git cliff --tag "${INPUT_TAG}" --unreleased --tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md`
-      - LINK-REF-UPDATE: repoint `[Unreleased]` compare ref + insert version ref
-   d. Commit the CHANGELOG.md change to develop before pushing the tag.
+   **Step 5a — Install git-cliff (MUST):**
+   ```yaml
+   - name: Install git-cliff (release-tag path)
+     uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2
+     with:
+       tool: git-cliff@2.14.1
+   ```
+   Use the exact SHA `d438492cf8a250514fa2d34b30bc3c0dc37c65ff` — the same pin already
+   used by release.yml's "Install git-cliff (nightly path)" step. Do NOT use
+   `cargo install git-cliff` here: release-tag.yml has no Rust toolchain setup step
+   and `cargo install` would require one (~3–5 min compile). `taiki-e/install-action`
+   downloads a pre-built binary without a toolchain dependency (~10 s).
 
-   This ensures that when release.yml's awk extraction runs (triggered by the tag push),
-   the CHANGELOG.md already contains the `## [v1.0.0-beta.2]` section with correctly
-   scoped notes.
+   **Step 5b — Generate CHANGELOG, commit, and push develop (MUST):**
+   Use the `TAG` workflow input variable (includes `v` prefix, e.g., `v1.0.0-beta.2`).
+   Detect the channel suffix with the same if/elif/else structure as Task 7 but matching
+   against `TAG` instead of `v${VERSION}`:
+   ```bash
+   if [[ "${TAG}" =~ -nightly\. ]]; then
+     TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
+   elif [[ "${TAG}" =~ -alpha\. ]]; then
+     TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
+   elif [[ "${TAG}" =~ -beta\. ]]; then
+     TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+   elif [[ "${TAG}" =~ -rc\. ]]; then
+     TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+   else
+     TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+   fi
+   ```
+   Then run the full 3-substep §D3 mechanism:
+   - **PRE-STRIP:** strip prior masthead + `## [Unreleased]` from CHANGELOG.md
+   - `git cliff --tag "${TAG}" --unreleased --tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md`
+   - **LINK-REF-UPDATE:** repoint `[Unreleased]` compare ref + insert version ref
 
-   **Important:** release-tag.yml currently requires `push: [develop]` write permission
-   (or uses the PAT) to commit CHANGELOG.md. Verify the workflow already has the necessary
-   permissions before adding the commit step. If CHANGELOG commits require an additional
-   permission scope, add it.
+   After the 3-substep flow, commit and push:
+   ```bash
+   git commit -m "chore: update CHANGELOG for ${TAG}"
+   git push origin develop
+   ```
+
+   **Auth — no new permission needed:** The existing `RELEASE_PROMOTE_TOKEN` PAT (used for
+   checkout in step 1) carries "Repository contents: Read and write" scope.
+   `permissions: contents: write` is already declared at the workflow-level `permissions`
+   block. No additional scope addition is required.
+
+   **Tag-ordering invariant (MUST):** Step 5b's `git push origin develop` MUST complete
+   before step 6 ("Create annotated tag on develop HEAD") runs. `git tag -a "${TAG}"` in
+   step 6 targets the local HEAD; the annotated tag therefore points at the post-CHANGELOG
+   commit. When step 7 pushes the tag and triggers release.yml, release.yml's awk extraction
+   reads CHANGELOG.md from its checkout at TAG_SHA — the correctly-scoped `## [VERSION]`
+   section is already present because the tag was created on the post-CHANGELOG HEAD.
 
 9. **Update docs.** Update the following:
    - `docs/RELEASE-CHANNELS.md` §5 "Build Path": add a note explaining that each channel
      uses a channel-scoped `--tag-pattern` for git-cliff, so release notes show the delta
-     since the previous same-channel release (with stable as floor). Reference
-     "ADR-063 §D7 [pending amendment]".
+     since the previous same-channel release (with stable as floor). Reference "ADR-063 §D7".
    - `RELEASING.md §5` "Two-Layer CHANGELOG Model": add a note under Layer 2 that
      release-prep.yml detects the channel from VERSION and passes the appropriate
-     `--tag-pattern` to git-cliff. Reference "ADR-063 §D7 [pending amendment]".
+     `--tag-pattern` to git-cliff. Reference "ADR-063 §D7".
 
 10. **Verify AC-001..AC-009 explicitly.** For each AC, run the specified grep command or
     dry-run and record the result. Document in PR description.
@@ -537,7 +567,7 @@ structural correctness is required)
 Both documentation files are updated:
 - `docs/RELEASE-CHANNELS.md` §5 "Build Path": contains a new paragraph or table row
   describing that each channel uses a channel-scoped `--tag-pattern`, with reference to
-  "ADR-063 §D7 [pending amendment]".
+  "ADR-063 §D7" (bare citation — §D7 is ACCEPTED v1.14; no qualifier).
   `grep 'channel.scope\|tag.pattern\|D7' docs/RELEASE-CHANNELS.md` returns a match.
 - `RELEASING.md §5` "Two-Layer CHANGELOG Model" Layer 2 section: contains a note that
   release-prep.yml detects the channel from VERSION and passes `--tag-pattern` accordingly.
@@ -545,18 +575,45 @@ Both documentation files are updated:
 (traces to RELEASE-CHANNELS.md §3 — channel model documentation must reflect actual
 git-cliff behavior so operators and future implementers understand the delta scope)
 
-### AC-010: Live verification — per-channel dry-run confirms correct delta scope
+### AC-010: release-tag.yml structural checks + live per-channel verification
+Two-part verification:
+
+**Part A — Structural checks (pre-merge, via grep/inspection):**
+These checks verify the §D7 Site 3 MUSTs are implemented correctly before the PR merges
+(anchored: ADR-063 §D7 install MUST + ordering MUST):
+
+1. **Install SHA match:**
+   `grep 'taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff' .github/workflows/release-tag.yml`
+   returns a match (step 5a uses the correct SHA pin — same as release.yml).
+
+2. **Tool spec:**
+   `grep 'git-cliff@2.14.1' .github/workflows/release-tag.yml`
+   returns a match inside the new install step.
+
+3. **Tag-ordering invariant:** Inspect the step order in release-tag.yml's job:
+   The `git push origin develop` command in step 5b appears BEFORE the "Create annotated
+   tag on develop HEAD" step (step 6). Verify by reading the workflow and confirming step
+   numbers are sequential: 5a (install) → 5b (CHANGELOG+commit+push) → 6 (git tag -a).
+
+4. **No `cargo install` for git-cliff in release-tag.yml:**
+   `grep 'cargo install.*git-cliff' .github/workflows/release-tag.yml` returns no match.
+
+**Part B — Live verification (post-merge, human-in-loop gate at Phase-verify):**
 After the PR merges, verify with dry-runs for at least two channels:
-1. **Nightly**: Run `git cliff --latest --tag-pattern '^v...-nightly...?$' --output /dev/stdout`
-   on develop. Verify output does NOT include commits already under a beta/rc/stable tag.
-2. **Stable (simulated)**: Run `git cliff --unreleased --tag v1.0.0 --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+$' --output /dev/stdout`.
+
+1. **Nightly**: Run `git cliff --latest \
+   --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$' \
+   --strip=header --output /dev/stdout` on develop. Verify output does NOT include commits
+   already under a beta/rc/stable tag.
+2. **Stable (simulated)**: Run `git cliff --unreleased --tag v1.0.0 \
+   --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+$' --output /dev/stdout`.
    Verify output includes commits from all channels (nightly, beta, rc) that contributed
    new feat/fix/perf/refactor/security commits since the last stable tag.
 
-Document results in the post-merge live-verify comment.
-This AC is satisfied at the Phase-verify step (human-in-loop gate).
+Document Part B results in the post-merge live-verify comment.
 (traces to RELEASE-CHANNELS.md §3 — channel-scoped CHANGELOG is the core invariant;
-end-to-end verification on real tag history confirms the pattern design is correct)
+structural correctness (Part A) and end-to-end verification (Part B) together confirm
+the install mechanism, step ordering, and per-channel pattern design are all correct)
 
 ---
 
@@ -583,14 +640,14 @@ before committing the patterns.
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| git-cliff 2.14.1 pinned exactly (where installed) | ADR-063 §D1 | release-tag.yml install step must use same version pin as release.yml and release-prep.yml |
+| git-cliff 2.14.1 pinned exactly (where installed) | ADR-063 §D1 | release-tag.yml step 5a MUST use `taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` with `tool: git-cliff@2.14.1`; `cargo install` MUST NOT be used (no Rust toolchain step in release-tag.yml) |
 | cliff.toml NOT modified | ADR-063 §D3 — cliff.toml is authoritative config; per-channel scoping via CLI flags | AC-001 file structure: cliff.toml listed as DO NOT MODIFY |
 | Nightly regex bypass-guard intact (exact-form start+end anchors) | RELEASE-CHANNELS.md §2 | AC-006: grep for anchored regex on nightly branch if-condition |
 | Curated-CHANGELOG hard-fail (RELEASE-NOTES-MISSING) unchanged | RELEASE-CHANNELS.md §2 | AC-007: RELEASE-NOTES-MISSING grep exactly 1 match |
 | 3-substep PRE-STRIP+git-cliff+LINK-REF-UPDATE pattern for CHANGELOG generation | ADR-063 §D3 `--prepend` mechanism | release-tag.yml CHANGELOG generation step must include all 3 substeps |
-| All CI action references use commit SHA pins (not tag pointers) | project CI hardening convention | release-tag.yml taiki-e/install-action must use 40-char SHA if installed there |
+| All CI action references use commit SHA pins (not tag pointers) | project CI hardening convention | release-tag.yml step 5a uses exact SHA `d438492cf8a250514fa2d34b30bc3c0dc37c65ff`; verified match with release.yml pin |
 | `--tag-pattern` CLI override replaces cliff.toml tag_pattern for that invocation | ADR-063 §D3 | Task 4 verification note; confirmed by beta.2 precedent |
-| Stable-floor fallback implemented via optional-group pattern design | RELEASE-CHANNELS.md §3; ADR-063 §D7 [pending] | AC-005 dry-run verification |
+| Stable-floor fallback implemented via optional-group pattern design | RELEASE-CHANNELS.md §3; ADR-063 §D7 | AC-005 dry-run verification |
 | All modified workflows must be actionlint-clean | project CI quality standard | AC-008: actionlint exits 0 on all three files |
 
 ---
@@ -599,8 +656,8 @@ before committing the patterns.
 
 | Dependency | Version | Notes |
 |------------|---------|-------|
-| `git-cliff` | `2.14.1` | Same pin as ADR-063 §D1; release-tag.yml install (if needed) must match. Verify whether git-cliff is already available in the runner environment from a prior step or must be installed fresh. |
-| `taiki-e/install-action` | `@v2` commit SHA (40-char) | Only needed if release-tag.yml adds a git-cliff install step. Look up SHA via `gh api repos/taiki-e/install-action/git/ref/tags/v2 --jq .object.sha`. |
+| `git-cliff` | `2.14.1` | Same pin as ADR-063 §D1; all three sites (release.yml nightly, release-prep.yml Step 7, release-tag.yml step 5a) must use this exact version. |
+| `taiki-e/install-action` | `d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` | Required for release-tag.yml step 5a (`tool: git-cliff@2.14.1`). Mirrors the SHA pin already used in release.yml's "Install git-cliff (nightly path)" step. Do NOT re-resolve the SHA — use the exact value here to avoid a third divergent pin. `cargo install` MUST NOT be used in release-tag.yml (no Rust toolchain step present). |
 | `cliff.toml` | existing at repo root | Not modified. `--tag-pattern` CLI flag overrides `tag_pattern` for the invocation. |
 | Bash regex (`[[ =~ ]]`) | standard (bash 5+) | Used for channel detection in release-prep.yml and release-tag.yml. `ubuntu-latest` provides bash 5+. |
 
@@ -610,7 +667,7 @@ before committing the patterns.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/release.yml` | Modify (nightly path only) | Add `--tag-pattern` to `git cliff --latest` in nightly branch of "Extract release notes" step; bypass-guard and non-nightly path UNCHANGED |
+| `.github/workflows/release.yml` | Modify (nightly path only) | Insert `--tag-pattern` into existing `git cliff --latest --strip=header` in nightly branch of "Extract release notes (channel-aware)" step; no `2>/dev/null`; bypass-guard and non-nightly path UNCHANGED |
 | `.github/workflows/release-prep.yml` | Modify (Step 7 only) | Add channel-detection block + `--tag-pattern` to git-cliff invocation; 3-substep PRE-STRIP/LINK-REF-UPDATE unchanged |
 | `.github/workflows/release-tag.yml` | Modify (add CHANGELOG generation step) | Add CHANGELOG generation step (channel-detect + 3-substep + git-cliff `--tag-pattern`) before tag push; add commit step for CHANGELOG.md |
 | `cliff.toml` | DO NOT modify | cliff.toml is authoritative (ADR-063 §D3); per-channel scoping is via CLI flags only |
@@ -683,4 +740,6 @@ S-REL-DROP-INTEL-MAC-001, S-REL-WRITER-001 (all `holdout_scenarios: []`).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-09-09 | story-writer | ADR-063 §D7 v1.14 spec-accuracy corrections: Fix 1 — Task 6 before-image corrected to live step name "Extract release notes (channel-aware)" and live invocation (no 2>/dev/null; --strip=header already present); Fix 2 — Library & Framework Requirements taiki-e row states exact SHA d438492... + tool spec git-cliff@2.14.1, removes re-resolution language, adds cargo install MUST NOT prohibition; Fix 3 — Task 8 replaced with concrete §D7 Site 3 contract (steps 5a+5b before step 6, auth already in place, tag-ordering MUST); Architecture Compliance Rules updated with exact SHA; AC-010 expanded with Part A structural checks for install SHA + ordering (install MUST + ordering MUST anchored from §D7 v1.14 Dim-3); all v1.13 ADR version pins updated to v1.14 |
+| 1.1 | 2026-09-09 | story-writer | ADR-063 §D7 ACCEPTED (v1.13, 2026-09-09): swept all [pending amendment]/[pending] qualifiers from §Authority, Behavioral Contracts table, Task 9, Architecture Compliance Rules, and risk_mitigations; updated Amendment Routing Flag section to reflect live status; added --strip=header to Task 6 nightly git-cliff invocation per §D7 Site 1; behavioral_contracts comment updated to include §D7; status draft → ready |
 | 1.0 | 2026-09-09 | story-writer | Initial materialization — channel-scoped git-cliff tag filter; per-channel patterns; stable-floor fallback; release-tag.yml CHANGELOG generation addition; ADR-063 amendment routing flag; v1.0-stable dependency; 10 ACs; facade tdd_mode |
