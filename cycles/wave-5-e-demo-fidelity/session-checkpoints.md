@@ -11,6 +11,18 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2502 — 2026-09-08; STATE v10.007→v10.008 — SESSION WRAP; PR #277 OPEN @70909d13; cycle-1 ALL FIXED; cycle-2 PENDING
+
+**RESUME IN ONE BREATH:** Prism at develop@d5d5fe7c — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE (first nightly v1.0.0-nightly.20260908 verified); demo Phase-1 fully prepped (live-monroe). IN FLIGHT: git-cliff categorized nightly-notes PR #277 @70909d13 — all cycle-1 findings FIXED, needs cycle-2 re-review + CI-green confirm → merge.
+
+**NEXT ACTIONS (D-2502):** (0) Re-arm heartbeat cron b98bd9dc. (1) re-run cycle-2 pr-reviewer on PR #277 @70909d13; confirm CI green (was 38/49 0-fail); if CLEAN(PR-merge) + CI green → obtain explicit human admin-override auth → merge → post-merge burst → live-verify AC-008. (2) S-REL-SPECS-TARBALL-001 (beta.2). (3) Demo Phase-2 live Q&A. (4) Node-24 action bumps. (5) Rotate test-soc/.mcp.json keys.
+
+**HEADS (D-2502):** develop `d5d5fe7c` (origin). Open PRs: PR #277 OPEN @70909d13 (cycle-1 FIXED; cycle-2 PENDING). Worktrees: ACTIVE feature/S-REL-NIGHTLY-NOTES-001 @70909d13 (do NOT remove). Releases: v1.0.0-beta.1 + v1.0.0-nightly.20260908 + edge-nightly.
+
+**NOTE: Superseded by D-2503 — POST-MERGE BURST; PR #277 ADMIN SQUASH-MERGED @90e7207d9; git-cliff CATEGORIZED nightly notes MERGED; develop_head d5d5fe7c→90e7207d9. STATE v10.008→v10.009.**
+
+---
+
 ## Archived: D-2303 — 2026-08-25; STATE v8.835→v8.836 — VULNS-001 Wave A G1 LOCAL cascade pass-5 fixed @8f4c25c87
 
 **RESUME IN ONE BREATH:** Prism Phase-3, v1 = live Claroty-xDome. S-CLAROTY-VULNS-001 Wave A G1 LOCAL adversary cascade: 5 serial passes ALL FIXED. Latest HEAD @8f4c25c87 (feature NOT PUSHED — awaiting LOCAL 3-CLEAN). BC-5.39.001 LOCAL streak 0/3; pass-6 re-cascade pending. BC-INDEX v9.64 / STORY-INDEX v2.898 / STATE v8.836. E-SPEC-018 on PRESENT datetime HARD-ERRORS (human Option A). table_name=`vulnerabilities` → registers as `claroty_vulnerabilities`. prism-spec-engine ZERO prod changes intentional.
