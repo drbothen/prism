@@ -1007,3 +1007,23 @@ SESSION WRAP (context-reset prep). git-cliff-notes workstream progress: S-REL-NI
 
 **Files touched (factory):** `.factory/STATE.md` — v10.007→v10.008. `.factory/SESSION-HANDOFF.md` — v9.002→v9.003 (§RESUME SNAPSHOT D-2500 SUPERSEDED by D-2502). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2497 archive + D-2502 burst summary appended. `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2501 checkpoint archived.
 
+
+---
+
+### D-2500 — SESSION WRAP SINGLE-COMMIT BURST — NIGHTLY LANE LIVE-VERIFY SUCCESS (archived from STATE.md at D-2505 rotation) — 2026-09-08
+
+**Agent:** state-manager | **Decision:** D-2500 | **Cycle:** wave-5-e-demo-fidelity
+
+SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — NIGHTLY LANE LIVE-VERIFY SUCCESS. First nightly v1.0.0-nightly.20260908 PUBLISHED (prerelease; isDraft=false; 7 assets: 4 platform archives aarch64-darwin/linux-gnu/linux-musl/windows + checksums.txt + install.sh + install.ps1; canned '## Nightly build' body citing develop@d5d5fe7c + date). Nightly run 34265553967 (change-guard PROCEEDED — no prior nightly; tag computed v1.0.0-nightly.20260908; annotated tag pushed via RELEASE_PROMOTE_TOKEN; retention no-op; edge-nightly updated). release.yml run 34265612962 (4-target build all GREEN + Create Release). edge-nightly pointer published — points at v1.0.0-nightly.20260908 with pin-for-reproducibility notice. Nightly lane WORKS end-to-end hands-off; AC-010 SATISFIED; production-ready. Maintenance follow-up: Node.js 20 deprecation — arduino/setup-protoc + actions/cache pinned SHAs need Node-24 bump (builds succeed but warn). SESSION-HANDOFF v9.001→v9.002; §RESUME SNAPSHOT D-2499 SUPERSEDED by D-2500. records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.028 UNCHANGED. STATE v10.005→v10.006.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.005→v10.006. `.factory/SESSION-HANDOFF.md` — v9.001→v9.002 (§RESUME SNAPSHOT D-2499 SUPERSEDED by D-2500). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — archive row appended (D-2499 rotation). `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2499 checkpoint archived.
+
+---
+
+### D-2505 — RECORDS-ONLY MICRO-BURST — AC-008 SATISFIED — 2026-09-09
+
+**Agent:** state-manager | **Decision:** D-2505 | **Cycle:** wave-5-e-demo-fidelity
+
+RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — AC-008 of S-REL-NIGHTLY-NOTES-001 SATISFIED. Live-verified on v1.0.0-nightly.20260909.2 (isPrerelease=true; 7 assets; 4-target build all green; git-cliff CATEGORIZED release body rendered — `## [1.0.0-nightly.20260909.2]` heading + `### Fixed` section with `--latest` note; not canned '## Nightly build' fallback; change-guard PROCEEDED; tag computed via EC-005 same-day `.2` suffix per ADR-063 §D3; edge-nightly mutable pointer updated to v1.0.0-nightly.20260909.2). S-REL-NIGHTLY-NOTES-001 workstream COMPLETE and production-verified. D-2500 rotated from STATE.md Decisions Log + Current Phase Steps to burst-log archive (this rotation). SESSION-HANDOFF v9.005→v9.006; §RESUME SNAPSHOT D-2504 SUPERSEDED by D-2505. records-lint L1/L7/L9/L10 PASS. develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.030 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.010→v10.011.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.010→v10.011 (AC-008 SATISFIED; D-2505 decisions+steps rows; D-2500 archived; D-2505 session resume checkpoint). `.factory/SESSION-HANDOFF.md` — v9.005→v9.006 (§RESUME SNAPSHOT D-2504 SUPERSEDED by D-2505). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2500 archive + D-2505 burst summary appended.
