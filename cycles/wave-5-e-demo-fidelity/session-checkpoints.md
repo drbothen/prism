@@ -756,3 +756,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 
 **NOTE: Superseded by D-2502 — SESSION WRAP (context-reset prep). PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3+LOW/NIT); cycle-2 pr-reviewer PENDING re-run. STATE v10.007→v10.008; SESSION-HANDOFF v9.002→v9.003.**
 
+---
+
+## Archived: D-2505 — 2026-09-09; STATE v10.010→v10.011 — AC-008 SATISFIED; nightly v1.0.0-nightly.20260909.2; S-REL-NIGHTLY-NOTES-001 COMPLETE
+
+**RESUME IN ONE BREATH:** Prism at develop@881bb27060 — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE with git-cliff CATEGORIZED notes. AC-008 SATISFIED on v1.0.0-nightly.20260909.2 (categorized notes rendered; S-REL-NIGHTLY-NOTES-001 workstream COMPLETE). NEXT: S-REL-SPECS-TARBALL-001 (beta.2) → Demo Phase-2 live Q&A run.
+
+**HEADS (D-2505 2026-09-09):** develop: `881bb27060` (origin; nightly LIVE; AC-008 SATISFIED on v1.0.0-nightly.20260909.2); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES: REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277 @90e7207d9 + PR #278 @881bb27060), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-nightly.20260908 + v1.0.0-nightly.20260909.2 + edge-nightly.
+
+**NOTE: Superseded by D-2506 — S-REL-SPECS-TARBALL-001 MATERIALIZED (v1.1; remove-uncertainty hardened; beta.2-targeting). story_index v3.030→v3.031; total_stories 339→340. STATE v10.011→v10.012.**
+

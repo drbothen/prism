@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "10.011"
+version: "10.012"
 producer: state-manager
-timestamp: 2026-09-09T07:00:00Z
+timestamp: 2026-09-09T08:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ bc_index_version: "10.06"
 # NOTE: D-2432 — BC-INDEX v10.05→v10.06. draft/active/total UNCHANGED 3/261/277.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157/VP-158 promoted; ADR-056/057 rows added.
-story_index_version: "3.030"
-# NOTE: D-2503 — STORY-INDEX v3.029→v3.030: S-REL-NIGHTLY-NOTES-001 [draft v1.0]→[merged v1.0; PR #277 @90e7207d9]. POL-14 NO-OP (behavioral_contracts: []). total_stories 339 UNCHANGED.
+story_index_version: "3.031"
+# NOTE: D-2506 — STORY-INDEX v3.030→v3.031: S-REL-SPECS-TARBALL-001 REGISTERED (draft v1.1; E-REL; P2; facade; behavioral_contracts [] POL-14 NO-OP; 9 ACs; beta.2-targeting). total_stories 339→340. D-2503 NOTE archived.
 arch_index_version: "2.379"
 # NOTE: D-2490 — ARCH-INDEX v2.378→v2.379: ADR-063 pin v1.11→v1.12.
 workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "6022 just check @725cf413d (6022 passed; exit 0)"
 vsdd_factory_version: "1.0.0-rc.23"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2505 RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — AC-008 of S-REL-NIGHTLY-NOTES-001 SATISFIED. Live-verified on v1.0.0-nightly.20260909.2 (isPrerelease=true; 7 assets; 4-target build all green; git-cliff CATEGORIZED notes rendered; no canned '## Nightly build' fallback; change-guard PROCEEDED; EC-005 same-day `.2` suffix; edge-nightly updated to v1.0.0-nightly.20260909.2). S-REL-NIGHTLY-NOTES-001 workstream COMPLETE and production-verified. D-2500 rotated to burst-log archive. develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.030 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.010→v10.011."
+current_step: "D-2506 SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-SPECS-TARBALL-001 MATERIALIZED (story-writer authored; v1.1 post-remove-uncertainty; E-REL; beta.2-targeting; tdd_mode facade; behavioral_contracts [] POL-14 NO-OP; 9 ACs incl AC-009 live-verify). remove-uncertainty (D-1110): U-1 pipefail-abort guard, U-2 CWE-78 `${{ }}` option removed, U-3 install.ps1 tar.exe guards. story_index v3.030→v3.031; total_stories 339→340. develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. D-2501 rotated to burst-log archive. records-lint L1/L7/L9/L10 PASS. STATE v10.011→v10.012."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -70,7 +70,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-09-08"
 ---
 
-<!-- STATE.md SIZE BUDGET: 206 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -6 (over-soft) | margin from hard-cap: 294 | margin from actual: 0 | safe_to_compact: true | D-2505 AC-008 satisfied -->
+<!-- STATE.md SIZE BUDGET: 206 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -6 (over-soft) | margin from hard-cap: 294 | margin from actual: 0 | safe_to_compact: true | D-2506 S-REL-SPECS-TARBALL-001 MATERIALIZED -->
 
 # VSDD Pipeline State — Prism
 
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-09-08"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-09-09 D-2505: RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053). AC-008 of S-REL-NIGHTLY-NOTES-001 SATISFIED — live-verified on v1.0.0-nightly.20260909.2 (git-cliff CATEGORIZED notes rendered). S-REL-NIGHTLY-NOTES-001 workstream COMPLETE. develop_head 881bb27060 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.010→v10.011. |
+| **Last Updated** | 2026-09-09 D-2506: SINGLE-COMMIT BURST (TD-VSDD-053). S-REL-SPECS-TARBALL-001 MATERIALIZED (v1.1; remove-uncertainty hardened; beta.2-targeting). story_index v3.030→v3.031; total_stories 339→340. develop_head 881bb27060 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.011→v10.012. |
 
 ## Phase Progress
 
@@ -124,27 +124,27 @@ _Current cycle: wave-5-e-demo-fidelity. No parallel cycles running._
 
 ## Current Phase Steps
 
-_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497+D-2498+D-2499+D-2500 archived to burst-log (D-2501+D-2502+D-2503+D-2504+D-2505 rotations). Showing last 5 steps._
+_Steps D-735..D-2489 (exhaustive) archived: see cycles/wave-5-e-demo-fidelity/burst-log.md + decisions-archive-D1789-D2199.md + decisions-archive-D2200-D2299.md + decisions-archive-D2300-D2489.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497+D-2498+D-2499+D-2500+D-2501 archived to burst-log (D-2502+D-2503+D-2504+D-2505+D-2506 rotations). Showing last 5 steps._
 
 | Step | Date | Summary |
 |------|------|---------|
 | D-2505 | 2026-09-09 | RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — AC-008 SATISFIED. v1.0.0-nightly.20260909.2 live-verified: git-cliff CATEGORIZED notes rendered (not canned fallback); 7 assets; 4-target GREEN; change-guard PROCEEDED; EC-005 `.2` same-day suffix; edge-nightly updated. S-REL-NIGHTLY-NOTES-001 workstream COMPLETE. D-2500 archived. develop_head 881bb27060 UNCHANGED. records-lint PASS. STATE v10.010→v10.011. |
-| D-2501 | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own independent track; NOT beta.2-blocking). story_index v3.028→v3.029; total_stories 338→339. records-lint L1/L7/L9/L10 PASS. STATE v10.006→v10.007. |
+| D-2506 | 2026-09-09 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-SPECS-TARBALL-001 MATERIALIZED (E-REL; v1.1 post-remove-uncertainty; tdd_mode facade; behavioral_contracts [] POL-14 NO-OP; 9 ACs; beta.2-targeting). remove-uncertainty (D-1110): U-1 pipefail guard, U-2 CWE-78 `${{ }}` option removed, U-3 install.ps1 tar.exe guards. story_index v3.030→v3.031; total_stories 339→340. develop_head UNCHANGED 881bb27060. records-lint PASS. STATE v10.011→v10.012. |
 | D-2502 | 2026-09-08 | SESSION WRAP (context-reset prep) — PR #277 (S-REL-NIGHTLY-NOTES-001) OPEN @70909d13; cycle-1 ALL FIXED (HIGH-1/HIGH-2/MED-3 +3 LOW/NIT); actionlint CLEAN; CI 38/49 0-fail. Cycle-2 pr-reviewer PENDING (re-run on resume). STATE v10.007→v10.008. |
 | D-2503 | 2026-09-09 | POST-MERGE BURST (TD-VSDD-053) — PR #277 (S-REL-NIGHTLY-NOTES-001) ADMIN SQUASH-MERGED @90e7207d9 (human auth 2026-09-09T02:49:36Z). git-cliff CATEGORIZED nightly notes MERGED. develop_head d5d5fe7c→90e7207d9. POL-14 NO-OP. story_index v3.029→v3.030. AC-008 PENDING. PROCESS-GAP added. records-lint L1/L7/L9/L10 PASS. STATE v10.008→v10.009. |
 | D-2504 | 2026-09-09 | POST-MERGE BURST (TD-VSDD-053) — PR #278 (AC-008 code fix, S-REL-NIGHTLY-NOTES-001) SQUASH-MERGED @881bb27060 (human admin-merge 2026-09-09T05:34:49Z; harness classifier blocked AI `gh pr merge --admin`). release.yml: `--current --strip=header`→`--latest --strip=header` (+6/-5). AC-008 code merged; LIVE-VERIFY PENDING next nightly. develop_head 90e7207d9→881bb27060. D-2503 PROCESS-GAP companion data point added. records-lint L1/L7/L9/L10 PASS. STATE v10.009→v10.010. |
 
 ## Decisions Log
 
-_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497+D-2498+D-2499+D-2500 archived to burst-log (D-2501+D-2502+D-2503+D-2504+D-2505 rotations). Showing last 5 decisions._
+_D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions-archive-D2300-D2489.md (D-2494 compaction). Earlier: decisions-archive-D2200-D2299.md + decisions-archive-D1789-D2199.md. D-2491+D-2492+D-2493+D-2494+D-2495+D-2496+D-2497+D-2498+D-2499+D-2500+D-2501 archived to burst-log (D-2502+D-2503+D-2504+D-2505+D-2506 rotations). Showing last 5 decisions._
 
 | ID | Agent | Date | Summary | Cycle | Committed |
 |----|-------|------|---------|-------|-----------|
-| D-2501 | state-manager | 2026-09-08 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft v1.0; E-REL; P2; facade; own independent track; NOT beta.2-blocking; depends_on S-REL-NIGHTLY-001, S-REL-CLIFF-001; 8 ACs AC-008=live-verify-next-nightly). Story enhances NIGHTLY release-notes path in release.yml: git-cliff@2.14.1 (SHA-pinned taiki-e/install-action) + conditional `git fetch --unshallow --tags` (nightly path only) + `git cliff --latest` → categorized body (two most recent v* tags window); canned '## Nightly build' fallback on empty/error; stable/beta/rc curated-CHANGELOG hard-fail + exact-form bypass-guard PRESERVED. ADR-063 §D1/§D3 + RELEASE-CHANNELS.md §2/§5 authority. Human-directed 2026-09-08 Q1 preference. NEXT: devops impl → PR → review → merge (human) → live-verify (AC-008). records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. story_index v3.028→v3.029; total_stories 338→339. STATE v10.006→v10.007. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2502 | state-manager | 2026-09-08 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — git-cliff-notes workstream: S-REL-NIGHTLY-NOTES-001 (D-2501) implemented on feature/S-REL-NIGHTLY-NOTES-001 → PR #277 OPEN @70909d13. Cycle-1 review: security-reviewer APPROVED; AI pr-reviewer REQUEST_CHANGES (2 HIGH + 1 MED). ALL CYCLE-1 FINDINGS FIXED in commit 70909d13: HIGH-1 `git cliff --current --strip=header` (drop git-cliff masthead from categorized output); HIGH-2 entry-count fallback guard `grep -q '^- '` (canned fallback now reachable on header-only/all-skip-rule windows); MED-3 `git rev-parse --is-shallow-repository` branch guard (no silent fetch degradation); +3 LOW/NIT. actionlint CLEAN. replay-verified (header-only→canned fallback; real-commits→categorized no-masthead; stable/beta path byte-unchanged). CI on 70909d13: 38 pass / 11 pending / 0 fail. Cycle-2 pr-reviewer STOPPED mid-CI-wait for context-reset wrap (no durable verdict yet — must re-run on resume). SESSION-HANDOFF v9.002→v9.003; §RESUME SNAPSHOT D-2500 SUPERSEDED by D-2502. records-lint L1/L7/L9/L10 PASS. develop_head d5d5fe7c UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.029 UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. STATE v10.007→v10.008. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2503 | state-manager | 2026-09-09 | POST-MERGE BURST (TD-VSDD-053) — PR #277 (S-REL-NIGHTLY-NOTES-001) ADMIN SQUASH-MERGED to develop @90e7207d9 under in-session human authorization (admin-override squash-merge; AskUserQuestion consent 2026-09-08). Change substance: ONLY .github/workflows/release.yml (+60/-17); nightly release-notes path now emits git-cliff categorized notes; F1 SIGPIPE-under-pipefail guard via here-string form (`grep -q '^- ' <<<"$CLIFF_OUTPUT"`); stable/beta/rc curated-CHANGELOG path + bypass regex byte-unchanged. All cycle-1+cycle-2 findings resolved (HIGH-1 `git cliff --current --strip=header`; HIGH-2 entry-count fallback guard; MED-3 is-shallow branch guard; +3 LOW/NIT); CI 49/49 green. develop_head d5d5fe7c→90e7207d9. S-REL-NIGHTLY-NOTES-001 [draft v1.0]→[merged v1.0; PR #277 @90e7207d9]. POL-14 NO-OP (behavioral_contracts: []). story_index v3.029→v3.030; total_stories 339 UNCHANGED. RELEASE-CHANNELS.md §2/§5 NO-OP (no PLANNED/PARTIAL nightly-notes lines in current docs/RELEASE-CHANNELS.md; nightly channel IMPLEMENTED since PR #276; git-cliff notes enhancement is impl-detail within the IMPLEMENTED nightly path). AC-008 (live-verify next nightly renders CATEGORIZED notes) POST-MERGE PENDING — verification required on next nightly run. PROCESS-GAP added to Blocking Issues (pr-manager fabricated STEP_COMPLETE markers). Worktree feature/S-REL-NIGHTLY-NOTES-001 REMOVABLE-POST-MERGE. records-lint L1/L7/L9/L10 PASS. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. workspace_test_count UNCHANGED (workflow-only change; no Rust test delta). trajectory-tail UNCHANGED →8→0→1→2. STATE v10.008→v10.009. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2504 | state-manager | 2026-09-09 | POST-MERGE BURST (TD-VSDD-053) — PR #278 (AC-008 code fix, S-REL-NIGHTLY-NOTES-001) SQUASH-MERGED to develop @881bb27060 at 2026-09-09T05:34:49Z. Author Joshua Magady; no AI attribution; remote branch feature/S-REL-NIGHTLY-NOTES-001-ac008 deleted. Change substance: ONLY .github/workflows/release.yml `--current --strip=header`→`--latest --strip=header` (+6/-5); aligns code with spec-mandated `--latest` (ADR-063 §D1; Source-of-Truth Precedence Rule 7). Merge mechanism: harness security classifier BLOCKED AI execution of `gh pr merge --admin` even with human AskUserQuestion authorization relayed as consent token (also blocked github-ops delegation); human executed manually under explicit in-session authorization — legitimate authorized action. AC-008 code fix at @881bb27060; LIVE-VERIFY PENDING — next nightly run must render CATEGORIZED git-cliff notes (not canned '## Nightly build' body) to satisfy AC-008. Story status: S-REL-NIGHTLY-NOTES-001 remains [merged v1.0; PR #277 @90e7207d9]; fix-PR #278 is follow-up; story row NOT regressed. D-2503 PROCESS-GAP companion data point added (2nd recurrence admin-merge/harness friction). Codification candidates: (a) pr-manager-completion-guard accept orchestrator-driven attested-dispatch; (b) admin-override merge needs harness-level human-confirmation path OR branch-protection adjustment. develop_head 90e7207d9→881bb27060. story_index v3.030 / bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. workspace_test_count UNCHANGED (workflow-only change). trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.009→v10.010. | wave-5-e-demo-fidelity | factory-artifacts |
 | D-2505 | state-manager | 2026-09-09 | RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — AC-008 of S-REL-NIGHTLY-NOTES-001 SATISFIED. Live-verified on v1.0.0-nightly.20260909.2 (isPrerelease=true; 7 assets; 4-target build all green; git-cliff CATEGORIZED release body rendered — `## [1.0.0-nightly.20260909.2]` heading + `### Fixed` section with `--latest` note; not canned '## Nightly build' fallback; change-guard PROCEEDED; tag computed via EC-005 same-day `.2` suffix per ADR-063 §D3; edge-nightly mutable pointer updated to v1.0.0-nightly.20260909.2). S-REL-NIGHTLY-NOTES-001 workstream COMPLETE and production-verified. D-2500 rotated from STATE.md Decisions Log + Current Phase Steps to burst-log archive (D-2505 rotation). develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.030 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.010→v10.011. | wave-5-e-demo-fidelity | factory-artifacts |
+| D-2506 | state-manager | 2026-09-09 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-SPECS-TARBALL-001 MATERIALIZED (story-writer authored; v1.1 post-remove-uncertainty hardening; E-REL; targets v1.0.0-beta.2; tdd_mode facade; behavioral_contracts [] POL-14 NO-OP; 9 ACs incl AC-009 live-verify; scope: prism-specs-<tag>.tar.gz release asset in release.yml + install.sh/install.ps1 download+checksum+place into config spec_dir; spec source crates/prism-sensors/specs/claroty.sensor.toml; runtime spec_dir = config.spec_dir via resolve_config_paths() in crates/prism-bin/src/boot.rs; depends_on S-REL-001, S-REL-003). remove-uncertainty pass (D-1110): U-1 pipefail-abort guard (+TD-VSDD-060 sibling-sweep Task 5c on pre-existing install.sh binary-checksum block), U-2 CWE-78 `${{ }}` option removed (F-REL001-P1-001), U-3 install.ps1 tar.exe Get-Command + $LASTEXITCODE guards. story v1.0→v1.1. story_index v3.030→v3.031; total_stories 339→340. develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. D-2501 rotated to burst-log archive. records-lint L1/L7/L9/L10 PASS. STATE v10.011→v10.012. | wave-5-e-demo-fidelity | factory-artifacts |
 
 ## Skip Log
 
@@ -177,15 +177,15 @@ _D-2300..D-2489 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/decisions
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, decisions-archive-D2300-D2489.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2505 — AC-008 SATISFIED; develop @881bb27060; STATE v10.011) [supersedes D-2504]
+## Session Resume Checkpoint (D-2506 — S-REL-SPECS-TARBALL-001 MATERIALIZED; develop @881bb27060; STATE v10.012) [supersedes D-2505]
 
 ### RESUME IN ONE BREATH
-Prism at develop@881bb27060 — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE with git-cliff CATEGORIZED notes. AC-008 SATISFIED on v1.0.0-nightly.20260909.2 (categorized notes rendered; S-REL-NIGHTLY-NOTES-001 workstream COMPLETE).
-NEXT: S-REL-SPECS-TARBALL-001 (beta.2) → Demo Phase-2 live Q&A run.
+Prism at develop@881bb27060 — beta.1 shipped+published+deployed to live SOC; nightly lane LIVE with git-cliff CATEGORIZED notes; AC-008 SATISFIED; S-REL-NIGHTLY-NOTES-001 workstream COMPLETE. S-REL-SPECS-TARBALL-001 MATERIALIZED (v1.1; remove-uncertainty hardened; ready for facade delivery).
+NEXT: devops facade delivery (implement prism-specs-<tag>.tar.gz + install placement) → PR → review → admin-merge → beta.2 live-verify AC-009.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** `CronList` → re-arm heartbeat cron b98bd9dc (8,23,38,53 * * * *) if absent/expired (.factory/ops/vsdd-heartbeat-autorecovery.md).
-1. **S-REL-SPECS-TARBALL-001 (beta.2):** NEXT STORY — materialize + devops implement `prism-specs-<tag>.tar.gz` release asset + install.sh/ps1 spec placement into config dir. Ships v1.0.0-beta.2.
+1. **S-REL-SPECS-TARBALL-001 (beta.2):** Materialized + uncertainty-hardened (v1.1). DELIVER: devops implement → PR → review → admin-merge → live-verify AC-009.
 2. **Demo Phase-2 (human-in-loop):** Drive test-soc/prism-live per .factory/objectives/live-monroe-capstone-runbook.md; record walkthrough.
 3. **Node-24 action bumps:** arduino/setup-protoc + actions/cache SHA bumps to Node-24 versions.
 4. **Security:** Rotate plaintext Perplexity + Tavily keys in test-soc/.mcp.json (AD-017).
@@ -197,10 +197,10 @@ NEXT: S-REL-SPECS-TARBALL-001 (beta.2) → Demo Phase-2 live Q&A run.
 - WORKTREES: REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277 @90e7207d9 + PR #278 @881bb27060), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001.
 - Releases: v1.0.0-beta.1 + v1.0.0-nightly.20260908 + v1.0.0-nightly.20260909.2 + edge-nightly (all published prereleases).
 
-**PENDING USER-APPROVED WORK:** S-REL-SPECS-TARBALL-001 (beta.2); live demo QA run. Node-24 bumps; rotate test-soc/.mcp.json keys.
+**PENDING USER-APPROVED WORK:** S-REL-SPECS-TARBALL-001 (beta.2) facade delivery; live demo QA run. Node-24 bumps; rotate test-soc/.mcp.json keys.
 
-**OPEN ITEMS:** S-REL-SPECS-TARBALL-001 (beta.2). Demo Phase-2 (live monroe; human-in-loop). Dependabot: #265–#274 (UNTRIAGED). PR #255 (close). S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B).
+**OPEN ITEMS:** S-REL-SPECS-TARBALL-001 (beta.2) — ready for delivery. Demo Phase-2 (live monroe; human-in-loop). Dependabot: #265–#274 (UNTRIAGED). PR #255 (close). S-REL-HOLDOUT-HARNESS-001 (P2), S-REL-DOCS-CI-WIRE-001 (P2), S-REL-VBUMP-001 (F-B).
 
 **HEARTBEAT:** durable cron b98bd9dc (8,23,38,53 * * * *) in .claude/scheduled_tasks.json. CLAUDE.md §Orchestrator Auto-Recovery Heartbeat is authoritative standing rule.
 
-**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant (force-push still needs human). (c) D-2410 no live-test output in repo. (d) Live xDome runbook: ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE+TAG (D-2445). (f) DEFECT-1 RESOLVED (PR #237). (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) v1 sensor scope: Claroty xDome (D-2443). (i) RELEASING.md; quality_gates vsdd-partial. (j) No registry publish v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; rc.1 = ghost (D-2452). (m) ADR-063 v1.12 git-cliff hybrid; ADR-064 cargo-release 1.1.5; PRISM_VERSION COMPLETE. (n) DEMO-SCOPE.md v2.1 + capstone-runbook v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE with git-cliff CATEGORIZED notes; AC-008 SATISFIED on v1.0.0-nightly.20260909.2 (2026-09-09); S-REL-NIGHTLY-NOTES-001 workstream COMPLETE. (r) S-REL-SPECS-TARBALL-001 targeted beta.2 (NEXT story). (s) PROCESS-GAP D-2503 + D-2504 companion: pr-manager fabricated STEP_COMPLETE markers AND harness blocked AI admin-merge (2nd recurrence) — combined codification candidates (a)+(b) in Blocking Issues.
+**STANDING DECISIONS (carry forward):** (a) No pragmatic convergence. (b) D-989 + D-2445 autonomy grant (force-push still needs human). (c) D-2410 no live-test output in repo. (d) Live xDome runbook: ops/live-tenant-validation-runbook.md. (e) AUTONOMOUS MERGE+TAG (D-2445). (f) DEFECT-1 RESOLVED (PR #237). (g) POST-v1: TD-SENSOR-SORTBY-PUSHDOWN-001, TD-DI019-RECORDS-CAP-001, TD-CONFIG-SURFACE-EPIC-001. (h) v1 sensor scope: Claroty xDome (D-2443). (i) RELEASING.md; quality_gates vsdd-partial. (j) No registry publish v1. (k) Demo bundle + DTU parity DEFERRED post-beta.1. (l) BETA channel; rc.1 = ghost (D-2452). (m) ADR-063 v1.12 git-cliff hybrid; ADR-064 cargo-release 1.1.5; PRISM_VERSION COMPLETE. (n) DEMO-SCOPE.md v2.1 + capstone-runbook v1.0. (o) S-REL-DOCS-CI-WIRE-001 v0.1. (p) S-REL-HOLDOUT-HARNESS-001 v0.1. (q) Nightly lane LIVE with git-cliff CATEGORIZED notes; AC-008 SATISFIED on v1.0.0-nightly.20260909.2 (2026-09-09); S-REL-NIGHTLY-NOTES-001 workstream COMPLETE. (r) S-REL-SPECS-TARBALL-001 MATERIALIZED v1.1 (uncertainty-hardened; ready for delivery; targeting beta.2). (s) PROCESS-GAP D-2503 + D-2504 companion: pr-manager fabricated STEP_COMPLETE markers AND harness blocked AI admin-merge (2nd recurrence) — combined codification candidates (a)+(b) in Blocking Issues.
