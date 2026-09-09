@@ -11,6 +11,8 @@
 #   Direct invocation with parameters:
 #     pwsh -File scripts/install.ps1 -Version <version>
 #     pwsh -File scripts/install.ps1 -DryRun
+#     pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs
+#     pwsh -File scripts/install.ps1 -Version <version> -SpecDir C:\prism\specs -ForceSpecs
 #
 # PLATFORM
 #   Always installs the x86_64-pc-windows-msvc target.
@@ -22,6 +24,9 @@
 #   3. Verifies the SHA-256 checksum; exits non-zero on mismatch.
 #   4. Extracts prism.exe and installs it to %LOCALAPPDATA%\prism\bin\.
 #   5. Prints PATH guidance if the install directory is not in PATH.
+#   6. If -SpecDir is given: downloads prism-specs-<version>.tar.gz from the release,
+#      verifies its SHA-256 checksum, and extracts claroty.sensor.toml to SpecDir.
+#      Skips existing files unless -ForceSpecs is also passed.
 #
 # SECURITY
 #   - Checksum mismatch aborts install immediately (exit code 1).
@@ -30,12 +35,14 @@
 #   - No credential piping; install scripts handle only binary archives (U31, AD-017).
 #   - Temp directory is always cleaned up in the finally block.
 #
-# Stories: S-REL-003 | ACs: AC-005..AC-007
+# Stories: S-REL-003, S-REL-SPECS-TARBALL-001 | ACs: AC-005..AC-007
 
 [CmdletBinding()]
 param(
     [string]$Version = "",
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$SpecDir = "",
+    [switch]$ForceSpecs
 )
 
 $ErrorActionPreference = "Stop"
@@ -197,14 +204,64 @@ try {
     }
 
     # ---------------------------------------------------------------------------
-    # Post-install notice (binary-only install; specs ship via demo bundle)
+    # Spec placement (AC-005, AC-006)
+    # ---------------------------------------------------------------------------
+    if ($SpecDir) {
+        $SpecsArchive = "prism-specs-$Version.tar.gz"
+        $SpecsUrl = "https://github.com/$Repo/releases/download/$Version/$SpecsArchive"
+        Write-Host "Downloading sensor specs for $Version..."
+        $SpecsArchivePath = Join-Path $TempPath $SpecsArchive
+        Invoke-WebRequest -Uri $SpecsUrl -OutFile $SpecsArchivePath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+
+        # Verify checksum using the already-downloaded checksums.txt
+        $SpecsActualHash = (Get-FileHash -Algorithm SHA256 -Path $SpecsArchivePath).Hash.ToLower()
+        $SpecsMatchedLine = $null
+        foreach ($Line in $ChecksumLines) {
+            if ($Line -match [regex]::Escape($SpecsArchive)) { $SpecsMatchedLine = $Line; break }
+        }
+        if ($null -eq $SpecsMatchedLine) {
+            Write-Error "ERROR: $SpecsArchive not found in checksums.txt"; exit 1
+        }
+        $SpecsExpectedHash = ($SpecsMatchedLine -split '\s+')[0].ToLower()
+        if ($SpecsActualHash -ne $SpecsExpectedHash) {
+            Write-Host "ERROR: Checksum mismatch for $SpecsArchive" -ForegroundColor Red
+            Write-Host "  Expected: $SpecsExpectedHash"; Write-Host "  Actual:   $SpecsActualHash"
+            exit 1
+        }
+        Write-Host "Specs checksum verified."
+
+        # No-clobber: protect user-modified spec files (AC-006)
+        $SpecTarget = Join-Path $SpecDir "claroty.sensor.toml"
+        if ((Test-Path $SpecTarget) -and (-not $ForceSpecs)) {
+            Write-Host "NOTE: $SpecTarget already exists; skipping (use -ForceSpecs to overwrite)."
+        } else {
+            # Guard: tar.exe is required (Windows 10 1803+ / Server 2019+).
+            # Gracefully error if absent — do not silently skip (AC-005 / EC-008).
+            if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
+                Write-Error "tar.exe is required (Windows 10 1803+ / Server 2019+); manual extraction required."; exit 1
+            }
+            New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
+            & tar.exe -xzf $SpecsArchivePath -C $SpecDir claroty.sensor.toml
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "tar.exe extraction failed (exit code $LASTEXITCODE)"; exit 1
+            }
+            Write-Host "Sensor spec installed to $SpecTarget"
+            Write-Host "  Set spec_dir = `"$SpecDir`" in your prism.toml."
+        }
+    } else {
+        Write-Host ""
+        Write-Host "NOTE: Sensor specs not installed (no -SpecDir provided)."
+        Write-Host "  To install specs, re-run with: -SpecDir <path-to-config-dir>\specs"
+        Write-Host "  Then set spec_dir = `"<path>`" in your prism.toml."
+        Write-Host "  See docs/SETUP.md §4 or RELEASING.md for the full setup guide."
+    }
+
+    # ---------------------------------------------------------------------------
+    # Post-install notice
     # ---------------------------------------------------------------------------
     Write-Host ""
-    Write-Host "NOTE: This installer deploys the prism binary only (binary-only install is intentional)."
-    Write-Host "  Configuration: obtain prism.toml.example from the repository or demo bundle:"
-    Write-Host "    https://github.com/$Repo/blob/main/prism.toml.example"
-    Write-Host "  Sensor specs:  see RELEASING.md or the forthcoming demo bundle for sensor spec files."
-    Write-Host "  See RELEASING.md for the full post-install setup guide."
+    Write-Host "Configuration: obtain prism.toml.example from the repository:"
+    Write-Host "  https://github.com/$Repo/blob/main/prism.toml.example"
 
 } finally {
     # Always clean up temp directory

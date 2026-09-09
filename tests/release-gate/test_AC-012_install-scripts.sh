@@ -27,11 +27,13 @@
 #   - 2 N6-hardened AC-003 assertions: PASS (CHECKSUM_CMD block exists)
 #   - 13 new red-gate assertions (SEC-001..006, B1, B2, B3, N2, N8): FAIL on HEAD
 #     These assert the FIXED patterns and are RED until the implementer applies fixes.
+#   - 1 S-REL-SPECS-TARBALL-001/AC-001 assertion: PASS (specs tarball in publish-release job)
 #
-# After all fixes applied: all 41 assertions should pass.
-# (ADR-065 / S-REL-DROP-INTEL-MAC-001: Intel-mac (Darwin-x86_64) AC-002 assertion dropped; 42→41)
+# After all fixes applied: all 42 assertions should pass.
+# (ADR-065 / S-REL-DROP-INTEL-MAC-001: Intel-mac (Darwin-x86_64) AC-002 assertion dropped; 42→41;
+#  S-REL-SPECS-TARBALL-001 tarball assertion added: 41→42)
 #
-# Stories: S-REL-003 | Wave: F-A | Cycle: v1.0.0-release-engineering
+# Stories: S-REL-003, S-REL-SPECS-TARBALL-001 | Wave: F-A | Cycle: v1.0.0-release-engineering
 # Traces to: delta-analysis.md §2.1 + §8; research U8/U9/U10/U29/U30/U33; ADJ-002
 # PR fix cascade: SEC-001/002/003/004/005/006 + B1/B2/B3 + N2/N4/N5/N6/N8
 #
@@ -168,6 +170,21 @@ else
     "AC-010 FAIL: 'scripts/install.ps1' not found in publish-release job block (ADJ-002)"
 fi
 
+# ===========================================================================
+# S-REL-SPECS-TARBALL-001 AC-001: specs tarball asset must be in publish-release job
+# Asserts that the bare $SPECS_ARCHIVE variable (set via GITHUB_ENV in the
+# "Create specs tarball" step) appears in the publish-release job block, ensuring
+# the asset is uploaded on both the create and upload --clobber paths.
+# Also pins the CWE-78 bare-variable form (not ${{ env.SPECS_ARCHIVE }}).
+# ===========================================================================
+
+if echo "$PUBLISH_BLOCK" | grep -qF '"$SPECS_ARCHIVE"' 2>/dev/null; then
+  tap_pass "S-REL-SPECS-TARBALL-001/AC-001: \"\$SPECS_ARCHIVE\" referenced in publish-release job of release.yml"
+else
+  tap_fail "S-REL-SPECS-TARBALL-001/AC-001: \"\$SPECS_ARCHIVE\" missing from publish-release job of release.yml" \
+    "S-REL-SPECS-TARBALL-001/AC-001 FAIL: '\"$SPECS_ARCHIVE\"' not found in publish-release job block (specs tarball asset upload, CWE-78 bare-variable form required)"
+fi
+
 
 # ===========================================================================
 # AC-008: optional gh attestation provenance verification (N4: previously zero assertions)
@@ -285,9 +302,9 @@ assert_contains "$INSTALL_PS1" "-TimeoutSec" "SEC-006"
 
 # ===========================================================================
 # B1: installers must emit a post-install NOTICE about prism.toml.example + sensor specs
-# Orchestrator-adjudicated: binary-only install is intentional; specs ship via demo bundle;
-# installer must tell users where to find prism.toml.example and sensor spec files.
-# RED: neither script mentions prism.toml on current HEAD.
+# Orchestrator-adjudicated: --spec-dir / -SpecDir place specs directly from the release asset
+# (S-REL-SPECS-TARBALL-001); installers must tell users about prism.toml and spec placement.
+# RED: neither script mentions prism.toml on current HEAD (prior to S-REL-003 fix).
 # ===========================================================================
 
 assert_contains "$INSTALL_SH" "prism.toml" "B1"

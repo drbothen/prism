@@ -5,6 +5,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
 #   bash install.sh --version <version>
 #   bash install.sh --version <version> --dry-run
+#   bash install.sh --version <version> --spec-dir /etc/prism/specs
+#   bash install.sh --version <version> --spec-dir /etc/prism/specs --force-specs
 #
 # SUPPORTED PLATFORMS
 #   aarch64-apple-darwin      macOS (Apple Silicon)
@@ -20,13 +22,16 @@
 #   5. Extracts the prism binary and installs it to INSTALL_DIR.
 #   6. Prints PATH guidance if INSTALL_DIR is not in PATH.
 #   7. Optionally verifies build provenance via gh attestation verify.
+#   8. If --spec-dir is given: downloads prism-specs-<version>.tar.gz from the release,
+#      verifies its SHA-256 checksum, and extracts claroty.sensor.toml to SPEC_DIR.
+#      Skips existing files unless --force-specs is also passed.
 #
 # SECURITY
 #   - Checksum mismatch aborts install immediately (no silent continuation).
 #   - No gh CLI dependency in the script itself (auth-free GitHub REST API for version resolution).
 #   - Temp dir is always cleaned up on exit (trap).
 #
-# Stories: S-REL-003 | ACs: AC-001..AC-009
+# Stories: S-REL-003, S-REL-SPECS-TARBALL-001 | ACs: AC-001..AC-009
 
 set -euo pipefail
 
@@ -38,6 +43,8 @@ INSTALL_DIR="/usr/local/bin"
 VERSION=""
 DRY_RUN=false
 SKIP_VERIFY_PROVENANCE=false
+SPEC_DIR=""
+FORCE_SPECS=false
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -60,9 +67,21 @@ while [[ $# -gt 0 ]]; do
       SKIP_VERIFY_PROVENANCE=true
       shift
       ;;
+    --spec-dir)
+      if [[ $# -lt 2 ]]; then
+        printf 'ERROR: --spec-dir requires a value\n' >&2
+        exit 1
+      fi
+      SPEC_DIR="${2}"
+      shift 2
+      ;;
+    --force-specs)
+      FORCE_SPECS=true
+      shift
+      ;;
     *)
       printf 'ERROR: unknown argument: %s\n' "$1" >&2
-      printf 'Usage: install.sh [--version <tag>] [--dry-run] [--skip-verify-provenance]\n' >&2
+      printf 'Usage: install.sh [--version <tag>] [--dry-run] [--skip-verify-provenance] [--spec-dir <path>] [--force-specs]\n' >&2
       exit 1
       ;;
   esac
@@ -204,7 +223,10 @@ curl -fsSL --output "${TMPDIR_PRISM}/checksums.txt" "${CHECKSUM_URL}"
 # ---------------------------------------------------------------------------
 # SHA-256 verification (AC-003: abort on mismatch)
 # ---------------------------------------------------------------------------
-EXPECTED="$(grep -F -- "${ARCHIVE}" "${TMPDIR_PRISM}/checksums.txt" | awk '{print $1}')"
+# `|| true` prevents set -euo pipefail from aborting the script when grep finds
+# no match (exit 1); the empty-string check below then fires the friendly error.
+# Without `|| true` the friendly branch is unreachable under pipefail.
+EXPECTED="$(grep -F -- "${ARCHIVE}" "${TMPDIR_PRISM}/checksums.txt" | awk '{print $1}' || true)"
 if [[ -z "${EXPECTED}" ]]; then
   printf 'ERROR: %s not found in checksums.txt\n' "${ARCHIVE}" >&2
   exit 1
@@ -245,6 +267,45 @@ cp "${TMPDIR_PRISM}/prism" "${INSTALL_DIR}/prism"
 chmod 755 "${INSTALL_DIR}/prism"
 
 # ---------------------------------------------------------------------------
+# Spec placement (AC-003, AC-004)
+# ---------------------------------------------------------------------------
+if [[ -n "${SPEC_DIR}" ]]; then
+  SPECS_ARCHIVE="prism-specs-${VERSION}.tar.gz"
+  SPECS_URL="https://github.com/${REPO}/releases/download/${VERSION}/${SPECS_ARCHIVE}"
+  printf 'Downloading sensor specs for %s...\n' "${VERSION}"
+  curl -fsSL --output "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" "${SPECS_URL}"
+
+  # Verify checksum using the already-downloaded checksums.txt.
+  # `|| true` prevents set -euo pipefail from aborting the script when grep finds
+  # no match (exit 1); the empty-string check below then fires the friendly error.
+  # Without `|| true` the friendly branch is unreachable under pipefail.
+  EXPECTED_SPEC="$(grep -F -- "${SPECS_ARCHIVE}" "${TMPDIR_PRISM}/checksums.txt" | awk '{print $1}' || true)"
+  if [[ -z "${EXPECTED_SPEC}" ]]; then
+    printf 'ERROR: %s not found in checksums.txt\n' "${SPECS_ARCHIVE}" >&2
+    exit 1
+  fi
+  ACTUAL_SPEC="$("${CHECKSUM_CMD[@]}" "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" | awk '{print $1}')"
+  if [[ "${EXPECTED_SPEC}" != "${ACTUAL_SPEC}" ]]; then
+    printf 'ERROR: Checksum mismatch for %s\n' "${SPECS_ARCHIVE}" >&2
+    printf '  Expected: %s\n' "${EXPECTED_SPEC}" >&2
+    printf '  Actual:   %s\n' "${ACTUAL_SPEC}" >&2
+    exit 1
+  fi
+  printf 'Specs checksum verified.\n'
+
+  # No-clobber: protect user-modified spec files
+  SPEC_TARGET="${SPEC_DIR}/claroty.sensor.toml"
+  if [[ -f "${SPEC_TARGET}" ]] && [[ "${FORCE_SPECS}" != "true" ]]; then
+    printf 'NOTE: %s already exists; skipping (pass --force-specs to overwrite).\n' "${SPEC_TARGET}"
+  else
+    mkdir -p "${SPEC_DIR}"
+    tar -xzf "${TMPDIR_PRISM}/${SPECS_ARCHIVE}" -C "${SPEC_DIR}" claroty.sensor.toml
+    printf 'Sensor spec installed to %s\n' "${SPEC_TARGET}"
+    printf '  Set spec_dir = "%s" in your prism.toml.\n' "${SPEC_DIR}"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # PATH guidance (AC-004)
 # ---------------------------------------------------------------------------
 case ":${PATH}:" in
@@ -269,10 +330,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Post-install notice (binary-only install; specs ship via demo bundle)
+# Post-install notice
 # ---------------------------------------------------------------------------
-printf '\nNOTE: This installer deploys the prism binary only (binary-only install is intentional).\n'
-printf '  Configuration: obtain prism.toml.example from the repository or demo bundle:\n'
-printf '    https://github.com/%s/blob/main/prism.toml.example\n' "${REPO}"
-printf '  Sensor specs:  see RELEASING.md or the forthcoming demo bundle for sensor spec files.\n'
-printf '  See RELEASING.md for the full post-install setup guide.\n'
+printf '\nConfiguration: obtain prism.toml.example from the repository:\n'
+printf '  https://github.com/%s/blob/main/prism.toml.example\n' "${REPO}"
+if [[ -z "${SPEC_DIR}" ]]; then
+  printf '\nNOTE: Sensor specs not installed (no --spec-dir provided).\n'
+  printf '  To install specs, re-run with: --spec-dir <path-to-config-dir>/specs\n'
+  printf '  Then set spec_dir = "<path>" in your prism.toml.\n'
+  printf '  See docs/SETUP.md §4 or RELEASING.md for the full setup guide.\n'
+fi
