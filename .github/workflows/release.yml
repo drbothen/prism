@@ -239,6 +239,26 @@ jobs:
         shell: bash
         run: |
           cat artifacts/release-*/checksums.txt > checksums.txt
+      - name: Create specs tarball
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # prism-specs-<tag>.tar.gz: platform-neutral archive containing only the
+          # Claroty xDome sensor spec. Files are placed at the root of the tarball
+          # (no specs/ prefix) so that `tar -xzf ... -C <spec-dir>` extracts directly
+          # into the target directory without an intermediate subdirectory.
+          # v1/beta.2 scope: Claroty xDome only (D-2443).
+          SPECS_ARCHIVE="prism-specs-${TAG}.tar.gz"
+          tar czf "${SPECS_ARCHIVE}" -C crates/prism-sensors/specs claroty.sensor.toml
+          echo "SPECS_ARCHIVE=${SPECS_ARCHIVE}" >> "$GITHUB_ENV"
+      - name: Compute specs tarball checksum
+        shell: bash
+        run: |
+          # Append to checksums.txt that was merged from the 4 per-platform build legs.
+          # publish-release always runs on ubuntu-latest; sha256sum is always present.
+          sha256sum "$SPECS_ARCHIVE" >> checksums.txt
       - name: Fetch full history and tags (nightly path)
         # git-cliff --current requires the full tag history that the default
         # shallow checkout (fetch-depth: 1) does not provide. This step fetches
@@ -395,7 +415,8 @@ jobs:
               artifacts/release-*/*.zip \
               checksums.txt \
               scripts/install.sh \
-              scripts/install.ps1
+              scripts/install.ps1 \
+              "$SPECS_ARCHIVE"
           else
             # empty-array-safe under set -u on any bash; F-REL001-PR1-002
             # Asset globs guaranteed non-empty: needs: build-release admits only all-4-legs-success
@@ -420,5 +441,6 @@ jobs:
               artifacts/release-*/*.zip \
               checksums.txt \
               scripts/install.sh \
-              scripts/install.ps1
+              scripts/install.ps1 \
+              "$SPECS_ARCHIVE"
           fi

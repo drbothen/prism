@@ -35,7 +35,9 @@
 [CmdletBinding()]
 param(
     [string]$Version = "",
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$SpecDir = "",
+    [switch]$ForceSpecs
 )
 
 $ErrorActionPreference = "Stop"
@@ -197,14 +199,64 @@ try {
     }
 
     # ---------------------------------------------------------------------------
-    # Post-install notice (binary-only install; specs ship via demo bundle)
+    # Spec placement (AC-005, AC-006)
+    # ---------------------------------------------------------------------------
+    if ($SpecDir) {
+        New-Item -ItemType Directory -Path $SpecDir -Force | Out-Null
+        $SpecsArchive = "prism-specs-$Version.tar.gz"
+        $SpecsUrl = "https://github.com/$Repo/releases/download/$Version/$SpecsArchive"
+        Write-Host "Downloading sensor specs for $Version..."
+        $SpecsArchivePath = Join-Path $TempPath $SpecsArchive
+        Invoke-WebRequest -Uri $SpecsUrl -OutFile $SpecsArchivePath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+
+        # Verify checksum using the already-downloaded checksums.txt
+        $SpecsActualHash = (Get-FileHash -Algorithm SHA256 -Path $SpecsArchivePath).Hash.ToLower()
+        $SpecsMatchedLine = $null
+        foreach ($Line in $ChecksumLines) {
+            if ($Line -match [regex]::Escape($SpecsArchive)) { $SpecsMatchedLine = $Line; break }
+        }
+        if ($null -eq $SpecsMatchedLine) {
+            Write-Error "ERROR: $SpecsArchive not found in checksums.txt"; exit 1
+        }
+        $SpecsExpectedHash = ($SpecsMatchedLine -split '\s+')[0].ToLower()
+        if ($SpecsActualHash -ne $SpecsExpectedHash) {
+            Write-Host "ERROR: Checksum mismatch for $SpecsArchive" -ForegroundColor Red
+            Write-Host "  Expected: $SpecsExpectedHash"; Write-Host "  Actual:   $SpecsActualHash"
+            exit 1
+        }
+        Write-Host "Specs checksum verified."
+
+        # No-clobber: protect user-modified spec files (AC-006)
+        $SpecTarget = Join-Path $SpecDir "claroty.sensor.toml"
+        if ((Test-Path $SpecTarget) -and (-not $ForceSpecs)) {
+            Write-Host "NOTE: $SpecTarget already exists; skipping (use -ForceSpecs to overwrite)."
+        } else {
+            # Guard: tar.exe is required (Windows 10 1803+ / Server 2019+).
+            # Gracefully error if absent — do not silently skip (AC-005 / EC-008).
+            if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
+                Write-Error "tar.exe is required (Windows 10 1803+ / Server 2019+); manual extraction required."; exit 1
+            }
+            & tar.exe -xzf $SpecsArchivePath -C $SpecDir
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "tar.exe extraction failed (exit code $LASTEXITCODE)"; exit 1
+            }
+            Write-Host "Sensor spec installed to $SpecTarget"
+            Write-Host "  Set spec_dir = `"$SpecDir`" in your prism.toml."
+        }
+    } else {
+        Write-Host ""
+        Write-Host "NOTE: Sensor specs not installed (no -SpecDir provided)."
+        Write-Host "  To install specs, re-run with: -SpecDir <path-to-config-dir>\specs"
+        Write-Host "  Then set spec_dir = `"<path>`" in your prism.toml."
+        Write-Host "  See docs/SETUP.md §4 or RELEASING.md for the full setup guide."
+    }
+
+    # ---------------------------------------------------------------------------
+    # Post-install notice
     # ---------------------------------------------------------------------------
     Write-Host ""
-    Write-Host "NOTE: This installer deploys the prism binary only (binary-only install is intentional)."
-    Write-Host "  Configuration: obtain prism.toml.example from the repository or demo bundle:"
-    Write-Host "    https://github.com/$Repo/blob/main/prism.toml.example"
-    Write-Host "  Sensor specs:  see RELEASING.md or the forthcoming demo bundle for sensor spec files."
-    Write-Host "  See RELEASING.md for the full post-install setup guide."
+    Write-Host "Configuration: obtain prism.toml.example from the repository:"
+    Write-Host "  https://github.com/$Repo/blob/main/prism.toml.example"
 
 } finally {
     # Always clean up temp directory
