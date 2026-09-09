@@ -2,7 +2,7 @@
 # AC-008: Both scripts pass shellcheck / PSScriptAnalyzer with zero new errors
 #
 # Evidence: shellcheck exits 0 with zero output (zero errors),
-#            PSScriptAnalyzer returns no Error-severity findings.
+#            PSScriptAnalyzer wrapper exits 0 with zero Error-severity findings.
 # Usage: vhs AC-008-shellcheck-psscriptanalyzer.tape
 
 Output docs/demo-evidence/S-REL-SPECS-TARBALL-001/AC-008-shellcheck-psscriptanalyzer.gif
@@ -37,7 +37,7 @@ Type "shellcheck scripts/install.sh && echo 'shellcheck: PASS (exit 0, zero erro
 Enter
 Sleep 2s
 
-# PSScriptAnalyzer: no Error-severity findings
-Type "pwsh -Command \"Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Error; Write-Host 'PSScriptAnalyzer: PASS (zero Error findings)'\""
+# PSScriptAnalyzer: no Error-severity findings (via wrapper script)
+Type "bash docs/demo-evidence/S-REL-SPECS-TARBALL-001/run-psscriptanalyzer.sh"
 Enter
-Sleep 4s
+Sleep 5s
