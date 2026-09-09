@@ -236,7 +236,7 @@ try {
             if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
                 Write-Error "tar.exe is required (Windows 10 1803+ / Server 2019+); manual extraction required."; exit 1
             }
-            & tar.exe -xzf $SpecsArchivePath -C $SpecDir
+            & tar.exe -xzf $SpecsArchivePath -C $SpecDir claroty.sensor.toml
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "tar.exe extraction failed (exit code $LASTEXITCODE)"; exit 1
             }
