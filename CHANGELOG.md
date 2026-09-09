@@ -5,6 +5,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-09-09
+
+
+
+
+### Added
+
+- git-cliff categorized notes for nightly tags (S-REL-NIGHTLY-NOTES-001) ([#277](https://github.com/drbothen/prism/pull/277))
+
+- ship specs tarball + install-script spec placement (S-REL-SPECS-TARBALL-001) ([#279](https://github.com/drbothen/prism/pull/279))
+
+
+### Fixed
+
+- use git cliff --latest for nightly notes (AC-008, S-REL-NIGHTLY-NOTES-001) ([#278](https://github.com/drbothen/prism/pull/278))
+
 ## [1.0.0-beta.1] - 2026-09-07
 
 ### Highlights
@@ -208,5 +224,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - canonical E-CRED-001..010 namespace migration + collision resolution (ADR-035)
 
 
-[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-beta.1
