@@ -766,3 +766,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 
 **NOTE: Superseded by D-2506 — S-REL-SPECS-TARBALL-001 MATERIALIZED (v1.1; remove-uncertainty hardened; beta.2-targeting). story_index v3.030→v3.031; total_stories 339→340. STATE v10.011→v10.012.**
 
+---
+
+## Archived: D-2509 — 2026-09-09; STATE v10.014→v10.015 — S-REL-CHANGELOG-CHANNEL-SCOPE-001 MATERIALIZED; ADR-063 §D7 PENDING; develop @54523dccd
+
+**RESUME IN ONE BREATH:** Prism at develop@54523dccd — beta.1 shipped; nightly lane LIVE; S-REL-NIGHTLY-NOTES-001 + S-REL-SPECS-TARBALL-001 COMPLETE (all ACs satisfied). S-REL-CHANGELOG-CHANNEL-SCOPE-001 MATERIALIZED (P1; draft; ADR-063 §D7 amendment pending; BLOCKS v1.0.0 stable). beta.2 NOT YET CUT (human-gated, S-REL-VBUMP-001 territory). story_index v3.033 / total_stories 341.
+
+**HEADS (D-2509 2026-09-09):** develop: `54523dccd` (origin; PR #279 S-REL-SPECS-TARBALL-001 MERGED; specs tarball LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (PR #279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001.
+
+**NOTE: Superseded by D-2510 — v1.0.0-beta.2 CHANGELOG MERGED (PR #280 @baf720d89). develop_head 54523dccd→baf720d89. STATE v10.015→v10.016.**
+

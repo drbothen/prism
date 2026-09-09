@@ -1020,7 +1020,7 @@ SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — NIGHTLY LANE LIVE-VERIFY SUCC
 
 ---
 
-### D-2505 — RECORDS-ONLY MICRO-BURST — AC-008 SATISFIED — 2026-09-09
+### D-2505 — RECORDS-ONLY MICRO-BURST — AC-008 SATISFIED (archived from STATE.md at D-2510 rotation) — 2026-09-09
 
 **Agent:** state-manager | **Decision:** D-2505 | **Cycle:** wave-5-e-demo-fidelity
 
@@ -1047,3 +1047,13 @@ SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-NIGHTLY-NOTES-001 REGISTERED (draft 
 SINGLE-COMMIT BURST (TD-VSDD-053) — S-REL-SPECS-TARBALL-001 MATERIALIZED (story-writer authored; v1.1 post-remove-uncertainty hardening; E-REL; targets v1.0.0-beta.2; tdd_mode facade; behavioral_contracts [] POL-14 NO-OP; 9 ACs incl AC-009 live-verify). Scope: prism-specs-<tag>.tar.gz release asset in release.yml + install.sh/install.ps1 download+checksum+place into config spec_dir; spec source crates/prism-sensors/specs/claroty.sensor.toml; runtime spec_dir = config.spec_dir via resolve_config_paths() in crates/prism-bin/src/boot.rs; depends_on S-REL-001, S-REL-003. remove-uncertainty pass (D-1110): U-1 pipefail-abort guard (+TD-VSDD-060 sibling-sweep Task 5c on pre-existing install.sh binary-checksum block), U-2 CWE-78 `${{ }}` option removed (F-REL001-P1-001), U-3 install.ps1 tar.exe Get-Command + $LASTEXITCODE guards. story v1.0→v1.1. D-2501 rotated from STATE.md Decisions Log + Current Phase Steps to burst-log archive (D-2506 rotation). D-2505 session resume checkpoint archived to session-checkpoints.md. develop_head 881bb27060 UNCHANGED. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 UNCHANGED. workspace_test_count UNCHANGED. story_index v3.030→v3.031; total_stories 339→340. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.011→v10.012.
 
 **Files touched (factory):** `.factory/STATE.md` — v10.011→v10.012 (story_index_version 3.030→3.031; D-2506 decisions+steps rows; D-2501 archived; D-2506 session resume checkpoint). `.factory/stories/STORY-INDEX.md` — v3.030→v3.031 (S-REL-SPECS-TARBALL-001 registered draft v1.1; total_stories 339→340). `.factory/stories/S-REL-SPECS-TARBALL-001-specs-tarball-install-placement.md` — NEW v1.1 (story-writer authored; remove-uncertainty hardened). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2501 archive + D-2506 burst summary appended. `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2505 checkpoint archived.
+
+---
+
+### D-2510 — RECORDS-ONLY MICRO-BURST — v1.0.0-beta.2 CHANGELOG MERGED @baf720d89 — 2026-09-09
+
+**Agent:** state-manager | **Decision:** D-2510 | **Cycle:** wave-5-e-demo-fidelity
+
+RECORDS-ONLY MICRO-BURST (TD-VSDD-096 + TD-VSDD-053) — PR #280 (docs(changelog): curate v1.0.0-beta.2 release notes; branch release/v1.0.0-beta.2) MERGED to develop @baf720d89 at 2026-09-09T21:23:41Z (admin-merge; human-authorized; author Joshua Magady; CHANGELOG.md only +30/-1). Curated `## [1.0.0-beta.2]` section: Layer-1 human-approved Highlights/Upgrade Notes + Layer-2 git-cliff Added/Fixed for #277 (S-REL-NIGHTLY-NOTES-001), #279 (S-REL-SPECS-TARBALL-001), #278 (E-REL-NOTES); ci nightly-lane commit skip-typed. No Cargo.toml bump (ADR-064 D2 pre-release BASE-MATCH). Layer-2 generated with channel-scoped --tag-pattern to exclude nightly tags (precedent for S-REL-CHANGELOG-CHANNEL-SCOPE-001). NEXT: human-gated release-tag.yml dispatch for v1.0.0-beta.2 → release.yml 4-platform build + pre-release publish. D-2505 rotated from STATE.md Decisions Log + Current Phase Steps to burst-log archive (D-2510 rotation). D-2509 session resume checkpoint archived to session-checkpoints.md. develop_head 54523dccd→baf720d89. bc_index v10.06 / vp_index v2.22 / arch_index v2.379 / story_index v3.033 UNCHANGED. workspace_test_count UNCHANGED. trajectory-tail UNCHANGED →8→0→1→2. records-lint L1/L7/L9/L10 PASS. STATE v10.015→v10.016. SESSION-HANDOFF v9.007→v9.008.
+
+**Files touched (factory):** `.factory/STATE.md` — v10.015→v10.016 (develop_head 54523dccd→baf720d89; D-2510 decisions+steps rows; D-2505 archived; D-2510 session resume checkpoint; archive notes updated). `.factory/SESSION-HANDOFF.md` — v9.007→v9.008 (§RESUME SNAPSHOT D-2509 SUPERSEDED by D-2510; develop HEAD updated). `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` — D-2505 heading annotated (archived from STATE.md at D-2510 rotation) + D-2510 burst summary appended. `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` — D-2509 checkpoint archived.
