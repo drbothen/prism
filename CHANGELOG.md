@@ -5,6 +5,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-09-09
+
+### Highlights
+
+> **Supported sensor scope for the 1.0.0 beta line: Claroty xDome only.** No product feature changes in this release — beta.2 is a release-infrastructure stabilization. Adapter code for CrowdStrike Falcon, Cyberint, and Armis is present but not supported in this line.
+
+- Nightly pre-release channel: `develop` builds are now published automatically as `vX.Y.Z-nightly.YYYYMMDD` pre-releases on a scheduled cadence; the `edge-nightly` convenience pointer tag tracks the latest nightly for tooling integrations
+- Nightly release notes are now categorized (Added / Fixed / etc.) via git-cliff rather than a canned body, matching the format used for stable and beta releases
+- Sensor specs ship as a dedicated release asset: each release now publishes `prism-specs-<tag>.tar.gz` containing the versioned Claroty xDome sensor TOML spec alongside the platform binaries
+- Install scripts now handle spec placement: `install.sh --spec-dir <dir>` and `install.ps1 -SpecDir <dir>` download, checksum-verify, and place the Claroty spec directly into the configured `spec_dir` — a fresh install boots with the sensor spec discovered without a manual copy or repository clone
+
+### Upgrade Notes
+
+- Existing beta.1 installs are unaffected in behavior; the nightly channel and specs tarball are additive release-infrastructure improvements, not replacements.
+- On new or re-installs, use `install.sh --spec-dir <dir>` (Linux/macOS) or `install.ps1 -SpecDir <dir>` (Windows) to place the Claroty xDome sensor spec automatically. Previously, the spec had to be manually copied from the `specs/` directory inside the binary archive.
+- No configuration migration is required. There are no breaking changes.
+
+### Added
+
+- git-cliff categorized notes for nightly tags (S-REL-NIGHTLY-NOTES-001) ([#277](https://github.com/drbothen/prism/pull/277))
+
+- ship specs tarball + install-script spec placement (S-REL-SPECS-TARBALL-001) ([#279](https://github.com/drbothen/prism/pull/279))
+
+
+### Fixed
+
+- use git cliff --latest for nightly notes (AC-008, S-REL-NIGHTLY-NOTES-001) ([#278](https://github.com/drbothen/prism/pull/278))
+
 ## [1.0.0-beta.1] - 2026-09-07
 
 ### Highlights
@@ -208,5 +236,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - canonical E-CRED-001..010 namespace migration + collision resolution (ADR-035)
 
 
-[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/drbothen/prism/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/drbothen/prism/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/drbothen/prism/releases/tag/v1.0.0-beta.1
