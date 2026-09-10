@@ -1,6 +1,6 @@
 # Review Findings — S-PLUGIN-PREREQ-D
 
-PR: #149 (https://github.com/drbothen/prism/pull/149)
+PR: #149 (https://github.com/BOHICA-LABS/prism/pull/149)
 Branch: feature/S-PLUGIN-PREREQ-D
 
 ## Convergence Tracking

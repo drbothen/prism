@@ -1,7 +1,7 @@
 # Merge Record — S-3.2.03
 
 **PR:** #85
-**URL:** https://github.com/drbothen/prism/pull/85
+**URL:** https://github.com/BOHICA-LABS/prism/pull/85
 **Merge SHA:** 5f087c8f58d1cb25b9af5d55e6387696fd8927b6
 **Merged at:** 2026-04-29T17:19:10Z
 **Merged into:** develop

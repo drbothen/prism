@@ -172,7 +172,7 @@ _Archived to session-checkpoints.md by D-1634 burst (state-manager keep-last-1 d
 
 **LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08).
 
-**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/drbothen/prism/pull/219; base develop; HEAD 39c8b134; pr-reviewer APPROVE (was on 35117a38 — re-review needed on 39c8b134); PR-LEVEL cascade 0/3 on frozen 39c8b134).
+**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/BOHICA-LABS/prism/pull/219; base develop; HEAD 39c8b134; pr-reviewer APPROVE (was on 35117a38 — re-review needed on 39c8b134); PR-LEVEL cascade 0/3 on frozen 39c8b134).
 
 **OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — LOCAL strict-3-CLEAN CONVERGED @35117a38 (passes 17/18/19). Pass-1 PR-LEVEL CLOSED (2 MED+1 OBS) @39c8b134; PR-LEVEL streak 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001 reset on push). At merge: closes DRIFT-IEQ-NONEXISTENT-COL-ERRPATH-001 + DRIFT-AUDIT-SCRIPT-UNCOMMITTED-001 (audit-script 62→70).
 
@@ -200,7 +200,7 @@ _Archived to session-checkpoints.md by D-1638 burst (state-manager keep-last-1 d
 
 **LAST MERGED:** S-PRISMQL-CASE-INSENSITIVE-001 (PR #217 → develop@f935edb6, 2026-07-08).
 
-**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/drbothen/prism/pull/219; base develop; HEAD 8610ecd0; PR-LEVEL streak 0/3 on frozen 8610ecd0).
+**OPEN PRs:** PR #219 FIX-IEQ-ERRPATH-001 (https://github.com/BOHICA-LABS/prism/pull/219; base develop; HEAD 8610ecd0; PR-LEVEL streak 0/3 on frozen 8610ecd0).
 
 **OPEN FIX-CASCADE:** FIX-IEQ-ERRPATH-001 — LOCAL strict-3-CLEAN CONVERGED @35117a38 (passes 17/18/19). Pass-1 through pass-5 all done; pass-5 NOT-CLEAN(3 MED); PR HEAD UNCHANGED @8610ecd0; streak stays 0/3.
 
@@ -829,3 +829,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2514 2026-09-09):** develop: `baf720d89` (origin; v1.0.0-beta.2 published; nightly LIVE); feature/S-REL-CHANGELOG-CHANNEL-SCOPE-001: `0583581ce` (LOCAL 3-CLEAN CONVERGED); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (#279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + nightly (multiple) + edge-nightly.
 
 **NOTE: Superseded by D-2515 — S-REL-CHANGELOG-CHANNEL-SCOPE-001 PR #281 SQUASH-MERGED to develop@09e9b28d2 2026-09-10T04:48:43Z. Per-channel git-cliff --tag-pattern scoping SHIPPED (ADR-063 §D7 v1.14). Nothing in flight. NEXT: backlog. story_index v3.035→v3.036. develop_head baf720d89→09e9b28d2. STATE v10.020→v10.021. SESSION-HANDOFF v9.012→v9.013.**
+
+---
+
+## D-2515 Checkpoint — S-REL-CHANGELOG-CHANNEL-SCOPE-001 MERGED @09e9b28d2 — 2026-09-10 (superseded by D-2516)
+
+**RESUME IN ONE BREATH:** Prism at develop@09e9b28d2 — S-REL-CHANGELOG-CHANNEL-SCOPE-001 (P1) SQUASH-MERGED to develop@09e9b28d2 (PR #281, 2026-09-10T04:48:43Z). Per-channel git-cliff --tag-pattern release-notes scoping shipped (Sites 1/2/3; ADR-063 §D7 v1.14). Nothing in flight. NEXT: remaining backlog (Dependabot #265–#274; v1 feature scope; process-gap follow-up at cycle-close). FRAMING: NOT stable — substantial feature scope remains before v1.0.0 stable.
+
+**HEADS (D-2515 2026-09-10):** develop: `09e9b28d2` (origin; S-REL-CHANGELOG-CHANNEL-SCOPE-001 merged; nightly LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — verify/close). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001, E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276), S-REL-SPECS-TARBALL-001 (#279). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.* (multiple) + edge-nightly.
+
+**NOTE: Superseded by D-2516 — drbothen/prism→BOHICA-LABS/prism org rename COMPLETE (PR #283 squash-merged develop@85f30ea7f 2026-09-10). .factory swept exhaustively (83 occurrences/47 files). develop_head 09e9b28d2→85f30ea7f. STATE v10.021→v10.022. SESSION-HANDOFF v9.013→v9.014.**

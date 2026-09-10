@@ -1,7 +1,7 @@
 # Review Findings — S-6.12
 
 **Story:** S-6.12 — prism-dtu-pagerduty: DTU for PagerDuty Events API v2 — L3 (behavioral)
-**PR:** #55 — https://github.com/drbothen/prism/pull/55
+**PR:** #55 — https://github.com/BOHICA-LABS/prism/pull/55
 **Merge commit:** 13579505bbf1d820a2e0ac0b748757d180af7be9
 **Merged at:** 2026-04-26T04:02:53Z
 

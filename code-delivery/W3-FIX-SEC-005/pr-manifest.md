@@ -3,7 +3,7 @@
 **Status:** MERGED
 **PR:** #125
 **Title:** fix(W3-FIX-SEC-005): admin-token uniformity across 5 DTU clones (P7 CR-021/022)
-**URL:** https://github.com/drbothen/prism/pull/125
+**URL:** https://github.com/BOHICA-LABS/prism/pull/125
 **Merge SHA:** ba3b10c73aac19ffad21928187e1f9c79992d4f9
 **Merged At:** 2026-05-02T19:38:05Z
 **Merge Strategy:** squash

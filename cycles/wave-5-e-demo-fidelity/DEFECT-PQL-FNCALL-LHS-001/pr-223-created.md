@@ -18,7 +18,7 @@ decision_id: D-1775
 
 ## PR
 
-- PR #223: https://github.com/drbothen/prism/pull/223
+- PR #223: https://github.com/BOHICA-LABS/prism/pull/223
 - Base: `develop`
 - Files changed: 13; 7490 insertions / 79 deletions
 

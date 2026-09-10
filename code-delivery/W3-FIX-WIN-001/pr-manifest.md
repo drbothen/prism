@@ -1,7 +1,7 @@
 # PR Manifest — W3-FIX-WIN-001
 
 **PR:** #105
-**URL:** https://github.com/drbothen/prism/pull/105
+**URL:** https://github.com/BOHICA-LABS/prism/pull/105
 **Title:** [W3-FIX-WIN-001] prism-dtu-harness: cross-platform fix for drop_releases_ports test (Windows winsock)
 **Status:** MERGED
 **Merge date:** 2026-04-30

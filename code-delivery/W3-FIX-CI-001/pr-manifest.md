@@ -5,7 +5,7 @@ W3-FIX-CI-001: CI wall-clock optimization — cargo-nextest, per-platform PROPTE
 
 ## PR
 - Number: #112
-- URL: https://github.com/drbothen/prism/pull/112
+- URL: https://github.com/BOHICA-LABS/prism/pull/112
 - Base branch: develop
 - Feature branch: fix/W3-FIX-CI-001 (remote deleted post-merge)
 

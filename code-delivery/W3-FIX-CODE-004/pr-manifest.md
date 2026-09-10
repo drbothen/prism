@@ -4,7 +4,7 @@
 |-------|-------|
 | Story | W3-FIX-CODE-004 |
 | PR | #118 |
-| URL | https://github.com/drbothen/prism/pull/118 |
+| URL | https://github.com/BOHICA-LABS/prism/pull/118 |
 | Title | fix(W3-FIX-CODE-004): pass-49 cleanup bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing (lands first in W3.2) |
 | Branch | feature/W3-FIX-CODE-004 |
 | Stage-1 SHA | 06eee812 |

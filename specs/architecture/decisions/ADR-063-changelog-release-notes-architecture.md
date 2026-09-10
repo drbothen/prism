@@ -27,7 +27,7 @@ inputs:
   - .github/workflows/release-prep.yml
   - .github/workflows/release.yml
   - .github/workflows/release-tag.yml
-input-hash: "7ec5c9d"
+input-hash: "fa05fd4"
 ---
 
 # ADR-063: CHANGELOG and Release Notes Architecture — git-cliff + Two-Layer Model + First-Release Handling
@@ -229,7 +229,7 @@ The Breaking Changes section is ordered first, before Added, to surface upgrade 
 
 **GitHub PR link injection (token-free via `commit_preprocessors`):** Prism uses squash-merge;
 every merged PR commit subject already contains `(#NNN)`. A `commit_preprocessors` regex
-(`{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" }`)
+(`{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/BOHICA-LABS/prism/pull/${1}))" }`)
 rewrites `(#NNN)` into a markdown link BEFORE Tera rendering — no `GITHUB_TOKEN` or remote API
 call needed. The body template renders `{{ commit.message }}`, which already contains the link.
 The `commit.remote.pr_number` and `commit.remote.pr_url` fields (populated only when
@@ -289,7 +289,7 @@ conventional_commits = true
 filter_unconventional = true
 commit_preprocessors = [
   # Rewrite "(#NNN)" in squash-merge commit subjects to markdown PR links — token-free.
-  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" },
+  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/BOHICA-LABS/prism/pull/${1}))" },
 ]
 commit_parsers = [
   { message = "^feat", group = "<!-- 1 -->Added" },

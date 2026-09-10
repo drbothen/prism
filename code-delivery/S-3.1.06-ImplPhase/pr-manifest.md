@@ -7,7 +7,7 @@
 | Story | S-3.1.06-ImplPhase |
 | Title | prism-sensors: complete adapter OrgId binding (F-48-H-001 closure — Wave 3.1 last PR) |
 | PR Number | #117 |
-| PR URL | https://github.com/drbothen/prism/pull/117 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/117 |
 | Base Branch | develop |
 | Feature Branch | feature/S-3.1.06-ImplPhase |
 | Gap Finding Closed | F-48-H-001 (HIGH — adversarial pass-48) |

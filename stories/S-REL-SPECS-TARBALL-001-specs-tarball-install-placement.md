@@ -89,7 +89,7 @@ inputs:
   - "crates/prism-sensors/specs/claroty.sensor.toml"
   - "prism.toml.example"
   - "crates/prism-bin/src/boot.rs"
-input-hash: "df36962"
+input-hash: "31cde6b"
 # input-hash: populated by state-manager after commit (compute-input-hash).
 traces_to: []
 cycle: "v1.0.0-beta.2"
@@ -391,7 +391,7 @@ Given: A `v*` tag is pushed to `develop`, triggering `release.yml`.
 When: The `publish-release` job runs.
 Then: A `prism-specs-<tag>.tar.gz` asset (e.g., `prism-specs-v1.0.0-beta.2.tar.gz`) exists on
 the GitHub Release page and is downloadable via the standard release asset URL:
-`https://github.com/drbothen/prism/releases/download/<tag>/prism-specs-<tag>.tar.gz`.
+`https://github.com/BOHICA-LABS/prism/releases/download/<tag>/prism-specs-<tag>.tar.gz`.
 The tarball contains `claroty.sensor.toml` at the root level (no subdirectory prefix).
 (traces to release convention: platform-neutral spec asset required for install.sh consumption)
 

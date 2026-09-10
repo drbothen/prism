@@ -104,13 +104,13 @@ risk_mitigations:
     S-REL-003 consumes. (U26 upload step ownership reassigned to S-REL-003 per pre-TDD scan
     ADJ-002.)"
   - "origin test-tag dry-run (U2 finding — fork infeasible): drbothen cannot fork
-    drbothen/prism (GitHub prevents a repo owner from forking their own repo — latent
+    BOHICA-LABS/prism (GitHub prevents a repo owner from forking their own repo — latent
     assumption defect in research U2). HUMAN-APPROVED (2026-07-19): push the disposable
-    prerelease tag v0.0.1-rc.test to ORIGIN (drbothen/prism) as the dry-run gate before
+    prerelease tag v0.0.1-rc.test to ORIGIN (BOHICA-LABS/prism) as the dry-run gate before
     cutting the real v1.0.0-rc.1 tag. OIDC attestation works natively on the public origin
     repo; Actions minutes are free. Push TAG ONLY — never push the feature branch ref or
     develop/main. Mandatory cleanup after evidence capture: delete the release and tag from
-    origin (`gh release delete v0.0.1-rc.test --repo drbothen/prism --yes` then
+    origin (`gh release delete v0.0.1-rc.test --repo BOHICA-LABS/prism --yes` then
     `git push origin --delete v0.0.1-rc.test`). The transient public prerelease window
     is an accepted, human-approved tradeoff with mandatory cleanup. This is a mandatory
     verification task in the story's task list (task 12)."
@@ -132,7 +132,7 @@ risk_mitigations:
     unless explicitly justified; environment gaps are invisible to static review and only
     surface at dry-run time — 13 adversarial passes missed the missing protoc step, caught
     only by the origin test-tag dry-run gate (DEFECT-REL001-PROTOC-MISSING-001; dry-run run
-    https://github.com/drbothen/prism/actions/runs/29709483646)."
+    https://github.com/BOHICA-LABS/prism/actions/runs/29709483646)."
   - "Release step idempotency (F-REL001-P9-001; F-REL001-P10-002 trigger-correction): `gh release create`
     aborts if the release already exists. Because publish-release carries `needs: build-release`, a failed
     matrix leg means publish-release never ran → no release object exists → re-run takes the CREATE path.
@@ -173,7 +173,7 @@ inputs:
   - ".github/workflows/release.yml"
   - ".factory/planning/feature-release-engineering/delta-analysis.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "3bd3474"
+input-hash: "381d5de"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -293,10 +293,10 @@ Within the 30% context window budget.
      *[v0.16 clang++ approach — SUPERSEDED by §15 (cargo-zigbuild); history preserved below]*
      librocksdb-sys builds RocksDB from source via cc-rs, which probes for a musl-targeted C++
      compiler. musl-tools ships only `musl-gcc` (no C++); cc-rs exits 101 with `ToolNotFound`
-     (dry-run attempt-3: https://github.com/drbothen/prism/actions/runs/29712784282).
+     (dry-run attempt-3: https://github.com/BOHICA-LABS/prism/actions/runs/29712784282).
      **v0.16 approach (SUPERSEDED):** install `clang`; set `CXX_x86_64_unknown_linux_musl=clang++`.
      This resolved the compile step but dry-run attempt-4
-     (https://github.com/drbothen/prism/actions/runs/29714047923) confirmed the linker failure:
+     (https://github.com/BOHICA-LABS/prism/actions/runs/29714047923) confirmed the linker failure:
      system clang++ links glibc-built `libstdc++.a` — 117 undefined glibc-only symbol refs remain
      in the musl binary (DEFECT-REL001-MUSL-LIBSTDCXX-001). Rejected alternatives:
      `-static-libstdc++` (contamination is in the objects, not the link command);
@@ -329,7 +329,7 @@ Within the 30% context window budget.
      (SHA-pinned, mirroring ci.yml exactly) before the cargo build step on every matrix target.
      prism-ocsf's `build.rs` invokes `prost-build` which shells out to `protoc` at compile time;
      GitHub-hosted runners do NOT pre-install protoc, so the first dry-run
-     (https://github.com/drbothen/prism/actions/runs/29709483646) failed on all 5 legs with
+     (https://github.com/BOHICA-LABS/prism/actions/runs/29709483646) failed on all 5 legs with
      exit 101. (DEFECT-REL001-PROTOC-MISSING-001)
    - Replace the single tar-wrap step for demo-server with the following two-step block
      (ADJ-003 — per-OS conditional wrap matching the existing `archive_ext` matrix variable):
@@ -424,9 +424,9 @@ Within the 30% context window budget.
 
 12. **Origin test-tag dry-run gate (U2) — capture and preserve dry-run evidence (F-REL001-P12-OBS-002; POL-32):**
     Before pushing the real `v1.0.0-rc.1` tag to origin, push the disposable prerelease tag
-    `v0.0.1-rc.test` directly to ORIGIN (`drbothen/prism`). Destination rationale: drbothen
-    cannot fork drbothen/prism (GitHub prevents a repo owner from forking their own repo —
-    latent assumption defect in research U2); `drbothen/prism` is a public repo, so OIDC
+    `v0.0.1-rc.test` directly to ORIGIN (`BOHICA-LABS/prism`). Destination rationale: drbothen
+    cannot fork BOHICA-LABS/prism (GitHub prevents a repo owner from forking their own repo —
+    latent assumption defect in research U2); `BOHICA-LABS/prism` is a public repo, so OIDC
     attestation works natively and Actions minutes are free; this is a HUMAN-APPROVED destination
     (2026-07-19). Push the TAG ONLY — never push the feature branch ref, never push develop or
     main. Verify all jobs pass. Delete the release and tag from origin immediately after evidence
@@ -443,9 +443,9 @@ Within the 30% context window budget.
     filename retained; note inside the file that the destination was origin, not a fork):
     - Origin workflow run URL (GitHub Actions run permalink)
     - Per-leg conclusion for each of the 5 matrix targets (pass/fail + job link)
-    - Release-asset listing (output of `gh release view v0.0.1-rc.test --repo drbothen/prism --json assets`)
+    - Release-asset listing (output of `gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism --json assets`)
     - Fork-of-own-repo impossibility note and human approval of origin destination (2026-07-19)
-    - Cleanup confirmation: release deleted (`gh release delete v0.0.1-rc.test --repo drbothen/prism --yes`)
+    - Cleanup confirmation: release deleted (`gh release delete v0.0.1-rc.test --repo BOHICA-LABS/prism --yes`)
       and tag deleted (`git push origin --delete v0.0.1-rc.test`)
     Create the file at commit time; it is part of the story's deliverable, not an optional note.
     RELEASING.md (S-REL-005) must cite `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md`
@@ -453,7 +453,7 @@ Within the 30% context window budget.
     validation is traceable after the fact (F-REL001-P12-OBS-002; POL-32).
 
     **DEFECT-REL001-PROTOC-MISSING-001 — dry-run re-run required:** The first dry-run attempt
-    (https://github.com/drbothen/prism/actions/runs/29709483646) FAILED on all 5 legs because
+    (https://github.com/BOHICA-LABS/prism/actions/runs/29709483646) FAILED on all 5 legs because
     release.yml did not install protoc (required by prism-ocsf prost-build). After the
     implementer adds the setup-protoc step (Task 7), the dry-run MUST be re-run against origin.
     The evidence file (`docs/demo-evidence/S-REL-001/fork-tag-dry-run.md`) MUST be updated with
@@ -462,7 +462,7 @@ Within the 30% context window budget.
     passes could not catch a build-environment gap; only the dry-run could.
 
     **DEFECT-REL001-MUSL-DBUS-001 — dry-run attempt 3 required (§14 Option B):** The second
-    dry-run attempt (https://github.com/drbothen/prism/actions/runs/29711315678) confirmed the
+    dry-run attempt (https://github.com/BOHICA-LABS/prism/actions/runs/29711315678) confirmed the
     protoc fix (4/5 legs green) and surfaced DEFECT-REL001-MUSL-DBUS-001: libdbus-sys
     pkg-config cross-compile refusal on the musl leg. Option B (§14 Delta B-1/B-2) — target-
     conditional feature split in prism-credentials — has been applied (Task 15). Attempt 3 MUST
@@ -478,8 +478,8 @@ Within the 30% context window budget.
     | 5. gnu tree retains libdbus | `cargo tree --target x86_64-unknown-linux-gnu -i libdbus-sys` | `libdbus-sys vX.Y.Z` present | BLOCKING |
 
     Checks 2 and 3 require downloading BOTH musl artifacts from the dry-run run and inspecting
-    them locally: `gh run download <run-id> --repo drbothen/prism --name release-x86_64-unknown-linux-musl`
-    (for `prism`) and `gh run download <run-id> --repo drbothen/prism --name prism-dtu-demo-server-x86_64-unknown-linux-musl`
+    them locally: `gh run download <run-id> --repo BOHICA-LABS/prism --name release-x86_64-unknown-linux-musl`
+    (for `prism`) and `gh run download <run-id> --repo BOHICA-LABS/prism --name prism-dtu-demo-server-x86_64-unknown-linux-musl`
     (for `prism-dtu-demo-server`). Both binaries must pass checks 2 and 3.
     Checks 4 and 5 can be run on the developer machine before pushing the tag (they are fast
     pre-flight proxies — but the dry-run's exit-0 on check 1 is the authoritative gate).
@@ -489,7 +489,7 @@ Within the 30% context window budget.
 
     **Dry-run attempt-6 re-verification (F-REL001-P16-001 — clang removal) — GREEN (2026-07-20):**
     F-REL001-P16-001 removed `clang` from the apt-get install line. Attempt-6
-    (run https://github.com/drbothen/prism/actions/runs/29721841906) confirmed all 5 matrix legs
+    (run https://github.com/BOHICA-LABS/prism/actions/runs/29721841906) confirmed all 5 matrix legs
     exited 0 and the publish job PASSED. `clang` was absent from the apt-get install line and
     confirmed absent from the apt logs on both Linux legs — zig bundles its own musl-built libc++
     so no system clang is required on the musl leg; the gnu leg passed attempt-2 with no clang
@@ -779,10 +779,10 @@ by delta-analysis §3 accumulated during development.
 | 0.19 | 2026-07-20 | pass-14 fix-burst: F-REL001-P14-002 FSR rows for test_AC-6 (dual-path cargo zigbuild + cargo build assertion) + docs/demo-evidence/S-REL-001/fork-tag-dry-run.md (Task-12 evidence file); Task-14 anchor sentence for test_AC-6 modification; F-REL001-P14-001 gnu-persistence regression guard codified in cross-target C-dep audit risk_mitigation (compile_error! guard alone cannot detect linux-native-sync-persistent removal). POL-32 |
 | 0.18 | 2026-07-20 | path correction: requirements file cited as implemented — .github/workflows/requirements-musl-ci.txt; FSR row added (Create, hash-pinned ziglang==0.16.0 wheel per §15 delta 15-2); POL-32 |
 | 0.17 | 2026-07-20 | attempt-4 fix-burst: DEFECT-REL001-MUSL-LIBSTDCXX-001 — §15 cargo-zigbuild ratified w/ pins (ziglang==0.16.0 hash-pinned, cargo-zigbuild 0.23.0 --locked, cache); clang++ CXX override SUPERSEDED by §15; EC-013 musl link w/ glibc-built libstdc++ → 117 undefined glibc refs; dual-binary artifact gate (BOTH prism + prism-dtu-demo-server musl binaries in checks 2/3); risk_mitigations libstdc++ lesson appended; POL-32 |
-| 0.16 | 2026-07-20 | dry-run attempt-3 fix-burst: DEFECT-REL001-MUSL-CXX-001 — clang++ C++ cross-compiler for librocksdb-sys on musl leg (install clang; CXX_x86_64_unknown_linux_musl=clang++; run https://github.com/drbothen/prism/actions/runs/29712784282); EC-012 musl-no-cxx edge case; clang/clang++ library row; cross-target C-dep audit risk_mitigation extended (C++ deps + cc-rs CXX env probe); toolchain-selection rationale flagged for adversary scrutiny; branch-push-at-attempt-3 DRIFT-ORCH-PRLEVEL-PUSH-001 note in Task 12; artifact linkage gate is correctness backstop; POL-32 |
+| 0.16 | 2026-07-20 | dry-run attempt-3 fix-burst: DEFECT-REL001-MUSL-CXX-001 — clang++ C++ cross-compiler for librocksdb-sys on musl leg (install clang; CXX_x86_64_unknown_linux_musl=clang++; run https://github.com/BOHICA-LABS/prism/actions/runs/29712784282); EC-012 musl-no-cxx edge case; clang/clang++ library row; cross-target C-dep audit risk_mitigation extended (C++ deps + cc-rs CXX env probe); toolchain-selection rationale flagged for adversary scrutiny; branch-push-at-attempt-3 DRIFT-ORCH-PRLEVEL-PUSH-001 note in Task 12; artifact linkage gate is correctness backstop; POL-32 |
 | 0.15 | 2026-07-19 | dry-run attempt-2 fix-burst: DEFECT-REL001-MUSL-DBUS-001 — §14 Option B target-conditional feature split in prism-credentials (musl = keyutils-only; gnu retains libdbus-sys via [target.cfg]); crates_touched +prism-credentials; EC-011 musl dbus cross-mode refusal; five-check attempt-3 verification table in Task 12 (build exit 0, readelf no libdbus NEEDED, file statically linked BLOCKING, cargo tree musl empty, cargo tree gnu retains libdbus-sys); cross-target C-dep audit codified in risk_mitigations; prism-credentials rows in Architecture Mapping + Purity tables; task 15 (apply §14 Option B deltas); AC-010 + Linux-cross-compile mitigation updated for Option B; POL-32 |
-| 0.14 | 2026-07-19 | dry-run fix-burst: DEFECT-REL001-PROTOC-MISSING-001 — setup-protoc step added to build-release on ALL legs (mirror ci.yml arduino/setup-protoc@v3.0.0); EC-010 build-without-protoc edge case; build-environment-parity risk_mitigation; Task 7 setup-protoc bullet; Task 12 re-run required (first dry-run https://github.com/drbothen/prism/actions/runs/29709483646 failed all 5 legs); POL-32 |
-| 0.13 | 2026-07-19 | task-12 dry-run destination amendment: fork infeasible for repo owner (drbothen cannot fork drbothen/prism — GitHub restriction, latent assumption defect in research U2); HUMAN-approved (2026-07-19) origin test-tag procedure (push v0.0.1-rc.test directly to drbothen/prism, tag only, no branch refs); mandatory cleanup (delete release + tag from origin after evidence capture); transient public prerelease window accepted with mandatory cleanup; evidence file retains historical name fork-tag-dry-run.md with destination rationale note; RELEASING.md runbook must document origin procedure incl. cleanup; POL-25 fork-reference sweep (task-12, risk_mitigations, EC-005, Architecture Compliance Rules); POL-32 |
+| 0.14 | 2026-07-19 | dry-run fix-burst: DEFECT-REL001-PROTOC-MISSING-001 — setup-protoc step added to build-release on ALL legs (mirror ci.yml arduino/setup-protoc@v3.0.0); EC-010 build-without-protoc edge case; build-environment-parity risk_mitigation; Task 7 setup-protoc bullet; Task 12 re-run required (first dry-run https://github.com/BOHICA-LABS/prism/actions/runs/29709483646 failed all 5 legs); POL-32 |
+| 0.13 | 2026-07-19 | task-12 dry-run destination amendment: fork infeasible for repo owner (drbothen cannot fork BOHICA-LABS/prism — GitHub restriction, latent assumption defect in research U2); HUMAN-approved (2026-07-19) origin test-tag procedure (push v0.0.1-rc.test directly to BOHICA-LABS/prism, tag only, no branch refs); mandatory cleanup (delete release + tag from origin after evidence capture); transient public prerelease window accepted with mandatory cleanup; evidence file retains historical name fork-tag-dry-run.md with destination rationale note; RELEASING.md runbook must document origin procedure incl. cleanup; POL-25 fork-reference sweep (task-12, risk_mitigations, EC-005, Architecture Compliance Rules); POL-32 |
 | 0.12 | 2026-07-19 | LOCAL pass-12 fix-burst: F-REL001-P12-OBS-002 [process-gap LOW] — Task 12 fork-tag dry-run gate amended to require captured, preserved evidence (fork workflow run URL, per-leg conclusions for all 5 targets, release-asset listing) in docs/demo-evidence/S-REL-001/fork-tag-dry-run.md and cited in RELEASING.md (S-REL-005); POL-32 |
 | 0.11 | 2026-07-19 | LOCAL pass-10 fix-burst: F-REL001-P10-002 idempotency trigger rationale corrected across EC-009/task-10/risk_mitigations (publish-release needs: build-release → failed matrix leg → CREATE path; --clobber path reachable only via 3 triggers: publish-step transient failure after create succeeded, manual full re-run, or tag re-push); F-REL001-P10-001 load-bearing-logic-needs-assertion discipline codified in risk_mitigations fail-closed entry |
 | 0.10 | 2026-07-19 | LOCAL pass-9 fix-burst: F-REL001-P9-001 idempotent release step — task 10 view→upload-clobber guard + RELEASING.md (S-REL-005) linkage, EC-009 re-run recovery row, risk_mitigations release-step-idempotency entry |

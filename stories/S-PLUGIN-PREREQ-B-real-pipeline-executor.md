@@ -8,7 +8,7 @@ priority: P0
 status: merged
 merged_at: 2026-05-12
 merge_commit: ae7e26c8
-pr_url: https://github.com/drbothen/prism/pull/143
+pr_url: https://github.com/BOHICA-LABS/prism/pull/143
 # BC status: behavioral_contracts populated from existing BCs only — no new BCs required
 #            BC-2.16.002 is the primary anchor (pipeline execution semantics).
 #            BC-2.01.013 is the secondary anchor (spec-driven adapter pattern; AuthProvider
@@ -38,7 +38,7 @@ version: "1.24"
 level: "L4"
 producer: state-manager
 timestamp: "2026-05-12T07:30:00Z"
-input-hash: "6954524"
+input-hash: "1b6dfcd"
 traces_to: []
 cycle: "v1.0.0-greenfield"
 phase: 3

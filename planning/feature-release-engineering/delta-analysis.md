@@ -16,7 +16,7 @@ inputs:
   - scripts/demo-teardown.sh
   - docs/DEMO-RUNBOOK.md
   - crates/prism-bin/src/main.rs
-input-hash: cbbe6db
+input-hash: "67aa73c"
 ---
 
 # F1 Delta Analysis: Release Engineering + Demo Bundle + Consumer Contract
@@ -649,7 +649,7 @@ No number. The sentence remains true regardless of future crate additions.
 **Defect ID:** DEFECT-REL001-MUSL-DBUS-001  
 **Adjudicated by:** architect  
 **Date:** 2026-07-19  
-**Source:** S-REL-001 task-12 origin dry-run attempt 2, CI run https://github.com/drbothen/prism/actions/runs/29711315678  
+**Source:** S-REL-001 task-12 origin dry-run attempt 2, CI run https://github.com/BOHICA-LABS/prism/actions/runs/29711315678  
 **Failure:** `cargo build --release --locked --target x86_64-unknown-linux-musl` aborts — `libdbus-sys v0.2.7` build.rs calls `pkg_config::probe_library("dbus-1")`; `pkg-config` refuses cross-compilation mode: "pkg-config has not been configured to support cross-compilation."
 
 ---
@@ -815,7 +815,7 @@ The gnu-leg regression check ensures that removing `keyring-linux-native-sync-pe
 **Defect ID:** DEFECT-REL001-MUSL-LIBSTDCXX-001  
 **Adjudicated by:** architect  
 **Date:** 2026-07-19  
-**Dry-run attempt at issue:** 4 (CI run https://github.com/drbothen/prism/actions/runs/29714047923)  
+**Dry-run attempt at issue:** 4 (CI run https://github.com/BOHICA-LABS/prism/actions/runs/29714047923)  
 **Applied fix (commit caf1443d):** devops-engineer replaced `CXX_x86_64_unknown_linux_musl=clang++` env override with `pip3 install ziglang --break-system-packages` + `cargo install cargo-zigbuild` + conditional `cargo zigbuild` invocation on the musl leg.
 
 ---

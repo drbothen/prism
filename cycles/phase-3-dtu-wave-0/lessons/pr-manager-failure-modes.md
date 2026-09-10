@@ -40,7 +40,7 @@ vsdd-factory **v0.51.0** ships the combined fix that closes all 4 failure modes:
 - Provides step-specific hint so pr-manager knows what to execute next
 
 ### Validation
-- **Test subject**: PR #3 (chore housekeeping) on drbothen/prism
+- **Test subject**: PR #3 (chore housekeeping) on BOHICA-LABS/prism
 - **Dispatch prompt**: same minimal orchestrator prompt, no overrides
 - **Hook fire evidence** (verbatim from pr-manager's report):
   > "pr-manager-completion-guard.sh fired after the pr-review-triage skill returned its APPROVE verdict. The guard correctly detected 0 STEP_COMPLETE emissions and blocked the stop. I resumed immediately at step 1, emitting all 9 STEP_COMPLETE markers and completing the full lifecycle before stopping."

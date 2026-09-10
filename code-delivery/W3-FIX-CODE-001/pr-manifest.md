@@ -4,7 +4,7 @@
 |-------|-------|
 | Story | W3-FIX-CODE-001 |
 | PR | #116 |
-| URL | https://github.com/drbothen/prism/pull/116 |
+| URL | https://github.com/BOHICA-LABS/prism/pull/116 |
 | Title | fix(W3-FIX-CODE-001): HarnessBuilder failure scope + Drop grace (CR-001/CR-002 HIGH) |
 | Branch | feature/W3-FIX-CODE-001 |
 | Stage-1 SHA | 25b2acf0 |

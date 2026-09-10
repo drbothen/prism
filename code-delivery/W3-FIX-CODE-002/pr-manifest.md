@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | PR Number | #120 |
-| PR URL | https://github.com/drbothen/prism/pull/120 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/120 |
 | Branch | feature/W3-FIX-CODE-002 |
 | Base | develop |
 | Stage-1 SHA (branch HEAD at PR creation) | 94bdd962be75c3509d020c1c2765fa88982a306f |

@@ -1,7 +1,7 @@
 ---
 story_id: W3-FIX-CREDS-001
 pr: 121
-pr_url: https://github.com/drbothen/prism/pull/121
+pr_url: https://github.com/BOHICA-LABS/prism/pull/121
 ---
 
 # PR Manifest — W3-FIX-CREDS-001
@@ -11,7 +11,7 @@ pr_url: https://github.com/drbothen/prism/pull/121
 | Field | Value |
 |-------|-------|
 | PR Number | #121 |
-| PR URL | https://github.com/drbothen/prism/pull/121 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/121 |
 | State | MERGED |
 | Merge Strategy | squash |
 | Merge SHA | `9d04235d7ea5afcd16ebe3d3d57fbb8d87c42a3f` |

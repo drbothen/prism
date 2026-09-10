@@ -66,7 +66,7 @@ None.
 
 **Final LOCAL HEAD:** @e48033e4.
 
-**Branch push:** `origin/maintenance/ci-disk-hardening` pushed @e48033e4 after convergence confirmed. Pre-push `just check` GREEN on cold worktree. PR #224 opened (base: develop; head: maintenance/ci-disk-hardening; https://github.com/drbothen/prism/pull/224).
+**Branch push:** `origin/maintenance/ci-disk-hardening` pushed @e48033e4 after convergence confirmed. Pre-push `just check` GREEN on cold worktree. PR #224 opened (base: develop; head: maintenance/ci-disk-hardening; https://github.com/BOHICA-LABS/prism/pull/224).
 
 **BC governance:** `behavioral_contracts: []` CONFORMING (PO Option-B; W3-FIX-CI-001 precedent; no POL-14 BC draft→active promotions). No BCs authored for this CI-toolchain story.
 

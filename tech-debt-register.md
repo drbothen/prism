@@ -311,11 +311,11 @@ Wave 2 natural pause point. Estimated session: 1-2 days with architect + adversa
 
 **Evidence (cascade artifacts)**
 
-- PR #44: https://github.com/drbothen/prism/pull/44 (workflow YAML + Kani CLI)
-- PR #45: https://github.com/drbothen/prism/pull/45 (RUSTUP_TOOLCHAIN + Arbitrary)
-- PR #47: https://github.com/drbothen/prism/pull/47 (fuzz target alignment + Kani -p)
-- PR #48: https://github.com/drbothen/prism/pull/48 (--target gnu)
-- PR #49: https://github.com/drbothen/prism/pull/49 (fuzz/Cargo.toml deps)
+- PR #44: https://github.com/BOHICA-LABS/prism/pull/44 (workflow YAML + Kani CLI)
+- PR #45: https://github.com/BOHICA-LABS/prism/pull/45 (RUSTUP_TOOLCHAIN + Arbitrary)
+- PR #47: https://github.com/BOHICA-LABS/prism/pull/47 (fuzz target alignment + Kani -p)
+- PR #48: https://github.com/BOHICA-LABS/prism/pull/48 (--target gnu)
+- PR #49: https://github.com/BOHICA-LABS/prism/pull/49 (fuzz/Cargo.toml deps)
 
 **Related TDs**
 

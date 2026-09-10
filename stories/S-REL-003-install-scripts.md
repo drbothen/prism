@@ -77,7 +77,7 @@ inputs:
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".github/workflows/release.yml"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "ced7df5"
+input-hash: "71b9879"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -165,7 +165,7 @@ Well within the 30% context window budget.
 
 3. **Create `scripts/install.sh`** (macOS + Linux):
    - Header: `#!/usr/bin/env bash` + `set -euo pipefail`
-   - Variables: `REPO="drbothen/prism"`, `INSTALL_DIR` (default `/usr/local/bin`, fallback
+   - Variables: `REPO="BOHICA-LABS/prism"`, `INSTALL_DIR` (default `/usr/local/bin`, fallback
      `~/.local/bin` if not writable)
    - Accept optional `--version <tag>` argument; default to latest release via:
      ```bash
@@ -345,7 +345,7 @@ gh CLI dependency.
 ### AC-008: install.sh handles v*-rc.* tags correctly
 Given: `--version v1.0.0-rc.1` is passed.
 When: The archive URL is constructed.
-Then: URL is `https://github.com/drbothen/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-<TARGET>.tar.gz`.
+Then: URL is `https://github.com/BOHICA-LABS/prism/releases/download/v1.0.0-rc.1/prism-v1.0.0-rc.1-<TARGET>.tar.gz`.
 No special treatment needed — prereleases use the same URL pattern as GA releases.
 (traces to delta-analysis.md §2.1 + S-REL-001 AC-005: prerelease and GA share the same
 archive URL pattern; --prerelease flag only affects GH release page display)

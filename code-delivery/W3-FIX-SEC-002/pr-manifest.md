@@ -2,7 +2,7 @@
 
 **Story:** W3-FIX-SEC-002: DTU clones — gate POST /dtu/reset with X-Admin-Token on Claroty/CrowdStrike/Armis/Slack
 **PR:** #119
-**URL:** https://github.com/drbothen/prism/pull/119
+**URL:** https://github.com/BOHICA-LABS/prism/pull/119
 **Status:** MERGED
 
 ---
@@ -69,7 +69,7 @@ blocks: [] — no downstream stories blocked on this PR.
 |------|------|--------|------|
 | 1 | populate-pr-description | ok | Template populated with Mermaid diagrams, full traceability chain |
 | 2 | verify-demo-evidence | ok | 3 GIFs + 3 WebMs + evidence-report.md confirmed present |
-| 3 | create-pr | ok | PR #119 created at https://github.com/drbothen/prism/pull/119 |
+| 3 | create-pr | ok | PR #119 created at https://github.com/BOHICA-LABS/prism/pull/119 |
 | 4 | security-review | ok | 0 findings (CRITICAL/HIGH/MEDIUM/LOW); SEC-NEW-001 closed |
 | 5 | review-convergence | ok | APPROVE cycle 1; 0 blocking findings |
 | 6 | wait-for-ci | ok | 26/26 checks PASS; CI run IDs 25248757704 + 25248759735 |

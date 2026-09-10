@@ -1,7 +1,7 @@
 # S-0.02 PR Review Findings
 
 Story: S-0.02 — devops: Developer Toolchain Bootstrap
-PR: #2 (https://github.com/drbothen/prism/pull/2)
+PR: #2 (https://github.com/BOHICA-LABS/prism/pull/2)
 Branch: feature/S-0.02-developer-toolchain (HEAD: 87bd97f)
 Security review: CLEAN (0 HIGH, 0 MEDIUM) — completed prior cycle
 

@@ -4,7 +4,7 @@
 |-------|-------|
 | Story | W3-FIX-CODE-003 |
 | PR | #115 |
-| URL | https://github.com/drbothen/prism/pull/115 |
+| URL | https://github.com/BOHICA-LABS/prism/pull/115 |
 | Title | fix(W3-FIX-CODE-003): KeyringBackend CredentialStoreOrgId — SEC-004 false-positive remediation + regression tests |
 | Merged at | 2026-05-02T00:24:39Z |
 | Merge SHA | bbe794801a1bf846c35560b1e0ae4bf671cd7cca |

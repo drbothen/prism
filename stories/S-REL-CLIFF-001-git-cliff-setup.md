@@ -214,7 +214,7 @@ description before the PR can be reviewed.
    - `[git]` section: `conventional_commits = true`, `filter_unconventional = true`,
      `tag_pattern = "v[0-9].*"`, `sort_commits = "oldest"`
    - `commit_preprocessors` entry for token-free PR link injection (ADR-063 v1.7 D3
-     Deviation-1): `{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" }`
+     Deviation-1): `{ pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/BOHICA-LABS/prism/pull/${1}))" }`
      rewrites `(#NNN)` in squash-merge commit subjects to markdown links BEFORE Tera
      rendering — no GITHUB_TOKEN or remote API call needed. The body template renders
      `{{ commit.message }}` (which already contains the link). Do NOT add

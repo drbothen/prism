@@ -2,7 +2,7 @@
 
 **Story:** S-3.5.01 — Workspace src/ convention sweep (BC-3.7.001)
 **PR:** #82
-**PR URL:** https://github.com/drbothen/prism/pull/82
+**PR URL:** https://github.com/BOHICA-LABS/prism/pull/82
 **Merge commit SHA:** c4287aeffbc64901db944327e04ebc3cb36b16cc
 **Merge time:** 2026-04-29T14:20:42Z
 **Merge strategy:** squash onto develop

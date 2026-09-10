@@ -2,7 +2,7 @@
 
 **Story:** W3-FIX-SEC-004 — TOML inline-table redaction + constant-time admin token
 **PR:** #122
-**URL:** https://github.com/drbothen/prism/pull/122
+**URL:** https://github.com/BOHICA-LABS/prism/pull/122
 
 ---
 

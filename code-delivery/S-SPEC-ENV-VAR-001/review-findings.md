@@ -1,6 +1,6 @@
 # Review Findings — S-SPEC-ENV-VAR-001 / PR #165
 
-**PR:** https://github.com/drbothen/prism/pull/165
+**PR:** https://github.com/BOHICA-LABS/prism/pull/165
 **Branch:** feature/S-SPEC-ENV-VAR-001
 **HEAD at PR creation:** df80d47b7bd66678a5fcc35c643d67049b06d7db
 **Story:** S-SPEC-ENV-VAR-001 v1.2

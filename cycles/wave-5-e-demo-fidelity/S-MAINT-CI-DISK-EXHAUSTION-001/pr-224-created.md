@@ -19,7 +19,7 @@ pr_number: 224
 
 ## PR
 
-- PR #224: https://github.com/drbothen/prism/pull/224
+- PR #224: https://github.com/BOHICA-LABS/prism/pull/224
 - Title: `ci(S-MAINT-CI-DISK-EXHAUSTION-001): disk-exhaustion hardening — reclaim + gates on Linux workspace-build jobs`
 - Base: `develop`
 - Head: `maintenance/ci-disk-hardening`

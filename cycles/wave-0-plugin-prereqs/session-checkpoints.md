@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-05-19T21:00:00Z
 cycle: "wave-0-plugin-prereqs"
 inputs: [STATE.md]
-input-hash: "[extracted-2026-05-19-compact]"
+input-hash: "88cf5c3"
 traces_to: STATE.md
 ---
 
@@ -226,7 +226,7 @@ _Archived from STATE.md by D-827 post-merge burst 2026-05-27. Superseded by D-82
 - Passes 15/16/17: 3-CLEAN CONVERGED per BC-5.39.001 (strict)
 - All 9 ACs satisfied. All 4 BCs verified. `just check` GREEN
 - Branch: `feature/PLUGIN-MIGRATION-001-A` (+391 additions, -4,790 deletions, 27 files changed)
-- PR #156: https://github.com/drbothen/prism/pull/156
+- PR #156: https://github.com/BOHICA-LABS/prism/pull/156
 - PR-LEVEL pass-1: APPROVE (zero findings)
 - CI: pending (38 checks)
 

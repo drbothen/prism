@@ -7,7 +7,7 @@
 
 ## PR
 - **PR Number:** #106
-- **URL:** https://github.com/drbothen/prism/pull/106
+- **URL:** https://github.com/BOHICA-LABS/prism/pull/106
 - **State:** MERGED
 - **Merged At:** 2026-05-01T02:30:59Z
 

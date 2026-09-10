@@ -2,7 +2,7 @@
 document_type: review-findings
 story_id: PLUGIN-MIGRATION-001-E
 pr_number: 154
-pr_url: https://github.com/drbothen/prism/pull/154
+pr_url: https://github.com/BOHICA-LABS/prism/pull/154
 review_start: 2026-05-23
 ---
 

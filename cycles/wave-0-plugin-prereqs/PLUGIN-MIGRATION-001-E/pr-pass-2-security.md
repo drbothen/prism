@@ -385,4 +385,4 @@ SEC-006 as a pre-GA manifest cleanup.
 
 *Reviewed by: security-reviewer (claude-sonnet-4-6)*  
 *Review date: 2026-05-25*  
-*PR: https://github.com/drbothen/prism/pull/154*
+*PR: https://github.com/BOHICA-LABS/prism/pull/154*

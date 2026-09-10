@@ -2,7 +2,7 @@
 document_type: review-findings
 story_id: S-2.03
 pr_number: 53
-pr_url: https://github.com/drbothen/prism/pull/53
+pr_url: https://github.com/BOHICA-LABS/prism/pull/53
 merge_commit: f13b5c76624ef513584e43c769b11cea35ac3e9e
 develop_head_after_merge: f13b5c76624ef513584e43c769b11cea35ac3e9e
 producer: pr-manager

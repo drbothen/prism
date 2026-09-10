@@ -11,7 +11,7 @@
 | Field | Value |
 |-------|-------|
 | PR Number | #113 |
-| PR URL | https://github.com/drbothen/prism/pull/113 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/113 |
 | Branch | feature/W3-FIX-SEC-001 |
 | HEAD SHA at merge | b412f547 |
 | Merge commit SHA on develop | 59803de362ce2f3e5c3ddf6be6fff3079f8aa6f6 |

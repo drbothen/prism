@@ -6,7 +6,7 @@
 |-------|-------|
 | Story ID | W3-FIX-CODE-005 |
 | PR Number | #123 |
-| PR URL | https://github.com/drbothen/prism/pull/123 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/123 |
 | Title | fix(W3-FIX-CODE-005): pass-50 sibling endpoint coverage — CR-016/017/018 poll cadence + org-id guards + doc deviation |
 
 ## Commits

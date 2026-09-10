@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-05-19T21:00:00Z
 cycle: "wave-0-plugin-prereqs"
 inputs: [adversarial-reviews/, STATE.md]
-input-hash: "[extracted-2026-05-19-compact]"
+input-hash: "457dc10"
 traces_to: STATE.md
 ---
 
@@ -408,7 +408,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | PLUGIN-MIGRATION-001-E |
 | PR number | 154 |
-| PR URL | https://github.com/drbothen/prism/pull/154 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/154 |
 | Feature HEAD before pass-1 | `9e412c83` (LOCAL cascade converged) |
 | Feature HEAD after fix-burst | `a759d2b0` (PR-LEVEL fix-burst — 23 findings closed) |
 | ADR-028 §D11 Option C | factory-artifacts `dced2268` |
@@ -440,7 +440,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | PR number | 155 |
-| PR URL | https://github.com/drbothen/prism/pull/155 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/155 |
 | Feature HEAD at PR creation | `515fdc2e` (AC-005 fixture CI-portability fix) |
 | LOCAL cascade exit | Option B at pass-13 (CONVERGED) |
 | CI status on 515fdc2e | GREEN (all 36 jobs) |

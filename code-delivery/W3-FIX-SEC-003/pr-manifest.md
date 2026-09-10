@@ -4,7 +4,7 @@
 |-------|-------|
 | Story ID | W3-FIX-SEC-003 |
 | PR Number | 114 |
-| PR URL | https://github.com/drbothen/prism/pull/114 |
+| PR URL | https://github.com/BOHICA-LABS/prism/pull/114 |
 | Title | fix(W3-FIX-SEC-003): customer-config spec path traversal hardening (CWE-22/E-CFG-018) |
 | Gate Finding Resolved | SEC-003 (HIGH, CWE-22, OWASP A01) |
 | Feature Branch | feature/W3-FIX-SEC-003 |
@@ -28,7 +28,7 @@
 | 1 | vsdd-factory:pr-reviewer (prior dispatch) | APPROVE | 0 | 2026-05-01 |
 | 2 | pr-manager fresh-context diff review | APPROVE | 0 (1 suggestion, non-blocking) | 2026-05-01 |
 
-Review triage comment: https://github.com/drbothen/prism/pull/114#issuecomment-4362429746
+Review triage comment: https://github.com/BOHICA-LABS/prism/pull/114#issuecomment-4362429746
 
 ## Security Audit Trail
 
