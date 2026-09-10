@@ -223,9 +223,9 @@ is included as the baseline, so the first pre-release on a new `X.Y.Z` line has 
 correct lower bound. The stable pattern carries NO optional suffix — it must not
 match any pre-release tag. `cliff.toml` is NOT modified by these per-invocation
 overrides; `--tag-pattern` replaces the configured value for that single run only.
-This channel scope logic is implemented in `release-prep.yml` Step 7,
-`release-tag.yml` Step 5b, and the nightly path of `release.yml` (Site 1/2/3 per
-ADR-063 §D7).
+This channel scope logic is implemented at three sites per ADR-063 §D7:
+the nightly path of `release.yml` (Site 1), `release-prep.yml` Step 7 (Site 2),
+and `release-tag.yml` Step 5b (Site 3).
 
 ---
 
