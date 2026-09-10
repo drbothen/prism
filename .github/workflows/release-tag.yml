@@ -13,11 +13,14 @@
 #
 # PRE-RELEASE ONLY
 # ----------------
-# This workflow accepts ONLY pre-release tags — semver tags that contain a hyphen
-# (e.g. -rc.N, -beta.N, -alpha.N, -nightly.YYYYMMDD, -dev.<sha>).
+# This workflow accepts ONLY intentional pre-release channels:
+# (e.g. -rc.N, -beta.N, -alpha.N, -dev.<sha>).
 # Stable tags (X.Y.Z without a hyphen) MUST go through release-promote.yml
 # (the develop→main promotion lane), which writes main and runs behind the
 # `release-main` environment gate.  This workflow NEVER touches main.
+# NOTE — nightly tags (-nightly.YYYYMMDD) are REJECTED by step 3b of this
+# workflow. Nightly builds must use the scheduled cron lane (nightly.yml /
+# S-REL-NIGHTLY-001); dispatching release-tag.yml with a nightly tag exits 1.
 #
 # REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
 # ---------------------------------------
@@ -144,7 +147,7 @@ jobs:
             | sed 's/version = "//;s/"//')"
           # Extract X.Y.Z core: strip leading 'v' and everything from the first
           # hyphen onwards.  %%-* removes the LONGEST suffix starting with '-',
-          # which is the channel suffix (e.g. -rc.1, -nightly.20260905, -dev).
+          # which is the channel suffix (e.g. -rc.1, -beta.2, -dev.<sha>).
           TAG_CORE="${TAG#v}"
           TAG_CORE="${TAG_CORE%%-*}"
           PRISM_BIN_CORE="${PRISM_BIN_VERSION%%-*}"
