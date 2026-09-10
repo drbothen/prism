@@ -149,6 +149,134 @@ jobs:
           echo "Tag '${TAG}' does not exist on origin — safe to create"
 
       # ------------------------------------------------------------------ #
+      # 5a. Install git-cliff (ADR-063 §D7 Site 3)                          #
+      #     Pre-built binary download via taiki-e/install-action (~10s vs   #
+      #     3-5 min cargo compile). release-tag.yml has no Rust toolchain   #
+      #     setup step — cargo install MUST NOT be used here.               #
+      #     SHA-pinned per CWE-494 supply-chain hardening convention.        #
+      #     Same SHA as release.yml "Install git-cliff (nightly path)".     #
+      # ------------------------------------------------------------------ #
+      - name: Install git-cliff (release-tag path)
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2
+        with:
+          tool: git-cliff@2.14.1
+
+      # ------------------------------------------------------------------ #
+      # 5b. Generate CHANGELOG, commit, push develop (ADR-063 §D7 Site 3)  #
+      #     Tag-ordering invariant (MUST): this step MUST complete before   #
+      #     step 6 (Create annotated tag) so the annotated tag points at   #
+      #     the post-CHANGELOG HEAD. release.yml's awk extraction reads     #
+      #     CHANGELOG.md at TAG_SHA — the scoped ## [VERSION] section must  #
+      #     already be present at that SHA.                                 #
+      # ------------------------------------------------------------------ #
+      - name: Generate CHANGELOG section and push develop (release-tag path)
+        run: |
+          set -euo pipefail
+          # Channel detection for per-channel tag scoping (ADR-063 §D7)
+          if [[ "${TAG}" =~ -nightly\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
+          elif [[ "${TAG}" =~ -alpha\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
+          elif [[ "${TAG}" =~ -beta\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+          elif [[ "${TAG}" =~ -rc\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+          else
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          fi
+
+          # Sub-step A — Pre-strip: remove masthead and any prior [Unreleased] section
+          # so git-cliff --prepend does not duplicate the masthead (ADR-063 §D3).
+          python3 - <<'PYEOF'
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          lines = content.split('\n')
+          n = len(lines)
+          import re as _re
+          _link_ref_pat = _re.compile(r'^\[.+\]:\s+https://')
+          footer_lines = [ln for ln in lines if _link_ref_pat.match(ln)]
+          i = 0
+          while i < n and not lines[i].startswith('## ['):
+              i += 1
+          if i < n and lines[i].startswith('## [Unreleased]'):
+              i += 1
+              while i < n and not lines[i].startswith('## ['):
+                  i += 1
+          start = i
+          if start >= n and footer_lines:
+              import sys as _sys
+              print(
+                  'Warning: CHANGELOG.md has no versioned sections; '
+                  'preserving footer link-ref block.',
+                  file=_sys.stderr,
+              )
+              open(path, 'w').write('\n'.join(footer_lines) + '\n')
+          else:
+              open(path, 'w').write('\n'.join(lines[start:]))
+          print(f'Pre-strip complete: CHANGELOG.md starts at versioned section (line {start})')
+          PYEOF
+
+          # Sub-step B — git-cliff: prepend new versioned section using channel-scoped
+          # tag pattern (ADR-063 §D7).
+          git cliff --tag "${TAG}" --unreleased \
+            --tag-pattern "${TAG_PATTERN}" \
+            --prepend CHANGELOG.md
+
+          # Sub-step C — Link-ref update: repoint [Unreleased]: and insert [VERSION]:
+          # compare link reference (token-free, ADR-063 §D3).
+          python3 - <<'PYEOF'
+          import re, os
+          tag = os.environ['TAG']
+          version = tag.lstrip('v')
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          m = re.search(
+              r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v(.+?)\.\.\.HEAD',
+              content,
+          )
+          if m:
+              prev_version = m.group(1)
+              import subprocess, sys as _sys
+              _check = subprocess.run(
+                  ['git', 'rev-parse', '-q', '--verify', f'v{prev_version}'],
+                  capture_output=True,
+              )
+              if _check.returncode != 0:
+                  print(
+                      f"Warning: previous tag 'v{prev_version}' not found in git history; "
+                      "compare link may be incorrect",
+                      file=_sys.stderr,
+                  )
+              new_unreleased = (
+                  f'[Unreleased]: https://github.com/drbothen/prism/compare/v{version}...HEAD'
+              )
+              new_version_ref = (
+                  f'[{version}]: https://github.com/drbothen/prism/compare/'
+                  f'v{prev_version}...v{version}'
+              )
+              replacement = new_unreleased + '\n' + new_version_ref
+              content = re.sub(
+                  r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v.+?\.\.\.HEAD',
+                  lambda m: replacement,
+                  content,
+              )
+              open(path, 'w').write(content)
+              print(f'Link refs updated: [Unreleased] → v{version}...HEAD, added [{version}] ref (prev: {prev_version})')
+          else:
+              import sys
+              print('::error::CHANGELOG.md [Unreleased]: compare link not found — '
+                    'compare-link references NOT updated. Add a valid [Unreleased]: '
+                    'compare link to CHANGELOG.md footer and re-run.', file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+
+          # Tag-ordering invariant (ADR-063 §D7 Site 3 MUST): push develop BEFORE
+          # step 6 creates the annotated tag so the tag points at the post-CHANGELOG HEAD.
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG for ${TAG}"
+          git push origin develop
+
+      # ------------------------------------------------------------------ #
       # 6. Create annotated tag on develop HEAD                              #
       # ------------------------------------------------------------------ #
       - name: Create annotated tag on develop HEAD

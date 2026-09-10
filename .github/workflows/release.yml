@@ -336,7 +336,9 @@ jobs:
             # A nightly MUST always publish.
             SHORT_SHA="$(git rev-parse --short HEAD)"
             DATE_UTC="$(date -u +%Y-%m-%d)"
-            CLIFF_OUTPUT="$(git cliff --latest --strip=header || true)"
+            CLIFF_OUTPUT="$(git cliff --latest \
+              --tag-pattern '^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$' \
+              --strip=header || true)"
             if grep -q '^- ' <<<"$CLIFF_OUTPUT"; then
               printf '%s\n' "$CLIFF_OUTPUT" > "$NOTES_FILE"
               echo "Nightly notes: git-cliff categorized output ($(wc -l < "$NOTES_FILE") lines) for ${TAG}"

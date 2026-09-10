@@ -438,6 +438,18 @@ BEFORE merge.
    Do NOT add `--output` alongside `--prepend` (causes duplicate sections per
    ADR-063 §D5 v1.1 fix).
 
+   **Channel-scoped `--tag-pattern` (ADR-063 §D7):** `release-prep.yml` Step 7
+   applies a per-channel `--tag-pattern` to the git-cliff invocation above.
+   This prevents cross-channel tag masking — without channel scope, git-cliff's
+   global `tag_pattern` treats tags from other channels (e.g. nightly tags between
+   two beta releases) as "already released", silently dropping the intervening
+   commits. The channel is detected from the `VERSION` env var (e.g. `1.0.0-beta.2`
+   → beta pattern `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$`). Stable releases
+   use `^v[0-9]+\.[0-9]+\.[0-9]+$` with no optional suffix (must not admit
+   pre-release tags). `cliff.toml` is NOT modified; `--tag-pattern` overrides the
+   configured value for that single invocation only. See `docs/RELEASE-CHANNELS.md §5`
+   for the full per-channel pattern table.
+
 3. **Link-ref update:** a Python inline script updates the reference-style compare
    links at the bottom of `CHANGELOG.md` — the `[Unreleased]:` ref is pointed at
    `v{VERSION}...HEAD`, and a new `[{VERSION}]: .../compare/v{PREV}...v{VERSION}`

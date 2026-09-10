@@ -202,6 +202,31 @@ The build path itself is shared and unchanged whether the channel is nightly or
 stable. The only difference is how the tag is created (dispatch workflow vs.
 `release-prep.yml` + `release-promote.yml`) and whether `main` is written.
 
+**Channel-scoped tag pattern (ADR-063 §D7):** git-cliff's global `tag_pattern`
+in `cliff.toml` matches all `v*` tags, which causes cross-channel tag masking —
+nightly tags between two beta releases appear as "already released" to git-cliff,
+silently dropping the intervening commits from the beta CHANGELOG. To prevent
+this, each channel uses a per-invocation `--tag-pattern` flag that restricts the
+tag universe to same-channel tags plus stable tags (the stable-floor fallback):
+
+| Channel | `--tag-pattern` |
+|---------|-----------------|
+| nightly | `^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$` |
+| alpha   | `^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$` |
+| beta    | `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$` |
+| rc      | `^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$` |
+| stable  | `^v[0-9]+\.[0-9]+\.[0-9]+$` (no optional suffix — must not admit pre-release tags) |
+
+The optional suffix group `(-channel\.N)?$` on pre-release patterns acts as the
+stable-floor: a stable `vX.Y.Z` tag (no suffix) satisfies the optional group and
+is included as the baseline, so the first pre-release on a new `X.Y.Z` line has a
+correct lower bound. The stable pattern carries NO optional suffix — it must not
+match any pre-release tag. `cliff.toml` is NOT modified by these per-invocation
+overrides; `--tag-pattern` replaces the configured value for that single run only.
+This channel scope logic is implemented in `release-prep.yml` Step 7,
+`release-tag.yml` Step 5b, and the nightly path of `release.yml` (Site 1/2/3 per
+ADR-063 §D7).
+
 ---
 
 ## 6. Retention Policy

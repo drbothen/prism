@@ -228,7 +228,26 @@ jobs:
 
           # Generate and prepend the new section. The cliff.toml header emits the
           # "# Changelog" masthead + "## [Unreleased]" before the new section.
-          git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+          # Channel detection for per-channel tag scoping (ADR-063 §D7):
+          # each channel restricts the tag universe to same-channel + stable tags
+          # to prevent cross-channel tag masking (e.g., nightly tags between beta.1
+          # and beta.2 causing git-cliff to silently drop those commits).
+          if [[ "${VERSION}" =~ -nightly\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
+          elif [[ "${VERSION}" =~ -alpha\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
+          elif [[ "${VERSION}" =~ -beta\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+          elif [[ "${VERSION}" =~ -rc\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+          else
+            # stable: exact semver only — no pre-release suffix
+            # (ADR-063 §D7 stable-exclusion invariant)
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          fi
+          git cliff --tag "v${VERSION}" --unreleased \
+            --tag-pattern "${TAG_PATTERN}" \
+            --prepend CHANGELOG.md
 
           # Empty-output guard: verify git-cliff wrote at least one bullet entry to the
           # new ## [VERSION] section.  An empty section (header-only, no "- " entries)
