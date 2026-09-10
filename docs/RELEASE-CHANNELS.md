@@ -69,10 +69,24 @@ creation. See `RELEASING.md` §4 for the complete operational runbook.
 **Ad-hoc pre-release tagging (IMPLEMENTED — dev / alpha / beta / rc):** The
 `release-tag.yml` workflow (`workflow_dispatch`) implements ad-hoc pre-release tagging
 for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
-(e.g. `v1.0.0-beta.1`) to create an annotated tag on `develop` HEAD and trigger
-`release.yml` for the full 4-platform build + pre-release GitHub Release.
-The workflow enforces a pre-release-only guard (stable tags are rejected) and a
-BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
+(e.g. `v1.0.0-beta.1`). The workflow enforces a pre-release-only guard (stable tags
+are rejected), a nightly-channel guard (tags containing `-nightly.` are rejected —
+use `nightly.yml`), and a BASE-MATCH version guard against
+`crates/prism-bin/Cargo.toml`. Before creating the annotated tag the workflow
+installs git-cliff `2.14.1` via `taiki-e/install-action` (SHA-pinned; step 5a —
+no Rust toolchain step is present, so `cargo install` is not used), then step 5b
+generates a channel-scoped CHANGELOG section using the same three-substep mechanism
+as `release-prep.yml` (pre-strip, `git cliff --unreleased --tag-pattern
+<channel-pattern> --prepend CHANGELOG.md`, link-ref update) and verifies the section
+contains at least one bullet entry (empty-output guard — exits 1 before committing if
+no qualifying commits exist). The CHANGELOG commit lands directly on `develop` with
+message `chore: update CHANGELOG for ${TAG}`; no PR is opened. The annotated tag
+(step 6) is created on that post-CHANGELOG develop HEAD, then pushed to origin (step
+7), triggering `release.yml` for the full 4-platform build and pre-release GitHub
+Release. An idempotency guard in step 5b checks whether `## [VERSION]` is already in
+`CHANGELOG.md` before re-running git-cliff, making re-dispatch safe when step 6 or 7
+fails transiently. The tag always points at the CHANGELOG-updated commit. (ADR-063
+§D7 Site 3.)
 
 **Nightly (IMPLEMENTED — `nightly.yml`):** The nightly channel is fully operational
 via `.github/workflows/nightly.yml` (scheduled cron 07:17 UTC, plus `workflow_dispatch`

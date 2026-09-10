@@ -393,11 +393,14 @@ the canonical install and verification text.
 
 ### Two-Layer CHANGELOG Model (ADR-063 D4)
 
-Every release uses a two-layer CHANGELOG model. Layer 2 (git-cliff categorized body)
-is auto-generated during the `release-prep.yml` workflow run. Layer 1 (Highlights /
-Breaking Changes narrative / Upgrade Notes top-block) is MANUALLY drafted by
-dispatching `vsdd-factory:technical-writer` and curated on the release-prep branch
-BEFORE merge.
+Every stable release uses a two-layer CHANGELOG model. Layer 2 (git-cliff
+categorized body) is auto-generated: for stable releases during the `release-prep.yml`
+workflow run; for pre-release tags dispatched via `release-tag.yml`, by step 5b of
+that workflow — see the Ad-hoc pre-release lane note below. Layer 1 (Highlights /
+Breaking Changes narrative / Upgrade Notes top-block) applies to stable releases only:
+it is MANUALLY drafted by dispatching `vsdd-factory:technical-writer` and curated on
+the release-prep branch BEFORE merge. Pre-releases dispatched via `release-tag.yml`
+receive Layer 2 only; no Layer 1 draft is generated.
 
 #### Layer 2 — git-cliff categorized body (auto-generated)
 
@@ -467,15 +470,26 @@ mechanism is canonical as of ADR-063 §D3 (empirically validated against
 git-cliff 2.14.1 behavior).
 
 **Ad-hoc pre-release lane (`release-tag.yml`):** When `release-tag.yml` is
-dispatched with a pre-release tag (alpha, beta, rc, dev), step 5b auto-generates
-the channel-scoped Layer-2 CHANGELOG section using the same three-substep
-mechanism (pre-strip, git-cliff with `--tag-pattern` scoped to the tag's channel,
-link-ref update) and pushes a `chore: update CHANGELOG` commit directly to
-`develop` before the annotated tag is created — so the tag points at the
-CHANGELOG-updated commit. This is distinct from the `release-prep.yml` PR path
-above: no PR is opened; the CHANGELOG commit lands directly on `develop`. The
-idempotency guard (step 5b checks whether `## [VERSION]` already exists) makes
-re-dispatch safe. (ADR-063 §D7 Site 3.)
+dispatched with a pre-release tag (alpha, beta, rc, dev), the workflow runs the
+following sequence before creating the annotated tag: step 3b rejects any tag
+containing `-nightly.` (exits 1 — nightly builds must use the `nightly.yml` cron
+lane, not this workflow); step 5a installs git-cliff `2.14.1` via
+`taiki-e/install-action` (SHA-pinned — `release-tag.yml` has no Rust toolchain
+setup step, so `cargo install` is not used); step 5b checks whether
+`## [VERSION]` is already present in `CHANGELOG.md` (idempotency guard — if
+present, regeneration is skipped and the workflow proceeds directly to tagging,
+making re-dispatch safe when step 6 or 7 fails transiently), detects the channel
+from the tag and sets a `--tag-pattern` scoped to that channel (ADR-063 §D7), runs
+the full three-substep mechanism (pre-strip, `git cliff --unreleased --tag "${TAG}"
+--tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md`, link-ref update), then
+verifies the new section contains at least one `- ` bullet entry (empty-output guard
+— exits 1 BEFORE any `git commit` or `git push origin develop` if no qualifying
+commits are found; nothing lands on `origin` and no tag is created), and finally
+commits `CHANGELOG.md` with `chore: update CHANGELOG for ${TAG}` and pushes
+directly to `develop`. Step 6 creates the annotated tag on that post-CHANGELOG
+`develop` HEAD; step 7 pushes the tag to origin, triggering `release.yml`. No PR
+is opened; the tag always points at the CHANGELOG-updated commit. (ADR-063 §D7
+Site 3.)
 
 #### Layer 1 — Curated top-block (human-authored, agent-assisted)
 
@@ -647,28 +661,43 @@ must come from the CI build.
 ### git-cliff generates an empty section (no unreleased commits)
 
 `git cliff --unreleased` exits 0 even when no qualifying commits exist — it produces
-a `## [VERSION]` header with an empty body. Without a guard this would commit a
-content-free CHANGELOG section. To prevent this, `release-prep.yml` Step 7 includes
-an empty-output guard immediately after the git-cliff invocation: it checks whether
-the newly-prepended section contains at least one `- ` bullet entry. If the section is
-empty, the guard exits 1 with an explicit error message and the workflow fails at Step 7
-before Step 8 (commit) or Step 9 (push) can run. The ephemeral runner checkout is
-discarded with the modification.
+a `## [VERSION]` header with an empty body. Both CHANGELOG-generating lanes include
+an empty-output guard: after the git-cliff invocation the guard checks whether the
+newly-prepended section contains at least one `- ` bullet entry and exits 1 with an
+explicit error before any commit or push if the section is empty.
 
-**Cause:** every commit since the last release tag matches a skip pattern (docs, ci,
-test, chore, style, build, revert), OR there are genuinely no commits since the last
-tag (you dispatched the same version twice).
+**Cause (both lanes):** every commit since the last same-channel tag matches a skip
+pattern (docs, ci, test, chore, style, build, revert), OR there are genuinely no
+commits since the last tag on that channel.
 
-**Response:**
-1. `gh run view <run-id> --log-failed` — inspect the Step 7 error message, which
-   will state: "git-cliff produced an empty CHANGELOG section for vX.Y.Z — no
-   qualifying commits found".
-2. If all commits since the last tag are skip types: either add at least one
-   non-skip commit to `develop` before re-dispatching, or write the CHANGELOG section
-   manually (see §5 Release Notes Convention) and skip the `release-prep` workflow.
+**`release-prep.yml` lane** — the guard fires at Step 7, before Step 8 (commit) or
+Step 9 (push). The ephemeral runner checkout is discarded; nothing lands on `origin`.
+
+Response:
+1. `gh run view <run-id> --log-failed` — the Step 7 error states: "git-cliff
+   produced an empty CHANGELOG section for vX.Y.Z — no qualifying commits found".
+2. If all commits since the last tag are skip types: add at least one non-skip commit
+   (`feat:`, `fix:`, `perf:`, `refactor:`, or `security:`) to `develop` before
+   re-dispatching `release-prep.yml`, or write the CHANGELOG section manually (see §5
+   Release Notes Convention) and skip `release-prep`.
 3. If the version was already released: do not re-create the same tag. Increment
    the patch version and dispatch with the correct version.
 4. Never run `--no-verify` or bypass the step — fix the underlying cause.
+
+**`release-tag.yml` lane** — the guard fires inside step 5b immediately after the
+git-cliff invocation, BEFORE the `git commit` and `git push origin develop` calls.
+No develop commit is made and no tag is created when the guard fires; the failed run
+leaves nothing on `origin`.
+
+Response:
+1. `gh run view <run-id> --log-failed` — the step 5b error states: "git-cliff
+   produced an empty CHANGELOG section for TAG — no qualifying commits found".
+2. Add at least one non-skip commit (`feat:`, `fix:`, `perf:`, `refactor:`, or
+   `security:`) to `develop`, then re-dispatch `release-tag.yml` with the same tag.
+   The idempotency guard in step 5b checks whether `## [VERSION]` is already present
+   in `CHANGELOG.md` before re-running git-cliff, so re-dispatch with the same tag is
+   safe.
+3. Never run `--no-verify` or bypass the step — fix the underlying cause.
 
 ### A required CI check is red on the release-prep PR
 
