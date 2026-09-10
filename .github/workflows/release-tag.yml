@@ -296,7 +296,7 @@ jobs:
             echo "::error::git-cliff did not write a section for ${TAG} — check the CHANGELOG.md pre-strip."
             exit 1
           fi
-          if ! echo "${SECTION_CONTENT}" | grep -q '^- '; then
+          if ! grep -q '^- ' <<<"${SECTION_CONTENT}"; then
             echo "::error::git-cliff produced an empty CHANGELOG section for ${TAG} — no qualifying commits found (all commits may be in skip categories: docs/ci/test/chore/style/build/revert). Add at least one feat:/fix:/perf:/refactor:/security: commit or review the skip rules in cliff.toml."
             exit 1
           fi
