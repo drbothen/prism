@@ -2,9 +2,14 @@
 #
 # PURPOSE
 # -------
-# Creates and pushes an annotated pre-release tag (e.g. v1.0.0-rc.1) pointing at
-# develop's HEAD, then triggers release.yml (on: push tags v*) which handles the
-# full 4-platform build + GitHub Release creation with --prerelease.
+# For each pre-release dispatch:
+#   Step 5b generates a channel-scoped CHANGELOG section via git-cliff
+#   (ADR-063 §D7), commits it to develop, and pushes develop to origin.
+#   Step 6 then creates an annotated tag pointing at that CHANGELOG commit.
+#   Step 7 pushes the tag, triggering release.yml (on: push tags v*) which
+#   handles the full 4-platform build + GitHub Release creation with --prerelease.
+# This two-step sequence (CHANGELOG-commit-then-tag) ensures the annotated tag
+# always points at the HEAD that includes the curated CHANGELOG section.
 #
 # PRE-RELEASE ONLY
 # ----------------
@@ -25,9 +30,12 @@
 #
 # DOES NOT TOUCH MAIN
 # -------------------
-# This workflow only pushes the tag.  It never pushes a branch reference and
-# never writes main.  The release channel strategy (docs/RELEASE-CHANNELS.md)
-# requires that pre-release channels tag develop only.
+# Step 5b pushes a CHANGELOG commit to develop (the pre-release lane requires
+# the curated CHANGELOG to land on develop before tagging, per ADR-063 §D7
+# tag-ordering invariant). Step 6 creates the annotated tag on that develop
+# commit. main is NEVER written by this workflow. The release channel strategy
+# (docs/RELEASE-CHANNELS.md) requires that pre-release channels tag develop
+# only; only the stable channel promotes develop→main via release-promote.yml.
 #
 # DISPATCH COMMAND EXAMPLE
 # ------------------------
@@ -212,6 +220,10 @@ jobs:
 
           # Channel detection for per-channel tag scoping (ADR-063 §D7)
           if [[ "${TAG}" =~ -nightly\. ]]; then
+            # OBS-005: this branch is intentional structural symmetry with
+            # release-prep.yml (TD-VSDD-097 Dim-1 sibling parity) and is
+            # UNREACHABLE AT RUNTIME — step 3b rejects all nightly tags before
+            # this point. Kept for sibling-parity, not dead-by-mistake.
             TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
           elif [[ "${TAG}" =~ -alpha\. ]]; then
             TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
@@ -220,6 +232,11 @@ jobs:
           elif [[ "${TAG}" =~ -rc\. ]]; then
             TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
           else
+            # OBS-004: a -dev.<sha> tag intentionally falls through to the stable
+            # pattern here (EC-005). Dev builds are ad-hoc snapshots; the stable
+            # pattern '^v[0-9]+...$' (no optional suffix) is accepted for dev tags.
+            # A ## [X.Y.Z-dev.*] section may land in the curated CHANGELOG — this
+            # is a known, story-governed trade-off, not an oversight.
             TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
           fi
 
@@ -286,7 +303,7 @@ jobs:
           python3 - <<'PYEOF'
           import re, os
           tag = os.environ['TAG']
-          version = tag.lstrip('v')
+          version = tag.removeprefix('v')
           path = 'CHANGELOG.md'
           content = open(path).read()
           m = re.search(
@@ -339,6 +356,13 @@ jobs:
           # configure this in Settings ▸ Branches ▸ develop ▸ Protection rules.
           git add CHANGELOG.md
           git commit -m "chore: update CHANGELOG for ${TAG}"
+          # LOW-002: a non-fast-forward push failure (develop advanced concurrently)
+          # is SAFE and INTENDED — nothing has reached origin yet, and a re-dispatch
+          # regenerates cleanly via the idempotency guard above. We deliberately do
+          # NOT pull --rebase here: rebasing a freshly-generated CHANGELOG section
+          # risks a CHANGELOG.md merge conflict that is worse than fail-then-re-dispatch.
+          # Rationale: this is a manually-dispatched, quiesced-develop release workflow
+          # (fail-fast + idempotent re-dispatch is the production-grade design).
           git push origin develop
 
       # ------------------------------------------------------------------ #
