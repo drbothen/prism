@@ -2,8 +2,8 @@
 # scripts/install.ps1 - Checksum-verified installer for Prism on Windows (PowerShell 5.1+).
 #
 # USAGE
-#   irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
-#   iex (irm 'https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1')
+#   irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex
+#   iex (irm 'https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1')
 #
 #   With version pin (set env var before piping - positional args cannot be passed through iex):
 #     $env:PRISM_INSTALL_VERSION = '<version>'; irm .../install.ps1 | iex
@@ -60,7 +60,7 @@ if ($PSVersionTable.PSVersion.Major -lt 5 -or
 # requires TLS 1.2+. Append Tls12 with -bor to avoid disabling other negotiated protocols.
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$Repo = "drbothen/prism"
+$Repo = "BOHICA-LABS/prism"
 $Target = "x86_64-pc-windows-msvc"
 $InstallDir = Join-Path $env:LOCALAPPDATA "prism\bin"
 

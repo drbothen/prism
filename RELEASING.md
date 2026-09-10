@@ -176,7 +176,7 @@ match the `name:` fields in the workflow files and the configured branch-protect
 context strings. To retrieve the exact strings from the live branch protection rule:
 
 ```bash
-gh api repos/drbothen/prism/branches/develop/protection \
+gh api repos/BOHICA-LABS/prism/branches/develop/protection \
   --jq '.required_status_checks.contexts[]'
 ```
 
@@ -219,7 +219,7 @@ Replace `X.Y.Z` throughout with the actual version number.
 
 ### Prerequisites
 
-- `gh` CLI authenticated to drbothen/prism
+- `gh` CLI authenticated to BOHICA-LABS/prism
 - `RELEASE_PROMOTE_TOKEN` secret configured in the repository
   (Fine-Grained PAT: Contents:write + Workflows:write; or Classic PAT: `repo` + `workflow`)
 - `release-main` GitHub Environment configured with at least one required reviewer
@@ -232,7 +232,7 @@ Replace `X.Y.Z` throughout with the actual version number.
 
 ```bash
 gh workflow run release-prep.yml \
-  --repo drbothen/prism \
+  --repo BOHICA-LABS/prism \
   --ref develop \
   --field version=X.Y.Z
 ```
@@ -250,8 +250,8 @@ This workflow:
 Monitor the run:
 
 ```bash
-gh run list --repo drbothen/prism --workflow release-prep.yml --limit 3
-gh run watch --repo drbothen/prism
+gh run list --repo BOHICA-LABS/prism --workflow release-prep.yml --limit 3
+gh run watch --repo BOHICA-LABS/prism
 ```
 
 ### Step 2 — Review and merge the release-prep PR
@@ -284,7 +284,7 @@ The PR body contains a checklist. Before merging:
 
 ```bash
 gh workflow run release-promote.yml \
-  --repo drbothen/prism \
+  --repo BOHICA-LABS/prism \
   --ref develop \
   --field tag=vX.Y.Z \
   --field dry_run=true
@@ -302,7 +302,7 @@ the tag you dispatched.
 
 ```bash
 gh workflow run release-promote.yml \
-  --repo drbothen/prism \
+  --repo BOHICA-LABS/prism \
   --ref develop \
   --field tag=vX.Y.Z \
   --field dry_run=false
@@ -327,7 +327,7 @@ After approval the `promote` job:
 ### Step 5 — Watch the release workflow
 
 ```bash
-gh run watch --repo drbothen/prism
+gh run watch --repo BOHICA-LABS/prism
 ```
 
 `release.yml` runs the 4-platform build matrix in parallel:
@@ -349,7 +349,7 @@ timeout). The `publish-release` job runs after all 4 build legs succeed.
 ### Step 6 — Verify the GitHub Release
 
 ```bash
-gh release view vX.Y.Z --repo drbothen/prism
+gh release view vX.Y.Z --repo BOHICA-LABS/prism
 ```
 
 Verify all of the following before declaring the release complete:
@@ -372,7 +372,7 @@ Verify all of the following before declaring the release complete:
    CHANGELOG section is the authoritative and complete release body.)
 8. **Bundled specs** are present in each archive. Spot-check a tar.gz:
    ```bash
-   curl -sL https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
+   curl -sL https://github.com/BOHICA-LABS/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz \
      | tar tzf - | grep -E 'specs/|prism\.toml\.example'
    ```
    Expected: `specs/claroty.sensor.toml` and `prism.toml.example` — both at archive
@@ -585,17 +585,17 @@ for a bootable installation — no source repository clone required.
 5. Run `prism start`.
 
 **macOS (Apple Silicon):**
-curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/BOHICA-LABS/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 tar xzf prism-vX.Y.Z-aarch64-apple-darwin.tar.gz
 chmod +x prism
 ./prism --version
 
 **Linux (glibc — most distros):**
-curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/BOHICA-LABS/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
 tar xzf prism-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
 
 **Linux (musl — Alpine, static binary):**
-curl -LO https://github.com/drbothen/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
+curl -LO https://github.com/BOHICA-LABS/prism/releases/download/vX.Y.Z/prism-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
 tar xzf prism-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
 
 **Windows (x86_64):**
@@ -609,8 +609,8 @@ sha256sum -c checksums.txt
 ### Verify build provenance
 
 gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
-  --repo drbothen/prism \
-  --signer-workflow drbothen/prism/.github/workflows/release.yml
+  --repo BOHICA-LABS/prism \
+  --signer-workflow BOHICA-LABS/prism/.github/workflows/release.yml
 
 ---
 
@@ -621,7 +621,7 @@ gh attestation verify prism-vX.Y.Z-<target>.tar.gz \
 If one or more of the 4 build legs fails and the `publish-release` job never ran
 (it `needs: build-release` — a partial matrix failure means no release was created):
 
-1. Diagnose the failure: `gh run view <run-id> --repo drbothen/prism --log-failed`
+1. Diagnose the failure: `gh run view <run-id> --repo BOHICA-LABS/prism --log-failed`
 2. Fix the root cause on `develop` via the normal feature/fix PR flow, then
    back-merge `main` → `develop` via a direct hotfix PR if `main` has diverged.
    Do NOT cherry-pick to avoid divergence.
@@ -643,7 +643,7 @@ incomplete), the job runs `gh release upload $TAG --clobber` instead of `gh rele
 create`. To re-run:
 
 ```bash
-gh run rerun <failed-run-id> --repo drbothen/prism --failed
+gh run rerun <failed-run-id> --repo BOHICA-LABS/prism --failed
 ```
 
 The `--clobber` flag safely overwrites any partially uploaded assets. Re-running
