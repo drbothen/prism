@@ -97,6 +97,29 @@ jobs:
           echo "Pre-release guard PASS — tag '${TAG}' contains a hyphen"
 
       # ------------------------------------------------------------------ #
+      # 3b. Nightly-channel guard — release-tag is NOT the nightly lane     #
+      #     Nightly builds are produced by the scheduled cron in             #
+      #     .github/workflows/nightly.yml (S-REL-NIGHTLY-001). Dispatching  #
+      #     release-tag.yml with a nightly tag would commit a nightly-scoped #
+      #     CHANGELOG section into the curated release CHANGELOG, which is   #
+      #     reserved for intentional pre-release and stable channels only.   #
+      # ------------------------------------------------------------------ #
+      - name: Guard — nightly tags must use the nightly cron lane (OBS-2)
+        run: |
+          set -euo pipefail
+          if [[ "${TAG}" =~ -nightly\.[0-9]{8} ]]; then
+            echo "::error::nightly tags must go through the nightly cron lane (nightly.yml), not release-tag.yml"
+            echo ""
+            echo "Tag '${TAG}' matches the nightly pattern (-nightly.YYYYMMDD)."
+            echo "Nightly builds are produced by the scheduled cron in"
+            echo ".github/workflows/nightly.yml (S-REL-NIGHTLY-001)."
+            echo "Dispatching release-tag.yml with a nightly tag would commit a"
+            echo "nightly-scoped CHANGELOG section into the curated release CHANGELOG."
+            exit 1
+          fi
+          echo "Nightly guard PASS — tag '${TAG}' is not a nightly tag"
+
+      # ------------------------------------------------------------------ #
       # 4. Version guard — BASE-MATCH: X.Y.Z core of the tag must match     #
       #    the X.Y.Z core of [package].version in crates/prism-bin/Cargo.toml
       #                                                                      #
@@ -172,6 +195,21 @@ jobs:
       - name: Generate CHANGELOG section and push develop (release-tag path)
         run: |
           set -euo pipefail
+
+          # Idempotency guard (MED-1): if CHANGELOG.md already contains ## [VERSION],
+          # step 5b completed on a prior run (the CHANGELOG commit landed on develop
+          # but step 6 or 7 failed transiently before the tag reached origin).
+          # On re-dispatch: the tag-absent guard in step 5 still passes (no tag yet),
+          # so we reach here again. Skip regeneration/commit and let step 6 tag the
+          # already-present CHANGELOG commit — the sequence is safe to re-run.
+          VERSION_NO_V="${TAG#v}"
+          if grep -qF "## [${VERSION_NO_V}]" CHANGELOG.md; then
+            echo "Idempotency guard PASS: ## [${VERSION_NO_V}] already present in CHANGELOG.md"
+            echo "Skipping regeneration and commit — step 5b already completed on a prior run."
+            echo "Proceeding to step 6 to create the annotated tag."
+            exit 0
+          fi
+
           # Channel detection for per-channel tag scoping (ADR-063 §D7)
           if [[ "${TAG}" =~ -nightly\. ]]; then
             TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
@@ -221,6 +259,27 @@ jobs:
           git cliff --tag "${TAG}" --unreleased \
             --tag-pattern "${TAG_PATTERN}" \
             --prepend CHANGELOG.md
+
+          # Empty-output guard (HIGH-1): verify git-cliff wrote at least one bullet
+          # entry to the new ## [VERSION] section. An empty section (header-only,
+          # no "- " entries) means all commits since the last tag matched skip
+          # categories (docs/ci/test/chore/style/build/revert) or there are no
+          # unreleased commits. Committing an empty section silently corrupts the
+          # CHANGELOG release history and leaves develop with an orphaned empty
+          # section if step 6 subsequently fails.
+          # Mirrors the guard in release-prep.yml Step 7 (TD-VSDD-097 Dim-1 sibling
+          # symmetry). Uses ${TAG#v} (VERSION_NO_V) since TAG carries the 'v' prefix.
+          SECTION_CONTENT="$(awk -v hdr="## [${VERSION_NO_V}]" \
+            'substr($0,1,length(hdr))==hdr{found=1;next} found&&/^## \[/{exit} found{print}' \
+            CHANGELOG.md)"
+          if ! grep -qF "## [${VERSION_NO_V}]" CHANGELOG.md; then
+            echo "::error::git-cliff did not write a section for ${TAG} — check the CHANGELOG.md pre-strip."
+            exit 1
+          fi
+          if ! echo "${SECTION_CONTENT}" | grep -q '^- '; then
+            echo "::error::git-cliff produced an empty CHANGELOG section for ${TAG} — no qualifying commits found (all commits may be in skip categories: docs/ci/test/chore/style/build/revert). Add at least one feat:/fix:/perf:/refactor:/security: commit or review the skip rules in cliff.toml."
+            exit 1
+          fi
 
           # Sub-step C — Link-ref update: repoint [Unreleased]: and insert [VERSION]:
           # compare link reference (token-free, ADR-063 §D3).
@@ -272,6 +331,12 @@ jobs:
 
           # Tag-ordering invariant (ADR-063 §D7 Site 3 MUST): push develop BEFORE
           # step 6 creates the annotated tag so the tag points at the post-CHANGELOG HEAD.
+          # OBS-1 (branch protection): this push requires RELEASE_PROMOTE_TOKEN to have
+          # push permission on develop under the repo's branch protection rules. The PAT
+          # is already used for checkout (step 1) and is scoped to "Repository contents:
+          # Read and write". If develop has required-status-checks branch protection
+          # enabled, the release bot actor must be in the bypass list; the human must
+          # configure this in Settings ▸ Branches ▸ develop ▸ Protection rules.
           git add CHANGELOG.md
           git commit -m "chore: update CHANGELOG for ${TAG}"
           git push origin develop
