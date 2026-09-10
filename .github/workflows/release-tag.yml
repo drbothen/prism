@@ -118,10 +118,10 @@ jobs:
       - name: Guard — nightly tags must use the nightly cron lane (OBS-2)
         run: |
           set -euo pipefail
-          if [[ "${TAG}" =~ -nightly\.[0-9]{8} ]]; then
+          if [[ "${TAG}" =~ -nightly\. ]]; then
             echo "::error::nightly tags must go through the nightly cron lane (nightly.yml), not release-tag.yml"
             echo ""
-            echo "Tag '${TAG}' matches the nightly pattern (-nightly.YYYYMMDD)."
+            echo "Tag '${TAG}' contains the nightly sentinel (-nightly.)."
             echo "Nightly builds are produced by the scheduled cron in"
             echo ".github/workflows/nightly.yml (S-REL-NIGHTLY-001)."
             echo "Dispatching release-tag.yml with a nightly tag would commit a"
