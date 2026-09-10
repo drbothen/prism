@@ -14,7 +14,7 @@ priority: P1
 # reason (S-REL-SPECS-TARBALL-001 release cascade, 2026-09-09 — see §Origin).
 # This story generalises that workaround into automatic per-channel tag filtering on all lanes.
 status: ready
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-09-09T00:00:00Z"
@@ -131,7 +131,7 @@ phase: "3"
 
 **Story ID:** S-REL-CHANGELOG-CHANNEL-SCOPE-001
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** F-A
 **Priority:** P1
 **Points:** 8
@@ -449,9 +449,16 @@ before the PR:
    - `docs/RELEASE-CHANNELS.md` §5 "Build Path": add a note explaining that each channel
      uses a channel-scoped `--tag-pattern` for git-cliff, so release notes show the delta
      since the previous same-channel release (with stable as floor). Reference "ADR-063 §D7".
-   - `RELEASING.md §5` "Two-Layer CHANGELOG Model": add a note under Layer 2 that
-     release-prep.yml detects the channel from VERSION and passes the appropriate
-     `--tag-pattern` to git-cliff. Reference "ADR-063 §D7".
+   - `RELEASING.md §5` "Two-Layer CHANGELOG Model": add notes covering BOTH automated
+     CHANGELOG paths:
+     (a) release-prep.yml detects the channel from VERSION and passes the appropriate
+     `--tag-pattern` to git-cliff (the planned-release lane — stable/beta/rc/alpha/nightly
+     triggered via workflow_dispatch with a VERSION input); and
+     (b) release-tag.yml step 5b (§D7 Site 3) auto-generates the channel-scoped CHANGELOG
+     section and pushes a `chore: update CHANGELOG` commit to develop BEFORE the annotated
+     tag is created — so operators using the ad-hoc-tag lane understand that the CHANGELOG
+     commit happens automatically before the tag rather than being a manual prerequisite.
+     Reference "ADR-063 §D7".
 
 10. **Verify AC-001..AC-009 explicitly.** For each AC, run the specified grep command or
     dry-run and record the result. Document in PR description.
@@ -543,9 +550,12 @@ selector.
 masking of the curated-CHANGELOG gate; must be preserved)
 
 ### AC-007: Curated-CHANGELOG hard-fail (RELEASE-NOTES-MISSING) unchanged in release.yml
-The non-nightly branch of "Extract release notes" in release.yml is identical to its
-post-S-REL-NIGHTLY-NOTES-001 form:
-- `grep 'RELEASE-NOTES-MISSING' .github/workflows/release.yml` returns exactly 1 match.
+The non-nightly branch of "Extract release notes (channel-aware)" in release.yml is
+identical to its post-S-REL-NIGHTLY-NOTES-001 form:
+- `grep -c 'echo "RELEASE-NOTES-MISSING' .github/workflows/release.yml` returns `1`
+  (the gate echo line is present exactly once). Note: the file also contains a pre-existing
+  descriptive comment referencing the term; this check targets the gate line only and
+  is unaffected by the comment.
 - `grep 'awk.*CHANGELOG' .github/workflows/release.yml` returns a match (awk extraction).
 This story does NOT modify the non-nightly branch of release.yml's release notes step.
 (traces to RELEASE-CHANNELS.md §2 — stable/beta/rc channels require curated CHANGELOG
@@ -569,11 +579,17 @@ Both documentation files are updated:
   describing that each channel uses a channel-scoped `--tag-pattern`, with reference to
   "ADR-063 §D7" (bare citation — §D7 is ACCEPTED v1.14; no qualifier).
   `grep 'channel.scope\|tag.pattern\|D7' docs/RELEASE-CHANNELS.md` returns a match.
-- `RELEASING.md §5` "Two-Layer CHANGELOG Model" Layer 2 section: contains a note that
-  release-prep.yml detects the channel from VERSION and passes `--tag-pattern` accordingly.
-  `grep 'channel.scope\|tag.pattern\|D7' RELEASING.md` returns a match.
+- `RELEASING.md §5` "Two-Layer CHANGELOG Model" Layer 2 section: documents BOTH automated
+  CHANGELOG paths — the release-prep.yml channel-detection path AND the release-tag.yml
+  §D7 Site 3 ad-hoc-lane develop-push behavior (step 5b auto-generates CHANGELOG + pushes
+  `chore: update CHANGELOG` to develop before the annotated tag is created). Verification:
+  `grep 'channel.scope\|tag.pattern\|D7' RELEASING.md` returns a match (confirms ADR-063 §D7
+  reference present).
+  `grep -i 'release-tag\|ad.hoc\|step 5b\|Site 3\|CHANGELOG.*develop\|develop.*CHANGELOG' RELEASING.md`
+  returns a match (confirms the ad-hoc-lane develop-push behavior is documented).
 (traces to RELEASE-CHANNELS.md §3 — channel model documentation must reflect actual
-git-cliff behavior so operators and future implementers understand the delta scope)
+git-cliff behavior across BOTH release lanes so operators understand the delta scope
+and do not expect to manually commit CHANGELOG when using release-tag.yml)
 
 ### AC-010: release-tag.yml structural checks + live per-channel verification
 Two-part verification:
@@ -643,7 +659,7 @@ before committing the patterns.
 | git-cliff 2.14.1 pinned exactly (where installed) | ADR-063 §D1 | release-tag.yml step 5a MUST use `taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2` with `tool: git-cliff@2.14.1`; `cargo install` MUST NOT be used (no Rust toolchain step in release-tag.yml) |
 | cliff.toml NOT modified | ADR-063 §D3 — cliff.toml is authoritative config; per-channel scoping via CLI flags | AC-001 file structure: cliff.toml listed as DO NOT MODIFY |
 | Nightly regex bypass-guard intact (exact-form start+end anchors) | RELEASE-CHANNELS.md §2 | AC-006: grep for anchored regex on nightly branch if-condition |
-| Curated-CHANGELOG hard-fail (RELEASE-NOTES-MISSING) unchanged | RELEASE-CHANNELS.md §2 | AC-007: RELEASE-NOTES-MISSING grep exactly 1 match |
+| Curated-CHANGELOG hard-fail (RELEASE-NOTES-MISSING) unchanged | RELEASE-CHANNELS.md §2 | AC-007: `grep -c 'echo "RELEASE-NOTES-MISSING'` returns 1 (gate echo line only; file also has a descriptive comment which is expected) |
 | 3-substep PRE-STRIP+git-cliff+LINK-REF-UPDATE pattern for CHANGELOG generation | ADR-063 §D3 `--prepend` mechanism | release-tag.yml CHANGELOG generation step must include all 3 substeps |
 | All CI action references use commit SHA pins (not tag pointers) | project CI hardening convention | release-tag.yml step 5a uses exact SHA `d438492cf8a250514fa2d34b30bc3c0dc37c65ff`; verified match with release.yml pin |
 | `--tag-pattern` CLI override replaces cliff.toml tag_pattern for that invocation | ADR-063 §D3 | Task 4 verification note; confirmed by beta.2 precedent |
@@ -740,6 +756,7 @@ S-REL-DROP-INTEL-MAC-001, S-REL-WRITER-001 (all `holdout_scenarios: []`).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-09-09 | story-writer | OBS-1: AC-007 verification command changed from `grep 'RELEASE-NOTES-MISSING'` (returns 2 — comment + gate) to `grep -c 'echo "RELEASE-NOTES-MISSING'` (returns 1 — gate line only); step name corrected to "Extract release notes (channel-aware)". OBS-2: Task 9 RELEASING.md item expanded to cover both release-prep.yml channel-detection path and release-tag.yml §D7 Site 3 ad-hoc-lane develop-push (step 5b auto-generates CHANGELOG + pushes chore commit to develop before tag); AC-009 RELEASING.md check updated with two-grep verification (ADR-063 §D7 ref + ad-hoc-lane develop-push mention) and updated traces rationale |
 | 1.2 | 2026-09-09 | story-writer | ADR-063 §D7 v1.14 spec-accuracy corrections: Fix 1 — Task 6 before-image corrected to live step name "Extract release notes (channel-aware)" and live invocation (no 2>/dev/null; --strip=header already present); Fix 2 — Library & Framework Requirements taiki-e row states exact SHA d438492... + tool spec git-cliff@2.14.1, removes re-resolution language, adds cargo install MUST NOT prohibition; Fix 3 — Task 8 replaced with concrete §D7 Site 3 contract (steps 5a+5b before step 6, auth already in place, tag-ordering MUST); Architecture Compliance Rules updated with exact SHA; AC-010 expanded with Part A structural checks for install SHA + ordering (install MUST + ordering MUST anchored from §D7 v1.14 Dim-3); all v1.13 ADR version pins updated to v1.14 |
 | 1.1 | 2026-09-09 | story-writer | ADR-063 §D7 ACCEPTED (v1.13, 2026-09-09): swept all [pending amendment]/[pending] qualifiers from §Authority, Behavioral Contracts table, Task 9, Architecture Compliance Rules, and risk_mitigations; updated Amendment Routing Flag section to reflect live status; added --strip=header to Task 6 nightly git-cliff invocation per §D7 Site 1; behavioral_contracts comment updated to include §D7; status draft → ready |
 | 1.0 | 2026-09-09 | story-writer | Initial materialization — channel-scoped git-cliff tag filter; per-channel patterns; stable-floor fallback; release-tag.yml CHANGELOG generation addition; ADR-063 amendment routing flag; v1.0-stable dependency; 10 ACs; facade tdd_mode |

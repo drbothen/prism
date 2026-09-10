@@ -809,3 +809,13 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2512 2026-09-09):** develop: `baf720d89` (origin; v1.0.0-beta.2 published; nightly lane LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (PR #279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.20260908 + v1.0.0-nightly.20260909.2 + v1.0.0-nightly.20260909.3 + edge-nightly.
 
 **NOTE: Superseded by D-2513 — ADR-063 §D7 v1.14 AUTHORED + CORRECTED; S-REL-CHANGELOG-CHANNEL-SCOPE-001 draft→ready v1.2; DEP D-2509 RESOLVED. NEXT: facade delivery. develop_head baf720d89 UNCHANGED. STATE v10.018→v10.019. SESSION-HANDOFF v9.010→v9.011.**
+
+---
+
+## D-2513 Checkpoint — ADR-063 §D7 v1.14 AUTHORED; S-REL-CHANGELOG-CHANNEL-SCOPE-001 READY v1.2 — 2026-09-09 (superseded by D-2514)
+
+**RESUME IN ONE BREATH:** Prism at develop@baf720d89 — ADR-063 §D7 v1.14 AUTHORED (per-channel tag-scoping; install mechanism locked to taiki-e/install-action@d438492 git-cliff@2.14.1; tag-ordering invariant concrete). S-REL-CHANGELOG-CHANNEL-SCOPE-001 advanced draft→ready v1.2. DEP D-2509 RESOLVED. NEXT: facade delivery (P1; v1.0.0-stable blocker).
+
+**HEADS (D-2513 2026-09-09):** develop: `baf720d89` (origin; v1.0.0-beta.2 published; nightly lane LIVE); factory-artifacts: run `git -C .factory log -1 --format='%h'` (TD-VSDD-053); main: `bdf24cec8` (stub). Open PRs: PR #255 (OBSOLETE — CLOSE). Dependabot: #265–#274 (UNTRIAGED). WORKTREES REMOVABLE-POST-MERGE: S-REL-NIGHTLY-NOTES-001 (PR #277+#278), S-REL-SPECS-TARBALL-001 (PR #279 @54523dccd), E-REL-NOTES (#264), S-CLAROTY-VULNS-001 (#245), S-ENGINE-LIMIT-EARLY-STOP-001 (#243), S-REL-NIGHTLY-001 (#276). PARKED: S-3.09, W3-FIX-S307-001 (DIRTY), S-ENGINE-H2-LARGE-RESPONSE-001. Releases: v1.0.0-beta.1 + v1.0.0-beta.2 + v1.0.0-nightly.20260908 + v1.0.0-nightly.20260909.2 + v1.0.0-nightly.20260909.3 + edge-nightly.
+
+**NOTE: Superseded by D-2514 — S-REL-CHANGELOG-CHANNEL-SCOPE-001 story v1.2→v1.3; LOCAL 3-CLEAN CONVERGED @0583581ce (BC-5.39.001 strict 15/16/17; 17 passes/9 fix-bursts). NEXT: demo+push+PR (develop-only, NO stable tag). story_index v3.034→v3.035. STATE v10.019→v10.020. SESSION-HANDOFF v9.011→v9.012.**
