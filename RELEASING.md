@@ -424,7 +424,12 @@ BEFORE merge.
 2. **git-cliff invocation:**
 
    ```bash
-   git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md
+   # TAG_PATTERN is set by the channel-detect block immediately before this call
+   # in release-prep.yml Step 7 (ADR-063 §D7). See docs/RELEASE-CHANNELS.md §5
+   # for the per-channel pattern table. cliff.toml is NOT modified.
+   git cliff --tag "v${VERSION}" --unreleased \
+     --tag-pattern "${TAG_PATTERN}" \
+     --prepend CHANGELOG.md
    ```
 
    `cliff.toml`'s `[changelog] header` carries the `# Changelog` masthead and the
@@ -521,7 +526,7 @@ the final content; the technical-writer draft is an aid, not the final.
 
 1. **Step 7 sub-step A** — pre-strip: Python removes masthead + prior `[Unreleased]` section
    from `CHANGELOG.md` (leaving file starting at first versioned `## [X.Y.Z]` section)
-2. **Step 7 sub-step B** — `git cliff --tag "v${VERSION}" --unreleased --prepend CHANGELOG.md`:
+2. **Step 7 sub-step B** — `git cliff --tag "v${VERSION}" --unreleased --tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md`:
    prepends `cliff.toml header (masthead + ## [Unreleased])` + new `## [VERSION]` block
 3. **Step 7 sub-step C** — link-ref update: Python updates `[Unreleased]:` and inserts
    `[VERSION]: .../compare/v{PREV}...v{VERSION}` reference at bottom of `CHANGELOG.md`
