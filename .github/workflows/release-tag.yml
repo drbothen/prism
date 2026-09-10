@@ -2,17 +2,25 @@
 #
 # PURPOSE
 # -------
-# Creates and pushes an annotated pre-release tag (e.g. v1.0.0-rc.1) pointing at
-# develop's HEAD, then triggers release.yml (on: push tags v*) which handles the
-# full 4-platform build + GitHub Release creation with --prerelease.
+# For each pre-release dispatch:
+#   Step 5b generates a channel-scoped CHANGELOG section via git-cliff
+#   (ADR-063 §D7), commits it to develop, and pushes develop to origin.
+#   Step 6 then creates an annotated tag pointing at that CHANGELOG commit.
+#   Step 7 pushes the tag, triggering release.yml (on: push tags v*) which
+#   handles the full 4-platform build + GitHub Release creation with --prerelease.
+# This two-step sequence (CHANGELOG-commit-then-tag) ensures the annotated tag
+# always points at the HEAD that includes the curated CHANGELOG section.
 #
 # PRE-RELEASE ONLY
 # ----------------
-# This workflow accepts ONLY pre-release tags — semver tags that contain a hyphen
-# (e.g. -rc.N, -beta.N, -alpha.N, -nightly.YYYYMMDD, -dev.<sha>).
+# This workflow accepts ONLY intentional pre-release channels:
+# (e.g. -rc.N, -beta.N, -alpha.N, -dev.<sha>).
 # Stable tags (X.Y.Z without a hyphen) MUST go through release-promote.yml
 # (the develop→main promotion lane), which writes main and runs behind the
 # `release-main` environment gate.  This workflow NEVER touches main.
+# NOTE — nightly tags (-nightly.YYYYMMDD) are REJECTED by step 3b of this
+# workflow. Nightly builds must use the scheduled cron lane (nightly.yml /
+# S-REL-NIGHTLY-001); dispatching release-tag.yml with a nightly tag exits 1.
 #
 # REQUIRED SECRET: RELEASE_PROMOTE_TOKEN
 # ---------------------------------------
@@ -25,9 +33,12 @@
 #
 # DOES NOT TOUCH MAIN
 # -------------------
-# This workflow only pushes the tag.  It never pushes a branch reference and
-# never writes main.  The release channel strategy (docs/RELEASE-CHANNELS.md)
-# requires that pre-release channels tag develop only.
+# Step 5b pushes a CHANGELOG commit to develop (the pre-release lane requires
+# the curated CHANGELOG to land on develop before tagging, per ADR-063 §D7
+# tag-ordering invariant). Step 6 creates the annotated tag on that develop
+# commit. main is NEVER written by this workflow. The release channel strategy
+# (docs/RELEASE-CHANNELS.md) requires that pre-release channels tag develop
+# only; only the stable channel promotes develop→main via release-promote.yml.
 #
 # DISPATCH COMMAND EXAMPLE
 # ------------------------
@@ -97,6 +108,29 @@ jobs:
           echo "Pre-release guard PASS — tag '${TAG}' contains a hyphen"
 
       # ------------------------------------------------------------------ #
+      # 3b. Nightly-channel guard — release-tag is NOT the nightly lane     #
+      #     Nightly builds are produced by the scheduled cron in             #
+      #     .github/workflows/nightly.yml (S-REL-NIGHTLY-001). Dispatching  #
+      #     release-tag.yml with a nightly tag would commit a nightly-scoped #
+      #     CHANGELOG section into the curated release CHANGELOG, which is   #
+      #     reserved for intentional pre-release and stable channels only.   #
+      # ------------------------------------------------------------------ #
+      - name: Guard — nightly tags must use the nightly cron lane (OBS-2)
+        run: |
+          set -euo pipefail
+          if [[ "${TAG}" =~ -nightly\. ]]; then
+            echo "::error::nightly tags must go through the nightly cron lane (nightly.yml), not release-tag.yml"
+            echo ""
+            echo "Tag '${TAG}' contains the nightly sentinel (-nightly.)."
+            echo "Nightly builds are produced by the scheduled cron in"
+            echo ".github/workflows/nightly.yml (S-REL-NIGHTLY-001)."
+            echo "Dispatching release-tag.yml with a nightly tag would commit a"
+            echo "nightly-scoped CHANGELOG section into the curated release CHANGELOG."
+            exit 1
+          fi
+          echo "Nightly guard PASS — tag '${TAG}' is not a nightly tag"
+
+      # ------------------------------------------------------------------ #
       # 4. Version guard — BASE-MATCH: X.Y.Z core of the tag must match     #
       #    the X.Y.Z core of [package].version in crates/prism-bin/Cargo.toml
       #                                                                      #
@@ -113,7 +147,7 @@ jobs:
             | sed 's/version = "//;s/"//')"
           # Extract X.Y.Z core: strip leading 'v' and everything from the first
           # hyphen onwards.  %%-* removes the LONGEST suffix starting with '-',
-          # which is the channel suffix (e.g. -rc.1, -nightly.20260905, -dev).
+          # which is the channel suffix (e.g. -rc.1, -beta.2, -dev.<sha>).
           TAG_CORE="${TAG#v}"
           TAG_CORE="${TAG_CORE%%-*}"
           PRISM_BIN_CORE="${PRISM_BIN_VERSION%%-*}"
@@ -147,6 +181,192 @@ jobs:
             exit 1
           fi
           echo "Tag '${TAG}' does not exist on origin — safe to create"
+
+      # ------------------------------------------------------------------ #
+      # 5a. Install git-cliff (ADR-063 §D7 Site 3)                          #
+      #     Pre-built binary download via taiki-e/install-action (~10s vs   #
+      #     3-5 min cargo compile). release-tag.yml has no Rust toolchain   #
+      #     setup step — cargo install MUST NOT be used here.               #
+      #     SHA-pinned per CWE-494 supply-chain hardening convention.        #
+      #     Same SHA as release.yml "Install git-cliff (nightly path)".     #
+      # ------------------------------------------------------------------ #
+      - name: Install git-cliff (release-tag path)
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2
+        with:
+          tool: git-cliff@2.14.1
+
+      # ------------------------------------------------------------------ #
+      # 5b. Generate CHANGELOG, commit, push develop (ADR-063 §D7 Site 3)  #
+      #     Tag-ordering invariant (MUST): this step MUST complete before   #
+      #     step 6 (Create annotated tag) so the annotated tag points at   #
+      #     the post-CHANGELOG HEAD. release.yml's awk extraction reads     #
+      #     CHANGELOG.md at TAG_SHA — the scoped ## [VERSION] section must  #
+      #     already be present at that SHA.                                 #
+      # ------------------------------------------------------------------ #
+      - name: Generate CHANGELOG section and push develop (release-tag path)
+        run: |
+          set -euo pipefail
+
+          # Idempotency guard (MED-1): if CHANGELOG.md already contains ## [VERSION],
+          # step 5b completed on a prior run (the CHANGELOG commit landed on develop
+          # but step 6 or 7 failed transiently before the tag reached origin).
+          # On re-dispatch: the tag-absent guard in step 5 still passes (no tag yet),
+          # so we reach here again. Skip regeneration/commit and let step 6 tag the
+          # already-present CHANGELOG commit — the sequence is safe to re-run.
+          VERSION_NO_V="${TAG#v}"
+          if grep -qF "## [${VERSION_NO_V}]" CHANGELOG.md; then
+            echo "Idempotency guard PASS: ## [${VERSION_NO_V}] already present in CHANGELOG.md"
+            echo "Skipping regeneration and commit — step 5b already completed on a prior run."
+            echo "Proceeding to step 6 to create the annotated tag."
+            exit 0
+          fi
+
+          # Channel detection for per-channel tag scoping (ADR-063 §D7)
+          if [[ "${TAG}" =~ -nightly\. ]]; then
+            # OBS-005: this branch is intentional structural symmetry with
+            # release-prep.yml (TD-VSDD-097 Dim-1 sibling parity) and is
+            # UNREACHABLE AT RUNTIME — step 3b rejects all nightly tags before
+            # this point. Kept for sibling-parity, not dead-by-mistake.
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$'
+          elif [[ "${TAG}" =~ -alpha\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$'
+          elif [[ "${TAG}" =~ -beta\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+          elif [[ "${TAG}" =~ -rc\. ]]; then
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'
+          else
+            # OBS-004: a -dev.<sha> tag intentionally falls through to the stable
+            # pattern here (EC-005). Dev builds are ad-hoc snapshots; the stable
+            # pattern '^v[0-9]+...$' (no optional suffix) is accepted for dev tags.
+            # A ## [X.Y.Z-dev.*] section may land in the curated CHANGELOG — this
+            # is a known, story-governed trade-off, not an oversight.
+            TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          fi
+
+          # Sub-step A — Pre-strip: remove masthead and any prior [Unreleased] section
+          # so git-cliff --prepend does not duplicate the masthead (ADR-063 §D3).
+          python3 - <<'PYEOF'
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          lines = content.split('\n')
+          n = len(lines)
+          import re as _re
+          _link_ref_pat = _re.compile(r'^\[.+\]:\s+https://')
+          footer_lines = [ln for ln in lines if _link_ref_pat.match(ln)]
+          i = 0
+          while i < n and not lines[i].startswith('## ['):
+              i += 1
+          if i < n and lines[i].startswith('## [Unreleased]'):
+              i += 1
+              while i < n and not lines[i].startswith('## ['):
+                  i += 1
+          start = i
+          if start >= n and footer_lines:
+              import sys as _sys
+              print(
+                  'Warning: CHANGELOG.md has no versioned sections; '
+                  'preserving footer link-ref block.',
+                  file=_sys.stderr,
+              )
+              open(path, 'w').write('\n'.join(footer_lines) + '\n')
+          else:
+              open(path, 'w').write('\n'.join(lines[start:]))
+          print(f'Pre-strip complete: CHANGELOG.md starts at versioned section (line {start})')
+          PYEOF
+
+          # Sub-step B — git-cliff: prepend new versioned section using channel-scoped
+          # tag pattern (ADR-063 §D7).
+          git cliff --tag "${TAG}" --unreleased \
+            --tag-pattern "${TAG_PATTERN}" \
+            --prepend CHANGELOG.md
+
+          # Empty-output guard (HIGH-1): verify git-cliff wrote at least one bullet
+          # entry to the new ## [VERSION] section. An empty section (header-only,
+          # no "- " entries) means all commits since the last tag matched skip
+          # categories (docs/ci/test/chore/style/build/revert) or there are no
+          # unreleased commits. Committing an empty section silently corrupts the
+          # CHANGELOG release history and leaves develop with an orphaned empty
+          # section if step 6 subsequently fails.
+          # Mirrors the guard in release-prep.yml Step 7 (TD-VSDD-097 Dim-1 sibling
+          # symmetry). Uses ${TAG#v} (VERSION_NO_V) since TAG carries the 'v' prefix.
+          SECTION_CONTENT="$(awk -v hdr="## [${VERSION_NO_V}]" \
+            'substr($0,1,length(hdr))==hdr{found=1;next} found&&/^## \[/{exit} found{print}' \
+            CHANGELOG.md)"
+          if ! grep -qF "## [${VERSION_NO_V}]" CHANGELOG.md; then
+            echo "::error::git-cliff did not write a section for ${TAG} — check the CHANGELOG.md pre-strip."
+            exit 1
+          fi
+          if ! grep -q '^- ' <<<"${SECTION_CONTENT}"; then
+            echo "::error::git-cliff produced an empty CHANGELOG section for ${TAG} — no qualifying commits found (all commits may be in skip categories: docs/ci/test/chore/style/build/revert). Add at least one feat:/fix:/perf:/refactor:/security: commit or review the skip rules in cliff.toml."
+            exit 1
+          fi
+
+          # Sub-step C — Link-ref update: repoint [Unreleased]: and insert [VERSION]:
+          # compare link reference (token-free, ADR-063 §D3).
+          python3 - <<'PYEOF'
+          import re, os
+          tag = os.environ['TAG']
+          version = tag.removeprefix('v')
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+          m = re.search(
+              r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v(.+?)\.\.\.HEAD',
+              content,
+          )
+          if m:
+              prev_version = m.group(1)
+              import subprocess, sys as _sys
+              _check = subprocess.run(
+                  ['git', 'rev-parse', '-q', '--verify', f'v{prev_version}'],
+                  capture_output=True,
+              )
+              if _check.returncode != 0:
+                  print(
+                      f"Warning: previous tag 'v{prev_version}' not found in git history; "
+                      "compare link may be incorrect",
+                      file=_sys.stderr,
+                  )
+              new_unreleased = (
+                  f'[Unreleased]: https://github.com/drbothen/prism/compare/v{version}...HEAD'
+              )
+              new_version_ref = (
+                  f'[{version}]: https://github.com/drbothen/prism/compare/'
+                  f'v{prev_version}...v{version}'
+              )
+              replacement = new_unreleased + '\n' + new_version_ref
+              content = re.sub(
+                  r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v.+?\.\.\.HEAD',
+                  lambda m: replacement,
+                  content,
+              )
+              open(path, 'w').write(content)
+              print(f'Link refs updated: [Unreleased] → v{version}...HEAD, added [{version}] ref (prev: {prev_version})')
+          else:
+              import sys
+              print('::error::CHANGELOG.md [Unreleased]: compare link not found — '
+                    'compare-link references NOT updated. Add a valid [Unreleased]: '
+                    'compare link to CHANGELOG.md footer and re-run.')
+              sys.exit(1)
+          PYEOF
+
+          # Tag-ordering invariant (ADR-063 §D7 Site 3 MUST): push develop BEFORE
+          # step 6 creates the annotated tag so the tag points at the post-CHANGELOG HEAD.
+          # OBS-1 (branch protection): this push requires RELEASE_PROMOTE_TOKEN to have
+          # push permission on develop under the repo's branch protection rules. The PAT
+          # is already used for checkout (step 1) and is scoped to "Repository contents:
+          # Read and write". If develop has required-status-checks branch protection
+          # enabled, the release bot actor must be in the bypass list; the human must
+          # configure this in Settings ▸ Branches ▸ develop ▸ Protection rules.
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG for ${TAG}"
+          # LOW-002: a non-fast-forward push failure (develop advanced concurrently)
+          # is SAFE and INTENDED — nothing has reached origin yet, and a re-dispatch
+          # regenerates cleanly via the idempotency guard above. We deliberately do
+          # NOT pull --rebase here: rebasing a freshly-generated CHANGELOG section
+          # risks a CHANGELOG.md merge conflict that is worse than fail-then-re-dispatch.
+          # Rationale: this is a manually-dispatched, quiesced-develop release workflow
+          # (fail-fast + idempotent re-dispatch is the production-grade design).
+          git push origin develop
 
       # ------------------------------------------------------------------ #
       # 6. Create annotated tag on develop HEAD                              #

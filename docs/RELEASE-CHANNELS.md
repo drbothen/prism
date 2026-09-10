@@ -4,7 +4,7 @@ This document captures Prism's full release-channel strategy and maturity model.
 It is the reference for understanding what each channel promises, how versions
 flow through the ladder, and what criteria gate advancement.
 
-**Operator-approved: 2026-09-04. Last revised: 2026-09-08 (v0.2).**
+**Operator-approved: 2026-09-04. Last revised: 2026-09-09 (v0.3).**
 
 > **Relationship to RELEASING.md:** `RELEASING.md` (repo root) is the operational
 > stable-release runbook — step-by-step procedures for cutting a stable release using
@@ -69,10 +69,24 @@ creation. See `RELEASING.md` §4 for the complete operational runbook.
 **Ad-hoc pre-release tagging (IMPLEMENTED — dev / alpha / beta / rc):** The
 `release-tag.yml` workflow (`workflow_dispatch`) implements ad-hoc pre-release tagging
 for the dev, alpha, beta, and rc channels. Dispatch with a hyphenated semver tag
-(e.g. `v1.0.0-beta.1`) to create an annotated tag on `develop` HEAD and trigger
-`release.yml` for the full 4-platform build + pre-release GitHub Release.
-The workflow enforces a pre-release-only guard (stable tags are rejected) and a
-BASE-MATCH version guard against `crates/prism-bin/Cargo.toml`.
+(e.g. `v1.0.0-beta.1`). The workflow enforces a pre-release-only guard (stable tags
+are rejected), a nightly-channel guard (tags containing `-nightly.` are rejected —
+use `nightly.yml`), and a BASE-MATCH version guard against
+`crates/prism-bin/Cargo.toml`. Before creating the annotated tag the workflow
+installs git-cliff `2.14.1` via `taiki-e/install-action` (SHA-pinned; step 5a —
+no Rust toolchain step is present, so `cargo install` is not used), then step 5b
+generates a channel-scoped CHANGELOG section using the same three-substep mechanism
+as `release-prep.yml` (pre-strip, `git cliff --unreleased --tag-pattern
+<channel-pattern> --prepend CHANGELOG.md`, link-ref update) and verifies the section
+contains at least one bullet entry (empty-output guard — exits 1 before committing if
+no qualifying commits exist). The CHANGELOG commit lands directly on `develop` with
+message `chore: update CHANGELOG for ${TAG}`; no PR is opened. The annotated tag
+(step 6) is created on that post-CHANGELOG develop HEAD, then pushed to origin (step
+7), triggering `release.yml` for the full 4-platform build and pre-release GitHub
+Release. An idempotency guard in step 5b checks whether `## [VERSION]` is already in
+`CHANGELOG.md` before re-running git-cliff, making re-dispatch safe when step 6 or 7
+fails transiently. The tag always points at the CHANGELOG-updated commit. (ADR-063
+§D7 Site 3.)
 
 **Nightly (IMPLEMENTED — `nightly.yml`):** The nightly channel is fully operational
 via `.github/workflows/nightly.yml` (scheduled cron 07:17 UTC, plus `workflow_dispatch`
@@ -202,6 +216,31 @@ The build path itself is shared and unchanged whether the channel is nightly or
 stable. The only difference is how the tag is created (dispatch workflow vs.
 `release-prep.yml` + `release-promote.yml`) and whether `main` is written.
 
+**Channel-scoped tag pattern (ADR-063 §D7):** git-cliff's global `tag_pattern`
+in `cliff.toml` matches all `v*` tags, which causes cross-channel tag masking —
+nightly tags between two beta releases appear as "already released" to git-cliff,
+silently dropping the intervening commits from the beta CHANGELOG. To prevent
+this, each channel uses a per-invocation `--tag-pattern` flag that restricts the
+tag universe to same-channel tags plus stable tags (the stable-floor fallback):
+
+| Channel | `--tag-pattern` |
+|---------|-----------------|
+| nightly | `^v[0-9]+\.[0-9]+\.[0-9]+(-nightly\.[0-9]{8}(\.[0-9]+)?)?$` |
+| alpha   | `^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$` |
+| beta    | `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$` |
+| rc      | `^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$` |
+| stable  | `^v[0-9]+\.[0-9]+\.[0-9]+$` (no optional suffix — must not admit pre-release tags) |
+
+The optional suffix group `(-channel\.N)?$` on pre-release patterns acts as the
+stable-floor: a stable `vX.Y.Z` tag (no suffix) satisfies the optional group and
+is included as the baseline, so the first pre-release on a new `X.Y.Z` line has a
+correct lower bound. The stable pattern carries NO optional suffix — it must not
+match any pre-release tag. `cliff.toml` is NOT modified by these per-invocation
+overrides; `--tag-pattern` replaces the configured value for that single run only.
+This channel scope logic is implemented at three sites per ADR-063 §D7:
+the nightly path of `release.yml` (Site 1), `release-prep.yml` Step 7 (Site 2),
+and `release-tag.yml` Step 5b (Site 3).
+
 ---
 
 ## 6. Retention Policy
@@ -289,5 +328,6 @@ build is marked Latest.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3 | 2026-09-09 | Added §5 channel-scoped `--tag-pattern` (ADR-063 §D7): per-channel release-notes tag filtering across `release.yml`/`release-prep.yml`/`release-tag.yml`. |
 | 0.2 | 2026-09-08 | §2/§6/§7: nightly channel status PLANNED → IMPLEMENTED (`nightly.yml`); retention and edge-nightly implemented; §5 already corrected to 4-target matrix (ADR-065 DROP-INTEL, PR #264); preamble status corrected; §6 retention regex quoted in fully-anchored `.N`-aware form; §3 worked-example nightly arm corrected to actual cron mechanism |
 | 0.1 | 2026-09-04 | Initial approval |
