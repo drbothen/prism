@@ -4,7 +4,7 @@ This document captures Prism's full release-channel strategy and maturity model.
 It is the reference for understanding what each channel promises, how versions
 flow through the ladder, and what criteria gate advancement.
 
-**Operator-approved: 2026-09-04. Last revised: 2026-09-08 (v0.2).**
+**Operator-approved: 2026-09-04. Last revised: 2026-09-09 (v0.3).**
 
 > **Relationship to RELEASING.md:** `RELEASING.md` (repo root) is the operational
 > stable-release runbook — step-by-step procedures for cutting a stable release using
@@ -314,5 +314,6 @@ build is marked Latest.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3 | 2026-09-09 | Added §5 channel-scoped `--tag-pattern` (ADR-063 §D7): per-channel release-notes tag filtering across `release.yml`/`release-prep.yml`/`release-tag.yml`. |
 | 0.2 | 2026-09-08 | §2/§6/§7: nightly channel status PLANNED → IMPLEMENTED (`nightly.yml`); retention and edge-nightly implemented; §5 already corrected to 4-target matrix (ADR-065 DROP-INTEL, PR #264); preamble status corrected; §6 retention regex quoted in fully-anchored `.N`-aware form; §3 worked-example nightly arm corrected to actual cron mechanism |
 | 0.1 | 2026-09-04 | Initial approval |
