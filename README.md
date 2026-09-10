@@ -1,7 +1,7 @@
 # Prism
 
-[![CI](https://github.com/drbothen/prism/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/drbothen/prism/actions/workflows/ci.yml)
-[![Latest Release](https://img.shields.io/github/v/release/drbothen/prism?include_prereleases)](https://github.com/drbothen/prism/releases)
+[![CI](https://github.com/BOHICA-LABS/prism/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/BOHICA-LABS/prism/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/BOHICA-LABS/prism?include_prereleases)](https://github.com/BOHICA-LABS/prism/releases)
 
 Prism is a Rust MCP server that unifies multi-client security sensor management
 for MSSP analysts. It provides a single PrismQL query interface over live sensor
@@ -18,7 +18,7 @@ formal verification, and structured audit logging. CrowdStrike Falcon, Cyberint,
 and Armis adapters are present in the workspace but are not yet supported in the
 pre-release; they return in the final stable release.
 
-See the [GitHub Releases page](https://github.com/drbothen/prism/releases) for
+See the [GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases) for
 the current pre-release and `CHANGELOG.md` for the full list of what shipped.
 
 ## Install
@@ -26,38 +26,38 @@ the current pre-release and `CHANGELOG.md` for the full list of what shipped.
 **macOS / Linux (recommended):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh | bash
 ```
 
 Auto-detects platform (macOS Apple Silicon, Linux glibc, Linux musl), verifies
 the SHA-256 checksum, and installs to `/usr/local/bin` or `~/.local/bin`. To pin a
 specific version, find the tag on the
-[GitHub Releases page](https://github.com/drbothen/prism/releases)
+[GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases)
 (navigate to the newest pre-release — do **not** use `/releases/latest/`, which
 excludes pre-releases) and pass it with `--version`:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version>
 ```
 
 **Windows (PowerShell 5.1+):**
 
 ```powershell
-irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex
 ```
 
 Installs to `%LOCALAPPDATA%\prism\bin`. To pin a version:
 
 ```powershell
 $env:PRISM_INSTALL_VERSION = '<version>'
-irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex
 ```
 
 ### Manual download (fallback)
 
 Download the archive for your platform from the
-[GitHub Releases page](https://github.com/drbothen/prism/releases). Navigate to the
+[GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases). Navigate to the
 newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre-releases).
 
 | Platform | Archive filename pattern |
@@ -76,7 +76,7 @@ prism --version
 
 ### Verify
 
-Verify checksums from the [GitHub Releases page](https://github.com/drbothen/prism/releases):
+Verify checksums from the [GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases):
 
 ```bash
 # macOS
@@ -89,8 +89,8 @@ Verify build provenance (requires `gh` CLI):
 
 ```bash
 gh attestation verify prism-<version>-<triple>.tar.gz \
-  --repo drbothen/prism \
-  --signer-workflow drbothen/prism/.github/workflows/release.yml
+  --repo BOHICA-LABS/prism \
+  --signer-workflow BOHICA-LABS/prism/.github/workflows/release.yml
 ```
 
 The install scripts run these checks automatically. See [`docs/SETUP.md`](docs/SETUP.md)

@@ -46,7 +46,7 @@ Key evidence from output:
 
 - `### Added` section present with entries from `feat:` commits
 - `### Fixed` section present with entries from `fix:` commits
-- PR links injected token-free: e.g. `([#262](https://github.com/drbothen/prism/pull/262))`
+- PR links injected token-free: e.g. `([#262](https://github.com/BOHICA-LABS/prism/pull/262))`
 - `<!-- N -->` group prefix markers stripped: only `### Added`, `### Fixed` visible (not `<!-- 1 -->Added`)
 - No entries from `docs:`, `ci:`, `chore:`, `test:`, `style:`, `build:`, or `revert:` commits
 
@@ -83,15 +83,15 @@ Key evidence from output:
 
 ### Added
 
-- version identity — 1.0.0-dev reset + PRISM_VERSION injection + version-agnostic docs ([#262](https://github.com/drbothen/prism/pull/262))
+- version identity — 1.0.0-dev reset + PRISM_VERSION injection + version-agnostic docs ([#262](https://github.com/BOHICA-LABS/prism/pull/262))
 
-- agent-facing version identity — prism-mcp serverInfo + prism-spec-engine UA (S-REL-AGENT-VERSION-001) ([#263](https://github.com/drbothen/prism/pull/263))
+- agent-facing version identity — prism-mcp serverInfo + prism-spec-engine UA (S-REL-AGENT-VERSION-001) ([#263](https://github.com/BOHICA-LABS/prism/pull/263))
 
 - git-cliff setup + technical-writer Layer-1 dispatch (S-REL-CLIFF-001, S-REL-WRITER-001)
 
 ### Fixed
 
-- musl rustup race + CHANGELOG beta.1 section + Release-notes wiring (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001) ([#261](https://github.com/drbothen/prism/pull/261))
+- musl rustup race + CHANGELOG beta.1 section + Release-notes wiring (DEFECT-REL001-MUSL-RUSTUP-COMPONENT-RACE-001) ([#261](https://github.com/BOHICA-LABS/prism/pull/261))
 ```
 
 `### Breaking Changes` appears BEFORE `### Added`, confirming the Tera filter-based two-part body mechanism (ADR-063 v1.7 D3 Deviation-2). The breaking entry shows ` — /v0/sensors removed, migrate to /v1/sensors` after the subject (em dash separator from the fixed template), confirming the `commit.breaking_description != commit.message` path is exercised correctly with no duplication.

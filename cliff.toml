@@ -72,7 +72,7 @@ commit_preprocessors = [
   # Rewrite "(#NNN)" in squash-merge commit subjects to markdown PR links.
   # Prism uses squash-merge; every merged PR subject already contains (#NNN).
   # This is the token-free PR-link mechanism — no GITHUB_TOKEN required.
-  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/drbothen/prism/pull/${1}))" },
+  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/BOHICA-LABS/prism/pull/${1}))" },
 ]
 commit_parsers = [
   { message = "^feat", group = "<!-- 1 -->Added" },
@@ -99,5 +99,5 @@ topo_order = false
 sort_commits = "oldest"
 
 [remote.github]
-owner = "drbothen"
+owner = "BOHICA-LABS"
 repo = "prism"

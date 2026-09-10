@@ -2,7 +2,7 @@
 # scripts/install.sh — Checksum-verified installer for Prism (macOS + Linux).
 #
 # USAGE
-#   curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh | bash
 #   bash install.sh --version <version>
 #   bash install.sh --version <version> --dry-run
 #   bash install.sh --version <version> --spec-dir /etc/prism/specs
@@ -38,7 +38,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-REPO="drbothen/prism"
+REPO="BOHICA-LABS/prism"
 INSTALL_DIR="/usr/local/bin"
 VERSION=""
 DRY_RUN=false
@@ -170,7 +170,7 @@ case "${OS}-${ARCH}" in
     # Windows reached via Git Bash, MSYS2, or Cygwin — use the PowerShell installer instead.
     printf 'ERROR: install.sh does not support Windows.\n' >&2
     printf '  Use scripts/install.ps1 for Windows (x86_64-pc-windows-msvc):\n' >&2
-    printf '  irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex\n' >&2
+    printf '  irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex\n' >&2
     exit 1
     ;;
   *)

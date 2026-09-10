@@ -302,7 +302,7 @@ All three guards pass on current HEAD.
 Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 
 **Final green attempt: Attempt 6**
-- Run URL: https://github.com/drbothen/prism/actions/runs/29721841906
+- Run URL: https://github.com/BOHICA-LABS/prism/actions/runs/29721841906
 - Tag: `v0.0.1-rc.test` at commit `339a0c04`
 - Tag push time: 2026-07-20T06:29:38Z
 
@@ -319,7 +319,7 @@ Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 
 ### Per-AC Dry-Run Citations
 
-**AC-005 (prerelease flag):** `isPrerelease: true` confirmed in `gh release view v0.0.1-rc.test --repo drbothen/prism --json isPrerelease,assets,tagName` output. Tag `v0.0.1-rc.test` matches `*-*` pattern — PRERELEASE_ARGS array populated with `--prerelease`. Idempotency re-run path: `gh release view "$TAG"` guard present in workflow (asserted by AC-005 test assertion #6).
+**AC-005 (prerelease flag):** `isPrerelease: true` confirmed in `gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism --json isPrerelease,assets,tagName` output. Tag `v0.0.1-rc.test` matches `*-*` pattern — PRERELEASE_ARGS array populated with `--prerelease`. Idempotency re-run path: `gh release view "$TAG"` guard present in workflow (asserted by AC-005 test assertion #6).
 
 **AC-006 (5-platform matrix):** 5 build-release legs ran — all 5 targets present, no `x86_x64` typo, `fail-fast: false` confirmed.
 
@@ -341,7 +341,7 @@ Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 
 **Evidence-representativeness:** Orchestrator verified `git diff 339a0c04..acb718fb -- .github/workflows/release.yml .github/workflows/requirements-musl-ci.txt crates/prism-credentials/` = EMPTY. Attempt-6 GREEN fully represents HEAD 75ce8cbf (commits after the tag touch only tests and evidence files, not the verified subjects).
 
-**Cleanup confirmed:** GitHub Release deleted (`gh api repos/drbothen/prism/releases/356544832 -X DELETE`), remote tag deleted (`gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE`), local tag deleted. All three deletion verifications confirmed clean.
+**Cleanup confirmed:** GitHub Release deleted (`gh api repos/BOHICA-LABS/prism/releases/356544832 -X DELETE`), remote tag deleted (`gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test -X DELETE`), local tag deleted. All three deletion verifications confirmed clean.
 
 ---
 

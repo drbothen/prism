@@ -274,7 +274,7 @@ jobs:
           path = 'CHANGELOG.md'
           content = open(path).read()
           m = re.search(
-              r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v(.+?)\.\.\.HEAD',
+              r'\[Unreleased\]: https://github\.com/BOHICA-LABS/prism/compare/v(.+?)\.\.\.HEAD',
               content,
           )
           if m:
@@ -294,15 +294,15 @@ jobs:
                       file=_sys.stderr,
                   )
               new_unreleased = (
-                  f'[Unreleased]: https://github.com/drbothen/prism/compare/v{version}...HEAD'
+                  f'[Unreleased]: https://github.com/BOHICA-LABS/prism/compare/v{version}...HEAD'
               )
               new_version_ref = (
-                  f'[{version}]: https://github.com/drbothen/prism/compare/'
+                  f'[{version}]: https://github.com/BOHICA-LABS/prism/compare/'
                   f'v{prev_version}...v{version}'
               )
               replacement = new_unreleased + '\n' + new_version_ref
               content = re.sub(
-                  r'\[Unreleased\]: https://github\.com/drbothen/prism/compare/v.+?\.\.\.HEAD',
+                  r'\[Unreleased\]: https://github\.com/BOHICA-LABS/prism/compare/v.+?\.\.\.HEAD',
                   lambda m: replacement,
                   content,
               )
@@ -400,10 +400,10 @@ jobs:
               '**After merge — to promote (see RELEASING.md §4):**',
               '```bash',
               '# Dry run first (validates without writing):',
-              f'gh workflow run release-promote.yml --repo drbothen/prism --ref develop --field tag=v{version} --field dry_run=true',
+              f'gh workflow run release-promote.yml --repo BOHICA-LABS/prism --ref develop --field tag=v{version} --field dry_run=true',
               '',
               '# Real promotion (requires release-main environment approval):',
-              f'gh workflow run release-promote.yml --repo drbothen/prism --ref develop --field tag=v{version} --field dry_run=false',
+              f'gh workflow run release-promote.yml --repo BOHICA-LABS/prism --ref develop --field tag=v{version} --field dry_run=false',
               '```',
               '',
               '## Checklist',

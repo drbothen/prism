@@ -51,7 +51,7 @@ The install scripts have no Rust toolchain dependency — they download a pre-bu
 ### macOS and Linux (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh | bash
 ```
 
 The script auto-detects the platform (macOS Apple Silicon, Linux glibc, Linux musl)
@@ -62,24 +62,24 @@ build provenance via Sigstore.
 To pin a specific version:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version>
 ```
 
 Replace `<version>` with the tag from the newest pre-release on the
-[GitHub Releases page](https://github.com/drbothen/prism/releases).
+[GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases).
 
 To preview without installing:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version> --dry-run
 ```
 
 To skip provenance verification (e.g., `gh` CLI not installed):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --skip-verify-provenance
 ```
 
@@ -87,21 +87,21 @@ To install sensor specs at the same time as the binary (recommended — download
 SHA-256 verifies `prism-specs-<version>.tar.gz` from the release):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version> --spec-dir /etc/prism/specs
 ```
 
 To overwrite existing spec files (e.g., when upgrading to a new release):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version> --spec-dir /etc/prism/specs --force-specs
 ```
 
 ### Windows (PowerShell 5.1+)
 
 ```powershell
-irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex
 ```
 
 Installs to `%LOCALAPPDATA%\prism\bin\prism.exe`. Verifies SHA-256 checksum before installing.
@@ -111,14 +111,14 @@ arguments cannot be passed through that pattern):
 
 ```powershell
 $env:PRISM_INSTALL_VERSION = '<version>'
-irm https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.ps1 | iex
 ```
 
 To install sensor specs at the same time as the binary (`-SpecDir` cannot be passed through
 `irm | iex` — download the release script first, then invoke it directly):
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/drbothen/prism/releases/download/<version>/install.ps1" `
+Invoke-WebRequest -Uri "https://github.com/BOHICA-LABS/prism/releases/download/<version>/install.ps1" `
     -OutFile "$env:TEMP\prism-install.ps1" -UseBasicParsing
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\prism-install.ps1" -Version <version> -SpecDir C:\prism\specs
 ```
@@ -132,7 +132,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\prism-install.ps1
 ### Manual download (fallback)
 
 If the install scripts are unavailable, download the archive directly from the
-[GitHub Releases page](https://github.com/drbothen/prism/releases). Navigate to the
+[GitHub Releases page](https://github.com/BOHICA-LABS/prism/releases). Navigate to the
 newest pre-release (do **not** use `/releases/latest/` — that URL excludes pre-releases).
 
 | Platform | Archive filename pattern |
@@ -185,8 +185,8 @@ The install scripts perform this check automatically and abort on mismatch.
 
 ```bash
 gh attestation verify prism-<version>-<triple>.tar.gz \
-  --repo drbothen/prism \
-  --signer-workflow drbothen/prism/.github/workflows/release.yml
+  --repo BOHICA-LABS/prism \
+  --signer-workflow BOHICA-LABS/prism/.github/workflows/release.yml
 ```
 
 Replace `<version>` and `<triple>` with the tag and platform triple you downloaded. A successful
@@ -209,13 +209,13 @@ preferred method because it is pinned to the exact release version and checksum-
 
 ```bash
 # macOS / Linux: install binary + specs in one step
-bash <(curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/scripts/install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/scripts/install.sh) \
   --version <version> --spec-dir /etc/prism/specs
 ```
 
 ```powershell
 # Windows: install binary + specs in one step (download script first, then invoke with -SpecDir)
-Invoke-WebRequest -Uri "https://github.com/drbothen/prism/releases/download/<version>/install.ps1" `
+Invoke-WebRequest -Uri "https://github.com/BOHICA-LABS/prism/releases/download/<version>/install.ps1" `
     -OutFile "$env:TEMP\prism-install.ps1" -UseBasicParsing
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\prism-install.ps1" -Version <version> -SpecDir C:\prism\specs
 ```
@@ -231,7 +231,7 @@ piped and the flag was omitted), download the spec directly from the GitHub repo
 mkdir -p /etc/prism/specs
 
 # Download the Claroty xDome spec (primary supported sensor)
-curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/crates/prism-sensors/specs/claroty.sensor.toml \
+curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/crates/prism-sensors/specs/claroty.sensor.toml \
   -o /etc/prism/specs/claroty.sensor.toml
 ```
 
@@ -267,7 +267,7 @@ mkdir -p ~/.config/prism   # per-user
 Download `prism.toml.example` from the repository as a starting template:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/drbothen/prism/main/prism.toml.example \
+curl -fsSL https://raw.githubusercontent.com/BOHICA-LABS/prism/main/prism.toml.example \
   -o /etc/prism/prism.toml.example
 
 # Copy to prism.toml to edit

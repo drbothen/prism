@@ -3,11 +3,11 @@
 
 **Destination note:** The story spec called for a fork dry-run. A fork is structurally
 impossible when the authenticated user IS the repository owner (GitHub enforces this).
-The human explicitly approved running the dry-run against `origin` (drbothen/prism,
+The human explicitly approved running the dry-run against `origin` (BOHICA-LABS/prism,
 the user's own public repo) as the correct alternative. This is documented in the
 orchestrator's Task 12 dispatch as "HUMAN-APPROVED destination: origin".
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29709483646
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29709483646
 
 **Tag:** `v0.0.1-rc.test` at commit `6be04270d94013039f09e75c6ba6b65a95fb40de`
 
@@ -21,12 +21,12 @@ orchestrator's Task 12 dispatch as "HUMAN-APPROVED destination: origin".
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| x86_64-unknown-linux-gnu | 88251358882 | FAIL | 18m 9s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88251358882 |
-| x86_64-unknown-linux-musl | 88251358889 | FAIL | 9m 12s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88251358889 |
-| x86_64-pc-windows-msvc | 88251358895 | FAIL | 35m 37s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88251358895 |
-| aarch64-apple-darwin | 88251358899 | FAIL | 18m 30s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88251358899 |
-| x86_64-apple-darwin | 88251358918 | FAIL | 31m 56s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88251358918 |
-| publish-release (Create GitHub Release) | 88253186504 | SKIPPED | 0s | https://github.com/drbothen/prism/actions/runs/29709483646/job/88253186504 |
+| x86_64-unknown-linux-gnu | 88251358882 | FAIL | 18m 9s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88251358882 |
+| x86_64-unknown-linux-musl | 88251358889 | FAIL | 9m 12s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88251358889 |
+| x86_64-pc-windows-msvc | 88251358895 | FAIL | 35m 37s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88251358895 |
+| aarch64-apple-darwin | 88251358899 | FAIL | 18m 30s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88251358899 |
+| x86_64-apple-darwin | 88251358918 | FAIL | 31m 56s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88251358918 |
+| publish-release (Create GitHub Release) | 88253186504 | SKIPPED | 0s | https://github.com/BOHICA-LABS/prism/actions/runs/29709483646/job/88253186504 |
 
 All 5 build-release matrix legs failed. The publish-release job was correctly
 skipped (`needs: build-release`).
@@ -87,7 +87,7 @@ because all 5 `build-release` matrix legs failed. No GitHub Release exists for
 content cannot be captured in this run.
 
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
 ```
 
 EC-001/AC-005 (prerelease flag must be true for `-` tags) wire proof is BLOCKED
@@ -126,7 +126,7 @@ git push origin :refs/tags/v0.0.1-rc.test
 
 Executed at step 6. Verified by:
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"  (before cleanup, already true)
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"  (before cleanup, already true)
 git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)  (after cleanup)
 ```
 
@@ -164,7 +164,7 @@ a CI/CD artifact; the required step SHA is already pinned in `ci.yml`).
 
 **Tag push time (UTC):** 2026-07-20T01:42:31Z
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29711315678
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29711315678
 
 **Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate)
 
@@ -174,11 +174,11 @@ a CI/CD artifact; the required step SHA is already pinned in `ci.yml`).
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| x86_64-apple-darwin | 88255545319 | PASS | 10m 53s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545319 |
-| x86_64-pc-windows-msvc | 88255545321 | PASS | 14m 12s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545321 |
-| x86_64-unknown-linux-musl | 88255545323 | FAIL | 2m 6s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545323 |
-| x86_64-unknown-linux-gnu | 88255545331 | PASS | 6m 43s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545331 |
-| aarch64-apple-darwin | 88255545340 | PASS | 6m 15s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545340 |
+| x86_64-apple-darwin | 88255545319 | PASS | 10m 53s | https://github.com/BOHICA-LABS/prism/actions/runs/29711315678/job/88255545319 |
+| x86_64-pc-windows-msvc | 88255545321 | PASS | 14m 12s | https://github.com/BOHICA-LABS/prism/actions/runs/29711315678/job/88255545321 |
+| x86_64-unknown-linux-musl | 88255545323 | FAIL | 2m 6s | https://github.com/BOHICA-LABS/prism/actions/runs/29711315678/job/88255545323 |
+| x86_64-unknown-linux-gnu | 88255545331 | PASS | 6m 43s | https://github.com/BOHICA-LABS/prism/actions/runs/29711315678/job/88255545331 |
+| aarch64-apple-darwin | 88255545340 | PASS | 6m 15s | https://github.com/BOHICA-LABS/prism/actions/runs/29711315678/job/88255545340 |
 | publish-release (Create GitHub Release) | 88256432739 | SKIPPED | 0s | N/A |
 
 4 of 5 build-release legs passed. DEFECT-REL001-PROTOC-MISSING-001 is CONFIRMED
@@ -246,7 +246,7 @@ because the musl `build-release` matrix leg failed (`needs: build-release` requi
 all legs to succeed). No GitHub Release was created for `v0.0.1-rc.test`.
 
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
 ```
 
 EC-001/AC-005 (prerelease flag must be true for `-` tags) wire proof is partially
@@ -279,7 +279,7 @@ successful attestations are internally consistent — confirmed by the passing j
 
 ```
 git push origin :refs/tags/v0.0.1-rc.test
-To https://github.com/drbothen/prism.git
+To https://github.com/BOHICA-LABS/prism.git
  - [deleted]           v0.0.1-rc.test
 ```
 
@@ -295,7 +295,7 @@ Deleted tag 'v0.0.1-rc.test' (was 68247e87)
 ```
 git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
 git tag -l "v0.0.1-rc.test" → (empty)
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
 ```
 
 All confirmed clean.
@@ -331,7 +331,7 @@ on the `Build release binary` step in `.github/workflows/release.yml`).
 
 **Tag push time (UTC):** 2026-07-20T02:32:47Z
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29712784282
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29712784282
 
 **Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; 103s)
 
@@ -341,11 +341,11 @@ on the `Build release binary` step in `.github/workflows/release.yml`).
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| aarch64-apple-darwin | 88259545512 | PASS | 6m36s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545512 |
-| x86_64-unknown-linux-gnu | 88259545514 | PASS | 6m34s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545514 |
-| x86_64-unknown-linux-musl | 88259545525 | FAIL | 2m35s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545525 |
-| x86_64-apple-darwin | 88259545540 | PASS | 15m12s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545540 |
-| x86_64-pc-windows-msvc | 88259545508 | PASS | 14m23s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545508 |
+| aarch64-apple-darwin | 88259545512 | PASS | 6m36s | https://github.com/BOHICA-LABS/prism/actions/runs/29712784282/job/88259545512 |
+| x86_64-unknown-linux-gnu | 88259545514 | PASS | 6m34s | https://github.com/BOHICA-LABS/prism/actions/runs/29712784282/job/88259545514 |
+| x86_64-unknown-linux-musl | 88259545525 | FAIL | 2m35s | https://github.com/BOHICA-LABS/prism/actions/runs/29712784282/job/88259545525 |
+| x86_64-apple-darwin | 88259545540 | PASS | 15m12s | https://github.com/BOHICA-LABS/prism/actions/runs/29712784282/job/88259545540 |
+| x86_64-pc-windows-msvc | 88259545508 | PASS | 14m23s | https://github.com/BOHICA-LABS/prism/actions/runs/29712784282/job/88259545508 |
 | publish-release (Create GitHub Release) | 88260889151 | SKIPPED | 0s | N/A |
 
 4 of 5 build-release legs passed. DEFECT-REL001-MUSL-DBUS-001 CONFIRMED FIXED —
@@ -495,7 +495,7 @@ on all legs.
 
 ```
 git push origin :refs/tags/v0.0.1-rc.test
-To https://github.com/drbothen/prism.git
+To https://github.com/BOHICA-LABS/prism.git
  - [deleted]           v0.0.1-rc.test
 ```
 
@@ -511,7 +511,7 @@ Deleted tag 'v0.0.1-rc.test' (was 4efed8d8)
 ```
 git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
 git tag -l "v0.0.1-rc.test" → (empty)
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
 ```
 
 All confirmed clean.
@@ -547,7 +547,7 @@ blocked pending Attempt 4 with DEFECT-REL001-MUSL-CXX-001 fix.
 
 **Tag push time (UTC):** 2026-07-20T03:10:02Z
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29714047923
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29714047923
 
 **Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; ~72s)
 
@@ -557,11 +557,11 @@ blocked pending Attempt 4 with DEFECT-REL001-MUSL-CXX-001 fix.
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| x86_64-unknown-linux-gnu | 88263391460 | PASS | 4m18s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391460 |
-| x86_64-unknown-linux-musl | 88263391440 | FAIL | 24m43s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391440 |
-| x86_64-pc-windows-msvc | 88263391422 | PASS | 8m4s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391422 |
-| aarch64-apple-darwin | 88263391474 | PASS | 6m15s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391474 |
-| x86_64-apple-darwin | 88263391475 | PASS | 6m23s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391475 |
+| x86_64-unknown-linux-gnu | 88263391460 | PASS | 4m18s | https://github.com/BOHICA-LABS/prism/actions/runs/29714047923/job/88263391460 |
+| x86_64-unknown-linux-musl | 88263391440 | FAIL | 24m43s | https://github.com/BOHICA-LABS/prism/actions/runs/29714047923/job/88263391440 |
+| x86_64-pc-windows-msvc | 88263391422 | PASS | 8m4s | https://github.com/BOHICA-LABS/prism/actions/runs/29714047923/job/88263391422 |
+| aarch64-apple-darwin | 88263391474 | PASS | 6m15s | https://github.com/BOHICA-LABS/prism/actions/runs/29714047923/job/88263391474 |
+| x86_64-apple-darwin | 88263391475 | PASS | 6m23s | https://github.com/BOHICA-LABS/prism/actions/runs/29714047923/job/88263391475 |
 | publish-release (Create GitHub Release) | 88266291087 | SKIPPED | 0s | N/A |
 
 4 of 5 build-release legs passed. DEFECT-REL001-MUSL-CXX-001 CONFIRMED PARTIALLY FIXED:
@@ -717,7 +717,7 @@ the archive step). OIDC token (`id-token: write` permission) was available on al
 
 ```
 git push origin :refs/tags/v0.0.1-rc.test
-To https://github.com/drbothen/prism.git
+To https://github.com/BOHICA-LABS/prism.git
  - [deleted]           v0.0.1-rc.test
 ```
 
@@ -733,7 +733,7 @@ Deleted tag 'v0.0.1-rc.test' (was 01b7ecee)
 ```
 git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
 git tag -l "v0.0.1-rc.test" → (empty)
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
 ```
 
 All confirmed clean.
@@ -769,7 +769,7 @@ nextest + non-exhaustive 92/92 gate; ~71s)
 
 **Tag push time (UTC):** 2026-07-20T04:26:04Z
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29716875946
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29716875946
 
 **Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; ~71s)
 
@@ -779,12 +779,12 @@ nextest + non-exhaustive 92/92 gate; ~71s)
 
 | Target | Job ID | Conclusion | Job Link |
 |--------|--------|------------|----------|
-| aarch64-apple-darwin | 88271792164 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88271792164 |
-| x86_64-apple-darwin | 88271792158 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88271792158 |
-| x86_64-pc-windows-msvc | 88271792167 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88271792167 |
-| x86_64-unknown-linux-gnu | 88271792168 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88271792168 |
-| x86_64-unknown-linux-musl | 88271792201 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88271792201 |
-| Create GitHub Release (publish-release) | 88276300099 | PASS | https://github.com/drbothen/prism/actions/runs/29716875946/job/88276300099 |
+| aarch64-apple-darwin | 88271792164 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88271792164 |
+| x86_64-apple-darwin | 88271792158 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88271792158 |
+| x86_64-pc-windows-msvc | 88271792167 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88271792167 |
+| x86_64-unknown-linux-gnu | 88271792168 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88271792168 |
+| x86_64-unknown-linux-musl | 88271792201 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88271792201 |
+| Create GitHub Release (publish-release) | 88276300099 | PASS | https://github.com/BOHICA-LABS/prism/actions/runs/29716875946/job/88276300099 |
 
 ALL 5 build-release legs passed. `Create GitHub Release` (publish-release) job ran and succeeded.
 DEFECT-REL001-MUSL-LIBSTDCXX-001 CONFIRMED FIXED — musl leg completed without linker errors.
@@ -876,7 +876,7 @@ EXIT: 0
 ### Release Asset Listing (EC-001/AC-005)
 
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism --json isPrerelease,assets,tagName
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism --json isPrerelease,assets,tagName
 tagName: v0.0.1-rc.test
 isPrerelease: true
 Assets (6 total):
@@ -928,7 +928,7 @@ for Create GitHub Release) was available on all legs. First run with musl attest
 
 ### Idempotency Spot-Check (EC-009) — Attempt 5
 
-**Re-run method:** `gh run rerun 29716875946 --job 88276300099 --repo drbothen/prism`
+**Re-run method:** `gh run rerun 29716875946 --job 88276300099 --repo BOHICA-LABS/prism`
 
 **Re-run result:** New `Create GitHub Release` job ID 88276971536, conclusion = success.
 
@@ -960,13 +960,13 @@ that the factory-dispatcher targets the `gh release delete` CLI command pattern.
 
 1. GitHub Release deleted:
 ```
-gh api repos/drbothen/prism/releases/356511959 -X DELETE
+gh api repos/BOHICA-LABS/prism/releases/356511959 -X DELETE
 → (no output, exit 0) "Release deleted via API"
 ```
 
 2. Remote tag deleted:
 ```
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
 → (no output, exit 0) "Remote tag deleted"
 ```
 
@@ -978,8 +978,8 @@ Deleted tag 'v0.0.1-rc.test' (was fc430c4a)
 
 4. Verification:
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found
 git tag -l v0.0.1-rc.test → (empty)
 ```
 
@@ -1032,7 +1032,7 @@ nextest + non-exhaustive 92/92 gate; ~110s)
 
 **Tag push time (UTC):** 2026-07-20T06:29:38Z
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29721841906
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29721841906
 
 **Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; ~110s)
 
@@ -1048,12 +1048,12 @@ respectively; a live run is required to confirm the build still passes without c
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| x86_64-unknown-linux-gnu | 88286303293 | PASS | 24m 5s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303293 |
-| x86_64-unknown-linux-musl | 88286303308 | PASS | 19m 6s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303308 |
-| aarch64-apple-darwin | 88286303326 | PASS | 30m 13s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303326 |
-| x86_64-pc-windows-msvc | 88286303334 | PASS | 6m 42s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303334 |
-| x86_64-apple-darwin | 88286303337 | PASS | 5m 46s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303337 |
-| Create GitHub Release (publish-release) | 88290498683 | PASS | 27s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88290498683 |
+| x86_64-unknown-linux-gnu | 88286303293 | PASS | 24m 5s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88286303293 |
+| x86_64-unknown-linux-musl | 88286303308 | PASS | 19m 6s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88286303308 |
+| aarch64-apple-darwin | 88286303326 | PASS | 30m 13s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88286303326 |
+| x86_64-pc-windows-msvc | 88286303334 | PASS | 6m 42s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88286303334 |
+| x86_64-apple-darwin | 88286303337 | PASS | 5m 46s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88286303337 |
+| Create GitHub Release (publish-release) | 88290498683 | PASS | 27s | https://github.com/BOHICA-LABS/prism/actions/runs/29721841906/job/88290498683 |
 
 ALL 5 build-release legs PASSED. `Create GitHub Release` (publish-release) job PASSED.
 
@@ -1156,7 +1156,7 @@ EXIT: 0
 ### Release Asset Listing (EC-001/AC-005)
 
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism --json isPrerelease,assets,tagName
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism --json isPrerelease,assets,tagName
 tagName: v0.0.1-rc.test
 isPrerelease: true
 Assets (6 total):
@@ -1205,13 +1205,13 @@ All 5 attestations: success. 5/5 PASS.
 
 1. GitHub Release deleted:
 ```
-gh api repos/drbothen/prism/releases/356544832 -X DELETE
+gh api repos/BOHICA-LABS/prism/releases/356544832 -X DELETE
 → (no output, exit 0) "Release deleted via API"
 ```
 
 2. Remote tag deleted:
 ```
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
 → (no output, exit 0) "Remote tag deleted"
 ```
 
@@ -1223,8 +1223,8 @@ Deleted tag 'v0.0.1-rc.test' (was 339a0c04)
 
 4. Verification:
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"  (exit 1)
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found  (exit 1)
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"  (exit 1)
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found  (exit 1)
 git tag -l "v0.0.1-rc.test" → (empty)  (0 entries)
 ```
 
@@ -1431,7 +1431,7 @@ nextest + non-exhaustive 92/92 gate; ~77s)
 
 **Tag push time (UTC):** 2026-07-20T16:23:32Z (tag appeared in GHA run list at this timestamp)
 
-**Run URL:** https://github.com/drbothen/prism/actions/runs/29759391659
+**Run URL:** https://github.com/BOHICA-LABS/prism/actions/runs/29759391659
 
 **Workflow completed:** 2026-07-20T17:29:35Z
 
@@ -1448,12 +1448,12 @@ commit. This attempt provides the first live execution of the corrected guard.
 
 | Target | Job ID | Conclusion | Duration | Job Link |
 |--------|--------|------------|----------|----------|
-| x86_64-unknown-linux-gnu | 88409918609 | PASS | 21m3s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918609 |
-| x86_64-unknown-linux-musl | 88409918634 | PASS | 26m27s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918634 |
-| aarch64-apple-darwin | 88409918647 | PASS | 26m56s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918647 |
-| x86_64-apple-darwin | 88409918652 | PASS | 37m45s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918652 |
-| x86_64-pc-windows-msvc | 88409918771 | PASS | 44m42s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918771 |
-| Create GitHub Release (publish-release) | 88424900556 | PASS | 0m32s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88424900556 |
+| x86_64-unknown-linux-gnu | 88409918609 | PASS | 21m3s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88409918609 |
+| x86_64-unknown-linux-musl | 88409918634 | PASS | 26m27s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88409918634 |
+| aarch64-apple-darwin | 88409918647 | PASS | 26m56s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88409918647 |
+| x86_64-apple-darwin | 88409918652 | PASS | 37m45s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88409918652 |
+| x86_64-pc-windows-msvc | 88409918771 | PASS | 44m42s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88409918771 |
+| Create GitHub Release (publish-release) | 88424900556 | PASS | 0m32s | https://github.com/BOHICA-LABS/prism/actions/runs/29759391659/job/88424900556 |
 
 ALL 5 build-release legs PASSED. `Create GitHub Release` (publish-release) job PASSED.
 
@@ -1580,7 +1580,7 @@ c6305cb4579606441dc17fe31f29c360bb12693254a4065621ac920c40e97f24  prism-v0.0.1-r
 
 ### Attestation Step Outcome — Attempt 7
 
-All 5 binaries verified via `gh attestation verify <local-file> --repo drbothen/prism`:
+All 5 binaries verified via `gh attestation verify <local-file> --repo BOHICA-LABS/prism`:
 
 ```
 prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz: EXIT 0
@@ -1598,13 +1598,13 @@ Attestations 5/5: PASS. All `gh attestation verify` calls exited 0.
 
 1. GitHub Release deleted (Release ID 356893681):
 ```
-gh api repos/drbothen/prism/releases/356893681 -X DELETE
+gh api repos/BOHICA-LABS/prism/releases/356893681 -X DELETE
 → (no output, exit 0) "Release deleted via API"
 ```
 
 2. Remote tag deleted:
 ```
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
 → (no output, exit 0) "Remote tag deleted"
 ```
 
@@ -1616,8 +1616,8 @@ Deleted tag 'v0.0.1-rc.test' (was 4ed7bd1c)
 
 4. Verification:
 ```
-gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
-gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found
+gh release view v0.0.1-rc.test --repo BOHICA-LABS/prism → "release not found"
+gh api repos/BOHICA-LABS/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found
 git tag -l "v0.0.1-rc.test" → (empty)
 ```
 
