@@ -466,6 +466,17 @@ Authority: `cliff.toml` at repo root (ADR-063 §D3); flag set `--unreleased --ta
 mechanism is canonical as of ADR-063 §D3 (empirically validated against
 git-cliff 2.14.1 behavior).
 
+**Ad-hoc pre-release lane (`release-tag.yml`):** When `release-tag.yml` is
+dispatched with a pre-release tag (alpha, beta, rc, dev), step 5b auto-generates
+the channel-scoped Layer-2 CHANGELOG section using the same three-substep
+mechanism (pre-strip, git-cliff with `--tag-pattern` scoped to the tag's channel,
+link-ref update) and pushes a `chore: update CHANGELOG` commit directly to
+`develop` before the annotated tag is created — so the tag points at the
+CHANGELOG-updated commit. This is distinct from the `release-prep.yml` PR path
+above: no PR is opened; the CHANGELOG commit lands directly on `develop`. The
+idempotency guard (step 5b checks whether `## [VERSION]` already exists) makes
+re-dispatch safe. (ADR-063 §D7 Site 3.)
+
 #### Layer 1 — Curated top-block (human-authored, agent-assisted)
 
 After git-cliff prepends the `## [VERSION]` block, the `vsdd-factory:technical-writer`
