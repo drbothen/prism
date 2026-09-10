@@ -345,7 +345,7 @@ jobs:
               import sys
               print('::error::CHANGELOG.md [Unreleased]: compare link not found — '
                     'compare-link references NOT updated. Add a valid [Unreleased]: '
-                    'compare link to CHANGELOG.md footer and re-run.', file=sys.stderr)
+                    'compare link to CHANGELOG.md footer and re-run.')
               sys.exit(1)
           PYEOF
 

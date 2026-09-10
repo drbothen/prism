@@ -480,13 +480,13 @@ setup step, so `cargo install` is not used); step 5b checks whether
 present, regeneration is skipped and the workflow proceeds directly to tagging,
 making re-dispatch safe when step 6 or 7 fails transiently), detects the channel
 from the tag and sets a `--tag-pattern` scoped to that channel (ADR-063 §D7), runs
-the full three-substep mechanism (pre-strip, `git cliff --unreleased --tag "${TAG}"
---tag-pattern "${TAG_PATTERN}" --prepend CHANGELOG.md`, link-ref update), then
-verifies the new section contains at least one `- ` bullet entry (empty-output guard
-— exits 1 BEFORE any `git commit` or `git push origin develop` if no qualifying
-commits are found; nothing lands on `origin` and no tag is created), and finally
-commits `CHANGELOG.md` with `chore: update CHANGELOG for ${TAG}` and pushes
-directly to `develop`. Step 6 creates the annotated tag on that post-CHANGELOG
+the three-substep mechanism in order: pre-strip (sub-step A), then
+`git cliff --unreleased --tag "${TAG}" --tag-pattern "${TAG_PATTERN}" --prepend
+CHANGELOG.md` (sub-step B), then the empty-section guard (exits 1 BEFORE any
+`git commit` or `git push origin develop` if the new section contains no `- ` bullet
+entries — no qualifying commits; nothing lands on `origin` and no tag is created),
+then link-ref update (sub-step C), and finally commits `CHANGELOG.md` with
+`chore: update CHANGELOG for ${TAG}` and pushes directly to `develop`. Step 6 creates the annotated tag on that post-CHANGELOG
 `develop` HEAD; step 7 pushes the tag to origin, triggering `release.yml`. No PR
 is opened; the tag always points at the CHANGELOG-updated commit. (ADR-063 §D7
 Site 3.)

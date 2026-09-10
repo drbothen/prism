@@ -260,7 +260,7 @@ jobs:
           # publish-release always runs on ubuntu-latest; sha256sum is always present.
           sha256sum "$SPECS_ARCHIVE" >> checksums.txt
       - name: Fetch full history and tags (nightly path)
-        # git-cliff --current requires the full tag history that the default
+        # git-cliff --latest requires the full tag history that the default
         # shallow checkout (fetch-depth: 1) does not provide. This step fetches
         # complete history and all tags so git-cliff can walk the tag range.
         # Gated to nightly tags only — stable/beta/rc channels use curated
@@ -307,7 +307,7 @@ jobs:
           #                                                                      #
           # NIGHTLY (exact form: vX.Y.Z-nightly.YYYYMMDD or .YYYYMMDD.N):      #
           # Machine-generated dated tags cannot have pre-authored CHANGELOG     #
-          # sections. git-cliff --current --strip=header generates categorized  #
+          # sections. git-cliff --latest --strip=header generates categorized   #
           # changelog output (feat/fix/perf/refactor/security) for the nightly  #
           # window; --strip=header omits the cliff.toml [changelog] header so   #
           # no masthead leaks into the release body. Falls back to the canned   #
@@ -325,8 +325,9 @@ jobs:
           # ------------------------------------------------------------------ #
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}(\.[0-9]+)?$ ]]; then
             # ----- NIGHTLY CHANNEL: git-cliff categorized output (fallback: canned body) -----
-            # git-cliff --latest renders commits between the two most recent tag_pattern-matching
-            # tags (cliff.toml tag_pattern "v[0-9].*" matches nightly tags). Unlike --current,
+            # git-cliff --latest renders commits between the two most recent tags matched by
+            # the --tag-pattern CLI flag (scoped to the nightly channel for this invocation;
+            # --tag-pattern overrides cliff.toml's tag_pattern). Unlike --current,
             # --latest does NOT require a tag at the exact HEAD commit — it works in the nightly
             # build's checkout context where HEAD is the workflow-checked-out SHA, not a tag.
             # --strip=header omits the cliff.toml [changelog] header field so only
