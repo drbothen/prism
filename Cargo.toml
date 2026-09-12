@@ -76,6 +76,13 @@ rmcp = { version = "1.7", features = ["server", "macros", "transport-io"] }
 # rmcp 1.7 declares `schemars = "1.0"` in its dependencies; we must match major version.
 schemars = "1"
 
+[workspace.lints.rust]
+# Tests are named after the contract they cover (test_BC_2_06_019_..., test_AC_003_...)
+# so a failing test names its BC or AC directly. That traceability is the point, and it
+# collides with snake_case. prism-query already set this crate-wide; hoisted to the
+# workspace so every crate follows the same convention.
+non_snake_case = "allow"
+
 [workspace.lints.clippy]
 await_holding_lock = "deny"
 unwrap_used = "deny"

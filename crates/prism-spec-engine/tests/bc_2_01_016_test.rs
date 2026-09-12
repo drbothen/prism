@@ -329,7 +329,7 @@ variables_produced = []
         parse_spec_directory(dir.path()).expect("parse_spec_directory must not return Err");
 
     assert!(
-        snapshot.sensor_specs.get("xcomp_boot_sensor").is_none(),
+        !snapshot.sensor_specs.contains_key("xcomp_boot_sensor"),
         "F-LP-IMPL-P2-001: cross-composition spec must NOT appear in sensor_specs; \
          parse_and_validate_spec_toml must call validate_cross_composition before accepting spec"
     );

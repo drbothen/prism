@@ -430,10 +430,7 @@ fn test_BC_2_16_022_claroty_org_acl_policies_tier1_four_tier2_seven_correct_type
             .columns
             .iter()
             .find(|col| col.name == *dt_col_name)
-            .expect(&format!(
-                "BC-2.16.022 AC-004: '{}' column must exist",
-                dt_col_name
-            ));
+            .unwrap_or_else(|| panic!("BC-2.16.022 AC-004: '{}' column must exist", dt_col_name));
         assert_eq!(
             dt_col.column_type,
             ColumnType::Datetime,
@@ -668,24 +665,23 @@ async fn test_BC_2_16_022_claroty_org_acl_policies_live_wire_shape_class_uid_and
         );
 
         // 4. raw_extensions["applied_models"] is a native JSON array (not a string).
-        if let Some(raw_ext_val) = simulated_wire_row.get("raw_extensions") {
-            if let Some(raw_ext_obj) = raw_ext_val.as_object() {
-                if let Some(applied_models) = raw_ext_obj.get("applied_models") {
-                    assert!(
-                        applied_models.is_array(),
-                        "RG-007: raw_extensions['applied_models'] MUST be a NATIVE JSON array, \
+        if let Some(raw_ext_val) = simulated_wire_row.get("raw_extensions")
+            && let Some(raw_ext_obj) = raw_ext_val.as_object()
+            && let Some(applied_models) = raw_ext_obj.get("applied_models")
+        {
+            assert!(
+                applied_models.is_array(),
+                "RG-007: raw_extensions['applied_models'] MUST be a NATIVE JSON array, \
                          NOT a JSON string. column_type = 'json' arm (ENRICH-1 DD-2) must \
                          preserve the native array. Got: {:?}. BC-2.16.022 §PC5.",
-                        applied_models
-                    );
-                    assert!(
-                        !applied_models.is_string(),
-                        "RG-007: raw_extensions['applied_models'] MUST NOT be a JSON string. \
+                applied_models
+            );
+            assert!(
+                !applied_models.is_string(),
+                "RG-007: raw_extensions['applied_models'] MUST NOT be a JSON string. \
                          Got: {:?}. BC-2.16.022 §PC5.",
-                        applied_models
-                    );
-                }
-            }
+                applied_models
+            );
         }
 
         // 5. Raw TOML name 'policy_id' MUST NOT appear as a top-level wire key.

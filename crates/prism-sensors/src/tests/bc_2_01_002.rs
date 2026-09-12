@@ -47,6 +47,10 @@ fn test_BC_2_01_002_max_fanout_concurrency_is_10() {
 /// `FanOutTarget` fields are publicly accessible and `Clone`-able.
 /// Verifies the struct layout compiles as specified in the story.
 #[test]
+// The per-statement #[allow(deprecated)] inside this test does not reach into the
+// assert_eq! expansion, so the allow belongs on the function. The deprecated field
+// is what this test exists to cover until it is removed.
+#[allow(deprecated)]
 fn test_BC_2_01_002_fan_out_target_fields_accessible() {
     use crate::{
         adapter::{QueryParams, SensorSpec},
@@ -67,15 +71,14 @@ fn test_BC_2_01_002_fan_out_target_fields_accessible() {
         params: QueryParams::default(),
     };
 
-    #[allow(deprecated)]
-    let _ = assert_eq!(target.client_id, "acme");
+    assert_eq!(target.client_id, "acme");
     assert_eq!(target.sensor_id, SensorId::from("crowdstrike"));
     assert_eq!(target.spec.source_table, "crowdstrike_alert");
 
     // Clone round-trip
     let cloned = target.clone();
-    #[allow(deprecated)]
-    let _ = assert_eq!(cloned.client_id, "acme");
+
+    assert_eq!(cloned.client_id, "acme");
 }
 
 // ---------------------------------------------------------------------------

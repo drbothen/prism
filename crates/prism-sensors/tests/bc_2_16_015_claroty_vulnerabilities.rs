@@ -11,11 +11,11 @@
 //!   - Each test finds the `vulnerabilities` table via `.find()` and panics at
 //!     `.expect("vulnerabilities table must exist")` because the `[[tables]]`
 //!     block has not yet been added to `claroty.sensor.toml`.
-//! Also in this file (pass-2 additions, non-RGT extra coverage): EC-005 (cve_ids
-//! empty-array), EC-006 (published_date null), F-VULNS-P1-005 (null-count non-empty
-//! page).
-//! Also in this file (pass-3 addition, non-RGT extra coverage): EC-004
-//! (advisory-title verbatim).
+//!     Also in this file (pass-2 additions, non-RGT extra coverage): EC-005 (cve_ids
+//!     empty-array), EC-006 (published_date null), F-VULNS-P1-005 (null-count non-empty
+//!     page).
+//!     Also in this file (pass-3 addition, non-RGT extra coverage): EC-004
+//!     (advisory-title verbatim).
 //!
 //! ## SAP-3 compliance (RG-003)
 //!

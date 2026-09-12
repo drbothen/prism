@@ -12,7 +12,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use prism_spec_engine::{
-    LoadedPlugin, PluginAuthProvider,
+    LoadedPlugin,
     plugin::{
         PluginRuntime,
         host_functions::{host_current_time_secs, host_http_request, host_kv_get, host_kv_set},
@@ -749,7 +749,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         runtime_arc.clone(),
         "crowdstrike-oauth2",
         "crowdstrike",
-        &format!("{}/oauth2/token", mock_server.uri()),
+        format!("{}/oauth2/token", mock_server.uri()),
         null_org_registry(),
         null_org_id_store(),
     );
@@ -759,7 +759,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         "crowdstrike-ac6",
         "CrowdStrike AC-006 Test",
         AuthType::Oauth2ClientCredentials,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "detections",
             "security_finding",
@@ -1565,7 +1565,7 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
         runtime_arc.clone(),
         "crowdstrike-oauth2",
         "crowdstrike",
-        &format!("{}/oauth2/token", mock_server.uri()),
+        format!("{}/oauth2/token", mock_server.uri()),
         null_org_registry(),
         null_org_id_store(),
     );
@@ -1575,7 +1575,7 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
         "crowdstrike-ac3",
         "CrowdStrike AC-003 Test",
         AuthType::Oauth2ClientCredentials,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "detections",
             "security_finding",

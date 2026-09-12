@@ -604,41 +604,6 @@ mod schema_validation {
     const CVE_SPEC_PATH: &str = ".references/poller-express/docs/specs/cve_api_specs.json";
     const IOC_SPEC_PATH: &str = ".references/poller-express/docs/specs/ioc_api_specs.json";
 
-    /// Resolve a workspace-relative spec path to an absolute path.
-    ///
-    /// Walks up from CARGO_MANIFEST_DIR to find the workspace root (the directory
-    /// containing both `Cargo.toml` and `.references/`).
-    fn resolve_spec_path(relative: &str) -> std::path::PathBuf {
-        // CARGO_MANIFEST_DIR is the crate root; workspace root is two levels up.
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-            .expect("CARGO_MANIFEST_DIR must be set in test context");
-        let crate_root = std::path::Path::new(&manifest_dir);
-        // Walk up looking for the .references directory.
-        let mut candidate = crate_root.to_path_buf();
-        loop {
-            if candidate.join(".references").exists() {
-                return candidate.join(relative);
-            }
-            match candidate.parent() {
-                Some(p) => candidate = p.to_path_buf(),
-                None => {
-                    // Fallback: relative to crate root, then repo root.
-                    return crate_root.join("../../..").join(relative);
-                }
-            }
-        }
-    }
-
-    /// Load and compile the schema for the given surface spec.
-    fn load_schema(spec_path: &str) -> (Value, std::path::PathBuf) {
-        let abs_path = resolve_spec_path(spec_path);
-        let content = std::fs::read_to_string(&abs_path)
-            .unwrap_or_else(|e| panic!("Failed to load spec file '{}': {e}", abs_path.display()));
-        let spec: Value = serde_json::from_str(&content)
-            .unwrap_or_else(|e| panic!("Failed to parse spec '{}': {e}", abs_path.display()));
-        (spec, abs_path)
-    }
-
     /// Validate an alert record against the Alert schema (required fields from spec).
     ///
     /// Alert schema requires: id, environment, ref_id, confidence, status, severity,

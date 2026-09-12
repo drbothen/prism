@@ -1121,7 +1121,6 @@ base_url = "{overlay_base_url}"
 mod fan_out_target_failed_warn_tests {
     use std::sync::{Arc, Mutex};
 
-    use arrow::record_batch::RecordBatch;
     use prism_core::{OrgId, SensorId};
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

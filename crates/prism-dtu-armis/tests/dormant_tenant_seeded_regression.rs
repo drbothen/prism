@@ -23,7 +23,7 @@
 //!   - scenario path:  fixture_gen_seeded=true  && timeline.is_some() → apply StageMask
 //!   - seeded path:    fixture_gen_seeded=true  && timeline.is_none() → serve all generated
 //!   - static path:    fixture_gen_seeded=false                       → serve static JSON
-//!   DO NOT branch on `generated_records.is_empty()` — DormantTenant guard.
+//!     DO NOT branch on `generated_records.is_empty()` — DormantTenant guard.
 
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]

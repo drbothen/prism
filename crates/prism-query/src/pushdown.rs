@@ -1244,7 +1244,7 @@ mod pushdown_red_gate_tests {
         };
         let map = predicate_tree_to_filter_map(&ieq_pred);
         assert!(
-            map.get("severity").is_none(),
+            !map.contains_key("severity"),
             "BC-2.11.024 F-P9-LOW-1: IEQ predicate `severity IEQ 'high'` \
              (case_insensitive: true) must NOT be collected into the push-down \
              FilterMap — the sensor would apply a case-sensitive equality that \
@@ -1260,7 +1260,7 @@ mod pushdown_red_gate_tests {
         };
         let guard_map = predicate_tree_to_filter_map(&eq_pred);
         assert!(
-            guard_map.get("severity").is_some(),
+            guard_map.contains_key("severity"),
             "BC-2.11.024 F-P9-LOW-1 guard: case-sensitive `severity = 'low'` \
              (case_insensitive: false) MUST still be collected into the push-down \
              FilterMap. Got: {guard_map:?}"

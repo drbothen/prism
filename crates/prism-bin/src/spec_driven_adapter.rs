@@ -2810,10 +2810,8 @@ mod tests {
                             self.event.sensor_type = Some(s);
                         }
                     }
-                    "column" => {
-                        if self.event.column.is_none() {
-                            self.event.column = Some(s);
-                        }
+                    "column" if self.event.column.is_none() => {
+                        self.event.column = Some(s);
                     }
                     _ => {}
                 }
@@ -5533,17 +5531,17 @@ ocsf_column_naming = true
         );
 
         // Wire-shape (2): "id" NOT in raw_extensions (it has ocsf_field → Tier-1, not Tier-2).
-        if let Some(raw_col) = batch.column_by_name("raw_extensions") {
-            if let Some(raw_arr) = raw_col.as_any().downcast_ref::<ArrowStringArray>() {
-                let raw_json: serde_json::Value =
-                    serde_json::from_str(raw_arr.value(0)).unwrap_or(serde_json::Value::Null);
-                assert!(
-                    raw_json.get("id").is_none(),
-                    "AC-010/OQ-005 (RG-021): 'id' MUST NOT appear in raw_extensions; \
+        if let Some(raw_col) = batch.column_by_name("raw_extensions")
+            && let Some(raw_arr) = raw_col.as_any().downcast_ref::<ArrowStringArray>()
+        {
+            let raw_json: serde_json::Value =
+                serde_json::from_str(raw_arr.value(0)).unwrap_or(serde_json::Value::Null);
+            assert!(
+                raw_json.get("id").is_none(),
+                "AC-010/OQ-005 (RG-021): 'id' MUST NOT appear in raw_extensions; \
                      it is Tier-1 via ocsf_field='metadata.uid' (OQ-005 human decision \
                      2026-08-21). Got raw_extensions: {raw_json}"
-                );
-            }
+            );
         }
 
         // Wire-shape (3): "activity_name" contains "Login" (action→activity_name mapping).
@@ -5932,9 +5930,8 @@ ocsf_column_naming = true
 
         impl tracing::field::Visit for WarnFieldVisitor {
             fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
-                match field.name() {
-                    "event_type" => self.event.event_type = Some(val.to_owned()),
-                    _ => {}
+                if field.name() == "event_type" {
+                    self.event.event_type = Some(val.to_owned())
                 }
             }
             fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
@@ -5955,10 +5952,8 @@ ocsf_column_naming = true
                             self.event.source_path = Some(s);
                         }
                     }
-                    "error" => {
-                        if self.event.error.is_none() {
-                            self.event.error = Some(s);
-                        }
+                    "error" if self.event.error.is_none() => {
+                        self.event.error = Some(s);
                     }
                     _ => {}
                 }

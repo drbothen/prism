@@ -24,7 +24,6 @@
 
 use std::sync::Arc;
 
-use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::SensorId;
 use prism_sensors::{
@@ -279,6 +278,9 @@ async fn test_AC_003_org_id_mismatch_returns_typed_error() {
 /// Story: PLUGIN-MIGRATION-001-A AC-003/AC-005 | BC-3.1.001 invariant 1
 #[test]
 fn test_AC_004_legacy_init_registry_deprecated_warning() {
+    // Calling the deprecated function is the point of this test, so the allow sits on
+    // the import rather than suppressing the lint for the whole file.
+    #[allow(deprecated)]
     use prism_sensors::init_registry;
 
     // `#[allow(deprecated)]` is required to call `init_registry`.

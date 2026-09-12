@@ -11,7 +11,6 @@
 
 use std::sync::Arc;
 
-use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, SensorId};
 

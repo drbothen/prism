@@ -3157,7 +3157,7 @@ mod proptest_extract_at_path {
     fn json_leaf() -> impl Strategy<Value = Value> {
         prop_oneof![
             Just(Value::Null),
-            any::<bool>().prop_map(|b| Value::Bool(b)),
+            any::<bool>().prop_map(Value::Bool),
             any::<i64>().prop_map(|n| Value::Number(n.into())),
             ".*".prop_map(|s: String| Value::String(s)),
         ]
@@ -3171,7 +3171,7 @@ mod proptest_extract_at_path {
         json_leaf().prop_recursive(4, 64, 8, |inner| {
             prop_oneof![
                 // JSON array: 0..8 elements of arbitrary type
-                prop::collection::vec(inner.clone(), 0..8).prop_map(|v| Value::Array(v)),
+                prop::collection::vec(inner.clone(), 0..8).prop_map(Value::Array),
                 // JSON object: 0..8 key-value pairs
                 prop::collection::hash_map(".*", inner, 0..8)
                     .prop_map(|m| { Value::Object(m.into_iter().collect()) }),
@@ -3352,7 +3352,7 @@ mod timestamp_normalization_tests {
     // -----------------------------------------------------------------------
     /// BC-2.16.013 §O-001: column with timestamp_fallback_chain = ["last_seen", "first_seen"]
     /// + JSON record where primary field is null but first_seen has a valid value
-    /// → result uses first_seen's value.
+    ///   → result uses first_seen's value.
     #[test]
     fn test_BC_2_16_013_timestamp_fallback_chain_uses_fallback() {
         let cols = vec![ColumnSpec {

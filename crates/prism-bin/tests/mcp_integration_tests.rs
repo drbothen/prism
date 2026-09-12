@@ -1197,7 +1197,7 @@ async fn test_psg_rg040_partial_final_page_is_truncated_false_wire() {
         "rg040sensor",
         "RG-PSG-040 partial-final-page discriminator sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",

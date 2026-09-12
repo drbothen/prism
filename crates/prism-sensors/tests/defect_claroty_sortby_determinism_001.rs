@@ -1198,7 +1198,8 @@ async fn test_obs3_remaining_tables_build_request_emits_sort_by() {
     };
 
     // (table_name, POST path, response envelope key, expected sort_by: [(field, order)])
-    let cases: Vec<(&str, &str, &str, Vec<(&str, &str)>)> = vec![
+    type SortByCase<'a> = (&'a str, &'a str, &'a str, Vec<(&'a str, &'a str)>);
+    let cases: Vec<SortByCase<'_>> = vec![
         (
             "server_interfaces",
             "/api/v1/server_interfaces/",

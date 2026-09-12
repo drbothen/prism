@@ -62,7 +62,7 @@ fn test_bc_3_4_003_ac_001_archetype_count_is_8() {
 #[test]
 fn test_bc_3_4_003_ac_001_all_expected_variants_present() {
     let archetypes = all_archetypes();
-    let has = |target: Archetype| archetypes.iter().any(|a| *a == target);
+    let has = |target: Archetype| archetypes.contains(&target);
     assert!(
         has(Archetype::HealthyOtEnvironment),
         "HealthyOtEnvironment missing"
@@ -322,7 +322,7 @@ fn test_bc_3_4_001_ac_003_xor_formula_with_zero_org_equals_bare_seed() {
     let seed = 99_u64;
     // org_id with all-zero bytes → org_id_hash = 0 → effective seed = 99 ^ 0 = 99
     let mut rng_via_fn = seeded_rng(seed, &zero_org());
-    let mut rng_direct = ChaCha20Rng::seed_from_u64(seed ^ 0);
+    let mut rng_direct = ChaCha20Rng::seed_from_u64(seed);
 
     for _ in 0..20 {
         assert_eq!(
@@ -542,9 +542,14 @@ fn test_bc_3_4_001_ac_006_provenance_schema_valid_false_for_schema_drift() {
 /// The following test asserts the cfg attribute took effect.
 #[test]
 fn test_bc_3_4_001_ac_007_vp_117_test_file_compiled_only_with_fixture_gen_feature() {
-    // If we reach here, the feature gate is working. No runtime assertion needed;
-    // the compilation itself is the test. AC-007 compliance.
-    assert!(true, "fixture-gen feature gate is active");
+    // The compilation itself is the test, so assert it at compile time rather than
+    // with a runtime `assert!(true)`, which asserts nothing. AC-007 compliance.
+    const {
+        assert!(
+            cfg!(feature = "fixture-gen"),
+            "fixture-gen feature gate is active"
+        )
+    };
 }
 
 // ---------------------------------------------------------------------------

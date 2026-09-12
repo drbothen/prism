@@ -745,7 +745,7 @@ fn test_bc_2_11_024_ieq_iin_ine_in_reference_content() {
 /// - `= '{lower}'`      — all-lowercase equality (wrong casing)
 /// - `= '{UPPER}'`      — all-uppercase equality (wrong casing)
 /// - ` IN ('{lower}'`   — case-sensitive IN, first-position, lowercase
-///                        (leading space guards against `IIN (` false-positive)
+///   (leading space guards against `IIN (` false-positive)
 /// - ` IN ('{UPPER}'`   — same, uppercase
 ///
 /// Additionally includes specific vendor/non-OCSF patterns:

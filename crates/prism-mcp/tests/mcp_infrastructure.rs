@@ -302,7 +302,7 @@ async fn test_bc_2_10_016_missing_required_arg_fast_error() {
             .expect("PrismServer waiting must not fail");
     });
 
-    let client = DummyClientHandler::default()
+    let client = DummyClientHandler
         .serve(client_transport)
         .await
         .expect("DummyClientHandler::serve must complete handshake");
@@ -750,7 +750,7 @@ async fn test_bc_2_10_016_get_prompt_full_transport_dispatch() {
     });
 
     // Connect the dummy client — completes the handshake.
-    let client = DummyClientHandler::default()
+    let client = DummyClientHandler
         .serve(client_transport)
         .await
         .expect("DummyClientHandler::serve must complete handshake");
@@ -835,7 +835,7 @@ async fn test_high1_investigate_host_full_transport_dispatch() {
             .expect("PrismServer waiting must not fail");
     });
 
-    let client = DummyClientHandler::default()
+    let client = DummyClientHandler
         .serve(client_transport)
         .await
         .expect("DummyClientHandler::serve must complete handshake");
@@ -917,7 +917,7 @@ async fn test_high1_missing_required_arg_via_full_transport_no_hang() {
             .expect("PrismServer waiting must not fail");
     });
 
-    let client = DummyClientHandler::default()
+    let client = DummyClientHandler
         .serve(client_transport)
         .await
         .expect("DummyClientHandler::serve must complete handshake");

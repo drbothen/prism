@@ -16,9 +16,9 @@
 //!   - Each test finds the `ot_activity_events` table via `.find()` and panics at
 //!     `.expect("claroty_ot_activity_events table must exist")` because the `[[tables]]`
 //!     block has not yet been added to `claroty.sensor.toml`.
-//! Exception: RG-008 is a trivial SAP-2 marker test (constant assertion) that PASSES
-//! before implementation by design — it documents a process status, not a behavioral
-//! assertion about the TOML.
+//!     Exception: RG-008 is a trivial SAP-2 marker test (constant assertion) that PASSES
+//!     before implementation by design — it documents a process status, not a behavioral
+//!     assertion about the TOML.
 //!
 //! ## SAP-2 status
 //!
@@ -50,9 +50,9 @@
 //!   - `mapped_fields`: Tier-1 OCSF-field mappings, keyed by DOT-form (ocsf_field value).
 //!     event_id → ocsf_field="finding_info.uid" → key "finding_info.uid" in mapped_fields.
 //!   - `raw_extensions`: Tier-2 columns (no ocsf_field) and coercion failures, keyed by column name.
-//! Asserting Arrow-name form ("finding_info_uid") would be tautological — Arrow-name flattening
-//! happens DOWNSTREAM in `pipeline_result_to_record_batch`. Tests here assert the DOT form
-//! to correctly exercise the map_record boundary (TD-VSDD-059 guard).
+//!     Asserting Arrow-name form ("finding_info_uid") would be tautological — Arrow-name flattening
+//!     happens DOWNSTREAM in `pipeline_result_to_record_batch`. Tests here assert the DOT form
+//!     to correctly exercise the map_record boundary (TD-VSDD-059 guard).
 //!
 //! BC: BC-2.16.016
 //! Story: S-CLAROTY-OT-EVENTS-001

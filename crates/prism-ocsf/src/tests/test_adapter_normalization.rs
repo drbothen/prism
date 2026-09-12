@@ -275,10 +275,8 @@ fn test_S_PRISMQL_CASE_INSENSITIVE_001_adapter_normalization_unrecognized_value_
                         self.event.value = Some(s);
                     }
                 }
-                "sensor_type" => {
-                    if self.event.sensor_type.is_none() {
-                        self.event.sensor_type = Some(s);
-                    }
+                "sensor_type" if self.event.sensor_type.is_none() => {
+                    self.event.sensor_type = Some(s);
                 }
                 _ => {}
             }
@@ -443,10 +441,8 @@ fn test_BC_2_02_013_normalizer_secondary_unrecognized_warn_value_capped_at_50_co
                         self.event_type = Some(s);
                     }
                 }
-                "value" => {
-                    if self.value.is_none() {
-                        self.value = Some(s);
-                    }
+                "value" if self.value.is_none() => {
+                    self.value = Some(s);
                 }
                 _ => {}
             }

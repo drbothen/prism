@@ -313,7 +313,7 @@ fn test_bc_3_4_002_ac_002_two_step_pagination_id_pages_precede_detail() {
                 None
             }
         })
-        .last()
+        .next_back()
         .expect("BC-3.4.002: PaginationEdgeCases must have at least one IdPage record");
 
     let first_device_idx = fs
@@ -535,8 +535,8 @@ fn test_bc_3_4_003_ec_002_auth_outage_configurable_recovery_after_3_calls() {
         "EC-002: AuthOutage with recovery_after_calls=3 must produce >=4 OAuth2 records, got {}",
         tokens.len()
     );
-    for i in 0..3 {
-        let status = tokens[i]
+    for (i, token) in tokens.iter().enumerate().take(3) {
+        let status = token
             .get("status_code")
             .and_then(Value::as_u64)
             .unwrap_or(0);
@@ -888,7 +888,7 @@ fn test_bc_3_4_002_non_schema_drift_provenance_schema_valid_is_true() {
         Archetype::HighChurn,
         Archetype::DormantTenant,
     ] {
-        let fs = generate(org_a(), archetype.clone(), GenOpts::default());
+        let fs = generate(org_a(), archetype, GenOpts::default());
         assert!(
             fs.provenance.schema_valid,
             "BC-3.4.002: non-SchemaDrift archetype {archetype:?} must set provenance.schema_valid=true"

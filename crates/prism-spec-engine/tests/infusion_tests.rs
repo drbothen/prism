@@ -2530,6 +2530,7 @@ fn test_BC_2_19_001_source_file_too_large_csv() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&oversized_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
@@ -2569,6 +2570,7 @@ fn test_BC_2_19_001_source_file_at_limit_csv() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&limit_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES).unwrap();
@@ -2600,6 +2602,7 @@ fn test_BC_2_19_001_source_file_too_large_json() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&oversized_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
@@ -2634,6 +2637,7 @@ fn test_BC_2_19_001_source_file_too_large_mmdb() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&oversized_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
@@ -2690,6 +2694,7 @@ fn test_BC_2_19_001_load_spec_oversized_source_returns_err_no_registration() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&oversized_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
@@ -2836,6 +2841,7 @@ fn test_BC_2_19_001_hot_reload_oversized_source_preserves_prior_registry() {
         let f = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&oversized_path)
             .unwrap();
         f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();

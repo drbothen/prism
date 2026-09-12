@@ -6577,7 +6577,7 @@ mod armis_discriminator_tests {
         let result = seed_armis_entity_discriminator("crowdstrike_alerts", filters);
 
         assert!(
-            result.get("aql").is_none(),
+            !result.contains_key("aql"),
             "F-L2-CRIT-001: seed_armis_entity_discriminator must NOT inject aql for \
              non-armis source_table \"crowdstrike_alerts\"; got: {:?}.",
             result.get("aql")
@@ -6586,7 +6586,7 @@ mod armis_discriminator_tests {
         let filters2: FilterMap = FilterMap::new();
         let result2 = seed_armis_entity_discriminator("claroty_alerts", filters2);
         assert!(
-            result2.get("aql").is_none(),
+            !result2.contains_key("aql"),
             "F-L2-CRIT-001: seed_armis_entity_discriminator must NOT inject aql for \
              \"claroty_alerts\"; got: {:?}.",
             result2.get("aql")

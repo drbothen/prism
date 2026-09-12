@@ -33,7 +33,7 @@
 //! back to `!state.generated_detections.is_empty()`. Both tests FAILED:
 //!   - Step 1 returned a non-empty `$.resources` array (static fixture leaked).
 //!   - Step 2 with injected IDs returned non-empty records (static detail fixture leaked).
-//! Fix restored. Both tests PASS.
+//!     Fix restored. Both tests PASS.
 //!
 //! # Feature gate
 //!

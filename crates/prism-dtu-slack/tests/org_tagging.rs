@@ -18,8 +18,8 @@
 //! - The `#[serde(rename_all = "lowercase")]` derive on `prism_core::dtu::DtuMode`
 //!   makes it reject `"Hybrid"` at deserialization time, satisfying BC-3.2.005
 //!   postcondition 3.
-//! The `dtu` feature on `prism-dtu-common` now depends on `prism-core` to make the
-//! re-export always available when the crate is used by consumers.
+//!   The `dtu` feature on `prism-dtu-common` now depends on `prism-core` to make the
+//!   re-export always available when the crate is used by consumers.
 //!
 //! # Behavioral contracts exercised
 //!

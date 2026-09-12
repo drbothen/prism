@@ -3756,7 +3756,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
     let org_slug = helpers::org("acme");
 
     // Construct via the only external construction path (non_exhaustive guard).
-    let overlay_toml = format!("extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"",);
+    let overlay_toml = "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"".to_string();
     let overlay: SensorInstanceOverlay =
         toml::from_str(&overlay_toml).expect("HIGH-001: overlay TOML parse");
     let resolved =

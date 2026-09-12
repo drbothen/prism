@@ -21,9 +21,9 @@
 /// with a real DataFusion MemTable containing:
 ///   - `in_window_row`: timestamp ~12h ago (inside the 24h window)
 ///   - `out_window_row`: timestamp ~48h ago (outside the 24h window)
-/// The test asserts EXACTLY 1 row returns (discriminating) and that the
-/// emitted SQL does NOT contain bare `TIMESTAMP '` and DOES contain `arrow_cast(`
-/// (negative-control — catches regression to bare typed timestamp or runtime eval).
+///     The test asserts EXACTLY 1 row returns (discriminating) and that the
+///     emitted SQL does NOT contain bare `TIMESTAMP '` and DOES contain `arrow_cast(`
+///     (negative-control — catches regression to bare typed timestamp or runtime eval).
 ///
 /// F-HIGH-002 root cause:
 /// `pipe_sql_emitter::literal_to_sql` `Literal::Timestamp` arm was emitting
@@ -41,6 +41,7 @@
 /// returns a structured `PrismError` rather than silently passing `query_str`
 /// to DataFusion.
 #[allow(clippy::expect_used, clippy::unwrap_used)]
+#[allow(clippy::module_inception)]
 mod high002_plan_pinning_tests {
     use chrono::Utc;
 

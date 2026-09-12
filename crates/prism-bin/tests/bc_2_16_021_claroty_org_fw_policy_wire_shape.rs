@@ -28,11 +28,11 @@
 //!
 //! Firewall domain tables use abbreviated URLs but full-spelling envelope keys:
 //!   - `claroty_organization_firewall_groups`:
-//!       path_template = "/api/v1/organization_fw_groups/"  (abbreviated _fw_groups)
-//!       response_path = "$.organization_firewall_groups"   (FULL spelling in envelope)
+//!     path_template = "/api/v1/organization_fw_groups/"  (abbreviated _fw_groups)
+//!     response_path = "$.organization_firewall_groups"   (FULL spelling in envelope)
 //!   - `claroty_organization_firewall_policies`:
-//!       path_template = "/api/v1/organization_fw_group_policies/"  (abbreviated)
-//!       response_path = "$.organization_firewall_policies"          (full spelling)
+//!     path_template = "/api/v1/organization_fw_group_policies/"  (abbreviated)
+//!     response_path = "$.organization_firewall_policies"          (full spelling)
 //!
 //! These asymmetries are asserted in RG-015 (prism-sensors). The mock server in this file
 //! uses the ABBREVIATED paths and the FULL-SPELLING envelope keys accordingly.
@@ -72,7 +72,6 @@
 )]
 extern crate toml;
 
-use arrow_json;
 use std::sync::Arc;
 
 use arrow::array::Array;

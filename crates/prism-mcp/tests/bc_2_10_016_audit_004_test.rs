@@ -477,7 +477,7 @@ fn sql_column_refs(sql: &str) -> Vec<String> {
             }
             if !item.is_empty()
                 && item.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                && item.chars().next().map_or(false, |c| !c.is_ascii_digit())
+                && item.chars().next().is_some_and(|c| !c.is_ascii_digit())
             {
                 cols.push(item.to_string());
             }
@@ -523,7 +523,7 @@ fn sql_column_refs(sql: &str) -> Vec<String> {
             let col = &pred[..col_end];
             if !col.is_empty()
                 && col.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                && col.chars().next().map_or(false, |c| !c.is_ascii_digit())
+                && col.chars().next().is_some_and(|c| !c.is_ascii_digit())
                 && !matches!(
                     col.to_ascii_uppercase().as_str(),
                     "AND" | "OR" | "NOT" | "IS" | "IN" | "NULL" | "TRUE" | "FALSE"
@@ -555,7 +555,7 @@ fn sql_column_refs(sql: &str) -> Vec<String> {
             }
             if !item.is_empty()
                 && item.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                && item.chars().next().map_or(false, |c| !c.is_ascii_digit())
+                && item.chars().next().is_some_and(|c| !c.is_ascii_digit())
             {
                 cols.push(item.to_string());
             }

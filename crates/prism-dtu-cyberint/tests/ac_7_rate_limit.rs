@@ -128,7 +128,7 @@ mod ac_7 {
     /// After reset(), rate limit counter resets — re-configure and requests succeed again.
     #[tokio::test]
     async fn ac_7_rate_limit_resets_after_dtu_reset() {
-        let (mut clone, base_url, admin_token, client) = start_with_demo_token().await;
+        let (clone, base_url, admin_token, client) = start_with_demo_token().await;
 
         // Configure limit=0, exhausting all new requests.
         client

@@ -2410,13 +2410,13 @@ ocsf_column_naming = true
             ),
             ColumnSpec::new("category", ColumnType::String, None, vec![]), // Tier-2
         ];
-        let table = TableSpec::new_point_in_time(
+        let _table = TableSpec::new_point_in_time(
             "audit_logs",
             "entity_management",
             cols,
             vec![minimal_fetch_step()],
         );
-        let spec = toml::from_str::<SensorSpec>(
+        let _spec = toml::from_str::<SensorSpec>(
             r#"
 sensor_id = "claroty"
 name = "Claroty"

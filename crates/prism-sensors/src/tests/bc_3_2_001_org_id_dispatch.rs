@@ -429,11 +429,11 @@ fn test_BC_3_2_001_reset_for_org_a_does_not_affect_org_b() {
 
     // org_a entries must be gone
     assert!(
-        state.get(&(org_a, "dev-1".to_owned())).is_none(),
+        !state.contains_key(&(org_a, "dev-1".to_owned())),
         "TV-3.2.001-05: reset_for(org_a) must remove (org_a, dev-1)"
     );
     assert!(
-        state.get(&(org_a, "dev-2".to_owned())).is_none(),
+        !state.contains_key(&(org_a, "dev-2".to_owned())),
         "TV-3.2.001-05: reset_for(org_a) must remove (org_a, dev-2)"
     );
 
@@ -528,15 +528,15 @@ fn test_BC_3_2_001_event_buffer_key_prefix_must_be_uuid_format() {
 //   Cross-org isolation holds for arbitrary (org_a, org_b, resource_id) triples
 // ---------------------------------------------------------------------------
 
-/// VP-3.2.001-01 / VP-3.2.001-02 (proptest): For any distinct pair of org UUIDs
-/// and any resource_id string, writing under org_a and reading under org_b always
-/// returns empty — and writing under org_a never modifies org_b's entry.
-///
-/// Generates 1000+ random adversarial cases per the BC verification property spec.
-///
-/// Red Gate: The proptest infrastructure is exercised here. The `todo!()` inside
-/// fires when proptest actually runs (after the proptest harness invokes the closure),
-/// ensuring the Red Gate is preserved.
+// VP-3.2.001-01 / VP-3.2.001-02 (proptest): For any distinct pair of org UUIDs
+// and any resource_id string, writing under org_a and reading under org_b always
+// returns empty — and writing under org_a never modifies org_b's entry.
+//
+// Generates 1000+ random adversarial cases per the BC verification property spec.
+//
+// Red Gate: The proptest infrastructure is exercised here. The `todo!()` inside
+// fires when proptest actually runs (after the proptest harness invokes the closure),
+// ensuring the Red Gate is preserved.
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1024))]
 
@@ -663,7 +663,7 @@ proptest! {
         for i in 0..n_resources {
             let dev = format!("dev-{i}");
             prop_assert!(
-                state.get(&(org_a, dev.clone())).is_none(),
+                !state.contains_key(&(org_a, dev.clone())),
                 "VP-3.2.001-04: (org_a, dev-{}) must be removed by reset_for(org_a)", i
             );
         }

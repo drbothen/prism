@@ -9324,15 +9324,12 @@ mod f_pwl1_low001_having_column_gate_tests {
             )
             .await;
 
-        match result {
-            Err(PrismError::ColumnNotFound(ref details)) => panic!(
+        if let Err(PrismError::ColumnNotFound(ref details)) = result {
+            panic!(
                 "F-PWL1-LOW-001 no-regression: E-QUERY-038 fired unexpectedly for valid column \
-                 '{}'. `severity` is registered; the HAVING gate must NOT reject it.",
+             '{}'. `severity` is registered; the HAVING gate must NOT reject it.",
                 details.column
-            ),
-            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
-            // the invariant is only that E-QUERY-038 (ColumnNotFound) does NOT fire.
-            _ => {}
+            )
         }
     }
 }
@@ -9566,15 +9563,12 @@ mod f_pxl3_med002_having_agg_predicate_col_gate_tests {
             )
             .await;
 
-        match result {
-            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+        if let Err(PrismError::ColumnNotFound(ref d)) = result {
+            panic!(
                 "ADR-048 acceptance: E-QUERY-038 fired unexpectedly for valid column \
-                 '{}' inside count(). `severity` is registered; the gate must NOT reject it.",
+             '{}' inside count(). `severity` is registered; the gate must NOT reject it.",
                 d.column
-            ),
-            // Any other outcome (Ok, execution error, other PrismError) is acceptable —
-            // the invariant is that E-QUERY-038 (ColumnNotFound) does NOT fire.
-            _ => {}
+            )
         }
     }
 
@@ -9950,15 +9944,12 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             )
             .await;
 
-        match result {
-            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+        if let Err(PrismError::ColumnNotFound(ref d)) = result {
+            panic!(
                 "DRIFT-IEQ-001 no-regression filter: E-QUERY-038 fired unexpectedly for \
-                 existing column 'severity'. Got: column='{}', table='{}'",
+             existing column 'severity'. Got: column='{}', table='{}'",
                 d.column, d.table
-            ),
-            // Ok or any other error variant is acceptable — the invariant is that
-            // E-QUERY-038 does NOT fire for a valid column.
-            _ => {}
+            )
         }
     }
 
@@ -9984,13 +9975,12 @@ mod drift_ieq_nonexistent_col_errpath_001_tests {
             )
             .await;
 
-        match result {
-            Err(PrismError::ColumnNotFound(ref d)) => panic!(
+        if let Err(PrismError::ColumnNotFound(ref d)) = result {
+            panic!(
                 "DRIFT-IEQ-001 no-regression pipe: E-QUERY-038 fired unexpectedly for \
-                 existing column 'severity'. Got: column='{}', table='{}'",
+             existing column 'severity'. Got: column='{}', table='{}'",
                 d.column, d.table
-            ),
-            _ => {}
+            )
         }
     }
 

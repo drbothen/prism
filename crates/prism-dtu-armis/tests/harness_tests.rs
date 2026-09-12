@@ -617,7 +617,7 @@ async fn test_BC_3_5_001_ac3_added_tag_appears_in_subsequent_device_query() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac3_tag_endpoint_requires_bearer_auth_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -794,7 +794,7 @@ async fn test_BC_3_5_001_ec003_delete_nonexistent_tag_returns_404() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac4_delete_tag_endpoint_requires_bearer_auth() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -820,7 +820,7 @@ async fn test_BC_3_5_001_ac4_delete_tag_endpoint_requires_bearer_auth() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_devices_without_auth_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -862,7 +862,7 @@ async fn test_BC_3_5_001_ac5_get_devices_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_alerts_without_auth_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -894,7 +894,7 @@ async fn test_BC_3_5_001_ac5_get_alerts_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -915,7 +915,7 @@ async fn test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_device_risk_without_auth_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -936,7 +936,7 @@ async fn test_BC_3_5_001_ac5_get_device_risk_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_empty_bearer_value_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -958,7 +958,7 @@ async fn test_BC_3_5_001_ac5_empty_bearer_value_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_wrong_scheme_returns_403() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -980,7 +980,7 @@ async fn test_BC_3_5_001_ac5_wrong_scheme_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_dtu_internal_endpoints_do_not_require_auth() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let health = client
@@ -1705,7 +1705,7 @@ async fn test_BC_3_5_001_td_configure_unknown_field_returns_400() {
 /// (ADR-003 Amendment #5; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_td_configure_without_token_returns_401() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -1727,7 +1727,7 @@ async fn test_BC_3_5_001_td_configure_without_token_returns_401() {
 /// (ADR-003 Amendment #5; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_td_configure_with_wrong_token_returns_401() {
-    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client

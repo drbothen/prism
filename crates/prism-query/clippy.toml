@@ -30,3 +30,10 @@ disallowed-methods = [
     { path = "prism_query::pipe_parser::parse_pipe", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },
     { path = "prism_query::sql_parser::parse_sql", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },
 ]
+
+# Clippy reads the NEAREST clippy.toml, it does not merge with the workspace-root
+# one, so these two must be repeated here or they do not apply to this crate.
+# Rationale as at the root: unwrap()/expect() are denied because a panic in
+# production is a defect, but in a test the unwrap IS the assertion.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
