@@ -44,7 +44,7 @@ jobs:
           cache-on-failure: true
           shared-key: kani
       # Optimization 3: taiki-e/install-action for prebuilt kani-verifier
-      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+      - uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         with:
           tool: kani-verifier
@@ -84,7 +84,7 @@ jobs:
           cache-on-failure: true
           shared-key: fuzz-${{ runner.os }}
       # Optimization 3: taiki-e/install-action for prebuilt cargo-fuzz
-      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+      - uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         if: hashFiles('fuzz/Cargo.toml') != ''
         with:
           tool: cargo-fuzz
