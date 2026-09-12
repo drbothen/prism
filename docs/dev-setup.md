@@ -11,6 +11,18 @@ just setup
 This script is idempotent and installs all required toolchain extensions (cargo-audit,
 cargo-deny, cargo-semver-checks, cargo-llvm-cov, etc.).
 
+It also installs **cargo-nextest**, the test runner `just check` invokes, and
+**protoc**, which is required and is the only prerequisite that is not a cargo install. `crates/prism-ocsf`'s build script shells out to it through
+prost-build, and because that crate sits early in the dependency graph, a missing
+protoc aborts every workspace-wide cargo command in the build script, including ones
+that have nothing to do with OCSF. `rustup` must already be present; everything else
+the script handles.
+
+If your platform has no supported package manager (the script covers brew, apt-get,
+dnf, pacman and apk) install protoc from the
+[protobuf releases](https://github.com/protocolbuffers/protobuf/releases), or point
+the build at an existing copy with `export PROTOC=/path/to/protoc`.
+
 ---
 
 ## Pre-push gate (fast local check)
@@ -77,11 +89,16 @@ just deny
 `just check` and `just check-ci` use [cargo-nextest](https://nexte.st/) for faster test
 execution (parallel test runner with per-test process isolation).
 
-Install it once, globally:
+`just setup` installs it. To install it on its own:
 
 ```bash
 cargo install cargo-nextest --locked
 ```
+
+Per-test process isolation is not just a speed choice: suites that touch global state
+(the write-tool registry, for one) pass under nextest and fail under `cargo test`, which
+shares one process across a binary's tests. Reach for `just iter <crate>` or nextest
+rather than `cargo test --workspace`.
 
 ### Why nextest + a separate doctest step?
 
