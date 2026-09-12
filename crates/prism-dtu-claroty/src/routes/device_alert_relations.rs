@@ -32,8 +32,10 @@ use crate::{
 fn load_device_alert_relations_fixture() -> Vec<Value> {
     // SAFETY: fixture files are bundled at build time; missing fixture is a build error.
     #[allow(clippy::expect_used)]
-    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "device-alert-relations")
-        .expect("fixtures/device-alert-relations.json must exist");
+    let raw = prism_dtu_common::embedded_fixture(
+        include_str!("../../fixtures/device-alert-relations.json"),
+        "device-alert-relations",
+    );
     // SAFETY: fixture content is a well-formed JSON array validated at CI time.
     #[allow(clippy::expect_used)]
     raw.as_array()
