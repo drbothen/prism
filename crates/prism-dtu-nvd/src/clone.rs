@@ -53,13 +53,22 @@ pub struct NvdClone {
     internal_shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
 }
 
+/// The CVE fixture, embedded at compile time so the clone constructs on a host that
+/// never built it (#285).
+///
+/// `include_str!` resolves relative to this source file at compile time and puts the
+/// bytes in the binary. `load_fixture_as` would instead join `CARGO_MANIFEST_DIR` at
+/// runtime, which only exists on the build machine.
+fn embedded_cves() -> anyhow::Result<Vec<CveRecord>> {
+    prism_dtu_common::embedded_fixture_as(include_str!("../fixtures/cves.json"), "cves")
+}
+
 impl NvdClone {
     /// Create a new `NvdClone`. Loads `fixtures/cves.json` from the crate root.
     ///
-    /// Uses `prism_dtu_common::load_fixture_as` for deterministic fixture loading.
+    /// Uses [`embedded_cves`] for deterministic, relocatable fixture loading.
     pub fn new() -> anyhow::Result<Self> {
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let records: Vec<CveRecord> = prism_dtu_common::load_fixture_as(crate_dir, "cves")?;
+        let records = embedded_cves()?;
 
         let registry: HashMap<String, CveRecord> = records
             .into_iter()
@@ -111,8 +120,7 @@ impl NvdClone {
         entities: &prism_dtu_common::ScenarioEntityCatalog,
     ) -> anyhow::Result<Self> {
         // Load base fixture records from fixtures/cves.json (same as new()).
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let records: Vec<CveRecord> = prism_dtu_common::load_fixture_as(crate_dir, "cves")?;
+        let records = embedded_cves()?;
 
         let mut registry: HashMap<String, CveRecord> = records
             .into_iter()

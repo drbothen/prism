@@ -106,16 +106,30 @@ pub struct ArmisClone {
     internal_shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
 }
 
+/// The three static fixtures, embedded at compile time so the clone constructs on a
+/// host that never built it (#285).
+///
+/// `include_str!` resolves relative to this source file at compile time and puts the
+/// bytes in the binary. `load_fixture_as` would instead join `CARGO_MANIFEST_DIR` at
+/// runtime, which only exists on the build machine.
+fn embedded_fixtures() -> anyhow::Result<(Vec<DeviceRecord>, Vec<ActivityRecord>, Vec<AlertRecord>)>
+{
+    Ok((
+        prism_dtu_common::embedded_fixture_as(include_str!("../fixtures/devices.json"), "devices")?,
+        prism_dtu_common::embedded_fixture_as(
+            include_str!("../fixtures/device-activity.json"),
+            "device-activity",
+        )?,
+        prism_dtu_common::embedded_fixture_as(include_str!("../fixtures/alerts.json"), "alerts")?,
+    ))
+}
+
 impl ArmisClone {
     /// Create a new `ArmisClone`. Loads all fixtures from the crate root.
     ///
-    /// Uses `prism_dtu_common::load_fixture_as` for deterministic fixture loading.
+    /// Uses [`embedded_fixtures`] for deterministic, relocatable fixture loading.
     pub fn new() -> anyhow::Result<Self> {
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let devices: Vec<DeviceRecord> = prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
-        let activity: Vec<ActivityRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
-        let alerts: Vec<AlertRecord> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let (devices, activity, alerts) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let state = Arc::new(ArmisState::with_admin_token(
@@ -147,11 +161,7 @@ impl ArmisClone {
     ///
     /// (CR-012/SEC-P2-001; BC-3.5.002 precondition 3)
     pub fn new_with_org(instance_org_id: OrgId) -> anyhow::Result<Self> {
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let devices: Vec<DeviceRecord> = prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
-        let activity: Vec<ActivityRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
-        let alerts: Vec<AlertRecord> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let (devices, activity, alerts) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let state = Arc::new(ArmisState::with_admin_token_and_org(
@@ -237,13 +247,7 @@ impl ArmisClone {
 
         // Load static fixtures (required by ArmisState; still used for activity and alerts).
         // We also need them to populate device_registry/devices_ordered for backward compat.
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let devices: Vec<crate::types::DeviceRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
-        let activity: Vec<crate::types::ActivityRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
-        let alerts: Vec<crate::types::AlertRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let (devices, activity, alerts) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let mut state =
@@ -315,13 +319,7 @@ impl ArmisClone {
         );
 
         // Load static fixtures (required by ArmisState; still used for activity and alerts).
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let devices: Vec<crate::types::DeviceRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
-        let activity: Vec<crate::types::ActivityRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
-        let alerts: Vec<crate::types::AlertRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let (devices, activity, alerts) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let mut state =

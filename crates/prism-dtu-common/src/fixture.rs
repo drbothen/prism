@@ -29,14 +29,18 @@ pub fn load_fixture(crate_dir: &str, name: &str) -> anyhow::Result<serde_json::V
 
 /// Parse a fixture that was embedded at compile time with [`include_str!`].
 ///
-/// This is the relocatable counterpart to [`load_fixture`]. `load_fixture`
-/// resolves `CARGO_MANIFEST_DIR` at *runtime*, so a binary built on one machine
-/// looks for fixtures at that machine's absolute path and fails to construct its
-/// clones anywhere else. Embedding the bytes with `include_str!` at the call site
-/// and parsing them here keeps the fixture in the binary, which is what lets a
-/// clone run from a container or any checkout-free host.
+/// Embedding the bytes at the call site and parsing them here keeps the fixture
+/// in the binary, which is what lets a clone run from a container or any other
+/// host with no checkout. [`load_fixture`] instead resolves `CARGO_MANIFEST_DIR`
+/// at *runtime*, so a binary built on one machine looks for its fixtures at that
+/// machine's absolute path and fails everywhere else.
 ///
-/// `name` is used only for the panic message.
+/// This is not a signature-compatible replacement for [`load_fixture`]: that
+/// returns `anyhow::Result` and this panics, matching the callers it was written
+/// for, which already unwrapped. Where the caller propagates with `?`, use
+/// [`embedded_fixture_as`] instead.
+///
+/// `name` is used only in the panic message.
 ///
 /// # Panics
 ///
@@ -44,10 +48,30 @@ pub fn load_fixture(crate_dir: &str, name: &str) -> anyhow::Result<serde_json::V
 /// failure means a corrupt build artifact rather than a runtime condition, and
 /// failing at startup is the correct behaviour.
 #[must_use]
-#[allow(clippy::expect_used)]
 pub fn embedded_fixture(raw: &str, name: &str) -> serde_json::Value {
     serde_json::from_str(raw)
         .unwrap_or_else(|e| panic!("embedded fixture '{name}' is not valid JSON: {e}"))
+}
+
+/// Deserialize a compile-time-embedded fixture into a concrete type `T`.
+///
+/// The relocatable counterpart to [`load_fixture_as`], keeping that function's
+/// `anyhow::Result` contract so a constructor which propagates with `?` converts
+/// without changing its signature. See [`embedded_fixture`] for why embedding the
+/// fixture matters.
+///
+/// `name` is used only in the error message.
+///
+/// # Errors
+///
+/// Returns an error if `raw` is not valid JSON, or if it cannot be deserialized
+/// into `T`.
+pub fn embedded_fixture_as<T: serde::de::DeserializeOwned>(
+    raw: &str,
+    name: &str,
+) -> anyhow::Result<T> {
+    serde_json::from_str(raw)
+        .map_err(|e| anyhow::anyhow!("failed to deserialize embedded fixture '{name}': {e}"))
 }
 
 /// Load and deserialize a fixture file into a concrete type `T`.

@@ -66,6 +66,23 @@ pub struct CyberintClone {
     org_id: OrgId,
 }
 
+/// The three static fixtures, embedded at compile time so the clone constructs on a
+/// host that never built it (#285).
+///
+/// `include_str!` resolves relative to this source file at compile time and puts the
+/// bytes in the binary. `load_fixture_as` would instead join `CARGO_MANIFEST_DIR` at
+/// runtime, which only exists on the build machine.
+fn embedded_fixtures() -> anyhow::Result<(Vec<Alert>, Vec<Alert>, Vec<serde_json::Value>)> {
+    Ok((
+        prism_dtu_common::embedded_fixture_as(include_str!("../fixtures/alerts.json"), "alerts")?,
+        prism_dtu_common::embedded_fixture_as(
+            include_str!("../fixtures/alerts-page2.json"),
+            "alerts-page2",
+        )?,
+        prism_dtu_common::embedded_fixture_as(include_str!("../fixtures/threats.json"), "threats")?,
+    ))
+}
+
 impl CyberintClone {
     /// Create a new `CyberintClone` with an initial access token registered in the allowlist.
     ///
@@ -75,12 +92,7 @@ impl CyberintClone {
     /// Used by `build_clone_pairs` when `initial_access_token` is set in the demo config
     /// (ADR-031 §D3-a; E2E test harness provision pattern).
     pub fn new_with_access_token(access_token: String) -> anyhow::Result<Self> {
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let alerts: Vec<Alert> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
-        let alerts_page2: Vec<Alert> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
-        let threats: Vec<serde_json::Value> =
-            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+        let (alerts, alerts_page2, threats) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let org_id = OrgId::new();
@@ -109,12 +121,7 @@ impl CyberintClone {
 
     /// Create a new `CyberintClone`. Loads fixtures from the crate root.
     pub fn new() -> anyhow::Result<Self> {
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let alerts: Vec<Alert> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
-        let alerts_page2: Vec<Alert> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
-        let threats: Vec<serde_json::Value> =
-            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+        let (alerts, alerts_page2, threats) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         // S-3.2.04 stub: mint a fresh OrgId for this clone instance.
@@ -196,13 +203,7 @@ impl CyberintClone {
         let fixture = generate(&org_id, archetype, &opts);
 
         // Load static fixtures (required for alert_fixture / alert_store initialization).
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let alerts: Vec<crate::types::Alert> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
-        let alerts_page2: Vec<crate::types::Alert> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
-        let threats: Vec<serde_json::Value> =
-            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+        let (alerts, alerts_page2, threats) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         // Use prism_core::OrgId::new() to get a fresh OrgId for the clone instance.
@@ -289,12 +290,7 @@ impl CyberintClone {
         );
 
         // Load static fixtures (required for alert_fixture / alert_store initialization).
-        let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let alerts: Vec<Alert> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
-        let alerts_page2: Vec<Alert> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
-        let threats: Vec<serde_json::Value> =
-            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+        let (alerts, alerts_page2, threats) = embedded_fixtures()?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
         let instance_org_id = OrgId::new();
