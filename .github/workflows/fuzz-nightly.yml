@@ -1,13 +1,19 @@
 # Nightly fuzz — VP-021 full 30-minute run (release validation).
-# Scheduled nightly; can also be triggered manually via workflow_dispatch.
+# Dispatched nightly by the OWNED fleet scheduler (BOHICA-LABS/research-brain
+# infra/scheduler); can also be triggered manually via workflow_dispatch.
 # Smoke (60s) counterpart lives in ci.yml job `fuzz-smoke-vp021`.
 name: Fuzz nightly (VP-021)
 
 on:
-  schedule:
-    # 02:00 UTC daily — outside peak CI hours.
-    - cron: "0 2 * * *"
+  # Recurrence is driven by the OWNED fleet scheduler via workflow_dispatch — the
+  # reliable, effectively-once replacement for GitHub's best-effort on:schedule,
+  # which is RETIRED here so there is a single clock.
   workflow_dispatch:
+    inputs:
+      period_key:
+        description: "Scheduler idempotency key (set by the fleet dispatcher; blank for manual runs)"
+        type: string
+        default: ""
 
 concurrency:
   group: fuzz-nightly-${{ github.ref }}

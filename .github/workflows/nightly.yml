@@ -1,4 +1,4 @@
-# nightly.yml — scheduled nightly release lane (develop only; no main write)
+# nightly.yml — fleet-dispatched nightly release lane (develop only; no main write)
 #
 # PURPOSE
 # -------
@@ -55,9 +55,17 @@
 name: Nightly
 
 on:
-  schedule:
-    - cron: '17 7 * * *'  # 07:17 UTC daily — off-peak, avoids :00/:30 fleet marks
-  workflow_dispatch:       # manual trigger for verification / out-of-band nightlies
+  # Recurrence is driven by the OWNED fleet scheduler (BOHICA-LABS/research-brain
+  # infra/scheduler) via workflow_dispatch — the reliable, effectively-once replacement
+  # for GitHub's best-effort on:schedule, which is RETIRED here so there is a single
+  # clock. A nightly release tag must not be minted by two uncoordinated clocks: the
+  # fleet dedupes each intended period in its occurrence ledger, GitHub's cron does not.
+  workflow_dispatch:       # the fleet's dispatch surface + manual out-of-band nightlies
+    inputs:
+      period_key:
+        description: "Scheduler idempotency key (set by the fleet dispatcher; blank for manual runs)"
+        type: string
+        default: ""
 
 # Prevent overlapping nightly runs.  cancel-in-progress: false queues a new run
 # rather than cancelling an in-progress one — safer for a tagging workflow that
