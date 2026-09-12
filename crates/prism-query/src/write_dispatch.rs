@@ -635,7 +635,7 @@ mod fan_out_empty_batch_tests {
                 &plan_invalid_charset,
                 &context,
                 &endpoint_spec,
-                &[batch.clone()],
+                std::slice::from_ref(&batch),
             )
             .await;
         assert!(

@@ -46,7 +46,6 @@
 )]
 extern crate toml;
 
-use arrow_json;
 use std::sync::Arc;
 
 use arrow::array::Array;

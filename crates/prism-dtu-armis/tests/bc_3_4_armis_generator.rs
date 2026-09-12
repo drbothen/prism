@@ -109,8 +109,8 @@ fn test_bc_3_4_001_vp_108_determinism_all_archetypes() {
     ];
     let opts = GenOpts::default();
     for archetype in archetypes {
-        let fs1 = generate(org_a(), SLUG_A, archetype.clone(), &opts);
-        let fs2 = generate(org_a(), SLUG_A, archetype.clone(), &opts);
+        let fs1 = generate(org_a(), SLUG_A, archetype, &opts);
+        let fs2 = generate(org_a(), SLUG_A, archetype, &opts);
         let j1 = serde_json::to_string(&fs1.records).unwrap();
         let j2 = serde_json::to_string(&fs2.records).unwrap();
         assert_eq!(
@@ -126,10 +126,9 @@ fn test_bc_3_4_001_vp_108_determinism_all_archetypes() {
 #[test]
 fn test_bc_3_4_001_distinct_seeds_produce_distinct_records() {
     let opts1 = GenOpts::default(); // seed=42
-    let opts2 = {
-        let mut o = GenOpts::default();
-        o.seed = 1;
-        o
+    let opts2 = GenOpts {
+        seed: 1,
+        ..GenOpts::default()
     };
     let fs1 = generate(org_a(), SLUG_A, Archetype::HealthyOtEnvironment, &opts1);
     let fs2 = generate(org_a(), SLUG_A, Archetype::HealthyOtEnvironment, &opts2);
@@ -159,16 +158,20 @@ fn test_bc_3_4_001_distinct_org_ids_produce_distinct_records() {
 /// BC-3.4.001 EC-3.4.001-04: seed=u64::MAX must not panic.
 #[test]
 fn test_bc_3_4_001_seed_max_does_not_panic() {
-    let mut opts = GenOpts::default();
-    opts.seed = u64::MAX;
+    let opts = GenOpts {
+        seed: u64::MAX,
+        ..GenOpts::default()
+    };
     let _ = generate(org_a(), SLUG_A, Archetype::HealthyOtEnvironment, &opts);
 }
 
 /// BC-3.4.001 EC-3.4.001-03: seed=0 is valid and deterministic.
 #[test]
 fn test_bc_3_4_001_seed_zero_is_valid_and_deterministic() {
-    let mut opts = GenOpts::default();
-    opts.seed = 0;
+    let opts = GenOpts {
+        seed: 0,
+        ..GenOpts::default()
+    };
     let fs1 = generate(org_a(), SLUG_A, Archetype::DormantTenant, &opts);
     let fs2 = generate(org_a(), SLUG_A, Archetype::DormantTenant, &opts);
     assert_eq!(
@@ -495,7 +498,7 @@ fn test_bc_3_4_003_all_archetypes_produce_distinct_non_empty_fixture_sets() {
     let serializations: Vec<String> = non_dormant
         .iter()
         .map(|a| {
-            let fs = generate(org_a(), SLUG_A, a.clone(), &opts);
+            let fs = generate(org_a(), SLUG_A, *a, &opts);
             assert!(
                 !fs.records.is_empty(),
                 "BC-3.4.003: archetype {:?} must produce non-empty records",
@@ -638,10 +641,12 @@ fn test_bc_3_4_002_vp_114_schema_validation_gated_to_test_builds() {
     // CI enforces: `cargo build -p prism-dtu-armis --release` must succeed
     // and `cargo build -p prism-dtu-armis --release --features fixture-gen` is forbidden.
     // This test documents the invariant; the compilation gate itself is the enforcement.
-    assert!(
-        cfg!(feature = "fixture-gen"),
-        "VP-114: this test must only execute under fixture-gen feature"
-    );
+    const {
+        assert!(
+            cfg!(feature = "fixture-gen"),
+            "VP-114: this test must only execute under fixture-gen feature"
+        )
+    };
 }
 
 /// BC-3.4.002 / AC-002: nullable fields in non-SchemaDrift records use null values
@@ -862,9 +867,9 @@ fn test_bc_3_4_004_vp_119_org_id_sets_are_disjoint() {
     let fs_b = generate(org_b(), SLUG_B, Archetype::HealthyOtEnvironment, &opts);
 
     let ids_a: std::collections::HashSet<String> =
-        fs_a.records.iter().filter_map(|r| primary_id(r)).collect();
+        fs_a.records.iter().filter_map(primary_id).collect();
     let ids_b: std::collections::HashSet<String> =
-        fs_b.records.iter().filter_map(|r| primary_id(r)).collect();
+        fs_b.records.iter().filter_map(primary_id).collect();
 
     let intersection: std::collections::HashSet<&String> = ids_a.intersection(&ids_b).collect();
 
@@ -1103,7 +1108,7 @@ fn test_bc_3_4_001_provenance_schema_valid_true_for_non_schema_drift_archetypes(
     ];
     let opts = GenOpts::default();
     for archetype in &non_drift {
-        let fs = generate(org_a(), SLUG_A, archetype.clone(), &opts);
+        let fs = generate(org_a(), SLUG_A, *archetype, &opts);
         assert!(
             fs.provenance.schema_valid,
             "BC-3.4.001 invariant 3: provenance.schema_valid must be true for {:?}",

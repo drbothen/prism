@@ -2559,19 +2559,15 @@ mod tests {
         // 100 "€" = 100 chars = 300 bytes. Old char-cap(256) passes all through → 300 bytes FAIL.
         // New byte-cap(256) truncates to 85 "€" = 255 bytes PASS.
         let input: String = "€".repeat(100);
-        assert_eq!(
-            input.as_bytes().len(),
-            300,
-            "test setup: 100 × '€' must be 300 bytes"
-        );
+        assert_eq!(input.len(), 300, "test setup: 100 × '€' must be 300 bytes");
 
         let result = sanitize_body_snippet_bytes(&input, 256);
 
         // ≤256 bytes (the contracted bound).
         assert!(
-            result.as_bytes().len() <= 256,
+            result.len() <= 256,
             "F-1: byte-cap must enforce ≤256 bytes; got {} bytes",
-            result.as_bytes().len()
+            result.len()
         );
         // Valid UTF-8 — no split multibyte char.
         assert!(
@@ -2586,7 +2582,7 @@ mod tests {
         // Confirm load-bearing: old char-cap would NOT truncate (100 chars < 256).
         // Verified: sanitize_body_snippet(&input, 256).as_bytes().len() == 300.
         assert_eq!(
-            sanitize_body_snippet(&input, 256).as_bytes().len(),
+            sanitize_body_snippet(&input, 256).len(),
             300,
             "F-1 load-bearing verification: old char-cap produces 300 bytes (violates spec)"
         );

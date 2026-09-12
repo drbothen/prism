@@ -69,16 +69,6 @@ async fn configure_failure(
     );
 }
 
-/// Reset a clone via POST /dtu/reset.
-async fn reset_clone(client: &reqwest::Client, addr: std::net::SocketAddr) {
-    let resp = client
-        .post(format!("http://{addr}/dtu/reset"))
-        .send()
-        .await
-        .expect("reset request must not fail at transport level");
-    assert_eq!(resp.status().as_u16(), 200, "reset must return 200");
-}
-
 /// Build valid Jira Basic auth header value.
 ///
 /// Jira harness accepts any valid base64-encoded `user:token` pair.

@@ -21,7 +21,7 @@
 //!   We control the stage by placing scenario_start_secs in the past:
 //!   - Stage 2: scenario_start_secs = now - 200  (elapsed ≈ 200s, in [180, 360))
 //!   - Stage 4: scenario_start_secs = now - 700  (elapsed ≈ 700s ≥ 600s)
-//!   With stage_duration_secs default [60, 180, 360, 600].
+//!     With stage_duration_secs default [60, 180, 360, 600].
 //!
 //! Primary Red Gate failure:
 //! Stage 2 request: raw generated record for primary device has
@@ -140,7 +140,7 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
     let primary_rec_stage2 = resources2.iter().find(|rec| {
         rec.get("device_id")
             .and_then(|v| v.as_str())
-            .map(|id| id == &primary_id)
+            .map(|id| id == primary_id)
             .unwrap_or(false)
     });
 
@@ -232,7 +232,7 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
     let primary_rec_stage4 = resources4.iter().find(|rec| {
         rec.get("device_id")
             .and_then(|v| v.as_str())
-            .map(|id| id == &primary_id)
+            .map(|id| id == primary_id)
             .unwrap_or(false)
     });
 

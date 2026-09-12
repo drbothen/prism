@@ -46,7 +46,6 @@
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
-use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
 use prism_sensors::{

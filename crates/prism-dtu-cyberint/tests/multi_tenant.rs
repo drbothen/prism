@@ -442,11 +442,11 @@ mod multi_tenant {
         "[a-z0-9-]{1,64}".prop_map(|s| s)
     }
 
-    /// VP-3.2.001-01: Cross-org alert lookup always returns None.
-    ///
-    /// Given any two distinct orgs and any alert_id:
-    /// - Store an AlertStatus under org_A.
-    /// - alert_store lookup under org_B must return None.
+    // VP-3.2.001-01: Cross-org alert lookup always returns None.
+    //
+    // Given any two distinct orgs and any alert_id:
+    // - Store an AlertStatus under org_A.
+    // - alert_store lookup under org_B must return None.
     proptest! {
         #[test]
         fn test_BC_3_2_001_invariant_cross_org_alert_lookup_always_none(
@@ -478,11 +478,11 @@ mod multi_tenant {
         }
     }
 
-    /// VP-3.2.001-03 (mutation kill): OrgId-flipping — replacing lookup org with a
-    /// different org must always return None, for any shared alert_id.
-    ///
-    /// This test directly targets the mutation `org_id_A → org_id_B` in the lookup
-    /// key construction (TD-DTU-MUTATE-COVERAGE-001).
+    // VP-3.2.001-03 (mutation kill): OrgId-flipping — replacing lookup org with a
+    // different org must always return None, for any shared alert_id.
+    //
+    // This test directly targets the mutation `org_id_A → org_id_B` in the lookup
+    // key construction (TD-DTU-MUTATE-COVERAGE-001).
     proptest! {
         #[test]
         fn test_BC_3_2_001_invariant_org_id_flip_kills_mutation(
@@ -521,13 +521,13 @@ mod multi_tenant {
         }
     }
 
-    /// VP-3.2.001-04: reset_for(org_A) selectivity for alert_store.
-    ///
-    /// For any two distinct orgs and any alert_id + token pair:
-    /// - Write entries for both orgs.
-    /// - Call reset_for(org_A).
-    /// - org_A alert entries must be absent; org_B alert entries must be intact.
-    /// - access_token registered before reset_for must still be valid (org-agnostic).
+    // VP-3.2.001-04: reset_for(org_A) selectivity for alert_store.
+    //
+    // For any two distinct orgs and any alert_id + token pair:
+    // - Write entries for both orgs.
+    // - Call reset_for(org_A).
+    // - org_A alert entries must be absent; org_B alert entries must be intact.
+    // - access_token registered before reset_for must still be valid (org-agnostic).
     proptest! {
         #[test]
         fn test_BC_3_2_001_invariant_reset_for_selectivity(

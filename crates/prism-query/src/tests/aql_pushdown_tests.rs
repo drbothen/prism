@@ -147,7 +147,7 @@ mod tests {
 
         // CrowdStrike predicate uses 'status', not 'aql' — the 'aql' key must be absent.
         assert!(
-            filter_map.get("aql").is_none(),
+            !filter_map.contains_key("aql"),
             "BC-2.11.007: predicate_tree_to_filter_map must not produce FilterMap[\"aql\"] \
              when WHERE clause does not contain 'aql = <value>'; \
              got: {:?} for query '{query_str}'",
@@ -182,7 +182,7 @@ mod tests {
         let filter_map = predicate_tree_to_filter_map(&non_aql_predicate);
 
         assert!(
-            filter_map.get("aql").is_none(),
+            !filter_map.contains_key("aql"),
             "BC-2.11.007: no 'aql' predicate → no aql key in FilterMap; got: {:?}",
             filter_map.get("aql")
         );

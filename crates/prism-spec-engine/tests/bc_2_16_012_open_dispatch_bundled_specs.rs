@@ -94,7 +94,7 @@ fn test_BC_2_16_012_spec_parse_is_idempotent_for_crowdstrike() {
     //
     // RED GATE: Fails here until implementer Task 3 adds [[tables]] to crowdstrike.sensor.toml.
     assert!(
-        spec1.tables.len() > 0,
+        !spec1.tables.is_empty(),
         "CrowdStrike spec must have > 0 tables for idempotency to be a meaningful Red Gate check. \
          Skeleton stub tables = [] produces 0 tables — implementer Task 3 must fill in \
          the 3 production tables (detections, devices, incidents) per AC-001 \

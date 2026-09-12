@@ -60,7 +60,6 @@
 #![allow(dead_code, non_snake_case, clippy::unwrap_used, clippy::expect_used)]
 extern crate toml;
 
-use arrow_json;
 use std::sync::Arc;
 
 use arrow::array::Array;

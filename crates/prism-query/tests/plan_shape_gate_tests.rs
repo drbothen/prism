@@ -335,7 +335,7 @@ fn first_i64(batches: &[RecordBatch], col: &str) -> i64 {
                 .as_any()
                 .downcast_ref::<Int64Array>()
                 .expect("Int64Array");
-            if arr.len() > 0 {
+            if !arr.is_empty() {
                 return arr.value(0);
             }
         }

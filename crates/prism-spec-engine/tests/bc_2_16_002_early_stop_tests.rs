@@ -341,7 +341,7 @@ async fn test_BC_2_16_002_early_stop_di019_fires_before_early_stop_check() {
         "rg004-sensor",
         "RG-004 DI-019 Ordering Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "big",
             "security_finding",
@@ -456,7 +456,7 @@ async fn test_BC_2_16_002_early_stop_cursor_token_stops_after_first_page() {
         "cursor-early-stop-sensor",
         "Cursor Early Stop Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "cursor_items",
             "security_finding",
@@ -1143,7 +1143,7 @@ async fn test_cursor_token_partial_page_conservative_early_stopped() {
         "rg041-conservative-sensor",
         "RG-PSG-041 CursorToken Conservative Early-Stop Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "cursor_items_conservative",
             "security_finding",
@@ -1293,7 +1293,7 @@ async fn test_cursor_token_full_final_page_is_early_stopped() {
         "rg042-cursor-sensor",
         "RG-PSG-042 CursorToken Full Page Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "cursor_items_full",
             "security_finding",
@@ -1427,7 +1427,7 @@ async fn test_cursor_token_no_page_size_conservative() {
         "rg043-cursor-sensor",
         "RG-PSG-043 CursorToken No PageSize Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "cursor_items_none",
             "security_finding",
@@ -1597,7 +1597,7 @@ async fn test_early_stop_multi_batch_partial_page_is_truncated() {
         "b1-multi-batch-sensor",
         "B1-MULTI Multi-Batch Early-Stop Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "batch_items",
             "security_finding",

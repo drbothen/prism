@@ -314,7 +314,7 @@ fn is_technique_id_shaped(s: &str) -> bool {
 /// - flat `technique` is the MITRE display NAME (never ID-shaped),
 /// - flat `technique_id` is the MITRE ID,
 /// - the (id, name) pair matches the canonical `MITRE_TECHNIQUES` table,
-/// so the TOML `attack.technique.name` column normalizes identically.
+///   so the TOML `attack.technique.name` column normalizes identically.
 ///
 /// Real-API value semantics to be confirmed by dtu-validator (MEDIUM
 /// confidence flag from the adversary).

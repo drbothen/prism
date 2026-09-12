@@ -56,7 +56,6 @@
     clippy::expect_used
 )]
 
-use arrow_json;
 use std::sync::Arc;
 
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};

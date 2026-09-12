@@ -1581,12 +1581,11 @@ fn test_F_PASS4_HIGH_001_component_model_dispatch_invokes_host_http_request_thro
                 Some(Val::List(items)) => {
                     let mut out = Vec::new();
                     for item in items.iter() {
-                        if let Val::Tuple(fields) = item {
-                            if let (Some(Val::String(k)), Some(Val::String(v))) =
+                        if let Val::Tuple(fields) = item
+                            && let (Some(Val::String(k)), Some(Val::String(v))) =
                                 (fields.first(), fields.get(1)) {
                                 out.push((k.as_str().to_string(), v.as_str().to_string()));
                             }
-                        }
                     }
                     out
                 }

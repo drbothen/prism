@@ -20,7 +20,7 @@
 //!   - `= '{lower}'`     — all-lowercase equality (wrong casing)
 //!   - `= '{UPPER}'`     — all-uppercase equality (wrong casing)
 //!   - ` IN ('{lower}'`  — case-sensitive IN first-position, lowercase (leading-space
-//!                         guard prevents false-positive on IIN operator)
+//!     guard prevents false-positive on IIN operator)
 //!   - ` IN ('{UPPER}'`  — same, uppercase
 //!
 //! Title-case forms (`= 'High'`, `IN ('New'`) and case-insensitive operators
@@ -59,7 +59,7 @@ use prism_mcp::prompts::{
 /// - `= '{lower}'`      — all-lowercase equality (wrong casing; silently 0 rows after normalization)
 /// - `= '{UPPER}'`      — all-uppercase equality (wrong casing)
 /// - ` IN ('{lower}'`   — case-sensitive IN, first-position, lowercase
-///                        (leading space guards against `IIN (` false-positive)
+///   (leading space guards against `IIN (` false-positive)
 /// - ` IN ('{UPPER}'`   — same, uppercase
 ///
 /// Title-case forms (e.g., `= 'High'`, `= 'New'`) and case-insensitive operators

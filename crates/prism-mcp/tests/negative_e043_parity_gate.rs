@@ -168,7 +168,7 @@ async fn test_BC_2_11_022_negative_e043_plan_returns_error() {
     // Collect entries that fire E-QUERY-043 and verify the error is correct.
     let mut verified_e043_count = 0usize;
 
-    for (_, title, snippet) in REFERENCE_EXAMPLES.iter() {
+    for (_, _title, snippet) in REFERENCE_EXAMPLES.iter() {
         if snippet.trim_start().starts_with("--") {
             continue;
         }

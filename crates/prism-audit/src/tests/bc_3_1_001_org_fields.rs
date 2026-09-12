@@ -12,7 +12,7 @@
 //!   - (1) org_id is the same UUID across rename — stable primary key.
 //!   - (2) org_slug is never retroactively updated.
 //!   - (3) AuditEntry construction requires both fields (compile-time enforcement via
-//!         static_assertions — tested implicitly by every entry-construction helper).
+//!     static_assertions — tested implicitly by every entry-construction helper).
 //!
 //! Edge cases:
 //!   EC-001 — slug rename between two emissions preserves forensic trail.
@@ -306,7 +306,7 @@ fn test_BC_3_1_002_uuid_stable_query_returns_both_pre_and_post_rename_entries() 
     // Entry for a different org (must not match).
     let other = entry_with_org(org_id_b, OrgSlug::new("other-corp"));
 
-    let audit_log = vec![pre1, pre2, post1, other];
+    let audit_log = [pre1, pre2, post1, other];
 
     // Simulate a filter-by-org_id query.
     let results_for_a: Vec<&AuditEntry> =
@@ -358,7 +358,7 @@ fn test_BC_3_1_002_two_orgs_no_commingling() {
     );
 
     // Filter each — verify no bleed-through.
-    let log = vec![&entry_a, &entry_b];
+    let log = [&entry_a, &entry_b];
 
     let for_a: Vec<&&AuditEntry> = log.iter().filter(|e| e.org_id == org_a).collect();
     let for_b: Vec<&&AuditEntry> = log.iter().filter(|e| e.org_id == org_b).collect();

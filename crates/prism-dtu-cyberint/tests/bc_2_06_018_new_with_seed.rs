@@ -131,7 +131,7 @@ fn test_BC_2_06_018_cyberint_new_with_seed_disjoint_ids() {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_owned())
         })
-        .filter(|s| s.contains(&format!("{org_slug}")))
+        .filter(|s| s.contains(&org_slug.to_string()))
         .collect();
 
     let alert_ids_200: std::collections::HashSet<String> = clone_200
@@ -143,7 +143,7 @@ fn test_BC_2_06_018_cyberint_new_with_seed_disjoint_ids() {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_owned())
         })
-        .filter(|s| s.contains(&format!("{org_slug}")))
+        .filter(|s| s.contains(&org_slug.to_string()))
         .collect();
 
     assert!(

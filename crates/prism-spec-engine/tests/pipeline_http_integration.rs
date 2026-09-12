@@ -1688,7 +1688,7 @@ async fn test_BC_2_16_002_pipeline_cumulative_request_cap_exercised_via_wiremock
         "test-sensor",
         "Test Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
@@ -3017,7 +3017,7 @@ async fn test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_ut
         "med1-sensor",
         "MED-1 Sanitization Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
@@ -3116,11 +3116,7 @@ async fn test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8() {
     // Under a char-cap(256) this passes through unchanged → 300 bytes FAIL.
     // Under a byte-cap(256) this is truncated to 85 "€" = 255 bytes PASS.
     let body = "€".repeat(100);
-    assert_eq!(
-        body.as_bytes().len(),
-        300,
-        "test setup: 100 × '€' must be 300 bytes"
-    );
+    assert_eq!(body.len(), 300, "test setup: 100 × '€' must be 300 bytes");
 
     Mock::given(method("GET"))
         .and(path("/items"))
@@ -3132,7 +3128,7 @@ async fn test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8() {
         "f1-byte-cap-sensor",
         "F-1 Byte Cap Sensor",
         AuthType::BearerStatic,
-        &mock_server.uri(),
+        mock_server.uri(),
         vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
@@ -3180,10 +3176,10 @@ async fn test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8() {
     // LOAD-BEARING ASSERTION: old char-based code emits 300 bytes (fails); new byte-based
     // code emits ≤256 bytes (passes).
     assert!(
-        snippet.as_bytes().len() <= 256,
+        snippet.len() <= 256,
         "F-1 BYTE-CAP: snippet must be ≤256 bytes (BC-2.16.002); got {} bytes. \
          A char-based cap of 256 chars would pass 100 '€' through unchanged (300 bytes).",
-        snippet.as_bytes().len()
+        snippet.len()
     );
 
     // Valid UTF-8 — no split multibyte char.

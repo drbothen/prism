@@ -18,7 +18,7 @@
 //!   We control the stage by placing scenario_start_secs relative to Utc::now():
 //!   - Stage 0: scenario_start_secs = now - 10  (elapsed ≈ 10s < 60s → stage 0 Baseline)
 //!   - Stage 1: scenario_start_secs = now - 90  (elapsed ≈ 90s, in [60, 180))
-//!   With stage_duration_secs default [60, 180, 360, 600].
+//!     With stage_duration_secs default [60, 180, 360, 600].
 
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]

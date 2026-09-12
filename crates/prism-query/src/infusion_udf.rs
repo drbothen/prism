@@ -1934,7 +1934,7 @@ mod tests {
         for (output_type_str, expected) in cases {
             let (_, src) = CountingSource::new_returning("42");
             let descriptor = InfusionUdfDescriptor::new(
-                &format!("rgt001_{output_type_str}"),
+                format!("rgt001_{output_type_str}"),
                 "ip",
                 *output_type_str,
                 "typed_test_infusion",
@@ -2031,6 +2031,9 @@ mod tests {
     ///
     /// RED GATE (pre-fix): `return_type()` returned Utf8 → Float64 assertion failed.
     #[tokio::test]
+    // 3.14 below is the literal payload the fixture source returns, not an
+    // approximation of PI, so approx_constant is a false positive here.
+    #[allow(clippy::approx_constant)]
     async fn test_invoke_async_with_args_returns_float64_array_for_float_output_type() {
         use datafusion::arrow::array::StringArray;
         use datafusion::arrow::datatypes::{DataType, Field, Schema};

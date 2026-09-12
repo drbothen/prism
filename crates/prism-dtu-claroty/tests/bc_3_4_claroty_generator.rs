@@ -928,8 +928,8 @@ fn test_bc_3_4_003_ec_006_auth_outage_configurable_recovery_after_3_calls() {
     );
 
     // All 3 call records must be 401
-    for i in 0..3 {
-        let status = call_records[i]
+    for (i, record) in call_records.iter().enumerate().take(3) {
+        let status = record
             .get("status_code")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);

@@ -541,8 +541,10 @@ mod tests {
             vec![OrgSlug::new("acme"), OrgSlug::new("globex")],
         );
 
-        let mut opts = QueryOptions::default();
-        opts.clients = Some(vec![OrgSlug::new("acme")]);
+        let opts = QueryOptions {
+            clients: Some(vec![OrgSlug::new("acme")]),
+            ..QueryOptions::default()
+        };
 
         let result = engine
             .execute("SELECT sevrity FROM crowdstrike_alerts LIMIT 5", opts)

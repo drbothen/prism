@@ -175,7 +175,7 @@ fn test_bc_2_11_020_pure_modes_unchanged() {
 /// Red Gate:
 /// - `NOW()` and `INTERVAL` are not yet recognized grammar elements → parse returns Err.
 /// - `prism_query::parse_and_plan` is a `todo!()` stub → panics.
-/// Either failure is RED (not a compile error).
+///   Either failure is RED (not a compile error).
 #[test]
 fn test_bc_2_11_021_now_interval_parses_all_three_modes() {
     // SQL mode: `SELECT * FROM t WHERE timestamp > NOW() - INTERVAL '24h'`

@@ -35,7 +35,7 @@ mod ac_8 {
     /// After reset, alert statuses revert to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_alert_status_to_open() {
-        let (mut clone, base_url, admin_token, client) = start().await;
+        let (clone, base_url, admin_token, client) = start().await;
         let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Acknowledge an alert to change its status.
@@ -164,7 +164,7 @@ mod ac_8 {
     /// model, reset clears the allowlist, and `configure({"access_token": ...})` re-provisions it.
     #[tokio::test]
     async fn ac_8_new_login_required_after_reset() {
-        let (mut clone, base_url, admin_token, client) = start().await;
+        let (clone, base_url, admin_token, client) = start().await;
 
         // Reset.
         client
@@ -198,7 +198,7 @@ mod ac_8 {
     /// Reset also reverts closed alerts back to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_closed_alert_to_open() {
-        let (mut clone, base_url, admin_token, client) = start().await;
+        let (clone, base_url, admin_token, client) = start().await;
         let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Close an alert.

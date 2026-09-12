@@ -67,7 +67,7 @@ use wiremock::{
 fn make_offset_limit_spec(sensor_id: &str, base_url: &str, page_size: u32) -> SensorSpec {
     SensorSpec::new(
         sensor_id,
-        &format!("{sensor_id} early-stop integration test sensor"),
+        format!("{sensor_id} early-stop integration test sensor"),
         AuthType::BearerStatic,
         base_url,
         vec![TableSpec::new_point_in_time(
@@ -107,7 +107,7 @@ fn make_claroty_vulnerabilities_post_spec(
 ) -> SensorSpec {
     SensorSpec::new(
         sensor_id,
-        &format!("{sensor_id} claroty-scale POST early-stop test sensor"),
+        format!("{sensor_id} claroty-scale POST early-stop test sensor"),
         AuthType::BearerStatic,
         base_url,
         vec![TableSpec::new_point_in_time(

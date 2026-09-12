@@ -40,12 +40,9 @@ use prism_spec_engine::{
     PluginRuntime,
 };
 #[allow(unused_imports)]
-use toml;
-
 // ---------------------------------------------------------------------------
 // Test 1: AC-001 — threatintel.infusion.toml parses and loads as plugin-type
 // ---------------------------------------------------------------------------
-
 /// AC-001 (BC-2.19.001 postcondition): threatintel.infusion.toml parses and loads 3 UDFs.
 ///
 /// Given `{config_dir}/infusions/threatintel.infusion.toml` with:
@@ -1977,7 +1974,7 @@ async fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_f
         .await;
 
     let config = HttpLookupConfig::new(
-        &mock_server.uri(),
+        mock_server.uri(),
         "/v1/lookup/${input}",
         "GET",
         "$.nonexistent.path.that.will.never.match",
@@ -2038,7 +2035,7 @@ async fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
         .await;
 
     let config = HttpLookupConfig::new(
-        &mock_server.uri(),
+        mock_server.uri(),
         "/v1/lookup/${input}",
         "GET",
         "$.data",

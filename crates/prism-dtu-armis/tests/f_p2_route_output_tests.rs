@@ -538,7 +538,7 @@ async fn test_f_p2_crit_002_devices_disjoint_across_seeds() {
 #[tokio::test]
 async fn test_f_p4_med_001_armis_search_devices_surface_purity() {
     let org = deadbeef_org();
-    let slug = org_slug(&org);
+    let _slug = org_slug(&org);
     let seed = 42u64;
 
     let mut clone = ArmisClone::new_with_seed(
@@ -606,7 +606,7 @@ async fn test_f_p4_med_001_armis_search_devices_surface_purity() {
 #[tokio::test]
 async fn test_f_p4_med_001_armis_search_alerts_surface_purity() {
     let org = deadbeef_org();
-    let slug = org_slug(&org);
+    let _slug = org_slug(&org);
     let seed = 42u64;
 
     let mut clone = ArmisClone::new_with_seed(
@@ -665,7 +665,7 @@ async fn test_f_p4_med_001_armis_search_alerts_surface_purity() {
 #[tokio::test]
 async fn test_f_p4_med_001_armis_devices_endpoint_surface_purity() {
     let org = deadbeef_org();
-    let slug = org_slug(&org);
+    let _slug = org_slug(&org);
     let seed = 42u64;
 
     let mut clone = ArmisClone::new_with_seed(

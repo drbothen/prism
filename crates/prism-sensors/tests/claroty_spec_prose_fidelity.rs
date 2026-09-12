@@ -291,7 +291,7 @@ fn test_BC_2_16_013_AC004_audit_logs_functional_fields_match_live_api() {
 /// query path uses `build_column_array` in prism-bin, which is covered by:
 /// - `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string`
 /// - `test_build_column_array_claroty_vlan_list_integer_elements_stringify_to_json_list_string`
-/// (both in `crates/prism-bin/src/spec_driven_adapter.rs` — MEDIUM-6 fix).
+///   (both in `crates/prism-bin/src/spec_driven_adapter.rs` — MEDIUM-6 fix).
 ///
 /// Together these three tests form the full coverage chain for ENRICH-1 array columns.
 #[test]

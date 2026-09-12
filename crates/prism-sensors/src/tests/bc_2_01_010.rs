@@ -25,6 +25,10 @@ use crate::adapter::{FetchOutput, SensorError};
 
 /// `FanOutError` fields are publicly accessible and `Display`-able.
 #[test]
+// The per-statement #[allow(deprecated)] inside this test does not reach into the
+// assert_eq! expansion, so the allow belongs on the function. The deprecated field
+// is what this test exists to cover until it is removed.
+#[allow(deprecated)]
 fn test_BC_2_01_010_fan_out_error_fields_accessible() {
     use crate::fanout::{FanOutError, RetryMetadata};
 
@@ -45,8 +49,7 @@ fn test_BC_2_01_010_fan_out_error_fields_accessible() {
         },
     };
 
-    #[allow(deprecated)]
-    let _ = assert_eq!(err.client_id, "acme");
+    assert_eq!(err.client_id, "acme");
     assert_eq!(err.sensor_id, SensorId::from("crowdstrike"));
     assert_eq!(err.retry_metadata.attempts, 3);
     assert_eq!(err.retry_metadata.last_error_code, "503");
@@ -138,7 +141,6 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
 async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() {
     use std::sync::Arc;
 
-    use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
 
     use crate::{

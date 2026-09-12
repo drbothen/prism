@@ -691,12 +691,12 @@ fn render_template(template: &str, substitutions: &[(&str, &str)]) -> String {
 ///
 /// Panics if no matching error is found — the caller asserts code presence
 /// before calling this helper.
-fn extract_spec_message<'a>(errors: &'a [PrismError], expected_code: SpecErrorCode) -> &'a str {
+fn extract_spec_message(errors: &[PrismError], expected_code: SpecErrorCode) -> &str {
     for e in errors {
-        if let PrismError::Spec(se) = e {
-            if se.code == expected_code {
-                return &se.message;
-            }
+        if let PrismError::Spec(se) = e
+            && se.code == expected_code
+        {
+            return &se.message;
         }
     }
     panic!(
@@ -793,7 +793,7 @@ base_url    = "https://example.com"
         );
 
         // AC-005 byte-compare: rendered taxonomy template == production SpecError::message.
-        let template_019 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-019")
+        let template_019 = parse_taxonomy_template(taxonomy_content, "E-SPEC-019")
             .expect("E-SPEC-019 row must exist in error-taxonomy.md (POL-25 safety net)");
         let expected_019 = render_template(
             &template_019,
@@ -846,7 +846,7 @@ base_url    = "https://armis.example.com"
         );
 
         // AC-005 byte-compare.
-        let template_020 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-020")
+        let template_020 = parse_taxonomy_template(taxonomy_content, "E-SPEC-020")
             .expect("E-SPEC-020 row must exist in error-taxonomy.md (POL-25 safety net)");
         let expected_020 = render_template(
             &template_020,
@@ -906,7 +906,7 @@ ocsf_class = "device_inventory_info"
         );
 
         // AC-005 byte-compare.
-        let template_021 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-021")
+        let template_021 = parse_taxonomy_template(taxonomy_content, "E-SPEC-021")
             .expect("E-SPEC-021 row must exist in error-taxonomy.md (POL-25 safety net)");
         let expected_021 = render_template(
             &template_021,
@@ -975,7 +975,7 @@ base_url    = "https://armis.stale.io"
         // the literal first occurrence of {slug} surrounded by 'customers/' and '/'.
         // We substitute both {slug} occurrences with the bare slug value to reconstruct
         // the same interpolation the production code performs.
-        let template_022 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-022")
+        let template_022 = parse_taxonomy_template(taxonomy_content, "E-SPEC-022")
             .expect("E-SPEC-022 row must exist in error-taxonomy.md (POL-25 safety net)");
         let expected_022 = render_template(&template_022, &[("slug", slug)]);
         // Verify the rendered template matches the customers_dir_name the code uses.
@@ -1035,7 +1035,7 @@ secret_key  = "s3cr3t"
         );
 
         // AC-005 byte-compare.
-        let template_023 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-023")
+        let template_023 = parse_taxonomy_template(taxonomy_content, "E-SPEC-023")
             .expect("E-SPEC-023 row must exist in error-taxonomy.md (POL-25 safety net)");
         let expected_023 =
             render_template(&template_023, &[("file", file), ("field_name", field_name)]);
@@ -1699,7 +1699,7 @@ fn test_BC_2_06_012_backcompat_no_customers_dir_uses_type_spec_only() {
 /// Uses the fixture files at:
 /// - `crates/prism-sensors/specs/customers/acme/armis.sensor.toml`
 /// - `crates/prism-sensors/specs/customers/contoso/armis.sensor.toml`
-/// (content is also written inline for test isolation via tempdir)
+///   (content is also written inline for test isolation via tempdir)
 ///
 /// RED GATE: Panics with "not yet implemented".
 #[test]

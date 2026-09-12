@@ -744,10 +744,12 @@ fn test_bc_3_4_002_ac_007_vp_114_schema_validation_gated_cfg_test() {
     // Reaching this test proves the fixture-gen feature gate is active.
     // The schema_validation module is gated #[cfg(test)] inside generator.rs.
     // CI `cargo build --release` + grep enforces VP-114 statically.
-    assert!(
-        cfg!(feature = "fixture-gen"),
-        "VP-114: this test must only run under the fixture-gen feature"
-    );
+    const {
+        assert!(
+            cfg!(feature = "fixture-gen"),
+            "VP-114: this test must only run under the fixture-gen feature"
+        )
+    };
 }
 
 // ---------------------------------------------------------------------------

@@ -575,33 +575,32 @@ mod tests {
         );
     }
 
-    /// RG-011 / AC-008 / BC-2.16.003 §Path-B Integer+Object coercion gap (EC-016-013-030)
-    ///
-    /// `ColumnMapper::coerce_value` with `column_type = ColumnType::Integer` and a
-    /// `Value::Object` input MUST return `Err(CoercionWarning)` — symmetric with the
-    /// String-branch `Value::Object` handling added in AC-002 (`coerce_value` with
-    /// `column_type = ColumnType::String` + `Value::Object`).
-    ///
-    /// **Red gate:** Current code has no explicit `Value::Object` arm in the Integer
-    /// branch.  The Integer+String block (`if column.column_type == ColumnType::Integer &&
-    /// let Value::String(s) = value`) does not match `Value::Object`, and the subsequent
-    /// `is_numeric_ocsf_field` block only acts on `Value::String`.  `Value::Object` falls
-    /// through to the final `Ok(value.clone())` pass-through at the bottom of
-    /// `coerce_value`.  The test asserts `Err(CoercionWarning)` but receives `Ok(Object)`.
-    ///
-    /// This is a pure return-value assertion (no tracing capture needed for RG-011 itself
-    /// — Path B emits the warn via `map_record` at demotion time, not inside
-    /// `coerce_value`).
-    ///
-    /// Covers AC-008 Path B.
-    ///
-    /// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B
-    /// (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live
-    /// production callers per ADR-058 §K5.  This test is intentionally defense-in-depth /
-    /// forward-compat per SAP-3 rule 2/3.  The equivalent LIVE coverage on Path A is
-    /// RG-010 (`build_column_array` Integer+Object → null+warn) in `spec_driven_adapter.rs`.
+    // /// RG-011 / AC-008 / BC-2.16.003 §Path-B Integer+Object coercion gap (EC-016-013-030)
+    // ///
+    // /// `ColumnMapper::coerce_value` with `column_type = ColumnType::Integer` and a
+    // /// `Value::Object` input MUST return `Err(CoercionWarning)` — symmetric with the
+    // /// String-branch `Value::Object` handling added in AC-002 (`coerce_value` with
+    // /// `column_type = ColumnType::String` + `Value::Object`).
+    // ///
+    // /// **Red gate:** Current code has no explicit `Value::Object` arm in the Integer
+    // /// branch.  The Integer+String block (`if column.column_type == ColumnType::Integer &&
+    // /// let Value::String(s) = value`) does not match `Value::Object`, and the subsequent
+    // /// `is_numeric_ocsf_field` block only acts on `Value::String`.  `Value::Object` falls
+    // /// through to the final `Ok(value.clone())` pass-through at the bottom of
+    // /// `coerce_value`.  The test asserts `Err(CoercionWarning)` but receives `Ok(Object)`.
+    // ///
+    // /// This is a pure return-value assertion (no tracing capture needed for RG-011 itself
+    // /// — Path B emits the warn via `map_record` at demotion time, not inside
+    // /// `coerce_value`).
+    // ///
+    // /// Covers AC-008 Path B.
+    // ///
+    // /// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B
+    // /// (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live
+    // /// production callers per ADR-058 §K5.  This test is intentionally defense-in-depth /
+    // /// forward-compat per SAP-3 rule 2/3.  The equivalent LIVE coverage on Path A is
+    // /// RG-010 (`build_column_array` Integer+Object → null+warn) in `spec_driven_adapter.rs`.
     // ── S-ADR058-OCSF-ROUTING-001 Red Gate Tests ───────────────────────────────
-
     /// RG-003 / AC-002 / ADR-058 §C2 Option 4 / BC-2.16.003 §Column Routing
     ///
     /// `ocsf_field_to_arrow_name` MUST replace every `.` in an OCSF field path with `_`.
