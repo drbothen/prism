@@ -78,6 +78,11 @@ install_if_missing cargo-mutants
 install_if_missing cargo-fuzz
 install_if_missing cargo-llvm-cov
 
+# cargo-nextest is the test runner `just check` and CI both invoke, and it is not
+# interchangeable with `cargo test`: nextest runs each test in its own process, so
+# suites that share global state pass under it and fail under cargo test.
+install_if_missing cargo-nextest
+
 # kani-verifier installs as `kani` on PATH but the package is kani-verifier
 install_if_missing kani kani-verifier
 
