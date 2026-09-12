@@ -26,7 +26,7 @@ test:
 # for rationale + measured savings.
 check:
     cargo fmt --check
-    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features --all-targets -- -D warnings
     RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
     RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
@@ -54,7 +54,7 @@ iter crate test_filter='':
 # edit → `just check-fast` → `just check` dev loop reuses clippy artifacts instead
 # of re-checking. See story S-PERF-GATE-006 for full rationale.
 check-fast:
-    RUSTFLAGS="" cargo clippy --all-features -- -D warnings
+    RUSTFLAGS="" cargo clippy --all-features --all-targets -- -D warnings
 
 # Generate a build-timings report for diagnostics. Outputs HTML at
 # target/cargo-timings/cargo-timing.html. See research sidecar §7 for
@@ -70,7 +70,7 @@ timings:
 # nextest runs under the default profile and silently skips those overrides.
 check-ci:
     cargo fmt --check
-    cargo clippy --all-features -- -D warnings
+    cargo clippy --all-features --all-targets -- -D warnings
     cargo nextest run --workspace --all-features --no-fail-fast --profile ci
     cargo test --workspace --all-features --doc
     cargo deny check
