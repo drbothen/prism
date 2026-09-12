@@ -82,10 +82,8 @@ pub async fn list_alerts(
 
     // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
     #[allow(clippy::expect_used)]
-    let raw = prism_dtu_common::embedded_fixture(
-        include_str!("../../fixtures/alerts.json"),
-        "alerts",
-    );
+    let raw =
+        prism_dtu_common::embedded_fixture(include_str!("../../fixtures/alerts.json"), "alerts");
     // SAFETY: fixture content is a well-formed JSON array validated at CI time.
     #[allow(clippy::expect_used)]
     let alerts = raw
