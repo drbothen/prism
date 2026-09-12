@@ -29,8 +29,10 @@ use crate::{
 fn load_devices_fixture() -> Vec<Value> {
     // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
     #[allow(clippy::expect_used)]
-    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "devices")
-        .expect("fixtures/devices.json must exist");
+    let raw = prism_dtu_common::embedded_fixture(
+        include_str!("../../fixtures/devices.json"),
+        "devices",
+    );
     // SAFETY: fixture content is a well-formed JSON array validated at CI time.
     #[allow(clippy::expect_used)]
     raw.as_array()

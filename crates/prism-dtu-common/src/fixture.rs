@@ -27,6 +27,29 @@ pub fn load_fixture(crate_dir: &str, name: &str) -> anyhow::Result<serde_json::V
         .map_err(|e| anyhow::anyhow!("failed to parse fixture '{}': {e}", path.display()))
 }
 
+/// Parse a fixture that was embedded at compile time with [`include_str!`].
+///
+/// This is the relocatable counterpart to [`load_fixture`]. `load_fixture`
+/// resolves `CARGO_MANIFEST_DIR` at *runtime*, so a binary built on one machine
+/// looks for fixtures at that machine's absolute path and fails to construct its
+/// clones anywhere else. Embedding the bytes with `include_str!` at the call site
+/// and parsing them here keeps the fixture in the binary, which is what lets a
+/// clone run from a container or any checkout-free host.
+///
+/// `name` is used only for the panic message.
+///
+/// # Panics
+///
+/// Panics if `raw` is not valid JSON. The fixture is compiled in, so a parse
+/// failure means a corrupt build artifact rather than a runtime condition, and
+/// failing at startup is the correct behaviour.
+#[must_use]
+#[allow(clippy::expect_used)]
+pub fn embedded_fixture(raw: &str, name: &str) -> serde_json::Value {
+    serde_json::from_str(raw)
+        .unwrap_or_else(|e| panic!("embedded fixture '{name}' is not valid JSON: {e}"))
+}
+
 /// Load and deserialize a fixture file into a concrete type `T`.
 ///
 /// `crate_dir` should be `env!("CARGO_MANIFEST_DIR")` at the call site.

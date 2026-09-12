@@ -50,7 +50,7 @@ pub use config::{DtuMode, FailureMode, StubConfig};
 #[cfg(any(test, feature = "dtu"))]
 pub use fidelity::{FidelityCheck, FidelityFailure, FidelityReport, FidelityValidator};
 #[cfg(any(test, feature = "dtu"))]
-pub use fixture::{load_fixture, load_fixture_as};
+pub use fixture::{embedded_fixture, load_fixture, load_fixture_as};
 // Re-export generator types under `fixture-gen`. `seeded_rng` is aliased to
 // `gen_seeded_rng` to avoid a name collision with `seed::seeded_rng` (available
 // under `dtu`). If both features are enabled simultaneously, the two symbols
