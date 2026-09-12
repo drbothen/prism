@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Behaviour of the compile-time-embedded fixture parsers (#285, #286).
 //!
 //! The distinction that matters to callers: `embedded_fixture` panics, matching the

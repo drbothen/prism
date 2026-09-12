@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Audit gate for #285: DTU clones must not read fixtures from `CARGO_MANIFEST_DIR`
 //! at runtime.
 //!
@@ -57,9 +58,7 @@ fn strip_cfg_test_modules(content: &str) -> String {
                     k += 1;
                 }
                 let end = k.min(lines.len().saturating_sub(1));
-                for _ in i..=end {
-                    out.push("");
-                }
+                out.extend(std::iter::repeat_n("", end - i + 1));
                 i = end + 1;
                 continue;
             }
