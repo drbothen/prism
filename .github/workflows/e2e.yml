@@ -130,7 +130,7 @@ jobs:
       # Cache is keyed separately from the main `test` job so a change to e2e tests
       # does not invalidate the shared test-ubuntu-linux-gnu cache namespace.
       - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           shared-key: e2e-ubuntu-linux-gnu
