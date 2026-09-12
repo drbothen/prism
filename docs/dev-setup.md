@@ -11,6 +11,18 @@ just setup
 This script is idempotent and installs all required toolchain extensions (cargo-audit,
 cargo-deny, cargo-semver-checks, cargo-llvm-cov, etc.).
 
+It also installs **protoc**, which is required and is the only prerequisite that is
+not a cargo install. `crates/prism-ocsf`'s build script shells out to it through
+prost-build, and because that crate sits early in the dependency graph, a missing
+protoc aborts every workspace-wide cargo command in the build script, including ones
+that have nothing to do with OCSF. `rustup` must already be present; everything else
+the script handles.
+
+If your platform has no supported package manager (the script covers brew, apt-get,
+dnf, pacman and apk) install protoc from the
+[protobuf releases](https://github.com/protocolbuffers/protobuf/releases), or point
+the build at an existing copy with `export PROTOC=/path/to/protoc`.
+
 ---
 
 ## Pre-push gate (fast local check)
