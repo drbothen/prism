@@ -1,3 +1,11 @@
 # Lint levels go in [workspace.lints.clippy] in root Cargo.toml, not here.
 cognitive-complexity-threshold = 30
 too-many-arguments-threshold = 8
+
+# unwrap()/expect() are denied workspace-wide (see [workspace.lints] in Cargo.toml)
+# because a panic in production is a defect. Test assertions are the opposite case:
+# unwrapping IS the assertion, and a panic is the reported failure. Clippy scopes the
+# exemption to test code for us, which is why 224 test files no longer need to repeat
+# `#![allow(clippy::unwrap_used, clippy::expect_used)]` by hand.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
