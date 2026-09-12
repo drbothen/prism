@@ -105,7 +105,7 @@ jobs:
       # 1. Checkout — full history required for merge + tag operations       #
       # ------------------------------------------------------------------ #
       - name: Checkout full history
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history: needed so git can walk both develop and main roots
           # for --allow-unrelated-histories.
@@ -308,7 +308,7 @@ jobs:
       # 1. Checkout — full history required for merge + tag operations       #
       # ------------------------------------------------------------------ #
       - name: Checkout full history
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PROMOTE_TOKEN }}

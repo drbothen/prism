@@ -15,7 +15,7 @@ jobs:
     name: Workspace crate layout (ADR-012)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # TODO(S-3.5.01 implementer): install `just` if not present in runner image,
       # or call the script directly: bash scripts/check-crate-layout.sh
       - name: Install just
